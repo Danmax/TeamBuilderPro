@@ -1900,6 +1900,7 @@ function renderLobby() {
   return `
     <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:8px;">
       <button class="btn-secondary" data-action="edit-profile">✏️ Edit Profile</button>
+      <button class="btn-secondary" data-action="leave-session">🚪 Leave Session</button>
       ${isHost ? '<button class="btn-secondary" data-action="open-host-settings">⚙️ Host Settings</button>' : ''}
     </div>
 
@@ -2256,6 +2257,47 @@ async function joinRoom() {
   APP.screen = 'lobby';
   
   startRoomSync();
+  render();
+}
+
+async function leaveSession() {
+  if (!APP.roomCode || !APP.player?.name) {
+    APP.room = null;
+    APP.roomCode = null;
+    APP.showHostSettings = false;
+    APP.screen = 'dashboard';
+    stopRoomSync();
+    render();
+    return;
+  }
+
+  const confirmed = window.confirm('Leave this session?');
+  if (!confirmed) return;
+
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (room) {
+    room.participants = (room.participants || []).filter(p => p.name !== APP.player.name);
+    if (room.participants.length > 0) {
+      if (room.host === APP.player.name) {
+        room.host = room.participants[0].name;
+      }
+      room.participants = room.participants.map(p => ({
+        ...p,
+        isHost: p.name === room.host
+      }));
+    } else {
+      room.host = null;
+      room.currentActivity = null;
+      room.activityState = {};
+    }
+    await RoomManager.updateRoom(APP.roomCode, room);
+  }
+
+  stopRoomSync();
+  APP.room = null;
+  APP.roomCode = null;
+  APP.showHostSettings = false;
+  APP.screen = 'dashboard';
   render();
 }
 
@@ -2772,6 +2814,9 @@ document.addEventListener('click', async (event) => {
     case 'join-room':
       await joinRoom();
       break;
+    case 'leave-session':
+      await leaveSession();
+      break;
     case 'start-lightning-trivia':
       await startLightningTrivia();
       break;
@@ -2854,15 +2899,21 @@ document.addEventListener('click', async (event) => {
 
 function renderActivity() {
   const activity = APP.room.currentActivity;
-  
-  if (activity === 'lightning-trivia') return renderLightningTrivia();
-  if (activity === 'icebreaker') return renderIcebreaker();
-  if (activity === 'pulse-check') return renderPulseCheck();
-  if (activity === 'values-vote') return renderValuesVote();
-  if (activity === 'wordle') return renderWordle();
-  if (activity === 'regular-trivia') return renderRegularTrivia();
-  
-  return '<div>Activity loading...</div>';
+  let content = '<div>Activity loading...</div>';
+
+  if (activity === 'lightning-trivia') content = renderLightningTrivia();
+  else if (activity === 'icebreaker') content = renderIcebreaker();
+  else if (activity === 'pulse-check') content = renderPulseCheck();
+  else if (activity === 'values-vote') content = renderValuesVote();
+  else if (activity === 'wordle') content = renderWordle();
+  else if (activity === 'regular-trivia') content = renderRegularTrivia();
+
+  return `
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:8px;">
+      <button class="btn-secondary" data-action="leave-session">🚪 Leave Session</button>
+    </div>
+    ${content}
+  `;
 }
 
 async function submitIcebreakerAnswer() {
