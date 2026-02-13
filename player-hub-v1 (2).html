@@ -1,0 +1,3345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Player Hub - Team Building & Games Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;800&family=Outfit:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #07070d;
+    --surface: rgba(255,255,255,0.035);
+    --surface-solid: #111118;
+    --surface-2: rgba(255,255,255,0.06);
+    --border: rgba(255,255,255,0.07);
+    --border-hover: rgba(255,255,255,0.14);
+    --text: #ece9e1;
+    --text-dim: #7d7a8a;
+    --text-mid: #a9a6b5;
+    --accent: #00d2d3;
+    --accent-2: #c56cf0;
+    --success: #00d26a;
+    --warning: #feca57;
+    --danger: #ff4060;
+    --radius: 20px;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .atmosphere {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  }
+  .atmosphere .mesh {
+    position: absolute; border-radius: 50%; filter: blur(140px); opacity: 0.1;
+    animation: drift 25s ease-in-out infinite;
+  }
+  .atmosphere .mesh:nth-child(1) { width: 600px; height: 600px; background: var(--accent); top: -15%; left: -10%; }
+  .atmosphere .mesh:nth-child(2) { width: 500px; height: 500px; background: var(--accent-2); bottom: -15%; right: -10%; animation-delay: -9s; }
+  .atmosphere .mesh:nth-child(3) { width: 400px; height: 400px; background: var(--warning); top: 50%; left: 40%; animation-delay: -16s; opacity: 0.06; }
+  
+  @keyframes drift {
+    0%,100% { transform: translate(0,0) scale(1); }
+    25% { transform: translate(40px,-30px) scale(1.08); }
+    50% { transform: translate(-20px,40px) scale(0.95); }
+    75% { transform: translate(30px,20px) scale(1.03); }
+  }
+
+  .grain {
+    position: fixed; inset: 0; z-index: 9998; pointer-events: none; opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  #particles { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+  .app {
+    position: relative; z-index: 1;
+    max-width: 1200px; margin: 0 auto; padding: 20px;
+    min-height: 100vh;
+  }
+
+  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+  @keyframes shimmer { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
+  @keyframes pulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.05); } }
+
+  .header {
+    text-align: center; padding: 40px 0 30px;
+  }
+
+  .logo {
+    font-family: 'Fraunces', serif; font-weight: 800;
+    font-size: clamp(2.5rem, 6vw, 3.5rem); line-height: 1;
+    background: linear-gradient(135deg, var(--text) 0%, var(--warning) 40%, var(--accent) 70%, var(--accent-2) 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    animation: shimmer 6s linear infinite;
+    margin-bottom: 10px;
+  }
+
+  .tagline {
+    color: var(--text-dim); font-size: 1rem;
+  }
+
+  .player-card {
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 30px;
+    margin-bottom: 30px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .avatar-circle {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: grid;
+    place-items: center;
+    font-size: 2.5rem;
+    flex-shrink: 0;
+  }
+
+  .player-info {
+    flex: 1;
+  }
+
+  .player-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+  }
+
+  .player-stats {
+    display: flex;
+    gap: 20px;
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+
+  .stat {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .level-badge {
+    background: var(--accent);
+    color: var(--bg);
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 0.9rem;
+  }
+
+  .btn-primary {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: var(--bg);
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0,210,211,0.2);
+  }
+
+  .btn-secondary {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--accent);
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin: 30px 0;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 30px;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-align: center;
+  }
+  
+  .tile-btn {
+    font: inherit;
+    color: inherit;
+    text-align: inherit;
+    background: none;
+  }
+
+  button.card,
+  button.kahoot-answer,
+  button.tile-btn {
+    font-family: 'Outfit', sans-serif;
+  }
+
+  button.card {
+    width: 100%;
+  }
+
+  button.card:focus-visible,
+  button.kahoot-answer:focus-visible,
+  button.tile-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  button[data-action="select-avatar"]:hover,
+  button[data-action="select-edit-avatar"]:hover {
+    border-color: var(--accent) !important;
+  }
+
+  button[data-action="select-avatar"].selected,
+  button[data-action="select-edit-avatar"].selected {
+    border-color: var(--accent) !important;
+  }
+
+  .tile-btn:hover:not(:disabled) {
+    border-color: var(--border-hover) !important;
+    transform: translateY(-2px);
+  }
+
+  .tile-btn:disabled:hover {
+    transform: none;
+  }
+
+  .card:hover {
+    border-color: var(--accent);
+    transform: translateY(-4px);
+  }
+
+  .card-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+  }
+
+  .card-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  .card-desc {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+
+  .form-container {
+    max-width: 500px;
+    margin: 0 auto;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 40px;
+  }
+
+  .form-group {
+    margin-bottom: 20px;
+  }
+
+  .form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  .form-input {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-family: 'Outfit', sans-serif;
+    outline: none;
+  }
+
+  .form-input:focus {
+    border-color: var(--accent);
+  }
+
+  .presentation-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.3s;
+  }
+
+  .presentation-toggle:hover {
+    border-color: var(--accent);
+  }
+
+  .presentation-mode .app {
+    max-width: 100%;
+    padding: 40px;
+  }
+
+  .presentation-mode .logo {
+    font-size: 4rem;
+  }
+
+  .presentation-mode .question-text {
+    font-size: 3rem;
+  }
+
+  .kahoot-timer {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 30px;
+    position: relative;
+  }
+
+  .timer-circle {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+
+  .timer-bg {
+    fill: none;
+    stroke: var(--surface-2);
+    stroke-width: 10;
+  }
+
+  .timer-progress {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 10;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.1s linear;
+  }
+
+  .timer-progress.warning {
+    stroke: var(--danger);
+  }
+
+  .timer-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2rem;
+    font-weight: 700;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .kahoot-answer {
+    padding: 24px;
+    border-radius: 16px;
+    border: 3px solid;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .kahoot-answer:active:not(.disabled) {
+    transform: scale(0.97);
+  }
+
+  .kahoot-answer.disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .kahoot-answer.selected {
+    transform: scale(0.95);
+  }
+
+  .kahoot-selected-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--success);
+    color: var(--bg);
+    display: grid;
+    place-items: center;
+    font-size: 0.95rem;
+    font-weight: 700;
+    box-shadow: 0 4px 14px rgba(0, 210, 106, 0.35);
+  }
+
+  .kahoot-answer.correct {
+    background: var(--success);
+    border-color: var(--success);
+    animation: pulse 0.5s ease-in-out;
+  }
+
+  .kahoot-answer.wrong {
+    opacity: 0.3;
+  }
+
+  .kahoot-red { background: #e21b3c; border-color: #e21b3c; color: white; }
+  .kahoot-blue { background: #1368ce; border-color: #1368ce; color: white; }
+  .kahoot-yellow { background: #d89e00; border-color: #d89e00; color: white; }
+  .kahoot-green { background: #26890c; border-color: #26890c; color: white; }
+
+  .podium {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 20px;
+    margin: 40px 0;
+  }
+
+  .podium-place {
+    background: var(--surface-solid);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+    min-width: 120px;
+  }
+
+  .podium-place.first {
+    border-color: #ffd700;
+    transform: translateY(-20px);
+  }
+
+  .podium-place.second {
+    border-color: #c0c0c0;
+  }
+
+  .podium-place.third {
+    border-color: #cd7f32;
+  }
+
+  .podium-medal {
+    font-size: 3rem;
+    margin-bottom: 10px;
+  }
+
+  .wordle-grid {
+    display: grid;
+    gap: 8px;
+    max-width: 350px;
+    margin: 30px auto;
+  }
+
+  .wordle-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+  }
+
+  .wordle-cell {
+    width: 60px;
+    height: 60px;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    display: grid;
+    place-items: center;
+    font-size: 2rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: var(--surface-2);
+  }
+
+  .wordle-cell.correct {
+    background: var(--success);
+    border-color: var(--success);
+    color: var(--bg);
+  }
+
+  .wordle-cell.present {
+    background: var(--warning);
+    border-color: var(--warning);
+    color: var(--bg);
+  }
+
+  .wordle-cell.absent {
+    background: var(--surface);
+    opacity: 0.5;
+  }
+
+  .key-btn {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface-2);
+    color: var(--text);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 14px 10px;
+    min-width: 40px;
+    transition: all 0.2s;
+  }
+
+  .key-btn:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .key-btn.wide {
+    padding: 14px 20px;
+    min-width: 80px;
+  }
+
+  .key-btn.correct { background: var(--success); border-color: var(--success); }
+  .key-btn.present { background: var(--warning); border-color: var(--warning); }
+  .key-btn.absent { opacity: 0.3; }
+
+  .reaction-bar {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 16px;
+  }
+
+  .reaction-btn {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: transform 0.12s ease, border-color 0.2s ease;
+  }
+
+  .reaction-btn:hover {
+    border-color: var(--accent);
+  }
+
+  .reaction-btn:active {
+    transform: scale(0.92);
+  }
+
+  .reaction-stream {
+    min-height: 36px;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  .reaction-pill {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 10px;
+    animation: riseFade 2.2s ease forwards;
+  }
+
+  @keyframes riseFade {
+    from { opacity: 0; transform: translateY(8px); }
+    20% { opacity: 1; }
+    to { opacity: 0; transform: translateY(-8px); }
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  @media (max-width: 768px) {
+    .grid-2 {
+      grid-template-columns: 1fr;
+    }
+    
+    .kahoot-answer {
+      padding: 18px;
+      font-size: 1rem;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="atmosphere"><div class="mesh"></div><div class="mesh"></div><div class="mesh"></div></div>
+<div class="grain"></div>
+<canvas id="particles"></canvas>
+
+<div class="app" id="app"></div>
+
+<script src="https://cdn.socket.io/4.8.1/socket.io.min.js" crossorigin="anonymous"></script>
+<script>
+// Particle system
+const canvas = document.getElementById('particles');
+const ctx = canvas.getContext('2d');
+let particles = [];
+function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+for (let i = 0; i < 40; i++) {
+  particles.push({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    vx: (Math.random() - 0.5) * 0.3,
+    vy: (Math.random() - 0.5) * 0.3,
+    r: Math.random() * 1.5 + 0.3,
+    a: Math.random() * 0.3 + 0.05
+  });
+}
+function drawParticles() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy;
+    if (p.x < 0) p.x = canvas.width;
+    if (p.x > canvas.width) p.x = 0;
+    if (p.y < 0) p.y = canvas.height;
+    if (p.y > canvas.height) p.y = 0;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${p.a})`;
+    ctx.fill();
+  });
+  requestAnimationFrame(drawParticles);
+}
+drawParticles();
+
+const AVATAR_OPTIONS = [
+  '😀','😎','🤓','🧠','🚀','🔥','⚡','💡','🎯','🏆',
+  '👨‍💼','👩‍💼','🧑‍💻','👨‍🎨','👩‍🔬','🧑‍🚀',
+  '👨‍🏫','👩‍⚕️','🧑‍🍳','👨‍🌾','👩‍🎤','🧑‍✈️',
+  '👨‍🎓','👩‍🚒','🧑‍⚖️','👨‍🔧','🧑‍🔬','🧑‍🏫',
+  '🧑‍🚒','🧑‍🎨','🧑‍⚕️','🧑‍🔧','🧑‍💼','🧑‍🌾',
+  '🐼','🦊','🐯','🦁','🐸','🦄','🐙','🐧','🐨','🦉',
+  '🍕','🍩','🍟','☕','🎮','🎧','📚','🧩','🌟','🎉'
+];
+
+const LIGHTNING_REACTIONS = ['👍','👏','🔥','😄','🤯','🎉','⚡','💯'];
+
+function safeParseJson(value) {
+  try {
+    return JSON.parse(value);
+  } catch (e) {
+    console.error('Invalid JSON payload:', e.message);
+    return null;
+  }
+}
+
+function normalizeName(name) {
+  return name.replace(/\s+/g, ' ').trim().slice(0, 32);
+}
+
+function normalizeWord(word) {
+  return (word || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5);
+}
+
+function normalizeEmoji(value) {
+  return String(value || '').trim().slice(0, 8);
+}
+
+function normalizeTopic(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+}
+
+function normalizeTriviaOption(value) {
+  const raw = String(value || '').trim();
+  return raw
+    .replace(/^\s*[A-D]\s*[:\)\.\-]\s*/i, '')
+    .replace(/^\s*[A-D]\s+/i, '')
+    .trim();
+}
+
+function normalizeAnswerIndex(value) {
+  if (typeof value === 'number' && Number.isInteger(value)) return value;
+  const text = String(value || '').trim().toUpperCase();
+  const asNumber = Number.parseInt(text, 10);
+  if (!Number.isNaN(asNumber)) return asNumber;
+  if (/^[A-D]$/.test(text)) return text.charCodeAt(0) - 65;
+  return Number.NaN;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function extractFirstJson(text) {
+  if (!text) return null;
+  const trimmed = String(text).trim();
+  if (trimmed.startsWith('[') || trimmed.startsWith('{')) return trimmed;
+  const start = trimmed.indexOf('[');
+  const end = trimmed.lastIndexOf(']');
+  if (start >= 0 && end > start) return trimmed.slice(start, end + 1);
+  return null;
+}
+
+function validateAIQuestions(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .filter(item => item && typeof item === 'object')
+    .map(item => {
+      const q = String(item.q || '').trim();
+      const opts = Array.isArray(item.opts) ? item.opts.map(v => normalizeTriviaOption(v)) : [];
+      const ans = normalizeAnswerIndex(item.ans);
+      if (!q || opts.length !== 4 || opts.some(v => !v) || Number.isNaN(ans) || ans < 0 || ans > 3) return null;
+      return { q, opts, ans };
+    })
+    .filter(Boolean);
+}
+
+function buildShuffledQuestionOrder(total) {
+  const order = Array.from({ length: total }, (_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  return order;
+}
+
+function randomAlphaNum(length) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  if (!window.crypto?.getRandomValues) {
+    return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  }
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, b => chars[b % chars.length]).join('');
+}
+
+function getDefaultRoomHostSettings() {
+  return {
+    autoRevealLightning: true,
+    allowAnswerChanges: true,
+    dynamicScoring: true,
+    enableAIGenerator: true
+  };
+}
+
+function getRoomHostSettings(room) {
+  return { ...getDefaultRoomHostSettings(), ...(room?.hostSettings || {}) };
+}
+
+function getDefaultHostLocalConfig() {
+  return {
+    aiEndpoint: window.AI_QUESTION_ENDPOINT || 'https://api.openai.com/v1/chat/completions',
+    aiModel: window.AI_QUESTION_MODEL || 'gpt-4o-mini',
+    aiDefaultDifficulty: 'mixed',
+    aiDefaultCount: 8,
+    aiApiKey: localStorage.getItem('ai-question-api-key') || ''
+  };
+}
+
+function loadHostLocalConfig() {
+  const defaults = getDefaultHostLocalConfig();
+  const stored = safeParseJson(localStorage.getItem('host-local-config') || '');
+  if (!stored || typeof stored !== 'object') return defaults;
+  return { ...defaults, ...stored };
+}
+
+function saveHostLocalConfig(config) {
+  localStorage.setItem('host-local-config', JSON.stringify(config));
+}
+
+const SOCKET_SERVER_URL = window.SOCKET_SERVER_URL || localStorage.getItem('socket-server-url') || window.location.origin;
+let socketClient = null;
+let socketRealtimeBound = false;
+let socketRoomKey = null;
+
+// Configure these for cross-device realtime sync via Supabase.
+// You can also set window.SUPABASE_URL / window.SUPABASE_ANON_KEY before this script loads.
+const SUPABASE_URL = window.SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || '';
+
+let supabaseClient = null;
+
+function isSupabaseConfigured() {
+  return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase?.createClient);
+}
+
+function isValidSharedKey(key) {
+  return /^room:[A-Z0-9]{6}$/.test(key || '');
+}
+
+function isSocketConfigured() {
+  return Boolean(window.io);
+}
+
+function socketEmitAck(eventName, payload, timeoutMs = 1500) {
+  return new Promise((resolve, reject) => {
+    if (!socketClient || !socketClient.connected) {
+      reject(new Error('Socket unavailable'));
+      return;
+    }
+    const timeout = setTimeout(() => reject(new Error('Socket timeout')), timeoutMs);
+    socketClient.emit(eventName, payload, response => {
+      clearTimeout(timeout);
+      if (!response || response.ok === false) {
+        reject(new Error(response?.error || `Socket ${eventName} failed`));
+        return;
+      }
+      resolve(response);
+    });
+  });
+}
+
+function waitForSocketConnection(timeoutMs = 1200) {
+  return new Promise(resolve => {
+    if (!socketClient) {
+      resolve(false);
+      return;
+    }
+    if (socketClient.connected) {
+      resolve(true);
+      return;
+    }
+    const done = connected => {
+      clearTimeout(timer);
+      socketClient.off('connect', onConnect);
+      resolve(connected);
+    };
+    const onConnect = () => done(true);
+    const timer = setTimeout(() => done(false), timeoutMs);
+    socketClient.on('connect', onConnect);
+  });
+}
+
+async function getSocketClient() {
+  if (!isSocketConfigured()) return null;
+  if (!socketClient) {
+    socketClient = window.io(SOCKET_SERVER_URL, {
+      transports: ['websocket', 'polling']
+    });
+    socketClient.on('connect', () => {
+      if (APP.roomCode) {
+        socketRoomKey = `room:${APP.roomCode}`;
+        socketClient.emit('room:subscribe', socketRoomKey);
+        roomRealtimeEnabled = true;
+      }
+    });
+    socketClient.on('disconnect', () => {
+      roomRealtimeEnabled = false;
+    });
+  }
+  if (!socketRealtimeBound) {
+    socketClient.on('shared:update', payload => {
+      const key = payload?.key;
+      const value = payload?.value;
+      if (!key || key !== socketRoomKey || !APP.roomCode) return;
+      const room = safeParseJson(value);
+      if (room) {
+        APP.room = room;
+        roomRealtimeEnabled = true;
+        render();
+      }
+    });
+    socketRealtimeBound = true;
+  }
+  return socketClient;
+}
+
+async function getSupabaseClient() {
+  if (!isSupabaseConfigured()) return null;
+  if (!supabaseClient) {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+  return supabaseClient;
+}
+
+// Storage API wrapper
+const Storage = {
+  get: async function(key, shared = false) {
+    try {
+      if (shared) {
+        if (!isValidSharedKey(key)) return null;
+        const socket = await getSocketClient();
+        if (socket && (socket.connected || await waitForSocketConnection())) {
+          const response = await socketEmitAck('shared:get', { key });
+          return response.value === null || response.value === undefined ? null : { value: response.value };
+        }
+        const client = await getSupabaseClient();
+        if (client) {
+          const { data, error } = await client
+            .from('shared_state')
+            .select('value')
+            .eq('key', key)
+            .maybeSingle();
+          if (error) throw error;
+          return data ? { value: data.value } : null;
+        }
+      }
+      if (window.storage?.get) {
+        return await window.storage.get(key, shared);
+      }
+      const value = localStorage.getItem(key);
+      return value === null ? null : { value };
+    } catch (e) {
+      console.log('Storage get failed:', e.message);
+      return null;
+    }
+  },
+  set: async function(key, value, shared = false) {
+    try {
+      if (shared) {
+        if (!isValidSharedKey(key)) return null;
+        const socket = await getSocketClient();
+        if (socket && (socket.connected || await waitForSocketConnection())) {
+          await socketEmitAck('shared:set', { key, value });
+          return { key, value };
+        }
+        const client = await getSupabaseClient();
+        if (client) {
+          const { error } = await client
+            .from('shared_state')
+            .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+          if (error) throw error;
+          return { key, value };
+        }
+      }
+      if (window.storage?.set) {
+        return await window.storage.set(key, value, shared);
+      }
+      localStorage.setItem(key, value);
+      return { key, value };
+    } catch (e) {
+      console.error('Storage set failed:', e.message);
+      return null;
+    }
+  }
+};
+
+// Player Manager
+const PlayerManager = {
+  async createProfile(name, avatar) {
+    const profile = {
+      id: 'player-' + Date.now(),
+      name: normalizeName(name),
+      avatar: avatar,
+      level: 1,
+      xp: 0,
+      stats: {
+        gamesPlayed: 0,
+        activitiesCompleted: 0,
+        totalPoints: 0
+      },
+      badges: [],
+      created: Date.now()
+    };
+    
+    await Storage.set('player-profile', JSON.stringify(profile), false);
+    return profile;
+  },
+  
+  async loadProfile() {
+    const result = await Storage.get('player-profile', false);
+    return result ? safeParseJson(result.value) : null;
+  },
+  
+  async updateProfile(profile) {
+    await Storage.set('player-profile', JSON.stringify(profile), false);
+  },
+  
+  async awardXP(amount, reason) {
+    const profile = await this.loadProfile();
+    if (!profile) return;
+    
+    profile.xp += amount;
+    
+    // Level up logic
+    const xpForNextLevel = profile.level * 1000;
+    if (profile.xp >= xpForNextLevel) {
+      profile.level++;
+      profile.xp = profile.xp - xpForNextLevel;
+      console.log('🎉 Level up!', profile.level);
+      showLevelUp(profile.level);
+    }
+    
+    await this.updateProfile(profile);
+    return profile;
+  },
+  
+  async incrementGames() {
+    const profile = await this.loadProfile();
+    if (!profile) return;
+    
+    profile.stats.gamesPlayed = (profile.stats.gamesPlayed || 0) + 1;
+    await this.updateProfile(profile);
+  }
+};
+
+// Room Manager
+const RoomManager = {
+  generateCode() {
+    return randomAlphaNum(6);
+  },
+  
+  async createRoom(hostName, hostAvatar) {
+    const code = this.generateCode();
+    const room = {
+      code: code,
+      host: hostName,
+      participants: [{
+        name: hostName,
+        avatar: hostAvatar,
+        isHost: true,
+        ready: true
+      }],
+      currentActivity: null,
+      activityState: {},
+      hostSettings: getDefaultRoomHostSettings(),
+      created: Date.now(),
+      lastUpdate: Date.now()
+    };
+    
+    await Storage.set(`room:${code}`, JSON.stringify(room), true);
+    return room;
+  },
+  
+  async joinRoom(code, playerName, playerAvatar) {
+    const result = await Storage.get(`room:${code}`, true);
+    if (!result) return null;
+    
+    const room = safeParseJson(result.value);
+    if (!room) return null;
+    
+    if (!room.participants.find(p => p.name === playerName)) {
+      room.participants.push({
+        name: playerName,
+        avatar: playerAvatar,
+        isHost: false,
+        ready: true
+      });
+      room.lastUpdate = Date.now();
+      await Storage.set(`room:${code}`, JSON.stringify(room), true);
+    }
+    
+    return room;
+  },
+  
+  async loadRoom(code) {
+    const result = await Storage.get(`room:${code}`, true);
+    return result ? safeParseJson(result.value) : null;
+  },
+  
+  async updateRoom(code, room) {
+    room.lastUpdate = Date.now();
+    await Storage.set(`room:${code}`, JSON.stringify(room), true);
+  }
+};
+
+// App State
+const APP = {
+  screen: 'welcome',
+  player: null,
+  room: null,
+  roomCode: null,
+  presentationMode: false,
+  error: null,
+  currentActivity: null,
+  editingProfile: false,
+  showHostSettings: false,
+  aiGenerating: false,
+  aiStatus: null
+};
+
+const TRIVIA_BANK = [
+  { q: "What is the capital of France?", opts: ["London", "Paris", "Berlin", "Rome"], ans: 1 },
+  { q: "How many continents are there?", opts: ["5", "6", "7", "8"], ans: 2 },
+  { q: "What is the largest ocean?", opts: ["Atlantic", "Indian", "Arctic", "Pacific"], ans: 3 },
+  { q: "Which planet is closest to the Sun?", opts: ["Venus", "Mercury", "Mars", "Earth"], ans: 1 },
+  { q: "What is the chemical symbol for gold?", opts: ["Go", "Gd", "Au", "Ag"], ans: 2 },
+  { q: "How many hearts does an octopus have?", opts: ["One", "Two", "Three", "Four"], ans: 2 },
+  { q: "What year did World War II end?", opts: ["1943", "1944", "1945", "1946"], ans: 2 },
+  { q: "What is the smallest country?", opts: ["Monaco", "Vatican City", "San Marino", "Malta"], ans: 1 },
+  { q: "Which element has atomic number 1?", opts: ["Helium", "Hydrogen", "Oxygen", "Carbon"], ans: 1 },
+  { q: "How many strings does a guitar have?", opts: ["4", "5", "6", "7"], ans: 2 }
+];
+
+let HOST_LOCAL_CONFIG = loadHostLocalConfig();
+
+const ICEBREAKER_QUESTIONS = [
+  "If you could have dinner with anyone, living or dead, who would it be?",
+  "What's a skill you'd love to master?",
+  "What's your favorite way to spend a weekend?",
+  "If you could live anywhere for a year, where would you go?",
+  "What's the best advice you've ever received?",
+  "What's your go-to karaoke song?",
+  "What's something you're proud of that might surprise people?",
+  "If you could instantly become an expert in something, what would it be?",
+  "What's a book, movie, or show that changed your perspective?",
+  "What's your favorite childhood memory?",
+  "What's one small thing that always improves your day?",
+  "What's your most-used productivity hack?",
+  "What hobby would you pick up if time wasn't a constraint?",
+  "What's a place you'd love to visit next and why?",
+  "What's a recent win you had, big or small?",
+  "What's a food you could eat every week and not get bored?",
+  "What's one thing people often misunderstand about your role?",
+  "If your life had a theme song this week, what would it be?",
+  "What's a challenge you've overcome that shaped you?",
+  "What's your favorite way to recharge after a long day?",
+  "What's one app or tool you couldn't live without?",
+  "What was your first job, and what did it teach you?",
+  "If you could swap roles for a day with anyone, who and why?",
+  "What's your favorite tradition (family, cultural, or personal)?",
+  "What's a goal you're currently working toward?",
+  "What's your ideal remote-work setup?",
+  "What's one skill from outside work that helps you at work?",
+  "What's a random fun fact about you?",
+  "If you could mentor your younger self, what would you say?"
+];
+
+const PULSE_QUESTIONS = [
+  { q: "How energized are you feeling today?", opts: ["🔥 Super charged", "😊 Pretty good", "😐 Neutral", "😴 Need coffee"] },
+  { q: "What's our team's biggest strength?", opts: ["Communication", "Innovation", "Collaboration", "Problem-solving"] },
+  { q: "Ideal team lunch?", opts: ["🍕 Pizza", "🌮 Tacos", "🍝 Italian", "🍱 Sushi"] },
+  { q: "How clear are current priorities?", opts: ["Crystal clear", "Mostly clear", "Somewhat unclear", "Need alignment"] },
+  { q: "How manageable is workload this week?", opts: ["Very manageable", "Balanced", "A bit heavy", "Overloaded"] },
+  { q: "How confident are we in our sprint goals?", opts: ["Very confident", "Mostly confident", "Mixed", "Low confidence"] },
+  { q: "Biggest blocker right now?", opts: ["Dependencies", "Scope", "Time", "Communication"] },
+  { q: "How effective are our meetings lately?", opts: ["Very effective", "Mostly useful", "Could improve", "Too many meetings"] },
+  { q: "Team collaboration this week feels...", opts: ["Excellent", "Good", "Inconsistent", "Needs support"] },
+  { q: "How safe do you feel sharing concerns?", opts: ["Very safe", "Mostly safe", "Sometimes", "Not enough"] },
+  { q: "Current team morale?", opts: ["High", "Steady", "Mixed", "Low"] },
+  { q: "How well are we handling context switching?", opts: ["Great", "Okay", "Challenging", "Very hard"] },
+  { q: "How likely are we to hit our deadline?", opts: ["Very likely", "Likely", "Unsure", "At risk"] },
+  { q: "What should we prioritize improving first?", opts: ["Planning", "Execution", "Communication", "Quality"] },
+  { q: "How supported do you feel by teammates?", opts: ["Strongly supported", "Supported", "Somewhat", "Need more support"] },
+  { q: "How healthy is our feedback culture?", opts: ["Excellent", "Good", "Needs work", "Weak"] },
+  { q: "How often are we celebrating wins?", opts: ["Consistently", "Sometimes", "Rarely", "Almost never"] }
+];
+
+const TEAM_VALUES = [
+  { name: 'Innovation', icon: '💡' },
+  { name: 'Collaboration', icon: '🤝' },
+  { name: 'Integrity', icon: '✨' },
+  { name: 'Excellence', icon: '🎯' },
+  { name: 'Growth', icon: '🌱' },
+  { name: 'Balance', icon: '⚖️' },
+  { name: 'Creativity', icon: '🎨' },
+  { name: 'Trust', icon: '🛡️' },
+  { name: 'Planning', icon: '📋' }
+];
+
+const WORDLE_WORDS = [
+  'AGILE', 'BOOST', 'CLOUD', 'DEBUG', 'EMAIL', 'FOCUS', 'GRAPH', 'HABIT',
+  'INBOX', 'LEARN', 'MERIT', 'PIVOT', 'QUEST', 'REACH', 'SCALE', 'TRUST',
+  'UNITE', 'VALUE', 'WORTH', 'YIELD'
+];
+
+let syncInterval = null;
+let roomChannel = null;
+let roomRealtimeEnabled = false;
+let lightningAutoRevealPending = false;
+const ROOM_SYNC_MS = 300;
+
+// Activity Start Functions (must be before render functions)
+async function startLightningTrivia() {
+  lightningAutoRevealPending = false;
+  const room = { ...APP.room };
+  room.currentActivity = 'lightning-trivia';
+  room.activityState = {
+    currentQ: 0,
+    revealed: false,
+    answers: {},
+    scores: {},
+    lastPoints: {},
+    answerTimes: {},
+    reactions: [],
+    questionOrder: buildShuffledQuestionOrder(TRIVIA_BANK.length),
+    startTime: Date.now()
+  };
+  
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
+
+async function startIcebreaker() {
+  const room = { ...APP.room };
+  room.currentActivity = 'icebreaker';
+  const randomQ = ICEBREAKER_QUESTIONS[Math.floor(Math.random() * ICEBREAKER_QUESTIONS.length)];
+  room.activityState = {
+    currentQuestion: randomQ,
+    answers: {}
+  };
+  
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
+
+async function startPulseCheck() {
+  const room = { ...APP.room };
+  room.currentActivity = 'pulse-check';
+  const questionOrder = buildShuffledQuestionOrder(PULSE_QUESTIONS.length);
+  const selectedPollIndexes = questionOrder.slice(0, Math.min(5, PULSE_QUESTIONS.length));
+  room.activityState = {
+    currentPoll: 0,
+    selectedPollIndexes,
+    votes: {},
+    voteHistory: {},
+    showResults: false
+  };
+  
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
+
+async function startValuesVote() {
+  const room = { ...APP.room };
+  room.currentActivity = 'values-vote';
+  room.activityState = {
+    votes: {}
+  };
+  
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
+
+async function startWordle() {
+  const room = { ...APP.room };
+  room.currentActivity = 'wordle';
+  const word = WORDLE_WORDS[Math.floor(Math.random() * WORDLE_WORDS.length)];
+  room.activityState = {
+    targetWord: word,
+    guesses: [],
+    currentRow: 0,
+    gameOver: false,
+    answers: {}
+  };
+  
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
+
+async function startRegularTrivia() {
+  const room = { ...APP.room };
+  room.currentActivity = 'regular-trivia';
+  room.activityState = {
+    currentQ: 0,
+    revealed: false,
+    answers: {},
+    scores: {},
+    lastPoints: {},
+    answerTimes: {},
+    questionOrder: buildShuffledQuestionOrder(TRIVIA_BANK.length),
+    startTime: Date.now()
+  };
+  
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
+
+// Lightning Trivia Functions
+async function submitAnswer(optionIndex) {
+  const startTime = APP.room.activityState.startTime || Date.now();
+  const timeElapsed = (Date.now() - startTime) / 1000;
+  
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room.activityState.answers) room.activityState.answers = {};
+  if (!room.activityState.answerTimes) room.activityState.answerTimes = {};
+  
+  room.activityState.answers[APP.player.name] = optionIndex;
+  room.activityState.answerTimes[APP.player.name] = Math.min(timeElapsed, 20);
+  
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function sendLightningReaction(emoji) {
+  if (!emoji || APP.room?.currentActivity !== 'lightning-trivia') return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'lightning-trivia') return;
+
+  if (!room.activityState.reactions) room.activityState.reactions = [];
+  room.activityState.reactions.push({
+    emoji,
+    player: APP.player.name,
+    ts: Date.now()
+  });
+  room.activityState.reactions = room.activityState.reactions.slice(-25);
+
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function revealAnswer() {
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.activityState?.revealed) return;
+  room.activityState.revealed = true;
+  const hostSettings = getRoomHostSettings(room);
+  
+  const currentQ = room.activityState.currentQ;
+  const questionIndex = room.activityState.questionOrder?.[currentQ] ?? currentQ;
+  const question = TRIVIA_BANK[questionIndex];
+  const answers = room.activityState.answers || {};
+  const answerTimes = room.activityState.answerTimes || {};
+  
+  if (!room.activityState.scores) room.activityState.scores = {};
+  if (!room.activityState.lastPoints) room.activityState.lastPoints = {};
+  
+  Object.entries(answers).forEach(([playerName, ans]) => {
+    room.activityState.lastPoints[playerName] = 0;
+    
+    if (ans === question.ans) {
+      let points = 1000;
+      if (hostSettings.dynamicScoring) {
+        const timeUsed = answerTimes[playerName] || 20;
+        const timeRemaining = Math.max(0, 20 - timeUsed);
+        const timeRemainingRatio = timeRemaining / 20;
+        points = Math.round(1000 + (1000 * timeRemainingRatio)); // 1000..2000
+      }
+      
+      room.activityState.scores[playerName] = (room.activityState.scores[playerName] || 0) + points;
+      room.activityState.lastPoints[playerName] = points;
+    }
+  });
+  
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function nextQuestion() {
+  lightningAutoRevealPending = false;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  room.activityState.currentQ++;
+  room.activityState.revealed = false;
+  room.activityState.answers = {};
+  room.activityState.answerTimes = {};
+  room.activityState.reactions = [];
+  room.activityState.startTime = Date.now();
+  
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function endActivity() {
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  
+  // Award XP based on activity type
+  const activity = room.currentActivity;
+  let xpEarned = 0;
+  
+  if (activity === 'lightning-trivia' || activity === 'regular-trivia') {
+    const playerScore = room.activityState.scores?.[APP.player.name] || 0;
+    xpEarned = Math.round(playerScore / 10);
+  } else if (activity === 'icebreaker') {
+    xpEarned = 50; // Participation XP
+  } else if (activity === 'pulse-check') {
+    xpEarned = 30;
+  } else if (activity === 'values-vote') {
+    xpEarned = 40;
+  } else if (activity === 'wordle') {
+    const won = room.activityState.gameOver && room.activityState.guesses?.includes(room.activityState.targetWord);
+    xpEarned = won ? 100 : 50;
+  }
+  
+  if (xpEarned > 0) {
+    const updatedProfile = await PlayerManager.awardXP(xpEarned, activity);
+    if (updatedProfile) {
+      APP.player = updatedProfile;
+    }
+  }
+  
+  // Update activity completion stat
+  APP.player.stats.activitiesCompleted = (APP.player.stats.activitiesCompleted || 0) + 1;
+  await PlayerManager.updateProfile(APP.player);
+  
+  room.currentActivity = null;
+  room.activityState = {};
+  
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function playAgain() {
+  if (APP.room?.currentActivity === 'regular-trivia') {
+    await startRegularTrivia();
+    return;
+  }
+  await startLightningTrivia();
+}
+
+// Regular Trivia Functions
+async function submitRegularTriviaAnswer(optionIndex) {
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room.activityState.answers) room.activityState.answers = {};
+  if (!room.activityState.answerTimes) room.activityState.answerTimes = {};
+  
+  const startTime = room.activityState.startTime || Date.now();
+  const timeElapsed = (Date.now() - startTime) / 1000;
+  
+  room.activityState.answers[APP.player.name] = optionIndex;
+  room.activityState.answerTimes[APP.player.name] = Math.min(timeElapsed, 20);
+  
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function revealRegularAnswer() {
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.activityState.revealed) return;
+  room.activityState.revealed = true;
+  const hostSettings = getRoomHostSettings(room);
+  
+  const currentQ = room.activityState.currentQ || 0;
+  const questionIndex = room.activityState.questionOrder?.[currentQ] ?? currentQ;
+  const question = TRIVIA_BANK[questionIndex];
+  const answers = room.activityState.answers || {};
+  const answerTimes = room.activityState.answerTimes || {};
+  if (!room.activityState.scores) room.activityState.scores = {};
+  if (!room.activityState.lastPoints) room.activityState.lastPoints = {};
+  
+  // Award time-based points for correct answers (continuous scoring).
+  Object.entries(answers).forEach(([playerName, answer]) => {
+    let points = 0;
+    if (answer === question?.ans) {
+      if (hostSettings.dynamicScoring) {
+        const timeUsed = Math.min(answerTimes[playerName] ?? 20, 20);
+        const timeRemainingRatio = Math.max(0, (20 - timeUsed) / 20);
+        points = Math.round(500 + (500 * timeRemainingRatio)); // 500..1000
+      } else {
+        points = 500;
+      }
+    }
+    room.activityState.lastPoints[playerName] = points;
+    room.activityState.scores[playerName] = (room.activityState.scores[playerName] || 0) + points;
+  });
+  
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function nextRegularTrivia() {
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  room.activityState.currentQ++;
+  room.activityState.revealed = false;
+  room.activityState.answers = {};
+  room.activityState.answerTimes = {};
+  room.activityState.lastPoints = {};
+  room.activityState.startTime = Date.now();
+  
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+// Icebreaker Functions
+function render() {
+  const app = document.getElementById('app');
+  let html = '';
+
+  if (APP.editingProfile) html = renderEditProfile();
+  else if (APP.screen === 'welcome') html = renderWelcome();
+  else if (APP.screen === 'dashboard') html = renderDashboard();
+  else if (APP.screen === 'create-room') html = renderCreateRoom();
+  else if (APP.screen === 'join-room') html = renderJoinRoom();
+  else if (APP.screen === 'lobby') html = renderLobby();
+
+  if (APP.showHostSettings && APP.room && APP.room.host === APP.player?.name) {
+    html += renderHostSettingsModal();
+  }
+  
+  if (APP.error) {
+    const safeError = escapeHtml(APP.error);
+    html = `
+      <div style="position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999;
+        background:var(--surface-solid);border:2px solid var(--danger);border-radius:12px;
+        padding:16px 24px;box-shadow:0 8px 32px rgba(0,0,0,0.5);max-width:400px;">
+        <div role="alert" aria-live="assertive" aria-atomic="true" style="color:var(--danger);font-weight:600;text-align:center;">${safeError}</div>
+      </div>
+    ` + html;
+  }
+  
+  app.innerHTML = html;
+}
+
+function renderWelcome() {
+  return `
+    <div class="header">
+      <h1 class="logo">Player Hub</h1>
+      <p class="tagline">Team building, games, and challenges - all in one place</p>
+    </div>
+    
+    <div class="form-container">
+      <h2 style="font-family:'Fraunces',serif;font-size:1.8rem;text-align:center;margin-bottom:30px;">
+        Create Your Player Card
+      </h2>
+      
+      <div class="form-group">
+        <label class="form-label" for="playerName">Your Name</label>
+        <input type="text" id="playerName" class="form-input" placeholder="Enter your name" autocomplete="name">
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Choose Avatar</label>
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;">
+          ${AVATAR_OPTIONS.map(av => `
+            <button data-action="select-avatar" data-avatar="${av}" id="av-${av}" 
+              style="font-size:2rem;padding:10px;background:var(--surface-2);border:2px solid var(--border);
+              border-radius:10px;cursor:pointer;transition:all 0.3s;">
+              ${av}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+      
+      <button class="btn-primary" data-action="create-player">Continue</button>
+    </div>
+  `;
+}
+
+function renderDashboard() {
+  const safePlayerName = escapeHtml(APP.player.name);
+  return `
+    <div class="header">
+      <h1 class="logo">Player Hub</h1>
+    </div>
+    
+    <div class="player-card">
+      <div class="avatar-circle">${APP.player.avatar}</div>
+      <div class="player-info">
+        <div class="player-name">${safePlayerName}</div>
+        <div class="player-stats">
+          <span class="stat">⭐ Level ${APP.player.level}</span>
+          <span class="stat">✦ ${APP.player.xp} XP</span>
+          <span class="stat">🎮 ${APP.player.stats.gamesPlayed} games</span>
+        </div>
+      </div>
+      <div class="level-badge">Level ${APP.player.level}</div>
+    </div>
+    
+    <div class="grid-2">
+      <button type="button" class="card" data-action="go-screen" data-screen="create-room" aria-label="Host Session">
+        <div class="card-icon">👑</div>
+        <h3 class="card-title">Host Session</h3>
+        <p class="card-desc">Create a room and choose activities for your team</p>
+      </button>
+      
+      <button type="button" class="card" data-action="go-screen" data-screen="join-room" aria-label="Join Session">
+        <div class="card-icon">🎮</div>
+        <h3 class="card-title">Join Session</h3>
+        <p class="card-desc">Enter a room code to join your team</p>
+      </button>
+    </div>
+    
+    <div style="text-align:center;margin-top:40px;">
+      <button class="btn-secondary" data-action="view-stats">📊 View Full Stats</button>
+      <button class="btn-secondary" data-action="edit-profile" style="margin-left:10px;">✏️ Edit Profile</button>
+    </div>
+  `;
+}
+
+function renderEditProfile() {
+  const selectedAv = selectedEditAvatar || APP.player.avatar;
+  const safePlayerName = escapeHtml(APP.player.name);
+  const safeSelectedEmoji = escapeHtml(selectedAv);
+  
+  return `
+    <div class="header">
+      <h1 class="logo">Edit Profile</h1>
+    </div>
+    
+    <button class="btn-secondary" data-action="cancel-edit-profile">← Back</button>
+    
+    <div class="form-container" style="margin-top:20px;">
+      <h2 style="font-family:'Fraunces',serif;font-size:1.8rem;text-align:center;margin-bottom:30px;">
+        Update Your Profile
+      </h2>
+      
+      <div class="form-group">
+        <label class="form-label" for="editName">Display Name</label>
+        <input type="text" id="editName" class="form-input" value="${safePlayerName}" placeholder="Enter your name" autocomplete="name">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="editEmoji">Emoji</label>
+        <input type="text" id="editEmoji" class="form-input" value="${safeSelectedEmoji}" placeholder="😀" maxlength="8" autocomplete="off">
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Choose Avatar</label>
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;">
+          ${AVATAR_OPTIONS.map(av => `
+            <button data-action="select-edit-avatar" data-avatar="${av}" id="edit-av-${av}"
+              style="font-size:2rem;padding:10px;background:var(--surface-2);
+              border:2px solid ${av === selectedAv ? 'var(--accent)' : 'var(--border)'};
+              border-radius:10px;cursor:pointer;transition:all 0.3s;"
+              class="${av === selectedAv ? 'selected' : ''}">
+              ${av}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+      
+      <div style="background:var(--surface-2);border:1px solid var(--border);
+        border-radius:10px;padding:20px;margin-bottom:20px;">
+        <h4 style="font-weight:600;margin-bottom:12px;">Your Stats</h4>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;font-size:0.9rem;">
+          <div>Level: <strong>${APP.player.level}</strong></div>
+          <div>XP: <strong>${APP.player.xp}</strong></div>
+          <div>Games: <strong>${APP.player.stats.gamesPlayed}</strong></div>
+          <div>Activities: <strong>${APP.player.stats.activitiesCompleted}</strong></div>
+        </div>
+      </div>
+      
+      <button class="btn-primary" data-action="save-profile">Save Changes</button>
+      <button class="btn-secondary" data-action="cancel-edit-profile" style="width:100%;margin-top:10px;">Cancel</button>
+    </div>
+  `;
+}
+
+function renderCreateRoom() {
+  const safePlayerName = escapeHtml(APP.player.name);
+  return `
+    <div class="header">
+      <h1 class="logo">Host Session</h1>
+    </div>
+    
+    <button class="btn-secondary" data-action="go-screen" data-screen="dashboard">← Back</button>
+    
+    <div class="form-container" style="margin-top:20px;">
+      <h2 style="text-align:center;margin-bottom:30px;font-family:'Fraunces',serif;font-size:1.5rem;">
+        Creating Room...
+      </h2>
+      <p style="text-align:center;color:var(--text-dim);margin-bottom:30px;">
+        Setting up your session for ${safePlayerName}
+      </p>
+      <div class="spinner" style="width:48px;height:48px;margin:0 auto;border:4px solid var(--surface-2);
+        border-top:4px solid var(--accent);border-radius:50%;animation:spin 1s linear infinite;"></div>
+    </div>
+  `;
+}
+
+function renderJoinRoom() {
+  return `
+    <div class="header">
+      <h1 class="logo">Join Session</h1>
+    </div>
+    
+    <button class="btn-secondary" data-action="go-screen" data-screen="dashboard">← Back</button>
+    
+    <div class="form-container" style="margin-top:20px;">
+      <div class="form-group">
+        <label class="form-label" for="joinCode">Room Code</label>
+        <input type="text" id="joinCode" class="form-input" 
+          style="text-align:center;font-size:2rem;letter-spacing:8px;text-transform:uppercase;"
+          maxlength="6" placeholder="ABC123" autocapitalize="characters" inputmode="text">
+      </div>
+      
+      <button class="btn-primary" data-action="join-room">Join Room</button>
+    </div>
+  `;
+}
+
+function renderLobby() {
+  const isHost = APP.room.host === APP.player.name;
+  const safeRoomCode = escapeHtml(APP.roomCode);
+  
+  if (APP.room.currentActivity) {
+    return renderActivity();
+  }
+  
+  return `
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:8px;">
+      <button class="btn-secondary" data-action="edit-profile">✏️ Edit Profile</button>
+      ${isHost ? '<button class="btn-secondary" data-action="open-host-settings">⚙️ Host Settings</button>' : ''}
+    </div>
+
+    <div class="header">
+      <h1 class="logo">Session Lobby</h1>
+      <p class="tagline">Room: ${safeRoomCode}</p>
+    </div>
+    
+    <div style="background:rgba(0,210,211,0.05);border:2px solid var(--accent);
+      border-radius:var(--radius);padding:40px 30px;text-align:center;margin-bottom:30px;">
+      <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">
+        Room Code
+      </div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:3rem;font-weight:700;
+        letter-spacing:12px;color:var(--accent);margin:10px 0;">
+        ${safeRoomCode}
+      </div>
+      <div style="font-size:0.85rem;color:var(--text-dim);">Share with your team</div>
+    </div>
+    
+    <div style="background:var(--surface-solid);border:1px solid var(--border);
+      border-radius:var(--radius);padding:24px;margin-bottom:30px;">
+      <h3 style="font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:10px;">
+        <div style="width:8px;height:8px;background:var(--success);border-radius:50%;animation:pulse 2s ease-in-out infinite;"></div>
+        ${APP.room.participants.length} ${APP.room.participants.length === 1 ? 'person' : 'people'} in room
+      </h3>
+      
+      ${APP.room.participants.map(p => `
+        <div style="display:flex;justify-content:space-between;align-items:center;
+          background:var(--surface-2);border-radius:10px;padding:14px;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="font-size:1.8rem;">${escapeHtml(p.avatar)}</div>
+            <div>
+              <div style="font-weight:600;">${escapeHtml(p.name)}</div>
+              ${p.isHost ? '<span style="background:var(--accent);color:var(--bg);padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;">HOST</span>' : ''}
+            </div>
+          </div>
+          <div style="color:var(--success);">✓</div>
+        </div>
+      `).join('')}
+    </div>
+    
+    ${isHost ? `
+      <h3 style="text-align:center;font-family:'Fraunces',serif;font-size:1.5rem;margin-bottom:20px;">
+        Choose Activity
+      </h3>
+      
+      <div class="grid-2">
+        <button type="button" class="card" data-action="start-lightning-trivia" aria-label="Start Lightning Trivia">
+          <div class="card-icon">⚡</div>
+          <h3 class="card-title">Lightning Trivia</h3>
+          <p class="card-desc">Kahoot-style quiz with 20s timer & speed scoring</p>
+        </button>
+        
+        <button type="button" class="card" data-action="start-icebreaker" aria-label="Start Icebreaker Roulette">
+          <div class="card-icon">🎲</div>
+          <h3 class="card-title">Icebreaker Roulette</h3>
+          <p class="card-desc">Fun questions to spark great conversations</p>
+        </button>
+        
+        <button type="button" class="card" data-action="start-pulse-check" aria-label="Start Team Pulse Check">
+          <div class="card-icon">📊</div>
+          <h3 class="card-title">Team Pulse Check</h3>
+          <p class="card-desc">Quick polls to gauge team sentiment</p>
+        </button>
+        
+        <button type="button" class="card" data-action="start-values-vote" aria-label="Start Values Vote">
+          <div class="card-icon">⭐</div>
+          <h3 class="card-title">Values Vote</h3>
+          <p class="card-desc">Discover what matters most to your team</p>
+        </button>
+        
+        <button type="button" class="card" data-action="start-wordle" aria-label="Start Team Wordle">
+          <div class="card-icon">🎯</div>
+          <h3 class="card-title">Team Wordle</h3>
+          <p class="card-desc">Guess the 5-letter word together</p>
+        </button>
+        
+        <button type="button" class="card" data-action="start-regular-trivia" aria-label="Start Trivia Battle">
+          <div class="card-icon">🧠</div>
+          <h3 class="card-title">Trivia Battle</h3>
+          <p class="card-desc">Compete with classic trivia questions</p>
+        </button>
+      </div>
+    ` : `
+      <div style="text-align:center;padding:60px 20px;">
+        <div style="width:48px;height:48px;margin:0 auto 20px;border:4px solid var(--surface-2);
+          border-top:4px solid var(--accent);border-radius:50%;animation:spin 1s linear infinite;"></div>
+        <p style="color:var(--text-dim);">Waiting for host to start an activity...</p>
+      </div>
+    `}
+  `;
+}
+
+function renderHostSettingsModal() {
+  const roomSettings = getRoomHostSettings(APP.room);
+  return `
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10020;display:grid;place-items:center;padding:16px;">
+      <div style="width:min(760px,100%);max-height:90vh;overflow:auto;background:var(--surface-solid);
+        border:1px solid var(--border);border-radius:16px;padding:22px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <h3 style="font-family:'Fraunces',serif;font-size:1.4rem;">Host Settings</h3>
+          <button class="btn-secondary" data-action="close-host-settings">Close</button>
+        </div>
+
+        <div style="margin-bottom:18px;">
+          <h4 style="margin-bottom:10px;">Game Toggles (Room-wide)</h4>
+          <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <input type="checkbox" id="hsAutoRevealLightning" ${roomSettings.autoRevealLightning ? 'checked' : ''}>
+            Auto-reveal Lightning answers (all answered or timer ends)
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <input type="checkbox" id="hsAllowAnswerChanges" ${roomSettings.allowAnswerChanges ? 'checked' : ''}>
+            Allow answer changes before reveal
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <input type="checkbox" id="hsDynamicScoring" ${roomSettings.dynamicScoring ? 'checked' : ''}>
+            Dynamic time-based scoring
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" id="hsEnableAIGenerator" ${roomSettings.enableAIGenerator ? 'checked' : ''}>
+            Enable AI Question Generator
+          </label>
+        </div>
+
+        <div style="margin-bottom:18px;">
+          <h4 style="margin-bottom:10px;">AI Configuration (Host Local)</h4>
+          <div class="form-group">
+            <label class="form-label" for="hsAiEndpoint">Endpoint</label>
+            <input id="hsAiEndpoint" class="form-input" value="${escapeHtml(HOST_LOCAL_CONFIG.aiEndpoint)}" placeholder="https://api.openai.com/v1/chat/completions">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="hsAiModel">Model</label>
+            <input id="hsAiModel" class="form-input" value="${escapeHtml(HOST_LOCAL_CONFIG.aiModel)}" placeholder="gpt-4o-mini">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="form-group">
+              <label class="form-label" for="hsAiDefaultDifficulty">Default Difficulty</label>
+              <select id="hsAiDefaultDifficulty" class="form-input">
+                <option value="easy" ${HOST_LOCAL_CONFIG.aiDefaultDifficulty === 'easy' ? 'selected' : ''}>Easy</option>
+                <option value="mixed" ${HOST_LOCAL_CONFIG.aiDefaultDifficulty === 'mixed' ? 'selected' : ''}>Mixed</option>
+                <option value="hard" ${HOST_LOCAL_CONFIG.aiDefaultDifficulty === 'hard' ? 'selected' : ''}>Hard</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="hsAiDefaultCount">Default Count</label>
+              <input id="hsAiDefaultCount" class="form-input" type="number" min="3" max="20" value="${HOST_LOCAL_CONFIG.aiDefaultCount}">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="hsAiApiKey">API Key</label>
+            <input id="hsAiApiKey" class="form-input" type="password" value="${escapeHtml(HOST_LOCAL_CONFIG.aiApiKey)}" placeholder="Stored in this browser only">
+          </div>
+
+          ${roomSettings.enableAIGenerator ? `
+            <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+              <h4 style="margin-bottom:10px;">🤖 AI Question Generator</h4>
+              <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:10px;">
+                <input id="aiTopic" class="form-input" placeholder="Topic (e.g., Space, NBA, Cybersecurity)">
+                <select id="aiDifficulty" class="form-input">
+                  <option value="easy" ${HOST_LOCAL_CONFIG.aiDefaultDifficulty === 'easy' ? 'selected' : ''}>Easy</option>
+                  <option value="mixed" ${HOST_LOCAL_CONFIG.aiDefaultDifficulty === 'mixed' ? 'selected' : ''}>Mixed</option>
+                  <option value="hard" ${HOST_LOCAL_CONFIG.aiDefaultDifficulty === 'hard' ? 'selected' : ''}>Hard</option>
+                </select>
+                <input id="aiCount" class="form-input" type="number" min="3" max="20" value="${HOST_LOCAL_CONFIG.aiDefaultCount}" placeholder="Count">
+              </div>
+              <input id="aiApiKey" class="form-input" type="password" value="${escapeHtml(HOST_LOCAL_CONFIG.aiApiKey)}" placeholder="API key (saved locally in this browser)" style="margin-bottom:10px;">
+              <button class="btn-primary" data-action="generate-ai-questions" ${APP.aiGenerating ? 'disabled' : ''}>
+                ${APP.aiGenerating ? 'Generating...' : 'Generate & Add Questions'}
+              </button>
+              ${APP.aiStatus ? `<div role="status" aria-live="polite" style="margin-top:10px;color:var(--text-mid);font-size:0.9rem;">${escapeHtml(APP.aiStatus)}</div>` : ''}
+            </div>
+          ` : `
+            <div style="margin-top:10px;color:var(--text-dim);font-size:0.9rem;">
+              AI Question Generator is disabled. Enable it above to generate questions here.
+            </div>
+          `}
+        </div>
+
+        <button class="btn-primary" data-action="save-host-settings">Save Host Settings</button>
+      </div>
+    </div>
+  `;
+}
+
+// UI Helper Functions
+let selectedAvatar = '👨‍💼';
+let selectedEditAvatar = null;
+
+function selectAvatar(av) {
+  selectedAvatar = av;
+  document.querySelectorAll('[id^="av-"]').forEach(btn => {
+    btn.style.borderColor = 'var(--border)';
+    btn.classList.remove('selected');
+  });
+  const btn = document.getElementById('av-' + av);
+  if (btn) {
+    btn.style.borderColor = 'var(--accent)';
+    btn.classList.add('selected');
+  }
+}
+
+function selectEditAvatar(av) {
+  selectedEditAvatar = av;
+  document.querySelectorAll('[id^="edit-av-"]').forEach(btn => {
+    btn.style.borderColor = 'var(--border)';
+    btn.classList.remove('selected');
+  });
+  const btn = document.getElementById('edit-av-' + av);
+  if (btn) {
+    btn.style.borderColor = 'var(--accent)';
+    btn.classList.add('selected');
+  }
+  const emojiInput = document.getElementById('editEmoji');
+  if (emojiInput) emojiInput.value = av;
+}
+
+function togglePresentation() {
+  APP.presentationMode = !APP.presentationMode;
+  document.body.classList.toggle('presentation-mode', APP.presentationMode);
+  
+  const btn = document.getElementById('presentationToggle');
+  if (btn) {
+    btn.textContent = APP.presentationMode ? '📱 Exit Presentation' : '📺 Presentation Mode';
+  }
+  
+  render();
+}
+
+async function createPlayer() {
+  const name = normalizeName(document.getElementById('playerName')?.value || '');
+  if (!name) {
+    showError('Please enter your name');
+    return;
+  }
+  
+  APP.player = await PlayerManager.createProfile(name, selectedAvatar);
+  APP.screen = 'dashboard';
+  render();
+}
+
+function goToScreen(screen) {
+  if (screen !== 'lobby') {
+    stopRoomSync();
+    APP.showHostSettings = false;
+  }
+  APP.screen = screen;
+  
+  if (screen === 'create-room') {
+    createRoomAndNavigate();
+  } else {
+    render();
+  }
+}
+
+async function startRoomRealtime() {
+  roomRealtimeEnabled = false;
+  if (!APP.roomCode) return false;
+
+  const sharedKey = `room:${APP.roomCode}`;
+
+  const socket = await getSocketClient();
+  if (socket && socket.connected) {
+    socketRoomKey = sharedKey;
+    socket.emit('room:subscribe', sharedKey);
+    roomRealtimeEnabled = true;
+    return true;
+  }
+
+  const client = await getSupabaseClient();
+  if (!client) return false;
+
+  if (roomChannel) {
+    await client.removeChannel(roomChannel);
+    roomChannel = null;
+  }
+
+  roomChannel = client
+    .channel(`room-sync-${APP.roomCode}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'shared_state',
+        filter: `key=eq.${sharedKey}`
+      },
+      payload => {
+        const value = payload.new?.value || payload.old?.value;
+        const room = safeParseJson(value);
+        if (room) {
+          APP.room = room;
+          render();
+        }
+      }
+    )
+    .subscribe(status => {
+      roomRealtimeEnabled = status === 'SUBSCRIBED';
+    });
+
+  return true;
+}
+
+async function stopRoomRealtime() {
+  const socket = await getSocketClient();
+  if (socket && socket.connected && socketRoomKey) {
+    socket.emit('room:unsubscribe', socketRoomKey);
+    socketRoomKey = null;
+  }
+
+  const client = await getSupabaseClient();
+  if (client && roomChannel) {
+    await client.removeChannel(roomChannel);
+    roomChannel = null;
+  }
+  roomRealtimeEnabled = false;
+}
+
+function stopRoomSync() {
+  if (syncInterval) {
+    clearInterval(syncInterval);
+    syncInterval = null;
+  }
+  stopRoomRealtime();
+}
+
+async function createRoomAndNavigate() {
+  render();
+  
+  const room = await RoomManager.createRoom(APP.player.name, APP.player.avatar);
+  APP.room = room;
+  APP.roomCode = room.code;
+  APP.screen = 'lobby';
+  
+  startRoomSync();
+  render();
+}
+
+async function joinRoom() {
+  const code = document.getElementById('joinCode')?.value.trim().toUpperCase();
+  if (!/^[A-Z0-9]{6}$/.test(code || '')) {
+    showError('Please enter a valid 6-digit room code');
+    return;
+  }
+  
+  const room = await RoomManager.joinRoom(code, APP.player.name, APP.player.avatar);
+  if (!room) {
+    showError('Room not found. Check the code.');
+    return;
+  }
+  
+  APP.room = room;
+  APP.roomCode = code;
+  APP.screen = 'lobby';
+  
+  startRoomSync();
+  render();
+}
+
+function startRoomSync() {
+  if (syncInterval) clearInterval(syncInterval);
+  startRoomRealtime();
+  syncInterval = setInterval(async () => {
+    if (!APP.roomCode) return;
+    if (!roomRealtimeEnabled) {
+      const room = await RoomManager.loadRoom(APP.roomCode);
+      if (room && room.lastUpdate !== APP.room?.lastUpdate) {
+        APP.room = room;
+        render();
+      }
+    }
+    
+    // Update timer during active questions
+    if (APP.room?.currentActivity === 'lightning-trivia' && !APP.room?.activityState?.revealed) {
+      const state = APP.room.activityState || {};
+      const hostSettings = getRoomHostSettings(APP.room);
+      const answersCount = Object.keys(state.answers || {}).length;
+      const participantCount = APP.room.participants?.length || 0;
+      const allAnswered = participantCount > 0 && answersCount >= participantCount;
+      const startTime = state.startTime || Date.now();
+      const timedOut = Date.now() - startTime >= 20000;
+      const isHost = APP.room.host === APP.player?.name;
+
+      if (hostSettings.autoRevealLightning && isHost && !lightningAutoRevealPending && (allAnswered || timedOut)) {
+        lightningAutoRevealPending = true;
+        try {
+          await revealAnswer();
+        } finally {
+          lightningAutoRevealPending = false;
+        }
+      }
+      render();
+    }
+  }, ROOM_SYNC_MS);
+}
+
+function showError(msg) {
+  APP.error = msg;
+  render();
+  setTimeout(() => {
+    APP.error = null;
+    render();
+  }, 3000);
+}
+
+function viewStats() {
+  alert('Full stats dashboard coming soon!');
+}
+
+function openHostSettings() {
+  if (!APP.room || APP.room.host !== APP.player?.name) return;
+  APP.showHostSettings = true;
+  render();
+}
+
+function closeHostSettings() {
+  APP.showHostSettings = false;
+  render();
+}
+
+async function saveHostSettings() {
+  if (!APP.room || APP.room.host !== APP.player?.name) return;
+
+  const roomSettings = {
+    autoRevealLightning: Boolean(document.getElementById('hsAutoRevealLightning')?.checked),
+    allowAnswerChanges: Boolean(document.getElementById('hsAllowAnswerChanges')?.checked),
+    dynamicScoring: Boolean(document.getElementById('hsDynamicScoring')?.checked),
+    enableAIGenerator: Boolean(document.getElementById('hsEnableAIGenerator')?.checked)
+  };
+
+  HOST_LOCAL_CONFIG = {
+    ...HOST_LOCAL_CONFIG,
+    aiEndpoint: (document.getElementById('hsAiEndpoint')?.value || '').trim() || getDefaultHostLocalConfig().aiEndpoint,
+    aiModel: (document.getElementById('hsAiModel')?.value || '').trim() || getDefaultHostLocalConfig().aiModel,
+    aiDefaultDifficulty: String(document.getElementById('hsAiDefaultDifficulty')?.value || 'mixed'),
+    aiDefaultCount: Math.max(3, Math.min(20, Number.parseInt(document.getElementById('hsAiDefaultCount')?.value || '8', 10) || 8)),
+    aiApiKey: (document.getElementById('hsAiApiKey')?.value || '').trim()
+  };
+  localStorage.setItem('ai-question-api-key', HOST_LOCAL_CONFIG.aiApiKey || '');
+  saveHostLocalConfig(HOST_LOCAL_CONFIG);
+
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room) {
+    showError('Room no longer available.');
+    return;
+  }
+  room.hostSettings = roomSettings;
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  APP.showHostSettings = false;
+  render();
+}
+
+async function generateAIQuestions() {
+  const topic = normalizeTopic(document.getElementById('aiTopic')?.value || '');
+  const difficulty = String(document.getElementById('aiDifficulty')?.value || HOST_LOCAL_CONFIG.aiDefaultDifficulty || 'mixed');
+  const count = Math.max(3, Math.min(20, Number.parseInt(document.getElementById('aiCount')?.value || String(HOST_LOCAL_CONFIG.aiDefaultCount || 8), 10) || 8));
+  const apiKeyInput = document.getElementById('aiApiKey')?.value?.trim() || '';
+  const apiKey = apiKeyInput || HOST_LOCAL_CONFIG.aiApiKey || localStorage.getItem('ai-question-api-key') || '';
+
+  if (!topic) {
+    showError('Enter a topic first.');
+    return;
+  }
+  if (!apiKey) {
+    showError('Enter an API key to generate questions.');
+    return;
+  }
+
+  APP.aiGenerating = true;
+  APP.aiStatus = 'Generating questions...';
+  render();
+
+  try {
+    HOST_LOCAL_CONFIG.aiApiKey = apiKey;
+    localStorage.setItem('ai-question-api-key', apiKey);
+    saveHostLocalConfig(HOST_LOCAL_CONFIG);
+    const prompt = `Generate ${count} multiple-choice trivia questions about "${topic}" at ${difficulty} difficulty.
+Return only valid JSON as an array. Each item must be:
+{"q":"question text","opts":["A","B","C","D"],"ans":0}
+where ans is the zero-based index of the correct option.`;
+
+    const response = await fetch(HOST_LOCAL_CONFIG.aiEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: HOST_LOCAL_CONFIG.aiModel,
+        messages: [
+          { role: 'system', content: 'You create accurate trivia questions. Output strict JSON only.' },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.7
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`AI request failed (${response.status}): ${errText.slice(0, 180)}`);
+    }
+
+    const data = await response.json();
+    const textContent = data?.choices?.[0]?.message?.content || '';
+    const jsonText = extractFirstJson(textContent);
+    const parsed = safeParseJson(jsonText);
+    const validated = validateAIQuestions(parsed);
+
+    if (!validated.length) {
+      throw new Error('AI returned invalid question format.');
+    }
+
+    TRIVIA_BANK.push(...validated);
+    APP.aiStatus = `Added ${validated.length} question${validated.length === 1 ? '' : 's'} on "${topic}". Total trivia questions: ${TRIVIA_BANK.length}.`;
+  } catch (e) {
+    APP.aiStatus = `AI generation failed: ${e.message}`;
+  } finally {
+    APP.aiGenerating = false;
+    render();
+  }
+}
+
+function showLevelUp(level) {
+  APP.error = `Level up! You reached Level ${level}`;
+  render();
+  setTimeout(() => {
+    APP.error = null;
+    render();
+  }, 2000);
+}
+
+function editProfile() {
+  selectedEditAvatar = APP.player?.avatar || selectedAvatar;
+  APP.editingProfile = true;
+  render();
+}
+
+function cancelEditProfile() {
+  APP.editingProfile = false;
+  selectedEditAvatar = null;
+  render();
+}
+
+function remapActivityStateKey(state, field, oldName, newName) {
+  const target = state?.[field];
+  if (!target || typeof target !== 'object') return;
+  if (!(oldName in target)) return;
+  if (newName in target) return;
+  target[newName] = target[oldName];
+  delete target[oldName];
+}
+
+function applyProfileUpdateToRoom(room, oldName, newName, newAvatar) {
+  if (!room) return room;
+
+  room.participants = (room.participants || []).map(p => {
+    if (p.name !== oldName) return p;
+    return { ...p, name: newName, avatar: newAvatar };
+  });
+
+  if (room.host === oldName) {
+    room.host = newName;
+  }
+
+  const state = room.activityState || {};
+  remapActivityStateKey(state, 'answers', oldName, newName);
+  remapActivityStateKey(state, 'scores', oldName, newName);
+  remapActivityStateKey(state, 'votes', oldName, newName);
+  remapActivityStateKey(state, 'lastPoints', oldName, newName);
+  remapActivityStateKey(state, 'answerTimes', oldName, newName);
+  room.activityState = state;
+
+  return room;
+}
+
+async function saveProfile() {
+  if (!APP.player) return;
+
+  const oldName = APP.player.name;
+  const updatedName = normalizeName(document.getElementById('editName')?.value || '');
+  const typedEmoji = normalizeEmoji(document.getElementById('editEmoji')?.value || '');
+  const updatedAvatar = typedEmoji || selectedEditAvatar || APP.player.avatar;
+  if (!updatedName) {
+    showError('Please enter a valid display name');
+    return;
+  }
+
+  if (APP.roomCode) {
+    const room = await RoomManager.loadRoom(APP.roomCode);
+    if (room) {
+      const hasConflict = room.participants?.some(p => p.name === updatedName && p.name !== oldName);
+      if (hasConflict) {
+        showError('That name is already taken in this room.');
+        return;
+      }
+      applyProfileUpdateToRoom(room, oldName, updatedName, updatedAvatar);
+      await RoomManager.updateRoom(APP.roomCode, room);
+      APP.room = room;
+    }
+  }
+
+  APP.player.name = updatedName;
+  APP.player.avatar = updatedAvatar;
+  await PlayerManager.updateProfile(APP.player);
+
+  selectedAvatar = updatedAvatar;
+
+  APP.editingProfile = false;
+  selectedEditAvatar = null;
+  render();
+}
+
+function handleWordleKey(key) {
+  const input = document.getElementById('wordleInput');
+  if (!input) return;
+
+  const current = normalizeWord(input.value);
+  if (key === 'DEL') {
+    input.value = current.slice(0, -1);
+    return;
+  }
+  if (key === 'ENTER') {
+    submitWordleSuggestion();
+    return;
+  }
+  if (/^[A-Z]$/.test(key) && current.length < 5) {
+    input.value = current + key;
+  }
+}
+
+document.addEventListener('click', async (event) => {
+  const target = event.target.closest('[data-action]');
+  if (!target) return;
+
+  const { action, avatar, screen, key, index } = target.dataset;
+  const parsedIndex = Number.parseInt(index ?? '', 10);
+
+  switch (action) {
+    case 'toggle-presentation':
+      togglePresentation();
+      break;
+    case 'select-avatar':
+      if (avatar) selectAvatar(avatar);
+      break;
+    case 'create-player':
+      await createPlayer();
+      break;
+    case 'go-screen':
+      if (screen) goToScreen(screen);
+      break;
+    case 'view-stats':
+      viewStats();
+      break;
+    case 'edit-profile':
+      editProfile();
+      break;
+    case 'open-host-settings':
+      openHostSettings();
+      break;
+    case 'close-host-settings':
+      closeHostSettings();
+      break;
+    case 'save-host-settings':
+      await saveHostSettings();
+      break;
+    case 'cancel-edit-profile':
+      cancelEditProfile();
+      break;
+    case 'select-edit-avatar':
+      if (avatar) selectEditAvatar(avatar);
+      break;
+    case 'save-profile':
+      await saveProfile();
+      break;
+    case 'join-room':
+      await joinRoom();
+      break;
+    case 'start-lightning-trivia':
+      await startLightningTrivia();
+      break;
+    case 'start-icebreaker':
+      await startIcebreaker();
+      break;
+    case 'start-pulse-check':
+      await startPulseCheck();
+      break;
+    case 'start-values-vote':
+      await startValuesVote();
+      break;
+    case 'start-wordle':
+      await startWordle();
+      break;
+    case 'start-regular-trivia':
+      await startRegularTrivia();
+      break;
+    case 'generate-ai-questions':
+      await generateAIQuestions();
+      break;
+    case 'end-activity':
+      await endActivity();
+      break;
+    case 'submit-icebreaker-answer':
+      await submitIcebreakerAnswer();
+      break;
+    case 'next-icebreaker-question':
+      await nextIcebreakerQuestion();
+      break;
+    case 'submit-pulse-vote':
+      if (Number.isInteger(parsedIndex)) await submitPulseVote(parsedIndex);
+      break;
+    case 'next-pulse-question':
+      await nextPulseQuestion();
+      break;
+    case 'toggle-value-vote':
+      if (Number.isInteger(parsedIndex)) await toggleValueVote(parsedIndex);
+      break;
+    case 'wordle-key':
+      if (key) handleWordleKey(key);
+      break;
+    case 'submit-wordle-suggestion':
+      await submitWordleSuggestion();
+      break;
+    case 'submit-wordle-guess':
+      await submitWordleGuess();
+      break;
+    case 'new-wordle-round':
+      await newWordleRound();
+      break;
+    case 'submit-regular-trivia-answer':
+      if (Number.isInteger(parsedIndex)) await submitRegularTriviaAnswer(parsedIndex);
+      break;
+    case 'reveal-regular-answer':
+      await revealRegularAnswer();
+      break;
+    case 'next-regular-trivia':
+      await nextRegularTrivia();
+      break;
+    case 'submit-answer':
+      if (Number.isInteger(parsedIndex)) await submitAnswer(parsedIndex);
+      break;
+    case 'send-lightning-reaction':
+      if (target.dataset.emoji) await sendLightningReaction(target.dataset.emoji);
+      break;
+    case 'reveal-answer':
+      await revealAnswer();
+      break;
+    case 'next-question':
+      await nextQuestion();
+      break;
+    case 'play-again':
+      await playAgain();
+      break;
+    default:
+      break;
+  }
+});
+
+function renderActivity() {
+  const activity = APP.room.currentActivity;
+  
+  if (activity === 'lightning-trivia') return renderLightningTrivia();
+  if (activity === 'icebreaker') return renderIcebreaker();
+  if (activity === 'pulse-check') return renderPulseCheck();
+  if (activity === 'values-vote') return renderValuesVote();
+  if (activity === 'wordle') return renderWordle();
+  if (activity === 'regular-trivia') return renderRegularTrivia();
+  
+  return '<div>Activity loading...</div>';
+}
+
+async function submitIcebreakerAnswer() {
+  const answer = (document.getElementById('icebreakerAnswer')?.value || '').trim().slice(0, 280);
+  if (!answer) {
+    showError('Please enter an answer');
+    return;
+  }
+  
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room.activityState.answers) room.activityState.answers = {};
+  
+  room.activityState.answers[APP.player.name] = answer;
+  
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function nextIcebreakerQuestion() {
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  const randomQ = ICEBREAKER_QUESTIONS[Math.floor(Math.random() * ICEBREAKER_QUESTIONS.length)];
+  room.activityState.currentQuestion = randomQ;
+  room.activityState.answers = {};
+  
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+function renderIcebreaker() {
+  const state = APP.room.activityState || {};
+  const question = state.currentQuestion;
+  const answers = state.answers || {};
+  const hasAnswered = answers[APP.player.name];
+  const isHost = APP.room.host === APP.player.name;
+  const safeRoomCode = escapeHtml(APP.roomCode);
+  const safeQuestion = escapeHtml(question);
+  
+  return `
+    <div class="header">
+      <h1 style="font-size:2rem;font-weight:700;">🎲 Icebreaker Roulette</h1>
+      <p class="tagline">Room: ${safeRoomCode}</p>
+    </div>
+    
+    ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
+    
+    <div style="background:var(--surface-solid);border:2px solid var(--accent);
+      border-radius:var(--radius);padding:40px 30px;margin:30px 0;text-align:center;">
+      <div style="font-family:'Fraunces',serif;font-size:${APP.presentationMode ? '2.5rem' : '1.8rem'};
+        font-weight:700;line-height:1.4;">
+        ${safeQuestion}
+      </div>
+    </div>
+    
+    ${!hasAnswered ? `
+      <div style="max-width:600px;margin:0 auto 20px;">
+        <textarea id="icebreakerAnswer" 
+          style="width:100%;background:var(--surface-2);border:1px solid var(--border);
+          color:var(--text);padding:16px;border-radius:10px;font-size:1rem;
+          font-family:'Outfit',sans-serif;outline:none;resize:vertical;min-height:100px;"
+          aria-label="Icebreaker response"
+          placeholder="Type your answer..."></textarea>
+        <button class="btn-primary" data-action="submit-icebreaker-answer" style="margin-top:12px;">
+          Submit Answer
+        </button>
+      </div>
+    ` : `
+      <div role="status" aria-live="polite" aria-atomic="true" style="text-align:center;padding:16px;background:rgba(0,210,106,0.05);
+        border:1px solid var(--success);border-radius:10px;color:var(--success);margin-bottom:20px;">
+        ✓ Answer submitted! Waiting for others...
+      </div>
+    `}
+    
+    <div style="background:var(--surface-solid);border:1px solid var(--border);
+      border-radius:var(--radius);padding:24px;">
+      <h3 aria-live="polite" aria-atomic="true" style="font-weight:600;margin-bottom:16px;">
+        Responses (${Object.keys(answers).length}/${APP.room.participants.length})
+      </h3>
+      ${Object.entries(answers).map(([name, ans]) => `
+        <div style="background:var(--surface-2);border-radius:10px;padding:16px;margin-bottom:12px;">
+          <div style="color:var(--accent);font-weight:600;margin-bottom:8px;font-size:0.9rem;">${escapeHtml(name)}</div>
+          <div style="color:var(--text-mid);line-height:1.5;">${escapeHtml(ans)}</div>
+        </div>
+      `).join('') || '<p role="status" aria-live="polite" style="text-align:center;color:var(--text-dim);">No responses yet...</p>'}
+    </div>
+    
+    ${isHost ? '<button class="btn-primary" data-action="next-icebreaker-question" style="margin-top:20px;">Next Question</button>' : ''}
+  `;
+}
+
+async function submitPulseVote(optionIndex) {
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room) {
+    showError('Room no longer available.');
+    return;
+  }
+  if (room.activityState?.showResults) return;
+  const currentPollIndex = room.activityState?.currentPoll || 0;
+  const selected = room.activityState?.selectedPollIndexes || [];
+  const questionIndex = selected[currentPollIndex] ?? currentPollIndex;
+  const currentPoll = PULSE_QUESTIONS[questionIndex];
+  if (!currentPoll) return;
+  if (!room.activityState.votes) room.activityState.votes = {};
+  
+  room.activityState.votes[APP.player.name] = optionIndex;
+  
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function nextPulseQuestion() {
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room) {
+    showError('Room no longer available.');
+    return;
+  }
+  const selected = room.activityState?.selectedPollIndexes || [];
+  const totalPolls = selected.length || PULSE_QUESTIONS.length;
+  if (!room.activityState.voteHistory) room.activityState.voteHistory = {};
+  const currentPoll = room.activityState.currentPoll || 0;
+  room.activityState.voteHistory[currentPoll] = { ...(room.activityState.votes || {}) };
+
+  if (currentPoll >= totalPolls - 1) {
+    room.activityState.showResults = true;
+  } else {
+    room.activityState.currentPoll = currentPoll + 1;
+    room.activityState.votes = {};
+  }
+  
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+function renderPulseCheck() {
+  const state = APP.room.activityState || {};
+  const selected = state.selectedPollIndexes || [];
+  const totalPolls = selected.length || PULSE_QUESTIONS.length;
+  const questionIndex = selected[state.currentPoll || 0] ?? (state.currentPoll || 0);
+  const poll = PULSE_QUESTIONS[questionIndex];
+  const votes = state.votes || {};
+  const userVote = votes[APP.player.name];
+  const isHost = APP.room.host === APP.player.name;
+  
+  const voteCounts = {};
+  Object.values(votes).forEach(v => voteCounts[v] = (voteCounts[v] || 0) + 1);
+  const safeRoomCode = escapeHtml(APP.roomCode);
+  const showResults = Boolean(state.showResults);
+
+  if (showResults) {
+    return renderPulseResults(state, isHost, safeRoomCode);
+  }
+
+  if (!poll) {
+    return `
+      <div class="header">
+        <h1 style="font-size:2rem;font-weight:700;">📊 Team Pulse Check</h1>
+        <p class="tagline">Room: ${safeRoomCode}</p>
+      </div>
+      <div role="status" aria-live="polite" aria-atomic="true"
+        style="text-align:center;padding:24px;background:var(--surface-solid);border:1px solid var(--border);border-radius:12px;">
+        Pulse check is complete.
+      </div>
+      ${isHost ? '<button class="btn-primary" data-action="end-activity" style="margin-top:20px;">Back to Lobby</button>' : ''}
+    `;
+  }
+  
+  return `
+    <div class="header">
+      <h1 style="font-size:2rem;font-weight:700;">📊 Team Pulse Check</h1>
+      <p class="tagline">Poll ${(state.currentPoll || 0) + 1} of ${totalPolls} • Room: ${safeRoomCode}</p>
+    </div>
+    
+    ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
+    
+    <div style="background:var(--surface-solid);border:2px solid var(--accent);
+      border-radius:var(--radius);padding:40px 30px;margin:30px 0;text-align:center;">
+      <div style="font-family:'Fraunces',serif;font-size:${APP.presentationMode ? '2.5rem' : '1.8rem'};
+        font-weight:700;">
+        ${poll.q}
+      </div>
+    </div>
+    
+    <div style="max-width:700px;margin:0 auto;">
+      ${poll.opts.map((opt, i) => {
+        const isSelected = userVote === i;
+        const voteCount = voteCounts[i] || 0;
+        const totalVotes = Object.keys(votes).length;
+        const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
+        
+        return `
+          <button type="button" class="tile-btn" data-action="submit-pulse-vote" data-index="${i}" aria-pressed="${isSelected ? 'true' : 'false'}"
+            style="display:flex;justify-content:space-between;align-items:center;
+            background:var(--surface-2);border:2px solid ${isSelected ? 'var(--accent)' : 'var(--border)'};
+            border-radius:12px;padding:20px 24px;margin-bottom:12px;cursor:pointer;
+            transition:all 0.3s;position:relative;overflow:hidden;
+            ${isSelected ? 'background:rgba(0,210,211,0.06);' : ''}">
+            
+            ${totalVotes > 0 ? `
+              <div style="position:absolute;left:0;top:0;bottom:0;
+                background:rgba(0,210,211,0.1);width:${percentage}%;
+                transition:width 0.5s ease-out;"></div>
+            ` : ''}
+            
+            <span style="position:relative;z-index:1;font-size:1.1rem;font-weight:600;">${opt}</span>
+            ${totalVotes > 0 ? `
+              <div style="position:relative;z-index:1;display:flex;align-items:center;gap:10px;">
+                <span style="color:var(--text-dim);font-size:0.9rem;">${percentage}%</span>
+                <span style="background:var(--accent);color:var(--bg);padding:6px 14px;
+                  border-radius:20px;font-size:0.85rem;font-weight:700;">${voteCount}</span>
+              </div>
+            ` : ''}
+          </button>
+        `;
+      }).join('')}
+    </div>
+    
+    <div role="status" aria-live="polite" aria-atomic="true" style="text-align:center;padding:16px;color:var(--text-dim);margin-top:20px;">
+      ${Object.keys(votes).length} of ${APP.room.participants.length} voted
+    </div>
+    
+    ${isHost ? `<button class="btn-primary" data-action="next-pulse-question" style="margin-top:20px;">${(state.currentPoll || 0) >= totalPolls - 1 ? 'View Results' : 'Next Poll'}</button>` : ''}
+  `;
+}
+
+function renderPulseResults(state, isHost, safeRoomCode) {
+  const voteHistory = state.voteHistory || {};
+  const selected = state.selectedPollIndexes || [];
+  const resultIndexes = selected.length ? selected : PULSE_QUESTIONS.map((_, i) => i);
+  let resultsHtml = '';
+
+  resultIndexes.forEach((sourceIndex, pollIndex) => {
+    const poll = PULSE_QUESTIONS[sourceIndex];
+    if (!poll) return;
+    const pollVotes = voteHistory[pollIndex] || {};
+    const totalVotes = Object.keys(pollVotes).length;
+    const counts = {};
+    Object.values(pollVotes).forEach(v => {
+      counts[v] = (counts[v] || 0) + 1;
+    });
+
+    resultsHtml += `
+      <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:14px;">
+        <div style="font-weight:700;margin-bottom:10px;color:var(--text);">${pollIndex + 1}. ${escapeHtml(poll.q)}</div>
+        ${poll.opts.map((opt, optIndex) => {
+          const count = counts[optIndex] || 0;
+          const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+          return `
+            <div style="margin-bottom:10px;">
+              <div style="display:flex;justify-content:space-between;font-size:0.9rem;margin-bottom:4px;">
+                <span>${escapeHtml(opt)}</span>
+                <span style="color:var(--text-dim);">${count} vote${count === 1 ? '' : 's'} (${pct}%)</span>
+              </div>
+              <div style="height:8px;background:var(--surface-2);border-radius:999px;overflow:hidden;">
+                <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent),var(--accent-2));"></div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  });
+
+  return `
+    <div class="header">
+      <h1 style="font-size:2rem;font-weight:700;">📊 Pulse Check Results</h1>
+      <p class="tagline">Room: ${safeRoomCode}</p>
+    </div>
+
+    <div role="status" aria-live="polite" aria-atomic="true"
+      style="text-align:center;padding:14px;background:rgba(0,210,211,0.06);border:1px solid var(--accent);border-radius:10px;margin-bottom:20px;">
+      Combined results from all pulse questions
+    </div>
+
+    ${resultsHtml}
+
+    ${isHost
+      ? '<button class="btn-primary" data-action="end-activity" style="margin-top:10px;">Back to Lobby</button>'
+      : '<div style="text-align:center;color:var(--text-dim);margin-top:10px;">Waiting for host to close results...</div>'}
+  `;
+}
+
+async function toggleValueVote(valueIndex) {
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room.activityState.votes) room.activityState.votes = {};
+  
+  if (!room.activityState.votes[APP.player.name]) room.activityState.votes[APP.player.name] = [];
+  
+  const userVotes = room.activityState.votes[APP.player.name];
+  if (userVotes.includes(valueIndex)) {
+    userVotes.splice(userVotes.indexOf(valueIndex), 1);
+  } else if (userVotes.length < 5) {
+    userVotes.push(valueIndex);
+  }
+  
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+function renderValuesVote() {
+  const state = APP.room.activityState || {};
+  const votes = state.votes || {};
+  const userVotes = votes[APP.player.name] || [];
+  const isHost = APP.room.host === APP.player.name;
+  
+  const allVotes = {};
+  Object.values(votes).forEach(list => {
+    if (Array.isArray(list)) {
+      list.forEach(v => allVotes[v] = (allVotes[v] || 0) + 1);
+    }
+  });
+  const safeRoomCode = escapeHtml(APP.roomCode);
+  
+  return `
+    <div class="header">
+      <h1 style="font-size:2rem;font-weight:700;">⭐ Values Vote</h1>
+      <p class="tagline">Room: ${safeRoomCode}</p>
+    </div>
+    
+    ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
+    
+    <div style="text-align:center;padding:20px;background:rgba(0,210,211,0.05);
+      border:1px solid var(--accent);border-radius:12px;margin:30px 0;">
+      <strong style="font-size:1.1rem;">Select your top 3-5 team values</strong>
+      <div role="status" aria-live="polite" aria-atomic="true" style="color:var(--text-dim);margin-top:8px;font-size:0.95rem;">
+        ${userVotes.length} selected ${userVotes.length >= 3 && userVotes.length <= 5 ? '✓' : ''}
+      </div>
+    </div>
+    
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;">
+      ${TEAM_VALUES.map((val, i) => {
+        const isSelected = userVotes.includes(i);
+        const voteCount = allVotes[i] || 0;
+        const borderColor = isSelected ? 'var(--accent)' : 'var(--border)';
+        const bgColor = isSelected ? 'rgba(0,210,211,0.08)' : 'var(--surface)';
+        
+        return `
+          <button type="button" class="tile-btn" data-action="toggle-value-vote" data-index="${i}" aria-pressed="${isSelected ? 'true' : 'false'}"
+            style="background:${bgColor};border:2px solid ${borderColor};
+            border-radius:12px;padding:${APP.presentationMode ? '32px' : '24px'};text-align:center;
+            cursor:pointer;transition:all 0.3s;position:relative;">
+            
+            ${isSelected ? `
+              <div style="position:absolute;top:8px;right:8px;width:24px;height:24px;
+                background:var(--accent);border-radius:50%;display:grid;place-items:center;
+                font-size:0.7rem;color:var(--bg);font-weight:700;">✓</div>
+            ` : ''}
+            
+            <div style="font-size:${APP.presentationMode ? '4rem' : '3rem'};margin-bottom:10px;">${val.icon}</div>
+            <div style="font-weight:700;margin-bottom:8px;font-size:${APP.presentationMode ? '1.2rem' : '1rem'};">
+              ${val.name}
+            </div>
+            ${voteCount > 0 ? `
+              <div style="margin-top:10px;">
+                <span style="background:var(--accent);color:var(--bg);padding:6px 12px;
+                  border-radius:12px;font-size:0.8rem;font-weight:700;">
+                  ${voteCount} ${voteCount === 1 ? 'vote' : 'votes'}
+                </span>
+              </div>
+            ` : ''}
+          </button>
+        `;
+      }).join('')}
+    </div>
+    
+    <div role="status" aria-live="polite" aria-atomic="true" style="text-align:center;padding:20px;margin-top:30px;background:var(--surface-2);
+      border-radius:10px;border:1px solid var(--border);">
+      <strong>${Object.keys(votes).length} of ${APP.room.participants.length} voted</strong>
+      ${userVotes.length < 3 ? `
+        <div style="color:var(--text-dim);font-size:0.85rem;margin-top:8px;">
+          Select at least 3 values
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+async function submitWordleSuggestion() {
+  const input = normalizeWord(document.getElementById('wordleInput')?.value || '');
+  if (!input || input.length !== 5) {
+    showError('Please enter a 5-letter word');
+    return;
+  }
+  
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room.activityState.answers) room.activityState.answers = {};
+  
+  room.activityState.answers[APP.player.name] = input;
+  
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function submitWordleGuess() {
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  const answers = room.activityState.answers || {};
+  
+  if (Object.keys(answers).length === 0) return;
+  
+  const voteCounts = {};
+  Object.values(answers).forEach(word => {
+    voteCounts[word] = (voteCounts[word] || 0) + 1;
+  });
+  
+  const mostPopular = Object.entries(voteCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+  
+  if (mostPopular) {
+    room.activityState.guesses.push(mostPopular);
+    
+    if (mostPopular === room.activityState.targetWord) {
+      room.activityState.gameOver = true;
+    } else if (room.activityState.guesses.length >= 6) {
+      room.activityState.gameOver = true;
+    }
+    
+    room.activityState.answers = {};
+  }
+  
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function newWordleRound() {
+  const word = WORDLE_WORDS[Math.floor(Math.random() * WORDLE_WORDS.length)];
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  room.activityState = {
+    targetWord: word,
+    guesses: [],
+    currentRow: 0,
+    gameOver: false,
+    answers: {}
+  };
+  
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+function renderWordle() {
+  const state = APP.room.activityState || {};
+  const targetWord = state.targetWord || 'AGILE';
+  const guesses = state.guesses || [];
+  const gameOver = state.gameOver || false;
+  const answers = state.answers || {};
+  const userGuess = answers[APP.player.name] || '';
+  const isHost = APP.room.host === APP.player.name;
+  const maxGuesses = 6;
+  const safeRoomCode = escapeHtml(APP.roomCode);
+  const safeUserGuess = escapeHtml(userGuess);
+  
+  const letterStates = {};
+  guesses.forEach(guess => {
+    for (let i = 0; i < 5; i++) {
+      const letter = guess[i];
+      if (targetWord[i] === letter) letterStates[letter] = 'correct';
+      else if (targetWord.includes(letter) && letterStates[letter] !== 'correct') letterStates[letter] = 'present';
+      else if (!targetWord.includes(letter)) letterStates[letter] = 'absent';
+    }
+  });
+  
+  const won = guesses.includes(targetWord);
+  const lost = !won && guesses.length >= maxGuesses;
+  
+  let gridHtml = '';
+  for (let row = 0; row < maxGuesses; row++) {
+    gridHtml += '<div class="wordle-row">';
+    const guess = guesses[row] || '';
+    for (let col = 0; col < 5; col++) {
+      const letter = guess[col] || '';
+      let cellClass = 'wordle-cell';
+      if (guess.length === 5) {
+        if (targetWord[col] === letter) cellClass += ' correct';
+        else if (targetWord.includes(letter)) cellClass += ' present';
+        else cellClass += ' absent';
+      }
+      gridHtml += '<div class="' + cellClass + '">' + letter + '</div>';
+    }
+    gridHtml += '</div>';
+  }
+  
+  const keyboard = [
+    ['Q','W','E','R','T','Y','U','I','O','P'],
+    ['A','S','D','F','G','H','J','K','L'],
+    ['Z','X','C','V','B','N','M']
+  ];
+  
+  let keyboardHtml = '<div style="max-width:500px;margin:20px auto;">';
+  keyboard.forEach(row => {
+    keyboardHtml += '<div style="display:flex;gap:6px;justify-content:center;margin-bottom:6px;">';
+    row.forEach(key => {
+      const state = letterStates[key] || '';
+      const disabled = gameOver ? 'disabled' : '';
+      keyboardHtml += '<button class="key-btn ' + state + '" data-action="wordle-key" data-key="' + key + '" ' + disabled + '>' + key + '</button>';
+    });
+    keyboardHtml += '</div>';
+  });
+  const disabled = gameOver ? 'disabled' : '';
+  keyboardHtml += '<div style="display:flex;gap:6px;justify-content:center;">';
+  keyboardHtml += '<button class="key-btn wide" data-action="wordle-key" data-key="ENTER" ' + disabled + '>ENTER</button>';
+  keyboardHtml += '<button class="key-btn wide" data-action="wordle-key" data-key="DEL" ' + disabled + '>DEL</button>';
+  keyboardHtml += '</div></div>';
+  
+  let statusHtml = '';
+  if (won) {
+    statusHtml = '<div role="status" aria-live="polite" aria-atomic="true" style="text-align:center;padding:20px;background:rgba(0,210,106,0.05);border:1px solid var(--success);border-radius:12px;color:var(--success);margin:20px 0;font-size:1.2rem;font-weight:700;">🎉 Team solved it in ' + guesses.length + ' ' + (guesses.length === 1 ? 'guess' : 'guesses') + '!</div>';
+  } else if (lost) {
+    statusHtml = '<div role="alert" aria-live="assertive" aria-atomic="true" style="text-align:center;padding:20px;background:rgba(255,64,96,0.05);border:1px solid var(--danger);border-radius:12px;margin:20px 0;">The word was: <strong style="color:var(--accent);font-size:1.5rem;display:block;margin-top:10px;">' + escapeHtml(targetWord) + '</strong></div>';
+  }
+  
+  let suggestionsHtml = '';
+  Object.entries(answers).forEach(([name, word]) => {
+    const participant = APP.room.participants.find(p => p.name === name);
+    const avatar = participant ? participant.avatar : '👤';
+    suggestionsHtml += '<div style="background:var(--surface-2);border-radius:10px;padding:16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;">';
+    suggestionsHtml += '<div style="font-size:1.5rem;">' + escapeHtml(avatar) + '</div>';
+    suggestionsHtml += '<div style="flex:1;"><div style="color:var(--accent);font-weight:600;margin-bottom:4px;">' + escapeHtml(name) + '</div>';
+    suggestionsHtml += '<div style="font-size:1.2rem;font-weight:700;letter-spacing:4px;">' + escapeHtml(word) + '</div></div>';
+    suggestionsHtml += '</div>';
+  });
+  
+  return `
+    <div class="header">
+      <h1 style="font-size:2rem;font-weight:700;">🎯 Team Wordle</h1>
+      <p class="tagline">Guess ${guesses.length + 1} of ${maxGuesses} • Room: ${safeRoomCode}</p>
+    </div>
+    
+    ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
+    
+    ${userGuess ? `
+      <div role="status" aria-live="polite" aria-atomic="true" style="text-align:center;padding:12px;background:rgba(0,210,211,0.05);
+        border:1px solid var(--accent);border-radius:10px;margin-bottom:20px;">
+        Your suggestion: <strong style="font-size:1.2rem;letter-spacing:2px;">${safeUserGuess}</strong>
+      </div>
+    ` : ''}
+    
+    <div class="wordle-grid">${gridHtml}</div>
+    
+    ${!gameOver ? keyboardHtml : ''}
+    
+    ${statusHtml}
+    
+    ${!gameOver ? `
+      <div style="max-width:400px;margin:20px auto;">
+        <div style="margin-bottom:12px;">
+          <label for="wordleInput" style="display:block;text-align:center;margin-bottom:8px;font-weight:600;">
+            Suggest a 5-letter word
+          </label>
+          <input type="text" id="wordleInput" 
+            style="width:100%;background:var(--surface-2);border:1px solid var(--border);
+            color:var(--text);padding:12px 16px;border-radius:10px;font-size:1.5rem;
+            text-align:center;text-transform:uppercase;letter-spacing:8px;outline:none;"
+            maxlength="5" placeholder="WORD"
+            onfocus="this.style.borderColor='var(--accent)'"
+            onblur="this.style.borderColor='var(--border)'">
+        </div>
+        <button class="btn-primary" data-action="submit-wordle-suggestion">
+          ${userGuess ? 'Update Suggestion' : 'Submit Suggestion'}
+        </button>
+      </div>
+      
+      <div style="background:var(--surface-solid);border:1px solid var(--border);
+        border-radius:var(--radius);padding:24px;margin-top:20px;">
+        <h3 aria-live="polite" aria-atomic="true" style="font-weight:600;margin-bottom:12px;text-align:center;">
+          Team Suggestions (${Object.keys(answers).length}/${APP.room.participants.length})
+        </h3>
+        ${suggestionsHtml || '<p style="text-align:center;color:var(--text-dim);padding:20px;">No suggestions yet...</p>'}
+      </div>
+      
+      ${isHost && Object.keys(answers).length > 0 ? `
+        <button class="btn-primary" data-action="submit-wordle-guess" style="margin-top:20px;">
+          Pick Most Popular & Submit to Grid
+        </button>
+      ` : ''}
+    ` : `
+      ${isHost ? '<button class="btn-primary" data-action="new-wordle-round">New Round</button>' : ''}
+    `}
+  `;
+}
+
+function renderRegularTrivia() {
+  const state = APP.room.activityState || {};
+  const currentQ = state.currentQ || 0;
+  const questionIndex = state.questionOrder?.[currentQ] ?? currentQ;
+  const question = TRIVIA_BANK[questionIndex];
+  const revealed = state.revealed || false;
+  const answers = state.answers || {};
+  const userAnswer = answers[APP.player.name];
+  const isHost = APP.room.host === APP.player.name;
+  const hostSettings = getRoomHostSettings(APP.room);
+  const safeRoomCode = escapeHtml(APP.roomCode);
+  
+  if (!question) {
+    return renderTriviaResults();
+  }
+  
+  let optionsHtml = '';
+  question.opts.forEach((opt, i) => {
+    const isCorrect = revealed && i === question.ans;
+    const isUserAnswer = userAnswer === i;
+    const canClick = !revealed && (hostSettings.allowAnswerChanges || userAnswer === undefined || userAnswer === null);
+    const voteCount = revealed ? Object.values(answers).filter(a => a === i).length : 0;
+    
+    let style = '';
+    if (isCorrect) {
+      style = 'background:rgba(0,210,106,0.15);border:2px solid var(--success);';
+    } else if (isUserAnswer && !revealed) {
+      style = 'background:rgba(0,210,211,0.06);border:2px solid var(--accent);';
+    } else if (revealed) {
+      style = 'background:var(--surface-2);border:2px solid var(--border);opacity:0.5;';
+    } else {
+      style = 'background:var(--surface-2);border:2px solid var(--border);';
+    }
+    
+    const actionAttrs = canClick ? `data-action="submit-regular-trivia-answer" data-index="${i}"` : '';
+    const disabledAttr = canClick ? '' : 'disabled';
+    const cursor = canClick ? 'pointer' : 'default';
+    
+    optionsHtml += `
+      <button type="button" class="tile-btn" ${actionAttrs} ${disabledAttr}
+        style="${style}border-radius:12px;padding:16px 20px;margin-bottom:12px;
+        cursor:${cursor};transition:all 0.3s;display:flex;justify-content:space-between;
+        align-items:center;">
+        <span style="font-size:1.1rem;">${opt}</span>
+        ${revealed ? `
+          <span style="background:var(--accent);color:var(--bg);padding:6px 14px;
+            border-radius:20px;font-size:0.85rem;font-weight:700;">${voteCount}</span>
+        ` : ''}
+      </button>
+    `;
+  });
+  
+  return `
+    <div class="header">
+      <h1 style="font-size:2rem;font-weight:700;">🧠 Trivia Battle</h1>
+      <p class="tagline">Question ${currentQ + 1} of ${TRIVIA_BANK.length} • Room: ${safeRoomCode}</p>
+    </div>
+    
+    ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
+    
+    <div style="background:var(--surface-solid);border:2px solid var(--accent);
+      border-radius:var(--radius);padding:40px 30px;margin:30px 0;text-align:center;">
+      <div style="font-family:'Fraunces',serif;font-size:${APP.presentationMode ? '2.5rem' : '1.8rem'};
+        font-weight:700;line-height:1.4;">
+        ${question.q}
+      </div>
+    </div>
+    
+    <div style="max-width:700px;margin:0 auto;">
+      ${optionsHtml}
+    </div>
+    
+    <div role="status" aria-live="polite" aria-atomic="true" style="text-align:center;padding:16px;color:var(--text-dim);margin-top:20px;">
+      ${Object.keys(answers).length} of ${APP.room.participants.length} answered
+    </div>
+    
+    ${isHost ? `
+      <button class="btn-primary" data-action="${revealed ? 'next-regular-trivia' : 'reveal-regular-answer'}">
+        ${revealed ? (currentQ < TRIVIA_BANK.length - 1 ? 'Next Question' : 'View Final Results') : 'Reveal Answer'}
+      </button>
+    ` : ''}
+  `;
+}
+
+function renderLightningTrivia() {
+  const state = APP.room.activityState || {};
+  const currentQ = state.currentQ || 0;
+  const questionIndex = state.questionOrder?.[currentQ] ?? currentQ;
+  const question = TRIVIA_BANK[questionIndex];
+  const revealed = state.revealed || false;
+  const answers = state.answers || {};
+  const reactions = (state.reactions || []).filter(r => Date.now() - (r.ts || 0) < 6000);
+  const userAnswer = answers[APP.player.name];
+  const isHost = APP.room.host === APP.player.name;
+  const hostSettings = getRoomHostSettings(APP.room);
+  const safeRoomCode = escapeHtml(APP.roomCode);
+  
+  if (!question) {
+    return renderTriviaResults();
+  }
+  
+  const startTime = state.startTime || Date.now();
+  const timeLimit = 20;
+  const timeElapsed = (Date.now() - startTime) / 1000;
+  const timeRemaining = Math.max(0, timeLimit - timeElapsed);
+  const progress = (timeRemaining / timeLimit) * 100;
+  const circumference = 2 * Math.PI * 50;
+  const strokeDashoffset = circumference - (progress / 100) * circumference;
+  
+  const colors = ['kahoot-red', 'kahoot-blue', 'kahoot-yellow', 'kahoot-green'];
+  
+  let answerButtons = '';
+  question.opts.forEach((opt, i) => {
+    const colorClass = colors[i];
+    let buttonClass = 'kahoot-answer ' + colorClass;
+    const isCorrect = revealed && i === question.ans;
+    const isUserAnswer = userAnswer === i;
+    const canClick = !revealed && (hostSettings.allowAnswerChanges || userAnswer === undefined || userAnswer === null);
+    
+    if (revealed) {
+      buttonClass += ' disabled';
+      if (isCorrect) buttonClass += ' correct';
+      else if (!isCorrect) buttonClass += ' wrong';
+    } else if (isUserAnswer) {
+      buttonClass += ' selected';
+    }
+    
+    const actionAttrs = canClick ? `data-action="submit-answer" data-index="${i}"` : '';
+    const disabledAttr = canClick ? '' : 'disabled';
+    
+    answerButtons += `
+      <button type="button" class="${buttonClass}" ${actionAttrs} ${disabledAttr} aria-pressed="${isUserAnswer ? 'true' : 'false'}">
+        ${isUserAnswer && !revealed ? '<span class="kahoot-selected-badge" aria-hidden="true">✓</span>' : ''}
+        ${String.fromCharCode(65 + i)}. ${opt}
+      </button>
+    `;
+  });
+  
+  let leaderboardHtml = '';
+  if (revealed) {
+    const participants = APP.room.participants.map(p => ({
+      ...p,
+      score: state.scores?.[p.name] || 0,
+      lastPoints: state.lastPoints?.[p.name] || 0
+    })).sort((a, b) => b.score - a.score);
+    
+    participants.forEach((p, i) => {
+      const lastPts = p.lastPoints > 0 ? `<span style="color:var(--success);font-size:0.85rem;margin-left:8px;">+${p.lastPoints}</span>` : '';
+      leaderboardHtml += `
+        <div style="display:flex;justify-content:space-between;align-items:center;
+          background:var(--surface-2);border-radius:10px;padding:14px;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="font-size:1.5rem;font-weight:700;width:40px;">#${i + 1}</span>
+            <span style="font-size:1.2rem;">${escapeHtml(p.avatar)}</span>
+            <span style="font-weight:600;">${escapeHtml(p.name)}</span>
+            ${lastPts}
+          </div>
+          <span style="background:var(--accent);color:var(--bg);padding:6px 14px;border-radius:20px;font-weight:700;">
+            ${p.score}
+          </span>
+        </div>
+      `;
+    });
+  }
+
+  const reactionButtons = LIGHTNING_REACTIONS.map(emoji => `
+    <button type="button" class="reaction-btn" data-action="send-lightning-reaction" data-emoji="${emoji}" aria-label="Send reaction ${emoji}">
+      ${emoji}
+    </button>
+  `).join('');
+
+  const reactionStream = reactions.map(r => {
+    const player = APP.room.participants.find(p => p.name === r.player);
+    const avatar = player?.avatar || '👤';
+    return `<span class="reaction-pill" title="${escapeHtml(r.player)}">${escapeHtml(avatar)} ${escapeHtml(r.emoji)}</span>`;
+  }).join('');
+  
+  return `
+    <div class="header">
+      <h1 style="font-size:2rem;font-weight:700;margin-bottom:5px;">⚡ Lightning Trivia</h1>
+      <p class="tagline">Question ${currentQ + 1} of ${TRIVIA_BANK.length} • Room: ${safeRoomCode}</p>
+    </div>
+    
+    ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
+    
+    ${!revealed ? `
+      <div class="kahoot-timer">
+        <svg class="timer-circle" viewBox="0 0 120 120">
+          <circle class="timer-bg" cx="60" cy="60" r="50"/>
+          <circle class="timer-progress ${timeRemaining < 5 ? 'warning' : ''}" 
+            cx="60" cy="60" r="50"
+            stroke-dasharray="${circumference}"
+            stroke-dashoffset="${strokeDashoffset}"/>
+        </svg>
+        <div class="timer-text" role="timer" aria-live="off" aria-label="${Math.ceil(timeRemaining)} seconds remaining" style="color:${timeRemaining < 5 ? 'var(--danger)' : 'var(--accent)'}">
+          ${timeRemaining.toFixed(1)}
+        </div>
+      </div>
+    ` : ''}
+
+    <div class="reaction-stream" aria-live="polite">${reactionStream}</div>
+    <div class="reaction-bar">${reactionButtons}</div>
+    
+    <div style="background:var(--surface-solid);border:2px solid var(--accent);
+      border-radius:var(--radius);padding:40px 30px;margin-bottom:30px;text-align:center;">
+      <div style="font-family:'Fraunces',serif;font-size:${APP.presentationMode ? '2.5rem' : '1.8rem'};
+        font-weight:700;line-height:1.4;margin-bottom:30px;">
+        ${question.q}
+      </div>
+      
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;max-width:800px;margin:0 auto;">
+        ${answerButtons}
+      </div>
+    </div>
+    
+    ${!revealed ? `
+      <div role="status" aria-live="polite" aria-atomic="true" style="text-align:center;color:var(--text-dim);margin-bottom:20px;">
+        ${Object.keys(answers).length} of ${APP.room.participants.length} answered
+      </div>
+    ` : `
+      <div style="background:var(--surface-solid);border:1px solid var(--border);
+        border-radius:var(--radius);padding:24px;margin-bottom:20px;">
+        <h3 aria-live="polite" aria-atomic="true" style="text-align:center;font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:20px;">
+          🏆 Leaderboard
+        </h3>
+        ${leaderboardHtml}
+      </div>
+    `}
+    
+    ${isHost ? `
+      <button class="btn-primary" data-action="${revealed ? 'next-question' : 'reveal-answer'}">
+        ${revealed ? (currentQ < TRIVIA_BANK.length - 1 ? 'Next Question' : 'View Final Results') : 'Reveal Answer'}
+      </button>
+    ` : ''}
+  `;
+}
+
+function renderTriviaResults() {
+  const finishedActivity = APP.room.currentActivity;
+  const participants = APP.room.participants.map(p => ({
+    ...p,
+    score: APP.room.activityState.scores?.[p.name] || 0
+  })).sort((a, b) => b.score - a.score);
+  
+  const top3 = participants.slice(0, 3);
+  const isHost = APP.room.host === APP.player.name;
+  
+  return `
+    <div class="header">
+      <h1 style="font-size:2.5rem;font-weight:700;margin-bottom:10px;">🎉 Game Over!</h1>
+      <p class="tagline">${finishedActivity === 'regular-trivia' ? 'Trivia Battle Results' : 'Lightning Trivia Results'}</p>
+    </div>
+    
+    ${top3.length >= 3 ? `
+      <div class="podium">
+        <div class="podium-place second">
+          <div class="podium-medal">🥈</div>
+          <div style="font-size:1.5rem;margin-bottom:5px;">${escapeHtml(top3[1].avatar)}</div>
+          <div style="font-weight:700;">${escapeHtml(top3[1].name)}</div>
+          <div style="color:var(--accent);font-size:1.2rem;font-weight:700;margin-top:8px;">
+            ${top3[1].score}
+          </div>
+        </div>
+        
+        <div class="podium-place first">
+          <div class="podium-medal">🥇</div>
+          <div style="font-size:2rem;margin-bottom:5px;">${escapeHtml(top3[0].avatar)}</div>
+          <div style="font-weight:700;font-size:1.1rem;">${escapeHtml(top3[0].name)}</div>
+          <div style="color:#ffd700;font-size:1.5rem;font-weight:700;margin-top:8px;">
+            ${top3[0].score}
+          </div>
+        </div>
+        
+        <div class="podium-place third">
+          <div class="podium-medal">🥉</div>
+          <div style="font-size:1.5rem;margin-bottom:5px;">${escapeHtml(top3[2].avatar)}</div>
+          <div style="font-weight:700;">${escapeHtml(top3[2].name)}</div>
+          <div style="color:var(--warning);font-size:1.2rem;font-weight:700;margin-top:8px;">
+            ${top3[2].score}
+          </div>
+        </div>
+      </div>
+    ` : ''}
+    
+    <div style="background:var(--surface-solid);border:1px solid var(--border);
+      border-radius:var(--radius);padding:24px;margin:30px 0;">
+      <h3 style="text-align:center;margin-bottom:20px;font-size:1.2rem;font-weight:700;">
+        Final Standings
+      </h3>
+      ${participants.map((p, i) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;
+          background:var(--surface-2);border-radius:10px;padding:14px;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="font-size:1.3rem;font-weight:700;">#${i + 1}</span>
+            <span style="font-size:1.2rem;">${escapeHtml(p.avatar)}</span>
+            <span style="font-weight:600;">${escapeHtml(p.name)}</span>
+          </div>
+          <span style="font-size:1.2rem;font-weight:700;color:var(--accent);">${p.score}</span>
+        </div>
+      `).join('')}
+    </div>
+    
+    ${isHost ? `
+      <div style="display:flex;gap:10px;">
+        <button class="btn-primary" data-action="play-again" style="flex:1;">Play Again</button>
+        <button class="btn-secondary" data-action="end-activity" style="flex:1;">Back to Lobby</button>
+      </div>
+    ` : ''}
+  `;
+}
+
+// Initialize
+async function init() {
+  const profile = await PlayerManager.loadProfile();
+  if (profile) {
+    APP.player = profile;
+    APP.screen = 'dashboard';
+  }
+  render();
+}
+
+window.addEventListener('beforeunload', () => {
+  stopRoomSync();
+});
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: team-builder-pro-socket
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: 20

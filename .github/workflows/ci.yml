@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main, dev]
+
+jobs:
+  syntax-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validate server syntax
+        run: node --check server.js
+
+      - name: Validate index.html script syntax
+        run: |
+          awk '/<script>/{flag=1;next}/<\/script>/{flag=0}flag' index.html > /tmp/index.js
+          node --check /tmp/index.js
+
+      - name: Validate player-hub-v1 script syntax
+        run: |
+          awk '/<script>/{flag=1;next}/<\/script>/{flag=0}flag' "player-hub-v1 (2).html" > /tmp/player-hub.js
+          node --check /tmp/player-hub.js
