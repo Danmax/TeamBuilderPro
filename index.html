@@ -745,6 +745,54 @@ function randomAlphaNum(length) {
   return Array.from(bytes, b => chars[b % chars.length]).join('');
 }
 
+function getFeedbackUserToken() {
+  let token = localStorage.getItem(FEEDBACK_USER_TOKEN_KEY) || '';
+  if (!token) {
+    token = `u_${randomAlphaNum(18)}`;
+    localStorage.setItem(FEEDBACK_USER_TOKEN_KEY, token);
+  }
+  return token;
+}
+
+function applyBranding(config) {
+  const branding = config?.branding || {};
+  const preferences = config?.preferences || {};
+  const appName = String(branding.appName || APP.branding.appName).trim();
+  const tagline = String(branding.tagline || APP.branding.tagline).trim();
+  const accent = /^#[0-9a-fA-F]{6}$/.test(String(branding.accent || '').trim())
+    ? String(branding.accent).trim()
+    : APP.branding.accent;
+
+  APP.branding = {
+    appName: appName || APP.branding.appName,
+    tagline: tagline || APP.branding.tagline,
+    accent
+  };
+  APP.preferences = {
+    ...APP.preferences,
+    ...preferences
+  };
+  document.documentElement.style.setProperty('--accent', APP.branding.accent);
+}
+
+async function apiRequest(path, options = {}) {
+  const headers = { ...(options.headers || {}) };
+  if (options.withUserToken) headers['x-user-token'] = getFeedbackUserToken();
+  if (options.adminToken) headers['x-admin-token'] = options.adminToken;
+  if (options.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: options.method || 'GET',
+    headers,
+    body: options.body ? JSON.stringify(options.body) : undefined
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data?.ok === false) {
+    throw new Error(data?.error || `Request failed: ${response.status}`);
+  }
+  return data;
+}
+
 function getDefaultRoomHostSettings() {
   return {
     autoRevealLightning: true,
@@ -780,9 +828,11 @@ function saveHostLocalConfig(config) {
 }
 
 const SOCKET_SERVER_URL = window.SOCKET_SERVER_URL || localStorage.getItem('socket-server-url') || window.location.origin;
+const API_BASE_URL = window.APP_API_BASE_URL || window.location.origin;
 let socketClient = null;
 let socketRealtimeBound = false;
 let socketRoomKey = null;
+const FEEDBACK_USER_TOKEN_KEY = 'feedback-user-token';
 
 // Configure these for cross-device realtime sync via Supabase.
 // You can also set window.SUPABASE_URL / window.SUPABASE_ANON_KEY before this script loads.
@@ -1077,7 +1127,23 @@ const APP = {
   editingProfile: false,
   showHostSettings: false,
   aiGenerating: false,
-  aiStatus: null
+  aiStatus: null,
+  branding: {
+    appName: 'Player Hub',
+    tagline: 'Team building, games, and challenges - all in one place',
+    accent: '#00d2d3'
+  },
+  preferences: {
+    enableFeedbackHub: true
+  },
+  feedback: [],
+  feedbackLoading: false,
+  admin: {
+    authenticated: false,
+    token: localStorage.getItem('admin-token') || '',
+    feedback: [],
+    loading: false
+  }
 };
 
 const TRIVIA_BANK = [
@@ -1469,6 +1535,8 @@ function render() {
   else if (APP.screen === 'create-room') html = renderCreateRoom();
   else if (APP.screen === 'join-room') html = renderJoinRoom();
   else if (APP.screen === 'lobby') html = renderLobby();
+  else if (APP.screen === 'feedback') html = renderFeedbackHub();
+  else if (APP.screen === 'admin') html = renderAdminConsole();
 
   if (APP.showHostSettings && APP.room && APP.room.host === APP.player?.name) {
     html += renderHostSettingsModal();
@@ -1489,10 +1557,12 @@ function render() {
 }
 
 function renderWelcome() {
+  const safeAppName = escapeHtml(APP.branding.appName);
+  const safeTagline = escapeHtml(APP.branding.tagline);
   return `
     <div class="header">
-      <h1 class="logo">Player Hub</h1>
-      <p class="tagline">Team building, games, and challenges - all in one place</p>
+      <h1 class="logo">${safeAppName}</h1>
+      <p class="tagline">${safeTagline}</p>
     </div>
     
     <div class="form-container">
@@ -1525,9 +1595,11 @@ function renderWelcome() {
 
 function renderDashboard() {
   const safePlayerName = escapeHtml(APP.player.name);
+  const safeAppName = escapeHtml(APP.branding.appName);
+  const showFeedback = APP.preferences.enableFeedbackHub !== false;
   return `
     <div class="header">
-      <h1 class="logo">Player Hub</h1>
+      <h1 class="logo">${safeAppName}</h1>
     </div>
     
     <div class="player-card">
@@ -1560,6 +1632,8 @@ function renderDashboard() {
     <div style="text-align:center;margin-top:40px;">
       <button class="btn-secondary" data-action="view-stats">📊 View Full Stats</button>
       <button class="btn-secondary" data-action="edit-profile" style="margin-left:10px;">✏️ Edit Profile</button>
+      ${showFeedback ? '<button class="btn-secondary" data-action="open-feedback" style="margin-left:10px;">🗣️ Feedback Hub</button>' : ''}
+      <button class="btn-secondary" data-action="open-admin-console" style="margin-left:10px;">🛠️ Admin Console</button>
     </div>
   `;
 }
@@ -1662,6 +1736,155 @@ function renderJoinRoom() {
       </div>
       
       <button class="btn-primary" data-action="join-room">Join Room</button>
+    </div>
+  `;
+}
+
+function renderFeedbackHub() {
+  const entries = APP.feedback || [];
+  const loading = APP.feedbackLoading;
+  const statusColor = {
+    open: 'var(--warning)',
+    in_review: 'var(--accent)',
+    resolved: 'var(--success)'
+  };
+
+  return `
+    <div class="header">
+      <h1 class="logo">Feedback Hub</h1>
+      <p class="tagline">Report UI issues and share ideas. You only see your own submissions.</p>
+    </div>
+    <button class="btn-secondary" data-action="go-screen" data-screen="dashboard">← Back</button>
+
+    <div class="form-container" style="margin-top:20px;">
+      <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:14px;">Submit Feedback</h3>
+      <div class="form-group">
+        <label class="form-label" for="feedbackType">Type</label>
+        <select id="feedbackType" class="form-input">
+          <option value="ui">UI Issue</option>
+          <option value="idea">Idea</option>
+          <option value="bug">Bug</option>
+          <option value="general">General</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="feedbackTitle">Title</label>
+        <input id="feedbackTitle" class="form-input" maxlength="120" placeholder="Short title">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="feedbackDetails">Details</label>
+        <textarea id="feedbackDetails" class="form-input" rows="4" maxlength="2000" placeholder="Describe the issue or idea"></textarea>
+      </div>
+      <button class="btn-primary" data-action="submit-feedback">Submit</button>
+      <button class="btn-secondary" data-action="refresh-feedback" style="margin-top:10px;">Refresh My Feedback</button>
+    </div>
+
+    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:20px;">
+      <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:14px;">My Feedback</h3>
+      ${loading ? '<div style="color:var(--text-dim);">Loading...</div>' : ''}
+      ${!loading && entries.length === 0 ? '<div style="color:var(--text-dim);">No feedback submitted yet.</div>' : ''}
+      ${entries.map(item => `
+        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:8px;">
+            <strong>${escapeHtml(item.title || '')}</strong>
+            <span style="font-size:0.8rem;text-transform:uppercase;color:${statusColor[item.status] || 'var(--text-mid)'};">${escapeHtml((item.status || 'open').replace('_', ' '))}</span>
+          </div>
+          <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:8px;">
+            ${escapeHtml((item.type || 'general').toUpperCase())} • ${escapeHtml(item.createdAt || '')}
+          </div>
+          <div style="margin-bottom:8px;color:var(--text-mid);">${escapeHtml(item.details || '')}</div>
+          ${item.adminNotes ? `<div style="padding:10px;border-radius:8px;background:rgba(0,210,211,0.06);border:1px solid var(--accent);font-size:0.9rem;"><strong>Admin Notes:</strong> ${escapeHtml(item.adminNotes)}</div>` : ''}
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderAdminConsole() {
+  const admin = APP.admin || {};
+  const safeToken = escapeHtml(admin.token || '');
+  const safeAppName = escapeHtml(APP.branding.appName || '');
+  const safeTagline = escapeHtml(APP.branding.tagline || '');
+  const safeAccent = escapeHtml(APP.branding.accent || '#00d2d3');
+  const feedback = admin.feedback || [];
+  const statusColor = {
+    open: 'var(--warning)',
+    in_review: 'var(--accent)',
+    resolved: 'var(--success)'
+  };
+
+  if (!admin.authenticated) {
+    return `
+      <div class="header">
+        <h1 class="logo">Admin Console</h1>
+        <p class="tagline">Sign in with the admin token from your server environment.</p>
+      </div>
+      <button class="btn-secondary" data-action="go-screen" data-screen="dashboard">← Back</button>
+      <div class="form-container" style="margin-top:20px;">
+        <div class="form-group">
+          <label class="form-label" for="adminToken">Admin Token</label>
+          <input id="adminToken" class="form-input" value="${safeToken}" type="password" placeholder="x-admin-token">
+        </div>
+        <button class="btn-primary" data-action="admin-login">Login</button>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="header">
+      <h1 class="logo">Admin Console</h1>
+      <p class="tagline">Manage feedback workflow, branding, and global preferences.</p>
+    </div>
+    <button class="btn-secondary" data-action="go-screen" data-screen="dashboard">← Back</button>
+    <button class="btn-secondary" data-action="admin-logout" style="margin-left:10px;">Log Out</button>
+
+    <div class="form-container" style="margin-top:20px;">
+      <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:14px;">Branding & Preferences</h3>
+      <div class="form-group">
+        <label class="form-label" for="adminBrandAppName">App Name</label>
+        <input id="adminBrandAppName" class="form-input" value="${safeAppName}" maxlength="64">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="adminBrandTagline">Tagline</label>
+        <input id="adminBrandTagline" class="form-input" value="${safeTagline}" maxlength="140">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="adminBrandAccent">Accent Color (#RRGGBB)</label>
+        <input id="adminBrandAccent" class="form-input" value="${safeAccent}" maxlength="7" placeholder="#00d2d3">
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <input id="adminEnableFeedbackHub" type="checkbox" ${APP.preferences.enableFeedbackHub !== false ? 'checked' : ''}>
+        Enable user Feedback Hub
+      </label>
+      <button class="btn-primary" data-action="save-admin-config">Save Branding & Preferences</button>
+    </div>
+
+    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:20px;">
+      <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:12px;">All Feedback</h3>
+      <button class="btn-secondary" data-action="refresh-admin-feedback" style="margin-bottom:12px;">Refresh</button>
+      ${admin.loading ? '<div style="color:var(--text-dim);">Loading...</div>' : ''}
+      ${!admin.loading && feedback.length === 0 ? '<div style="color:var(--text-dim);">No feedback available.</div>' : ''}
+      ${feedback.map(item => `
+        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:8px;">
+            <strong>${escapeHtml(item.title || '')}</strong>
+            <span style="font-size:0.8rem;color:${statusColor[item.status] || 'var(--text-mid)'};text-transform:uppercase;">${escapeHtml((item.status || 'open').replace('_', ' '))}</span>
+          </div>
+          <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:8px;">
+            ${escapeHtml(item.userName || 'Anonymous')} • ${escapeHtml(item.type || 'general')} • ${escapeHtml(item.createdAt || '')}
+          </div>
+          <div style="color:var(--text-mid);margin-bottom:10px;">${escapeHtml(item.details || '')}</div>
+          <div style="display:grid;grid-template-columns:180px 1fr auto;gap:10px;">
+            <select id="admin-status-${item.id}" class="form-input">
+              <option value="open" ${(item.status || '') === 'open' ? 'selected' : ''}>Open</option>
+              <option value="in_review" ${(item.status || '') === 'in_review' ? 'selected' : ''}>In Review</option>
+              <option value="resolved" ${(item.status || '') === 'resolved' ? 'selected' : ''}>Resolved</option>
+            </select>
+            <input id="admin-notes-${item.id}" class="form-input" value="${escapeHtml(item.adminNotes || '')}" maxlength="2000" placeholder="Admin notes">
+            <button class="btn-primary" data-action="save-admin-feedback-item" data-feedback-id="${item.id}">Save</button>
+          </div>
+        </div>
+      `).join('')}
     </div>
   `;
 }
@@ -2086,6 +2309,173 @@ function viewStats() {
   alert('Full stats dashboard coming soon!');
 }
 
+async function loadPublicConfig() {
+  try {
+    const data = await apiRequest('/api/config');
+    applyBranding(data.config || {});
+  } catch (e) {
+    console.warn('Failed to load config:', e.message);
+  }
+}
+
+async function openFeedbackHub() {
+  if (APP.preferences.enableFeedbackHub === false) {
+    showError('Feedback Hub is currently disabled by admin.');
+    return;
+  }
+  APP.screen = 'feedback';
+  APP.feedbackLoading = true;
+  APP.feedback = [];
+  render();
+  await refreshMyFeedback();
+}
+
+async function refreshMyFeedback() {
+  APP.feedbackLoading = true;
+  render();
+  try {
+    const data = await apiRequest('/api/feedback/mine', { withUserToken: true });
+    APP.feedback = Array.isArray(data.feedback) ? data.feedback : [];
+  } catch (e) {
+    showError(e.message);
+  } finally {
+    APP.feedbackLoading = false;
+    render();
+  }
+}
+
+async function submitFeedback() {
+  const type = String(document.getElementById('feedbackType')?.value || 'general');
+  const title = String(document.getElementById('feedbackTitle')?.value || '').trim();
+  const details = String(document.getElementById('feedbackDetails')?.value || '').trim();
+  if (!title || !details) {
+    showError('Title and details are required.');
+    return;
+  }
+  try {
+    await apiRequest('/api/feedback', {
+      method: 'POST',
+      withUserToken: true,
+      body: {
+        type,
+        title,
+        details,
+        userName: APP.player?.name || 'Anonymous',
+        userId: APP.player?.id || ''
+      }
+    });
+    const titleInput = document.getElementById('feedbackTitle');
+    const detailsInput = document.getElementById('feedbackDetails');
+    if (titleInput) titleInput.value = '';
+    if (detailsInput) detailsInput.value = '';
+    await refreshMyFeedback();
+  } catch (e) {
+    showError(e.message);
+  }
+}
+
+function openAdminConsole() {
+  APP.screen = 'admin';
+  render();
+}
+
+async function adminLogin() {
+  const tokenInput = document.getElementById('adminToken');
+  const token = String(tokenInput?.value || APP.admin.token || '').trim();
+  if (!token) {
+    showError('Admin token is required.');
+    return;
+  }
+  APP.admin.token = token;
+  localStorage.setItem('admin-token', token);
+  try {
+    await apiRequest('/api/admin/login', {
+      method: 'POST',
+      adminToken: token
+    });
+    APP.admin.authenticated = true;
+    await refreshAdminConfig();
+    await refreshAdminFeedback();
+  } catch (e) {
+    APP.admin.authenticated = false;
+    showError(e.message);
+    render();
+  }
+}
+
+function adminLogout() {
+  APP.admin.authenticated = false;
+  APP.admin.feedback = [];
+  APP.admin.loading = false;
+  localStorage.removeItem('admin-token');
+  APP.admin.token = '';
+  render();
+}
+
+async function refreshAdminConfig() {
+  if (!APP.admin.authenticated || !APP.admin.token) return;
+  try {
+    const data = await apiRequest('/api/admin/config', { adminToken: APP.admin.token });
+    applyBranding(data.config || {});
+  } catch (e) {
+    showError(e.message);
+  }
+}
+
+async function refreshAdminFeedback() {
+  if (!APP.admin.authenticated || !APP.admin.token) return;
+  APP.admin.loading = true;
+  render();
+  try {
+    const data = await apiRequest('/api/admin/feedback', { adminToken: APP.admin.token });
+    APP.admin.feedback = Array.isArray(data.feedback) ? data.feedback : [];
+  } catch (e) {
+    showError(e.message);
+  } finally {
+    APP.admin.loading = false;
+    render();
+  }
+}
+
+async function saveAdminFeedbackItem(feedbackId) {
+  if (!feedbackId || !APP.admin.authenticated) return;
+  const status = String(document.getElementById(`admin-status-${feedbackId}`)?.value || 'open');
+  const adminNotes = String(document.getElementById(`admin-notes-${feedbackId}`)?.value || '');
+  try {
+    await apiRequest(`/api/admin/feedback/${feedbackId}`, {
+      method: 'PATCH',
+      adminToken: APP.admin.token,
+      body: { status, adminNotes }
+    });
+    await refreshAdminFeedback();
+  } catch (e) {
+    showError(e.message);
+  }
+}
+
+async function saveAdminConfig() {
+  if (!APP.admin.authenticated) return;
+  const appName = String(document.getElementById('adminBrandAppName')?.value || '').trim();
+  const tagline = String(document.getElementById('adminBrandTagline')?.value || '').trim();
+  const accent = String(document.getElementById('adminBrandAccent')?.value || '').trim();
+  const enableFeedbackHub = Boolean(document.getElementById('adminEnableFeedbackHub')?.checked);
+
+  try {
+    const data = await apiRequest('/api/admin/config', {
+      method: 'PUT',
+      adminToken: APP.admin.token,
+      body: {
+        branding: { appName, tagline, accent },
+        preferences: { enableFeedbackHub }
+      }
+    });
+    applyBranding(data.config || {});
+    render();
+  } catch (e) {
+    showError(e.message);
+  }
+}
+
 function openHostSettings() {
   if (!APP.room || APP.room.host !== APP.player?.name) return;
   APP.showHostSettings = true;
@@ -2312,7 +2702,7 @@ document.addEventListener('click', async (event) => {
   const target = event.target.closest('[data-action]');
   if (!target) return;
 
-  const { action, avatar, screen, key, index } = target.dataset;
+  const { action, avatar, screen, key, index, feedbackId } = target.dataset;
   const parsedIndex = Number.parseInt(index ?? '', 10);
 
   switch (action) {
@@ -2330,6 +2720,33 @@ document.addEventListener('click', async (event) => {
       break;
     case 'view-stats':
       viewStats();
+      break;
+    case 'open-feedback':
+      await openFeedbackHub();
+      break;
+    case 'refresh-feedback':
+      await refreshMyFeedback();
+      break;
+    case 'submit-feedback':
+      await submitFeedback();
+      break;
+    case 'open-admin-console':
+      openAdminConsole();
+      break;
+    case 'admin-login':
+      await adminLogin();
+      break;
+    case 'admin-logout':
+      adminLogout();
+      break;
+    case 'refresh-admin-feedback':
+      await refreshAdminFeedback();
+      break;
+    case 'save-admin-feedback-item':
+      if (feedbackId) await saveAdminFeedbackItem(feedbackId);
+      break;
+    case 'save-admin-config':
+      await saveAdminConfig();
       break;
     case 'edit-profile':
       editProfile();
@@ -3327,6 +3744,8 @@ function renderTriviaResults() {
 
 // Initialize
 async function init() {
+  getFeedbackUserToken();
+  await loadPublicConfig();
   const profile = await PlayerManager.loadProfile();
   if (profile) {
     APP.player = profile;
