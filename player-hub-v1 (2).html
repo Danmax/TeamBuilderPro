@@ -503,6 +503,130 @@
     opacity: 0.5;
   }
 
+  .word-chain-shell {
+    max-width: 820px;
+    margin: 0 auto 20px;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 20px;
+    color: var(--text);
+  }
+
+  .word-chain-help {
+    font-size: 0.92rem;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .word-chain-board {
+    display: grid;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .word-chain-board-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .word-chain-row {
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    gap: 8px;
+    align-items: center;
+  }
+
+  .word-chain-cell {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    display: grid;
+    place-items: center;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.2px;
+    font-size: 1.02rem;
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .word-chain-cell.blank {
+    background: rgba(255,255,255,0.02);
+    border-color: rgba(255,255,255,0.05);
+    color: transparent;
+  }
+
+  .word-chain-cell.top-anchor {
+    background: var(--warning);
+    border-color: var(--warning);
+    color: var(--bg);
+  }
+
+  .word-chain-cell.bottom-anchor {
+    background: var(--success);
+    border-color: var(--success);
+    color: var(--bg);
+  }
+
+  .word-chain-cell.solved {
+    background: var(--success);
+    border-color: var(--success);
+    color: var(--bg);
+  }
+
+  .word-chain-score-bubble {
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--success);
+    color: var(--bg);
+    font-size: 0.72rem;
+    font-weight: 800;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+
+  @keyframes wordChainFocusCue {
+    0% { box-shadow: 0 0 0 0 rgba(0, 210, 211, 0.35); }
+    100% { box-shadow: 0 0 0 8px rgba(0, 210, 211, 0); }
+  }
+
+  .word-chain-letter-input {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+    text-align: center;
+    font-size: 1.02rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    padding: 0;
+    outline: none;
+  }
+
+  .word-chain-letter-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(0, 210, 211, 0.14);
+  }
+
+  .word-chain-letter-input.autofocus-cue {
+    animation: wordChainFocusCue 380ms ease-out;
+  }
+
+  .word-chain-status {
+    margin-top: 12px;
+    padding: 10px;
+    border-radius: 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-mid);
+  }
+
   .key-btn {
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -666,6 +790,10 @@ function normalizeName(name) {
 
 function normalizeWord(word) {
   return (word || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5);
+}
+
+function normalizeChainWord(word) {
+  return (word || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 16);
 }
 
 function normalizeEmoji(value) {
@@ -1231,10 +1359,32 @@ const WORDLE_WORDS = [
   'UNITE', 'VALUE', 'WORTH', 'YIELD'
 ];
 
+const WORD_CHAIN_PUZZLES = [
+  {
+    title: 'Chain A',
+    words: ['RAIN', 'BOW', 'TIE', 'BREAK', 'DOWN', 'LOAD', 'BEARING', 'WALL']
+  },
+  {
+    title: 'Chain B',
+    words: ['STAR', 'FISH', 'BOWL', 'GAME', 'PLAN', 'B', 'MOVIE', 'NIGHT']
+  },
+  {
+    title: 'Chain C',
+    words: ['HAND', 'SHAKE', 'DOWN', 'TIME', 'LINE', 'UP', 'GRADE', 'SCHOOL']
+  },
+  {
+    title: 'Chain D',
+    words: ['BOOK', 'SHELF', 'LIFE', 'CYCLE', 'TRACK', 'SUIT', 'CASE', 'STUDY']
+  }
+];
+
 let syncInterval = null;
 let roomChannel = null;
 let roomRealtimeEnabled = false;
 let lightningAutoRevealPending = false;
+let wordChainDraft = {};
+let wordChainLastAutoFocusKey = '';
+let wordChainFocusCueTimer = null;
 const ROOM_SYNC_MS = 300;
 
 // Activity Start Functions (must be before render functions)
@@ -1317,6 +1467,33 @@ async function startWordle() {
   
   await RoomManager.updateRoom(APP.roomCode, room);
   APP.room = room;
+  render();
+}
+
+async function startWordChain() {
+  const room = { ...APP.room };
+  const puzzleIndex = Math.floor(Math.random() * WORD_CHAIN_PUZZLES.length);
+  const puzzleWords = WORD_CHAIN_PUZZLES[puzzleIndex]?.words || [];
+  room.currentActivity = 'word-chain';
+  room.activityState = {
+    puzzleIndex,
+    progressIndex: {},
+    revealedLetters: {},
+    lastLetterGraceUsed: {},
+    solvedWords: {},
+    wordScores: {},
+    wordAttempts: {},
+    totalAttempts: {},
+    completedAt: {},
+    scores: {},
+    feedback: {},
+    startedAt: Date.now(),
+    wordCount: Math.min(8, puzzleWords.length)
+  };
+
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  wordChainDraft = {};
   render();
 }
 
@@ -1437,6 +1614,9 @@ async function endActivity() {
   } else if (activity === 'wordle') {
     const won = room.activityState.gameOver && room.activityState.guesses?.includes(room.activityState.targetWord);
     xpEarned = won ? 100 : 50;
+  } else if (activity === 'word-chain') {
+    const score = room.activityState.scores?.[APP.player.name] || 0;
+    xpEarned = Math.max(40, Math.round(score / 25));
   }
   
   if (xpEarned > 0) {
@@ -1454,6 +1634,7 @@ async function endActivity() {
   room.activityState = {};
   
   await RoomManager.updateRoom(APP.roomCode, room);
+  resetWordChainFocusState();
 }
 
 async function playAgain() {
@@ -1525,6 +1706,43 @@ async function nextRegularTrivia() {
 }
 
 // Icebreaker Functions
+function autoFocusWordChainActiveCell() {
+  if (APP.room?.currentActivity !== 'word-chain') {
+    wordChainLastAutoFocusKey = '';
+    return;
+  }
+  const state = APP.room.activityState || {};
+  const puzzle = WORD_CHAIN_PUZZLES[state.puzzleIndex];
+  if (!puzzle) return;
+  const chain = (puzzle.words || []).slice(0, Math.min(8, state.wordCount || 8));
+  const lastIndex = chain.length - 1;
+  if (lastIndex < 2) return;
+
+  const playerName = APP.player?.name;
+  if (!playerName) return;
+  const progress = state.progressIndex?.[playerName] || 1;
+  if (progress >= lastIndex) return;
+
+  const rowLength = normalizeChainWord(chain[progress] || '').slice(0, 9).length;
+  const revealCount = Math.max(1, Math.min(rowLength, state.revealedLetters?.[playerName]?.[progress] || 1));
+  const focusKey = `${APP.roomCode || ''}:${playerName}:${progress}:${revealCount}`;
+  if (focusKey === wordChainLastAutoFocusKey) return;
+
+  const target = document.querySelector(`.word-chain-letter-input[data-row="${progress}"][data-first-editable="true"]`);
+  if (!(target instanceof HTMLInputElement)) return;
+  target.focus();
+  target.select();
+  if (wordChainFocusCueTimer) clearTimeout(wordChainFocusCueTimer);
+  target.classList.remove('autofocus-cue');
+  void target.offsetWidth;
+  target.classList.add('autofocus-cue');
+  wordChainFocusCueTimer = setTimeout(() => {
+    target.classList.remove('autofocus-cue');
+    wordChainFocusCueTimer = null;
+  }, 420);
+  wordChainLastAutoFocusKey = focusKey;
+}
+
 function render() {
   const app = document.getElementById('app');
   let html = '';
@@ -1554,6 +1772,7 @@ function render() {
   }
   
   app.innerHTML = html;
+  autoFocusWordChainActiveCell();
 }
 
 function renderWelcome() {
@@ -1978,6 +2197,12 @@ function renderLobby() {
           <h3 class="card-title">Team Wordle</h3>
           <p class="card-desc">Guess the 5-letter word together</p>
         </button>
+
+        <button type="button" class="card" data-action="start-word-chain" aria-label="Start Word Chain">
+          <div class="card-icon">🔗</div>
+          <h3 class="card-title">Word Chain</h3>
+          <p class="card-desc">Solve 5 hidden compound words with the fewest tries</p>
+        </button>
         
         <button type="button" class="card" data-action="start-regular-trivia" aria-label="Start Trivia Battle">
           <div class="card-icon">🧠</div>
@@ -2146,6 +2371,7 @@ function goToScreen(screen) {
   if (screen !== 'lobby') {
     stopRoomSync();
     APP.showHostSettings = false;
+    resetWordChainFocusState();
   }
   APP.screen = screen;
   
@@ -2267,6 +2493,7 @@ async function leaveSession() {
     APP.showHostSettings = false;
     APP.screen = 'dashboard';
     stopRoomSync();
+    resetWordChainFocusState();
     render();
     return;
   }
@@ -2298,6 +2525,7 @@ async function leaveSession() {
   APP.roomCode = null;
   APP.showHostSettings = false;
   APP.screen = 'dashboard';
+  resetWordChainFocusState();
   render();
 }
 
@@ -2345,6 +2573,14 @@ function showError(msg) {
     APP.error = null;
     render();
   }, 3000);
+}
+
+function resetWordChainFocusState() {
+  wordChainLastAutoFocusKey = '';
+  if (wordChainFocusCueTimer) {
+    clearTimeout(wordChainFocusCueTimer);
+    wordChainFocusCueTimer = null;
+  }
 }
 
 function viewStats() {
@@ -2680,6 +2916,18 @@ function applyProfileUpdateToRoom(room, oldName, newName, newAvatar) {
   remapActivityStateKey(state, 'votes', oldName, newName);
   remapActivityStateKey(state, 'lastPoints', oldName, newName);
   remapActivityStateKey(state, 'answerTimes', oldName, newName);
+  remapActivityStateKey(state, 'entries', oldName, newName);
+  remapActivityStateKey(state, 'solved', oldName, newName);
+  remapActivityStateKey(state, 'attempts', oldName, newName);
+  remapActivityStateKey(state, 'completedAt', oldName, newName);
+  remapActivityStateKey(state, 'feedback', oldName, newName);
+  remapActivityStateKey(state, 'progressIndex', oldName, newName);
+  remapActivityStateKey(state, 'revealedLetters', oldName, newName);
+  remapActivityStateKey(state, 'lastLetterGraceUsed', oldName, newName);
+  remapActivityStateKey(state, 'solvedWords', oldName, newName);
+  remapActivityStateKey(state, 'wordScores', oldName, newName);
+  remapActivityStateKey(state, 'wordAttempts', oldName, newName);
+  remapActivityStateKey(state, 'totalAttempts', oldName, newName);
   room.activityState = state;
 
   return room;
@@ -2739,6 +2987,70 @@ function handleWordleKey(key) {
     input.value = current + key;
   }
 }
+
+function handleWordChainArrowNavigation(event) {
+  if (APP.room?.currentActivity !== 'word-chain') return;
+  const active = document.activeElement;
+  if (!active || !active.classList?.contains('word-chain-letter-input')) return;
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    submitWordChainGuess();
+    return;
+  }
+  const row = Number.parseInt(active.dataset.row || '', 10);
+  const pos = Number.parseInt(active.dataset.pos || '', 10);
+  if (!Number.isInteger(row) || !Number.isInteger(pos)) return;
+  const rowInputs = Array.from(document.querySelectorAll(`.word-chain-letter-input[data-row="${row}"]`))
+    .sort((a, b) => Number.parseInt(a.dataset.pos || '0', 10) - Number.parseInt(b.dataset.pos || '0', 10));
+  const currentIndex = rowInputs.findIndex(input => input === active);
+  if (currentIndex < 0) return;
+
+  if (event.key === 'ArrowLeft' && currentIndex > 0) {
+    event.preventDefault();
+    rowInputs[currentIndex - 1].focus();
+    return;
+  }
+  if (event.key === 'ArrowRight' && currentIndex < rowInputs.length - 1) {
+    event.preventDefault();
+    rowInputs[currentIndex + 1].focus();
+    return;
+  }
+  if (event.key === 'Backspace' && !active.value && currentIndex > 0) {
+    event.preventDefault();
+    rowInputs[currentIndex - 1].focus();
+    return;
+  }
+  if (['ArrowUp', 'ArrowDown'].includes(event.key)) {
+    event.preventDefault();
+  }
+}
+
+function captureWordChainRowDraft(row) {
+  const rowInputs = Array.from(document.querySelectorAll(`.word-chain-letter-input[data-row="${row}"]`))
+    .sort((a, b) => Number.parseInt(a.dataset.pos || '0', 10) - Number.parseInt(b.dataset.pos || '0', 10));
+  wordChainDraft[row] = rowInputs.map(input => normalizeChainWord(input.value).slice(0, 1)).join('');
+}
+
+document.addEventListener('keydown', event => {
+  handleWordChainArrowNavigation(event);
+});
+
+document.addEventListener('input', event => {
+  const target = event.target;
+  if (!(target instanceof HTMLInputElement)) return;
+  if (!target.classList.contains('word-chain-letter-input')) return;
+  target.value = normalizeChainWord(target.value).slice(0, 1);
+
+  const row = Number.parseInt(target.dataset.row || '', 10);
+  const pos = Number.parseInt(target.dataset.pos || '', 10);
+  if (!Number.isInteger(row) || !Number.isInteger(pos)) return;
+  captureWordChainRowDraft(row);
+
+  if (target.value) {
+    const next = document.querySelector(`.word-chain-letter-input[data-row="${row}"][data-pos="${pos + 1}"]`);
+    if (next instanceof HTMLInputElement) next.focus();
+  }
+});
 
 document.addEventListener('click', async (event) => {
   const target = event.target.closest('[data-action]');
@@ -2832,6 +3144,9 @@ document.addEventListener('click', async (event) => {
     case 'start-wordle':
       await startWordle();
       break;
+    case 'start-word-chain':
+      await startWordChain();
+      break;
     case 'start-regular-trivia':
       await startRegularTrivia();
       break;
@@ -2867,6 +3182,12 @@ document.addEventListener('click', async (event) => {
       break;
     case 'new-wordle-round':
       await newWordleRound();
+      break;
+    case 'submit-word-chain-guess':
+      await submitWordChainGuess();
+      break;
+    case 'new-word-chain-puzzle':
+      await startWordChain();
       break;
     case 'submit-regular-trivia-answer':
       if (Number.isInteger(parsedIndex)) await submitRegularTriviaAnswer(parsedIndex);
@@ -2906,6 +3227,7 @@ function renderActivity() {
   else if (activity === 'pulse-check') content = renderPulseCheck();
   else if (activity === 'values-vote') content = renderValuesVote();
   else if (activity === 'wordle') content = renderWordle();
+  else if (activity === 'word-chain') content = renderWordChain();
   else if (activity === 'regular-trivia') content = renderRegularTrivia();
 
   return `
@@ -3479,6 +3801,327 @@ function renderWordle() {
     ` : `
       ${isHost ? '<button class="btn-primary" data-action="new-wordle-round">New Round</button>' : ''}
     `}
+  `;
+}
+
+async function submitWordChainGuess() {
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'word-chain') return;
+
+  const state = room.activityState || {};
+  const puzzle = WORD_CHAIN_PUZZLES[state.puzzleIndex];
+  if (!puzzle) return;
+
+  if (!state.progressIndex) state.progressIndex = {};
+  if (!state.revealedLetters) state.revealedLetters = {};
+  if (!state.lastLetterGraceUsed) state.lastLetterGraceUsed = {};
+  if (!state.solvedWords) state.solvedWords = {};
+  if (!state.wordScores) state.wordScores = {};
+  if (!state.wordAttempts) state.wordAttempts = {};
+  if (!state.totalAttempts) state.totalAttempts = {};
+  if (!state.completedAt) state.completedAt = {};
+  if (!state.scores) state.scores = {};
+  if (!state.feedback) state.feedback = {};
+
+  const chain = (puzzle.words || []).slice(0, Math.min(8, state.wordCount || 8));
+  if (chain.length < 3) return;
+
+  const playerName = APP.player.name;
+  const lastIndex = chain.length - 1;
+  if (!state.progressIndex[playerName]) state.progressIndex[playerName] = 1;
+  if (!state.revealedLetters[playerName]) state.revealedLetters[playerName] = { 1: 1 };
+  if (!state.lastLetterGraceUsed[playerName]) state.lastLetterGraceUsed[playerName] = {};
+  if (!state.solvedWords[playerName]) state.solvedWords[playerName] = {};
+  if (!state.wordScores[playerName]) state.wordScores[playerName] = {};
+  if (!state.wordAttempts[playerName]) state.wordAttempts[playerName] = {};
+
+  const currentIndex = state.progressIndex[playerName];
+  if (currentIndex >= lastIndex) return;
+
+  captureWordChainRowDraft(currentIndex);
+  const typedSuffix = normalizeChainWord(wordChainDraft[currentIndex] || '');
+  const answer = normalizeChainWord(chain[currentIndex]);
+  const revealCount = Math.max(1, Math.min(answer.length, state.revealedLetters[playerName]?.[currentIndex] || 1));
+  const revealedPrefix = answer.slice(0, revealCount);
+  const guess = normalizeChainWord((revealedPrefix + typedSuffix).slice(0, answer.length));
+
+  state.totalAttempts[playerName] = (state.totalAttempts[playerName] || 0) + 1;
+  const attemptForWord = (state.wordAttempts[playerName][currentIndex] || 0) + 1;
+  state.wordAttempts[playerName][currentIndex] = attemptForWord;
+
+  const solvedMap = state.solvedWords[playerName];
+  const wordScoreMap = state.wordScores[playerName];
+  const revealMap = state.revealedLetters[playerName];
+  const graceMap = state.lastLetterGraceUsed[playerName];
+  let newlySolved = false;
+  let autoRevealedAdvance = false;
+  let pointsEarned = 0;
+
+  if (guess === answer) {
+    solvedMap[currentIndex] = true;
+    newlySolved = true;
+    if (attemptForWord === 1) pointsEarned = 20;
+    else if (attemptForWord === 2) pointsEarned = 15;
+    else if (attemptForWord === 3) pointsEarned = 10;
+    else pointsEarned = Math.max(0, 5 - (attemptForWord - 4)); // -1 for attempts after 4th
+    state.scores[playerName] = (state.scores[playerName] || 0) + pointsEarned;
+    wordScoreMap[currentIndex] = pointsEarned;
+
+    state.progressIndex[playerName] = currentIndex + 1;
+    delete graceMap[currentIndex];
+    wordChainDraft[currentIndex] = '';
+    const nextIndex = state.progressIndex[playerName];
+    if (nextIndex < lastIndex) {
+      revealMap[nextIndex] = Math.max(1, revealMap[nextIndex] || 1);
+    } else {
+      state.completedAt[playerName] = Date.now();
+    }
+  } else {
+    const currentReveal = revealMap[currentIndex] || 1;
+    const lastMissingLetter = currentReveal >= Math.max(1, answer.length - 1);
+    if (lastMissingLetter && !graceMap[currentIndex]) {
+      // Give one extra try when only one letter remains hidden.
+      graceMap[currentIndex] = true;
+    } else if (lastMissingLetter && graceMap[currentIndex]) {
+      // Second miss on last-letter state: reveal it and advance.
+      revealMap[currentIndex] = answer.length;
+      solvedMap[currentIndex] = true;
+      autoRevealedAdvance = true;
+      pointsEarned = 0;
+      wordScoreMap[currentIndex] = 0;
+      delete graceMap[currentIndex];
+      state.progressIndex[playerName] = currentIndex + 1;
+      const nextIndex = state.progressIndex[playerName];
+      if (nextIndex < lastIndex) {
+        revealMap[nextIndex] = Math.max(1, revealMap[nextIndex] || 1);
+      } else {
+        state.completedAt[playerName] = Date.now();
+      }
+    } else {
+      revealMap[currentIndex] = Math.min(answer.length, currentReveal + 1);
+    }
+    wordChainDraft[currentIndex] = '';
+    const activeRowInputs = document.querySelectorAll(`.word-chain-letter-input[data-row="${currentIndex}"]`);
+    activeRowInputs.forEach(input => {
+      if (input instanceof HTMLInputElement) input.value = '';
+    });
+  }
+
+  state.solvedWords[playerName] = solvedMap;
+  state.wordScores[playerName] = wordScoreMap;
+  state.revealedLetters[playerName] = revealMap;
+  state.lastLetterGraceUsed[playerName] = graceMap;
+
+  const solvedCount = Object.keys(solvedMap).length;
+  const hiddenTotal = Math.max(0, lastIndex - 1);
+  const remaining = Math.max(0, hiddenTotal - solvedCount);
+  const now = Date.now();
+  state.feedback[playerName] = {
+    correctThisRound: newlySolved ? 1 : 0,
+    remaining,
+    attempts: state.totalAttempts[playerName] || 0,
+    pointsEarned,
+    autoRevealedAdvance,
+    ts: now
+  };
+
+  // Force focus refresh after every submit (wrong: same row, correct: next row).
+  resetWordChainFocusState();
+  room.activityState = state;
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+function renderWordChain() {
+  const state = APP.room.activityState || {};
+  const puzzle = WORD_CHAIN_PUZZLES[state.puzzleIndex];
+  const isHost = APP.room.host === APP.player.name;
+  const safeRoomCode = escapeHtml(APP.roomCode);
+
+  if (!puzzle) {
+    return `
+      <div class="header">
+        <h1 style="font-size:2rem;font-weight:700;">🔗 Word Chain</h1>
+        <p class="tagline">Room: ${safeRoomCode}</p>
+      </div>
+      <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:12px;padding:20px;">
+        Puzzle unavailable.
+      </div>
+    `;
+  }
+
+  const playerName = APP.player.name;
+  const chain = (puzzle.words || []).slice(0, Math.min(8, state.wordCount || 8));
+  const lastIndex = chain.length - 1;
+  const playerProgress = state.progressIndex?.[playerName] || 1;
+  const revealMap = state.revealedLetters?.[playerName] || { 1: 1 };
+  const solvedMap = state.solvedWords?.[playerName] || {};
+  const wordScoreMap = state.wordScores?.[playerName] || {};
+  const wordAttempts = state.wordAttempts?.[playerName] || {};
+  const totalAttempts = state.totalAttempts?.[playerName] || 0;
+  const feedback = state.feedback?.[playerName];
+  const solvedCount = Object.keys(solvedMap).length;
+  const hiddenTotal = Math.max(0, lastIndex - 1);
+  const completedAt = state.completedAt?.[playerName];
+  const score = state.scores?.[playerName] || 0;
+  const elapsedSec = Math.max(0, Math.floor((Date.now() - (state.startedAt || Date.now())) / 1000));
+
+  const leaderboard = APP.room.participants
+    .map(p => {
+      const pSolved = state.solvedWords?.[p.name] || {};
+      const solved = Object.keys(pSolved).length;
+      return {
+        name: p.name,
+        avatar: p.avatar,
+        score: state.scores?.[p.name] || 0,
+        attempts: state.totalAttempts?.[p.name] || 0,
+        solved,
+        doneAt: state.completedAt?.[p.name] || null
+      };
+    })
+    .sort((a, b) => {
+      const aDone = Boolean(a.doneAt);
+      const bDone = Boolean(b.doneAt);
+      if (aDone !== bDone) return aDone ? -1 : 1;
+      if (aDone && bDone && a.score !== b.score) return b.score - a.score;
+      if (a.solved !== b.solved) return b.solved - a.solved;
+      return a.attempts - b.attempts;
+    });
+
+  let gridHtml = '<div class="word-chain-board">';
+  chain.forEach((word, idx) => {
+    const normalized = normalizeChainWord(word).slice(0, 9);
+    const isFirst = idx === 0;
+    const isLast = idx === lastIndex;
+    const isSolved = Boolean(solvedMap[idx]);
+    const isActiveRow = idx === playerProgress && !isSolved && !isFirst && !isLast;
+    const rowAttempts = wordAttempts[idx] || 0;
+    const rowScore = Number(wordScoreMap[idx] ?? 0);
+    const missHue = Math.max(0, 120 - (rowAttempts * 24)); // 120 (green) -> 0 (red)
+    const missBorder = `hsl(${missHue} 72% 45%)`;
+    const missBg = `hsla(${missHue}, 72%, 45%, 0.2)`;
+    const finalHue = Math.max(0, Math.min(120, Math.round((rowScore / 20) * 120)));
+    const finalBorder = `hsl(${finalHue} 72% 45%)`;
+    const finalBg = `hsla(${finalHue}, 72%, 45%, 0.25)`;
+    const baseReveal = revealMap[idx] ?? (idx === playerProgress ? 1 : 0);
+    const revealedChars = isFirst || isLast || isSolved
+      ? normalized.length
+      : Math.max(0, Math.min(normalized.length, baseReveal));
+
+    gridHtml += `
+      <div class="word-chain-board-row">
+        <div class="word-chain-row">
+              ${Array.from({ length: 9 }, (_, pos) => {
+                const char = pos < revealedChars ? normalized[pos] || '' : '';
+                const isBlank = pos >= normalized.length;
+              const draftChar = (wordChainDraft[idx] || '')[Math.max(0, pos - revealedChars)] || '';
+              const isMiddleSolved = isSolved && !isFirst && !isLast;
+              const cellClass = isBlank
+                ? 'word-chain-cell blank'
+                : isFirst
+                  ? 'word-chain-cell top-anchor'
+                  : isLast
+                    ? 'word-chain-cell bottom-anchor'
+                    : isMiddleSolved
+                      ? 'word-chain-cell'
+                      : 'word-chain-cell';
+              if (isActiveRow && pos >= revealedChars) {
+                const firstEditableAttr = pos === revealedChars ? 'data-first-editable="true"' : '';
+                const missStyle = rowAttempts > 0 ? `style="border-color:${missBorder};background:${missBg};"` : '';
+                return `<input class="word-chain-letter-input" data-row="${idx}" data-pos="${pos}" ${firstEditableAttr} ${missStyle} value="${escapeHtml(draftChar)}" maxlength="1" aria-label="Row ${idx + 1} letter ${pos + 1} of 9">`;
+              }
+              if (isBlank) return `<div class="${cellClass}"></div>`;
+              const solvedStyle = isMiddleSolved ? `style="border-color:${finalBorder};background:${finalBg};"` : '';
+              const missStyle = (!isFirst && !isLast && !isSolved && rowAttempts > 0) ? `style="border-color:${missBorder};background:${missBg};"` : '';
+              return `<div class="${cellClass}" ${solvedStyle || missStyle}>${escapeHtml(char)}</div>`;
+            }).join('')}
+        </div>
+        ${idx > 0 && idx < lastIndex && Object.prototype.hasOwnProperty.call(wordScoreMap, idx)
+          ? `<span class="word-chain-score-bubble">+${Number(wordScoreMap[idx]) || 0}</span>`
+          : '<span></span>'}
+      </div>
+    `;
+  });
+  gridHtml += '</div>';
+
+  const allDone = hiddenTotal > 0 && solvedCount >= hiddenTotal;
+  const statusLine = allDone
+    ? `Solved ${hiddenTotal} words in ${totalAttempts} ${totalAttempts === 1 ? 'attempt' : 'attempts'} • Score ${score}`
+    : `${solvedCount}/${hiddenTotal} words solved • Total attempts: ${totalAttempts}`;
+
+  return `
+    <div class="header">
+      <h1 style="font-size:2rem;font-weight:700;">🔗 Word Chain</h1>
+      <p class="tagline">${escapeHtml(puzzle.title)} • Room: ${safeRoomCode}</p>
+    </div>
+
+    ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
+
+    <div class="word-chain-shell">
+      <div class="word-chain-help">
+        First and last words are revealed. Solve the middle words (up to 8 total words).
+      </div>
+      <div class="word-chain-help">
+        Each row supports up to 9 letters. On wrong attempts, one more letter is revealed.
+      </div>
+      ${gridHtml}
+
+      <div class="word-chain-status" role="status" aria-live="polite" aria-atomic="true">
+        ${statusLine}
+      </div>
+
+      ${feedback && !allDone ? `
+        <div style="margin-top:8px;color:var(--text-mid);font-size:0.9rem;">
+          Last submit: ${
+            feedback.correctThisRound
+              ? `correct word solved (+${feedback.pointsEarned || 0})`
+              : feedback.autoRevealedAdvance
+                ? 'final letter revealed, advanced to next word'
+                : 'not matched'
+          } • ${feedback.remaining} remaining.
+        </div>
+      ` : ''}
+
+      ${!allDone ? `
+        <div style="margin-top:12px;display:flex;justify-content:flex-end;">
+          <button class="btn-primary" data-action="submit-word-chain-guess" style="width:auto;padding:12px 22px;">
+            Submit Row
+          </button>
+        </div>
+      ` : ''}
+
+      ${completedAt ? `
+        <div style="margin-top:10px;color:var(--success);font-weight:600;">
+          Completed at ${new Date(completedAt).toLocaleTimeString()}.
+        </div>
+      ` : ''}
+    </div>
+
+    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;">
+      <h3 style="font-family:'Fraunces',serif;font-size:1.2rem;margin-bottom:10px;">Leaderboard</h3>
+      <div style="color:var(--text-dim);font-size:0.9rem;margin-bottom:10px;">
+        Elapsed: ${elapsedSec}s
+      </div>
+      ${leaderboard.map((p, idx) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface-2);
+          border-radius:10px;padding:12px;margin-bottom:8px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <strong>#${idx + 1}</strong>
+            <span>${escapeHtml(p.avatar)}</span>
+            <span>${escapeHtml(p.name)}</span>
+          </div>
+          <div style="font-size:0.9rem;color:var(--text-mid);">
+            ${p.solved}/${hiddenTotal} solved • tries ${p.attempts}
+            ${p.doneAt ? ` • <strong style="color:var(--accent);">${p.score}</strong>` : ''}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    ${isHost ? `
+      <button class="btn-primary" data-action="new-word-chain-puzzle" style="margin-top:16px;">
+        New Word Chain Puzzle
+      </button>
+    ` : ''}
   `;
 }
 
