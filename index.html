@@ -976,6 +976,10 @@ function normalizeTopic(value) {
   return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 80);
 }
 
+function normalizeRoomCode(value) {
+  return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+}
+
 function normalizeTriviaOption(value) {
   const raw = String(value || '').trim();
   return raw
@@ -1529,6 +1533,7 @@ const APP = {
   player: null,
   room: null,
   roomCode: null,
+  pendingJoinCode: '',
   presentationMode: false,
   error: null,
   currentActivity: null,
@@ -1886,6 +1891,7 @@ async function runNextQueuedActivity(roomOverride = null) {
   room.activityState = getInitialActivityState(room, activityId) || {};
   await RoomManager.updateRoom(APP.roomCode, room);
   APP.room = room;
+  APP.screen = 'lobby';
   if (activityId === 'word-chain') {
     wordChainDraft = {};
     resetWordChainFocusState();
@@ -2376,6 +2382,7 @@ function renderCreateRoom() {
 }
 
 function renderJoinRoom() {
+  const prefillCode = escapeHtml(normalizeRoomCode(APP.pendingJoinCode || ''));
   return `
     <div class="header">
       <h1 class="logo">Join Session</h1>
@@ -2388,8 +2395,9 @@ function renderJoinRoom() {
         <label class="form-label" for="joinCode">Room Code</label>
         <input type="text" id="joinCode" class="form-input" 
           style="text-align:center;font-size:2rem;letter-spacing:8px;text-transform:uppercase;"
-          maxlength="6" placeholder="ABC123" autocapitalize="characters" inputmode="text">
+          maxlength="6" value="${prefillCode}" placeholder="ABC123" autocapitalize="characters" inputmode="text">
       </div>
+      ${prefillCode ? `<div style="color:var(--text-dim);font-size:0.9rem;margin-bottom:10px;">Invite link detected. Tap <strong>Join Room</strong>.</div>` : ''}
       
       <button class="btn-primary" data-action="join-room">Join Room</button>
     </div>
@@ -2548,6 +2556,9 @@ function renderAdminConsole() {
 function renderLobby() {
   const isHost = APP.room.host === APP.player.name;
   const safeRoomCode = escapeHtml(APP.roomCode);
+  const joinUrl = `${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(APP.roomCode || '')}`;
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(joinUrl)}`;
+  const safeJoinUrl = escapeHtml(joinUrl);
   const sharedPresentation = ENABLE_PRESENTATION_SHARE ? (APP.room.sharedPresentation || null) : null;
   const safePresentationTitle = escapeHtml(sharedPresentation?.title || 'Shared Presentation');
   const safePresentationUrl = escapeHtml(sharedPresentation?.url || '');
@@ -2572,15 +2583,32 @@ function renderLobby() {
     </div>
     
     <div style="background:rgba(0,210,211,0.05);border:2px solid var(--accent);
-      border-radius:var(--radius);padding:40px 30px;text-align:center;margin-bottom:30px;">
-      <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">
-        Room Code
+      border-radius:var(--radius);padding:24px;margin-bottom:24px;">
+      <div style="display:grid;grid-template-columns:${isHost ? '1.4fr 1fr' : '1fr'};gap:18px;align-items:center;">
+        <div style="text-align:center;">
+          <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">
+            Room Code
+          </div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:3rem;font-weight:700;
+            letter-spacing:12px;color:var(--accent);margin:10px 0;">
+            ${safeRoomCode}
+          </div>
+          <div style="font-size:0.85rem;color:var(--text-dim);">Share with your team</div>
+          ${isHost ? `
+            <div style="margin-top:10px;color:var(--text-dim);font-size:0.82rem;word-break:break-all;">
+              ${safeJoinUrl}
+            </div>
+            <button class="btn-secondary" data-action="copy-join-link" style="margin-top:10px;">Copy Join Link</button>
+          ` : ''}
+        </div>
+        ${isHost ? `
+          <div style="text-align:center;">
+            <div style="font-weight:700;margin-bottom:10px;">Scan to Join</div>
+            <img src="${qrImageUrl}" alt="QR code to join session" width="220" height="220"
+              style="width:220px;height:220px;max-width:100%;border-radius:12px;border:1px solid var(--border);background:#fff;padding:8px;">
+          </div>
+        ` : ''}
       </div>
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:3rem;font-weight:700;
-        letter-spacing:12px;color:var(--accent);margin:10px 0;">
-        ${safeRoomCode}
-      </div>
-      <div style="font-size:0.85rem;color:var(--text-dim);">Share with your team</div>
     </div>
 
     ${ENABLE_PRESENTATION_SHARE ? `
@@ -2946,8 +2974,32 @@ async function createPlayer() {
   }
   
   APP.player = await PlayerManager.createProfile(name, selectedAvatar);
-  APP.screen = 'dashboard';
+  APP.screen = APP.pendingJoinCode ? 'join-room' : 'dashboard';
   render();
+}
+
+async function copyJoinLink() {
+  if (!APP.roomCode) return;
+  const joinUrl = `${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(APP.roomCode)}`;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(joinUrl);
+      showError('Join link copied.');
+      return;
+    }
+  } catch (_error) {
+    // fallback below
+  }
+  const fallback = document.createElement('textarea');
+  fallback.value = joinUrl;
+  fallback.setAttribute('readonly', 'true');
+  fallback.style.position = 'fixed';
+  fallback.style.left = '-9999px';
+  document.body.appendChild(fallback);
+  fallback.select();
+  document.execCommand('copy');
+  fallback.remove();
+  showError('Join link copied.');
 }
 
 function goToScreen(screen) {
@@ -3050,7 +3102,7 @@ async function createRoomAndNavigate() {
 }
 
 async function joinRoom() {
-  const code = document.getElementById('joinCode')?.value.trim().toUpperCase();
+  const code = normalizeRoomCode(document.getElementById('joinCode')?.value || '');
   if (!/^[A-Z0-9]{6}$/.test(code || '')) {
     showError('Please enter a valid 6-digit room code');
     return;
@@ -3064,6 +3116,7 @@ async function joinRoom() {
   
   APP.room = room;
   APP.roomCode = code;
+  APP.pendingJoinCode = '';
   APP.screen = 'lobby';
   
   startRoomSync();
@@ -4160,6 +4213,9 @@ document.addEventListener('click', async (event) => {
     case 'join-room':
       await joinRoom();
       break;
+    case 'copy-join-link':
+      await copyJoinLink();
+      break;
     case 'leave-session':
       await leaveSession();
       break;
@@ -4756,15 +4812,31 @@ async function submitWordleGuess() {
   }
 
   if (Object.keys(answers).length === 0) return;
+  const validSuggestions = Array.from(new Set(Object.values(answers).map(w => normalizeWord(w)).filter(Boolean)));
+  if (validSuggestions.length === 1) {
+    const onlyWord = validSuggestions[0];
+    room.activityState.guesses.push(onlyWord);
+    if (onlyWord === room.activityState.targetWord) {
+      room.activityState.gameOver = true;
+    } else if (room.activityState.guesses.length >= 6) {
+      room.activityState.gameOver = true;
+    }
+    room.activityState.answers = {};
+    room.activityState.wordleVotes = {};
+    hostWordleDraft = '';
+    await RoomManager.updateRoom(APP.roomCode, room);
+    return;
+  }
+
   if (Object.keys(wordleVotes).length === 0) {
     showError('Need at least one vote before submitting.');
     return;
   }
   
-  const validSuggestions = new Set(Object.values(answers).map(w => normalizeWord(w)));
+  const validSuggestionSet = new Set(validSuggestions);
   const voteCounts = {};
   Object.values(wordleVotes).forEach(word => {
-    if (!validSuggestions.has(word)) return;
+    if (!validSuggestionSet.has(word)) return;
     voteCounts[word] = (voteCounts[word] || 0) + 1;
   });
   
@@ -5873,6 +5945,7 @@ function renderLightningTrivia() {
     let buttonClass = 'kahoot-answer ' + colorClass;
     const isCorrect = revealed && i === question.ans;
     const isUserAnswer = userAnswer === i;
+    const isWrongUserAnswer = revealed && isUserAnswer && !isCorrect;
     const canClick = !revealed && (hostSettings.allowAnswerChanges || userAnswer === undefined || userAnswer === null);
     
     if (revealed) {
@@ -5886,9 +5959,25 @@ function renderLightningTrivia() {
     const actionAttrs = canClick ? `data-action="submit-answer" data-index="${i}"` : '';
     const disabledAttr = canClick ? '' : 'disabled';
     
+    const badge = !revealed
+      ? (isUserAnswer ? '<span class="kahoot-selected-badge" aria-hidden="true">✓</span>' : '')
+      : (isCorrect
+        ? '<span class="kahoot-selected-badge" aria-hidden="true" style="background:var(--success);">✓</span>'
+        : (isWrongUserAnswer
+          ? '<span class="kahoot-selected-badge" aria-hidden="true" style="background:var(--danger);">✕</span>'
+          : ''));
+
+    const revealStyle = revealed
+      ? (isCorrect
+        ? 'box-shadow:0 0 0 4px rgba(0,210,106,0.55),0 0 28px rgba(0,210,106,0.35);transform:scale(1.03);'
+        : (isWrongUserAnswer
+          ? 'box-shadow:0 0 0 3px rgba(255,64,96,0.45),0 0 18px rgba(255,64,96,0.22);'
+          : 'opacity:0.45;'))
+      : '';
+
     answerButtons += `
-      <button type="button" class="${buttonClass}" ${actionAttrs} ${disabledAttr} aria-pressed="${isUserAnswer ? 'true' : 'false'}">
-        ${isUserAnswer && !revealed ? '<span class="kahoot-selected-badge" aria-hidden="true">✓</span>' : ''}
+      <button type="button" class="${buttonClass}" ${actionAttrs} ${disabledAttr} aria-pressed="${isUserAnswer ? 'true' : 'false'}" style="${revealStyle}">
+        ${badge}
         ${String.fromCharCode(65 + i)}. ${opt}
       </button>
     `;
@@ -6083,12 +6172,17 @@ function renderTriviaResults() {
 
 // Initialize
 async function init() {
+  const params = new URLSearchParams(window.location.search);
+  const deepJoinCode = normalizeRoomCode(params.get('join') || params.get('room') || params.get('code') || '');
+  if (/^[A-Z0-9]{6}$/.test(deepJoinCode)) {
+    APP.pendingJoinCode = deepJoinCode;
+  }
   getFeedbackUserToken();
   await loadPublicConfig();
   const profile = await PlayerManager.loadProfile();
   if (profile) {
     APP.player = profile;
-    APP.screen = 'dashboard';
+    APP.screen = APP.pendingJoinCode ? 'join-room' : 'dashboard';
   }
   render();
 }
