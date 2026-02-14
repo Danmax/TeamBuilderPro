@@ -1797,6 +1797,13 @@ const ACTIVITY_QUEUE_ITEMS = [
   { id: 'regular-trivia', icon: '🧠', label: 'Trivia Battle' }
 ];
 const ACTIVITY_QUEUE_ITEM_MAP = Object.fromEntries(ACTIVITY_QUEUE_ITEMS.map(item => [item.id, item]));
+const GAME_ACTIVITY_IDS = new Set([
+  'lightning-trivia',
+  'regular-trivia',
+  'wordle',
+  'word-chain',
+  'emoji-charades'
+]);
 const AI_GENERATION_TARGETS = [
   { id: 'lightning-trivia', label: 'Lightning Trivia' },
   { id: 'emoji-charades', label: 'Emoji Charades' },
@@ -2138,6 +2145,10 @@ async function endActivity() {
   }
   
   // Update activity completion stat
+  APP.player.stats = APP.player.stats || {};
+  if (GAME_ACTIVITY_IDS.has(activity)) {
+    APP.player.stats.gamesPlayed = (APP.player.stats.gamesPlayed || 0) + 1;
+  }
   APP.player.stats.activitiesCompleted = (APP.player.stats.activitiesCompleted || 0) + 1;
   await PlayerManager.updateProfile(APP.player);
 
