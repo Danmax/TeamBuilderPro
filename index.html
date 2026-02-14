@@ -460,6 +460,47 @@
     margin-bottom: 10px;
   }
 
+  @keyframes confettiFall {
+    0% {
+      transform: translate3d(0, -12vh, 0) rotate(0deg);
+      opacity: 0;
+    }
+    10% {
+      opacity: 1;
+    }
+    100% {
+      transform: translate3d(var(--confetti-drift, 0px), 110vh, 0) rotate(680deg);
+      opacity: 0;
+    }
+  }
+
+  .trivia-confetti {
+    position: fixed;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .trivia-confetti-piece {
+    position: absolute;
+    top: -12vh;
+    width: 10px;
+    height: 18px;
+    border-radius: 2px;
+    animation-name: confettiFall;
+    animation-timing-function: linear;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+    will-change: transform, opacity;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .trivia-confetti {
+      display: none;
+    }
+  }
+
   .wordle-grid {
     display: grid;
     gap: 8px;
@@ -1157,7 +1198,17 @@ function loadHostLocalConfig() {
   const stored = safeParseJson(localStorage.getItem('host-local-config') || '');
   if (!stored || typeof stored !== 'object') return defaults;
   const merged = { ...defaults, ...stored };
-  if (!AI_GENERATION_TARGET_LABELS[merged.aiDefaultActivity]) {
+  const validActivities = new Set([
+    'lightning-trivia',
+    'regular-trivia',
+    'icebreaker',
+    'pulse-check',
+    'values-vote',
+    'wordle',
+    'word-chain',
+    'brainstorm-canvas'
+  ]);
+  if (!validActivities.has(merged.aiDefaultActivity)) {
     merged.aiDefaultActivity = defaults.aiDefaultActivity;
   }
   return merged;
@@ -5656,6 +5707,7 @@ function renderLightningTrivia() {
 
 function renderTriviaResults() {
   const finishedActivity = APP.room.currentActivity;
+  const isLightningResults = finishedActivity === 'lightning-trivia';
   const participants = APP.room.participants.map(p => ({
     ...p,
     score: APP.room.activityState.scores?.[p.name] || 0
@@ -5663,8 +5715,21 @@ function renderTriviaResults() {
   
   const top3 = participants.slice(0, 3);
   const isHost = APP.room.host === APP.player.name;
+  const confettiPalette = ['#00d2d3', '#c56cf0', '#feca57', '#00d26a', '#ff4060', '#ffd700'];
+  const confettiPieces = isLightningResults
+    ? Array.from({ length: 42 }, (_, idx) => {
+      const left = Math.floor(Math.random() * 100);
+      const delay = (Math.random() * 2).toFixed(2);
+      const duration = (7.2 + (Math.random() * 2.8)).toFixed(2);
+      const drift = Math.floor((Math.random() * 160) - 80);
+      const rotate = Math.floor(Math.random() * 70) - 35;
+      const color = confettiPalette[idx % confettiPalette.length];
+      return `<span class="trivia-confetti-piece" style="left:${left}%;background:${color};animation-delay:${delay}s;animation-duration:${duration}s;--confetti-drift:${drift}px;transform:rotate(${rotate}deg);"></span>`;
+    }).join('')
+    : '';
   
   return `
+    ${isLightningResults ? `<div class="trivia-confetti" aria-hidden="true">${confettiPieces}</div>` : ''}
     <div class="header">
       <h1 style="font-size:2.5rem;font-weight:700;margin-bottom:10px;">🎉 Game Over!</h1>
       <p class="tagline">${finishedActivity === 'regular-trivia' ? 'Trivia Battle Results' : 'Lightning Trivia Results'}</p>
