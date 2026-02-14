@@ -681,6 +681,29 @@
     color: var(--text-mid);
   }
 
+  .emoji-charades-prompt {
+    font-size: clamp(2.2rem, 7vw, 4rem);
+    letter-spacing: 6px;
+    line-height: 1.2;
+  }
+
+  .emoji-charades-guess-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .emoji-charades-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 4px 10px;
+  }
+
   .brain-board {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -947,6 +970,10 @@ const AVATAR_OPTIONS = [
 
 const LIGHTNING_REACTIONS = ['👍','👏','🔥','😄','🤯','🎉','⚡','💯'];
 
+function getRandomAvatar() {
+  return AVATAR_OPTIONS[Math.floor(Math.random() * AVATAR_OPTIONS.length)] || '😀';
+}
+
 function safeParseJson(value) {
   try {
     return JSON.parse(value);
@@ -966,6 +993,15 @@ function normalizeWord(word) {
 
 function normalizeChainWord(word) {
   return (word || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 16);
+}
+
+function normalizeCharadesAnswer(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 80);
 }
 
 function normalizeEmoji(value) {
@@ -1090,6 +1126,19 @@ function validateAIWordChainPuzzles(items) {
         : [];
       if (words.length !== 8) return null;
       return { title, words };
+    })
+    .filter(Boolean);
+}
+
+function validateAIEmojiCharades(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .filter(item => item && typeof item === 'object')
+    .map(item => {
+      const emojis = String(item.emojis || item.emoji || '').trim().slice(0, 40);
+      const answer = String(item.answer || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+      if (!emojis || !answer) return null;
+      return { emojis, answer };
     })
     .filter(Boolean);
 }
@@ -1417,7 +1466,6 @@ const PlayerManager = {
       stats: {
         gamesPlayed: 0,
         activitiesCompleted: 0,
-        totalPoints: 0,
         participationInputs: 0
       },
       badges: [],
@@ -1437,19 +1485,29 @@ const PlayerManager = {
     await Storage.set('player-profile', JSON.stringify(profile), false);
   },
   
+  getXpForNextLevel(level) {
+    // Near-exponential curve: level 1=>1000, then grows by ~22% each level.
+    const base = 1000;
+    const growth = 1.22;
+    const safeLevel = Math.max(1, Number(level) || 1);
+    return Math.round(base * Math.pow(growth, safeLevel - 1));
+  },
+
   async awardXP(amount, reason) {
     const profile = await this.loadProfile();
     if (!profile) return;
     
     profile.xp += amount;
-    profile.stats = profile.stats || {};
-    profile.stats.totalPoints = (profile.stats.totalPoints || 0) + amount;
     
-    // Level up logic
-    const xpForNextLevel = profile.level * 1000;
-    if (profile.xp >= xpForNextLevel) {
+    // Level up logic (supports multiple level jumps in one award)
+    let leveledUp = false;
+    while (profile.xp >= this.getXpForNextLevel(profile.level)) {
+      const xpForNextLevel = this.getXpForNextLevel(profile.level);
       profile.level++;
       profile.xp = profile.xp - xpForNextLevel;
+      leveledUp = true;
+    }
+    if (leveledUp) {
       console.log('🎉 Level up!', profile.level);
       showLevelUp(profile.level);
     }
@@ -1712,8 +1770,24 @@ const WORD_CHAIN_PUZZLES = [
   }
 ];
 
+const EMOJI_CHARADES_BANK = [
+  { emojis: '🌮🔔', answer: 'Taco Bell' },
+  { emojis: '🧊☕', answer: 'Iced coffee' },
+  { emojis: '🕷️👨', answer: 'Spider-Man' },
+  { emojis: '🦁👑', answer: 'Lion King' },
+  { emojis: '🚀👨‍🚀', answer: 'Astronaut' },
+  { emojis: '📱🔋', answer: 'Phone battery' },
+  { emojis: '🎸⭐', answer: 'Rock star' },
+  { emojis: '🍕🎉', answer: 'Pizza party' },
+  { emojis: '🌧️🌈', answer: 'Rainbow' },
+  { emojis: '🧠⚡', answer: 'Brainstorm' },
+  { emojis: '🐟🍟', answer: 'Fish and chips' },
+  { emojis: '🍿🎬', answer: 'Movie night' }
+];
+
 const ACTIVITY_QUEUE_ITEMS = [
   { id: 'lightning-trivia', icon: '⚡', label: 'Lightning Trivia' },
+  { id: 'emoji-charades', icon: '🎭', label: 'Emoji Charades' },
   { id: 'icebreaker', icon: '🎲', label: 'Icebreaker Roulette' },
   { id: 'pulse-check', icon: '📊', label: 'Team Pulse Check' },
   { id: 'values-vote', icon: '⭐', label: 'Values Vote' },
@@ -1725,6 +1799,7 @@ const ACTIVITY_QUEUE_ITEMS = [
 const ACTIVITY_QUEUE_ITEM_MAP = Object.fromEntries(ACTIVITY_QUEUE_ITEMS.map(item => [item.id, item]));
 const AI_GENERATION_TARGETS = [
   { id: 'lightning-trivia', label: 'Lightning Trivia' },
+  { id: 'emoji-charades', label: 'Emoji Charades' },
   { id: 'regular-trivia', label: 'Trivia Battle' },
   { id: 'icebreaker', label: 'Icebreaker Roulette' },
   { id: 'pulse-check', label: 'Team Pulse Check' },
@@ -1776,6 +1851,18 @@ function createInitialActivityState(activityId) {
     return {
       currentQuestion: randomQ,
       answers: {}
+    };
+  }
+  if (activityId === 'emoji-charades') {
+    return {
+      round: 0,
+      revealed: false,
+      guesses: {},
+      scores: {},
+      roundPoints: {},
+      questionOrder: buildShuffledQuestionOrder(EMOJI_CHARADES_BANK.length),
+      roundsTotal: Math.min(8, EMOJI_CHARADES_BANK.length),
+      startedAt: Date.now()
     };
   }
   if (activityId === 'pulse-check') {
@@ -1923,6 +2010,7 @@ async function runNextQueuedActivity(roomOverride = null) {
 }
 
 async function startLightningTrivia() { await startActivityById('lightning-trivia'); }
+async function startEmojiCharades() { await startActivityById('emoji-charades'); }
 async function startIcebreaker() { await startActivityById('icebreaker'); }
 async function startPulseCheck() { await startActivityById('pulse-check'); }
 async function startValuesVote() { await startActivityById('values-vote'); }
@@ -2022,6 +2110,9 @@ async function endActivity() {
     xpEarned = Math.round(playerScore / 10);
   } else if (activity === 'icebreaker') {
     xpEarned = 50; // Participation XP
+  } else if (activity === 'emoji-charades') {
+    const playerScore = room.activityState.scores?.[APP.player.name] || 0;
+    xpEarned = Math.max(40, Math.round(playerScore / 5));
   } else if (activity === 'pulse-check') {
     xpEarned = 30;
   } else if (activity === 'values-vote') {
@@ -2134,6 +2225,83 @@ async function nextRegularTrivia() {
   await RoomManager.updateRoom(APP.roomCode, room);
 }
 
+// Emoji Charades Functions
+async function submitEmojiCharadesGuess() {
+  if (!APP.roomCode || APP.room?.currentActivity !== 'emoji-charades') return;
+  const guess = String(document.getElementById('emojiCharadesGuessInput')?.value || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  if (!guess) {
+    showError('Enter a guess first.');
+    return;
+  }
+
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'emoji-charades') return;
+  if (room.activityState?.revealed) return;
+
+  if (!room.activityState.guesses || typeof room.activityState.guesses !== 'object') {
+    room.activityState.guesses = {};
+  }
+  room.activityState.guesses[APP.player.name] = guess;
+
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
+
+async function revealEmojiCharades() {
+  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name || APP.room.currentActivity !== 'emoji-charades') return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'emoji-charades') return;
+  const state = room.activityState || {};
+  if (state.revealed) return;
+
+  const round = Number.isInteger(state.round) ? state.round : 0;
+  const roundsTotal = Math.max(1, Math.min(8, Number.parseInt(state.roundsTotal || '8', 10) || 8));
+  if (round >= roundsTotal) return;
+  const questionIndex = state.questionOrder?.[round] ?? round;
+  const prompt = EMOJI_CHARADES_BANK[questionIndex];
+  if (!prompt) return;
+
+  const answerKey = normalizeCharadesAnswer(prompt.answer);
+  const guesses = state.guesses && typeof state.guesses === 'object' ? state.guesses : {};
+  const scores = state.scores && typeof state.scores === 'object' ? state.scores : {};
+  const roundPoints = {};
+
+  APP.room.participants.forEach(player => {
+    const guessKey = normalizeCharadesAnswer(guesses[player.name] || '');
+    const points = guessKey && guessKey === answerKey ? 100 : 0;
+    roundPoints[player.name] = points;
+    if (points > 0) {
+      scores[player.name] = (scores[player.name] || 0) + points;
+    }
+  });
+
+  room.activityState = {
+    ...state,
+    revealed: true,
+    scores,
+    roundPoints
+  };
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function nextEmojiCharadesRound() {
+  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name || APP.room.currentActivity !== 'emoji-charades') return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'emoji-charades') return;
+  const state = room.activityState || {};
+  const nextRound = (Number.isInteger(state.round) ? state.round : 0) + 1;
+
+  room.activityState = {
+    ...state,
+    round: nextRound,
+    revealed: false,
+    guesses: {},
+    roundPoints: {}
+  };
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
 // Icebreaker Functions
 function autoFocusWordChainActiveCell() {
   if (APP.room?.currentActivity !== 'word-chain') {
@@ -2230,7 +2398,7 @@ function renderWelcome() {
         <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;">
           ${AVATAR_OPTIONS.map(av => `
             <button data-action="select-avatar" data-avatar="${av}" id="av-${av}" 
-              style="font-size:2rem;padding:10px;background:var(--surface-2);border:2px solid var(--border);
+              style="font-size:2rem;padding:10px;background:var(--surface-2);border:2px solid ${av === selectedAvatar ? 'var(--accent)' : 'var(--border)'};
               border-radius:10px;cursor:pointer;transition:all 0.3s;">
               ${av}
             </button>
@@ -2309,7 +2477,7 @@ function renderAboutApp() {
     <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:16px;">
       <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:10px;">Highlights</h3>
       <div style="display:grid;gap:10px;color:var(--text-mid);line-height:1.5;">
-        <div>• Multi-activity library: Lightning Trivia, Team Pulse, Values Vote, Wordle, Word Chain, and Brainstorm Canvas.</div>
+        <div>• Multi-activity library: Lightning Trivia, Emoji Charades, Team Pulse, Values Vote, Wordle, Word Chain, and Brainstorm Canvas.</div>
         <div>• Host controls: activity queue, room settings, and guided session flow.</div>
         <div>• Brainstorm collaboration: sticky notes, upvotes, lane movement, and JSON/CSV export.</div>
         <div>• Pulse reporting: export team sentiment snapshots to JSON or CSV.</div>
@@ -2369,7 +2537,6 @@ function renderEditProfile() {
           <div>XP: <strong>${APP.player.xp}</strong></div>
           <div>Games: <strong>${APP.player.stats.gamesPlayed}</strong></div>
           <div>Activities: <strong>${APP.player.stats.activitiesCompleted}</strong></div>
-          <div>Points: <strong>${APP.player.stats.totalPoints || 0}</strong></div>
           <div>Inputs: <strong>${APP.player.stats.participationInputs || 0}</strong></div>
         </div>
       </div>
@@ -2698,6 +2865,12 @@ function renderLobby() {
           <h3 class="card-title">Lightning Trivia</h3>
           <p class="card-desc">Kahoot-style quiz with 20s timer & speed scoring</p>
         </button>
+
+        <button type="button" class="card" data-action="start-emoji-charades" aria-label="Start Emoji Charades">
+          <div class="card-icon">🎭</div>
+          <h3 class="card-title">Emoji Charades</h3>
+          <p class="card-desc">Guess the phrase behind each emoji clue</p>
+        </button>
         
         <button type="button" class="card" data-action="start-icebreaker" aria-label="Start Icebreaker Roulette">
           <div class="card-icon">🎲</div>
@@ -2926,7 +3099,7 @@ function renderHostSettingsModal() {
                 ${APP.aiGenerating ? 'Generating...' : 'Generate & Add Content'}
               </button>
               <div style="margin-top:8px;font-size:0.85rem;color:var(--text-dim);">
-                Uses server-side AI key from <code>CHAT_GPT_MINI_KEY</code> when configured. Supported targets: Lightning Trivia, Trivia Battle, Icebreaker, Team Pulse, Values Vote, Team Wordle, Word Chain, Brainstorm Canvas.
+                Uses server-side AI key from <code>CHAT_GPT_MINI_KEY</code> when configured. Supported targets: Lightning Trivia, Emoji Charades, Trivia Battle, Icebreaker, Team Pulse, Values Vote, Team Wordle, Word Chain, Brainstorm Canvas.
               </div>
               ${APP.aiStatus ? `<div role="status" aria-live="polite" style="margin-top:10px;color:var(--text-mid);font-size:0.9rem;">${escapeHtml(APP.aiStatus)}</div>` : ''}
             </div>
@@ -2944,7 +3117,7 @@ function renderHostSettingsModal() {
 }
 
 // UI Helper Functions
-let selectedAvatar = '👨‍💼';
+let selectedAvatar = getRandomAvatar();
 let selectedEditAvatar = null;
 
 function selectAvatar(av) {
@@ -2994,7 +3167,8 @@ async function createPlayer() {
     return;
   }
   
-  APP.player = await PlayerManager.createProfile(name, selectedAvatar);
+  const avatar = AVATAR_OPTIONS.includes(selectedAvatar) ? selectedAvatar : getRandomAvatar();
+  APP.player = await PlayerManager.createProfile(name, avatar);
   APP.screen = APP.pendingJoinCode ? 'join-room' : 'dashboard';
   render();
 }
@@ -3647,6 +3821,10 @@ where ans is the zero-based index of the correct option.`;
     case 'icebreaker':
       return `Generate ${count} icebreaker prompts about "${targetTopic}" at ${difficulty} difficulty.
 Return only valid JSON as an array of strings.`;
+    case 'emoji-charades':
+      return `Generate ${count} emoji charades prompts about "${targetTopic}" at ${difficulty} difficulty.
+Return only valid JSON as an array. Each item must be:
+{"emojis":"emoji sequence","answer":"short phrase answer"}`;
     case 'pulse-check':
       return `Generate ${count} pulse-check polls about "${targetTopic}" for a team session.
 Return only valid JSON as an array. Each item must be:
@@ -3690,6 +3868,14 @@ async function applyAIGeneratedContent(activityId, parsed, topic) {
     if (!validated.length) throw new Error('AI returned invalid icebreaker format.');
     ICEBREAKER_QUESTIONS.push(...validated);
     APP.aiStatus = `Added ${validated.length} icebreaker prompt${validated.length === 1 ? '' : 's'} on "${topic || 'general'}".`;
+    return;
+  }
+
+  if (activityId === 'emoji-charades') {
+    const validated = validateAIEmojiCharades(parsed);
+    if (!validated.length) throw new Error('AI returned invalid Emoji Charades format.');
+    EMOJI_CHARADES_BANK.push(...validated);
+    APP.aiStatus = `Added ${validated.length} Emoji Charades prompt${validated.length === 1 ? '' : 's'}.`;
     return;
   }
 
@@ -3895,6 +4081,7 @@ function applyProfileUpdateToRoom(room, oldName, newName, newAvatar) {
 
   const state = room.activityState || {};
   remapActivityStateKey(state, 'answers', oldName, newName);
+  remapActivityStateKey(state, 'guesses', oldName, newName);
   remapActivityStateKey(state, 'scores', oldName, newName);
   remapActivityStateKey(state, 'votes', oldName, newName);
   remapActivityStateKey(state, 'lastPoints', oldName, newName);
@@ -4075,6 +4262,13 @@ function handleHostWordleCellNavigation(event) {
 document.addEventListener('keydown', event => {
   handleHostWordleCellNavigation(event);
   handleWordChainArrowNavigation(event);
+  if (event.key === 'Enter' && APP.room?.currentActivity === 'emoji-charades') {
+    const active = document.activeElement;
+    if (active && active.id === 'emojiCharadesGuessInput') {
+      event.preventDefault();
+      submitEmojiCharadesGuess();
+    }
+  }
 });
 
 document.addEventListener('input', event => {
@@ -4243,6 +4437,9 @@ document.addEventListener('click', async (event) => {
     case 'start-lightning-trivia':
       await startLightningTrivia();
       break;
+    case 'start-emoji-charades':
+      await startEmojiCharades();
+      break;
     case 'start-icebreaker':
       await startIcebreaker();
       break;
@@ -4272,6 +4469,18 @@ document.addEventListener('click', async (event) => {
       break;
     case 'submit-icebreaker-answer':
       await submitIcebreakerAnswer();
+      break;
+    case 'submit-emoji-charades-guess':
+      await submitEmojiCharadesGuess();
+      break;
+    case 'reveal-emoji-charades':
+      await revealEmojiCharades();
+      break;
+    case 'next-emoji-charades':
+      await nextEmojiCharadesRound();
+      break;
+    case 'new-emoji-charades-round':
+      await startEmojiCharades();
       break;
     case 'next-icebreaker-question':
       await nextIcebreakerQuestion();
@@ -4373,6 +4582,7 @@ function renderActivity() {
   let content = '<div>Activity loading...</div>';
 
   if (activity === 'lightning-trivia') content = renderLightningTrivia();
+  else if (activity === 'emoji-charades') content = renderEmojiCharades();
   else if (activity === 'icebreaker') content = renderIcebreaker();
   else if (activity === 'pulse-check') content = renderPulseCheck();
   else if (activity === 'values-vote') content = renderValuesVote();
@@ -5857,6 +6067,123 @@ function renderBrainstormCanvas() {
         </div>
       </div>
     </div>
+  `;
+}
+
+function renderEmojiCharadesResults() {
+  const state = APP.room.activityState || {};
+  const isHost = APP.room.host === APP.player.name;
+  const participants = APP.room.participants.map(p => ({
+    ...p,
+    score: state.scores?.[p.name] || 0
+  })).sort((a, b) => b.score - a.score);
+
+  return `
+    <div class="header">
+      <h1 style="font-size:2.2rem;font-weight:700;">🎭 Emoji Charades Results</h1>
+      <p class="tagline">Final scores</p>
+    </div>
+
+    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:24px;">
+      ${participants.map((p, idx) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface-2);border-radius:10px;padding:12px 14px;margin-bottom:8px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-weight:700;min-width:30px;">#${idx + 1}</span>
+            <span>${escapeHtml(p.avatar)}</span>
+            <span style="font-weight:600;">${escapeHtml(p.name)}</span>
+          </div>
+          <span style="font-weight:700;color:var(--accent);">${p.score}</span>
+        </div>
+      `).join('')}
+    </div>
+
+    ${isHost ? `
+      <div style="display:flex;gap:10px;margin-top:14px;">
+        <button class="btn-primary" data-action="new-emoji-charades-round" style="flex:1;">Play Again</button>
+        <button class="btn-secondary" data-action="end-activity" style="flex:1;">Back to Lobby</button>
+      </div>
+    ` : ''}
+  `;
+}
+
+function renderEmojiCharades() {
+  const state = APP.room.activityState || {};
+  const isHost = APP.room.host === APP.player.name;
+  const round = Number.isInteger(state.round) ? state.round : 0;
+  const roundsTotal = Math.max(1, Math.min(8, Number.parseInt(state.roundsTotal || '8', 10) || 8));
+  const questionIndex = state.questionOrder?.[round] ?? round;
+  const prompt = EMOJI_CHARADES_BANK[questionIndex];
+
+  if (!prompt || round >= roundsTotal) {
+    return renderEmojiCharadesResults();
+  }
+
+  const revealed = Boolean(state.revealed);
+  const guesses = state.guesses || {};
+  const userGuess = guesses[APP.player.name] || '';
+  const roundPoints = state.roundPoints || {};
+  const answerKey = normalizeCharadesAnswer(prompt.answer);
+  const submittedCount = Object.values(guesses).filter(Boolean).length;
+
+  const guessRows = APP.room.participants.map(player => {
+    const guess = guesses[player.name] || '';
+    const score = roundPoints[player.name] || 0;
+    const guessKey = normalizeCharadesAnswer(guess);
+    const isCorrect = revealed && guess && guessKey === answerKey;
+    const statusChip = !revealed
+      ? (guess ? '<span class="emoji-charades-chip" style="background:rgba(0,210,211,0.12);color:var(--accent);">Submitted</span>' : '<span class="emoji-charades-chip" style="background:var(--surface);color:var(--text-dim);">Waiting</span>')
+      : (isCorrect
+        ? `<span class="emoji-charades-chip" style="background:rgba(0,210,106,0.14);color:var(--success);">✓ Correct +${score}</span>`
+        : '<span class="emoji-charades-chip" style="background:rgba(255,64,96,0.12);color:var(--danger);">✕ Miss</span>');
+    return `
+      <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+          <span>${escapeHtml(player.avatar)}</span>
+          <span style="font-weight:600;">${escapeHtml(player.name)}</span>
+          ${revealed ? `<span style="color:var(--text-mid);font-size:0.86rem;">${guess ? escapeHtml(guess) : 'No guess'}</span>` : ''}
+        </div>
+        ${statusChip}
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="header">
+      <h1 style="font-size:2rem;font-weight:700;">🎭 Emoji Charades</h1>
+      <p class="tagline">Round ${Math.min(round + 1, roundsTotal)} of ${roundsTotal} • Guess the phrase from emojis</p>
+    </div>
+
+    ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
+
+    <div style="background:var(--surface-solid);border:2px solid var(--accent);border-radius:var(--radius);padding:28px;margin:20px 0;text-align:center;">
+      <div class="emoji-charades-prompt">${escapeHtml(prompt.emojis)}</div>
+      ${revealed ? `
+        <div style="margin-top:16px;color:var(--text-mid);font-size:0.9rem;">Answer</div>
+        <div style="font-family:'Fraunces',serif;font-size:1.6rem;color:var(--success);margin-top:6px;">${escapeHtml(prompt.answer)}</div>
+      ` : ''}
+    </div>
+
+    ${!revealed ? `
+      <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;">
+        <label class="form-label" for="emojiCharadesGuessInput">Your guess</label>
+        <div class="emoji-charades-guess-row">
+          <input id="emojiCharadesGuessInput" class="form-input" maxlength="60" value="${escapeHtml(userGuess)}" placeholder="Type a phrase">
+          <button class="btn-primary" data-action="submit-emoji-charades-guess" style="width:auto;padding:0 16px;">Submit</button>
+        </div>
+        <div style="font-size:0.84rem;color:var(--text-dim);margin-top:10px;">${submittedCount} of ${APP.room.participants.length} submitted</div>
+      </div>
+    ` : ''}
+
+    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;">
+      <h3 style="margin-bottom:10px;">Team Guesses</h3>
+      ${guessRows}
+    </div>
+
+    ${isHost ? `
+      <button class="btn-primary" data-action="${revealed ? 'next-emoji-charades' : 'reveal-emoji-charades'}">
+        ${revealed ? (round < roundsTotal - 1 ? 'Next Round' : 'View Results') : 'Reveal Answer'}
+      </button>
+    ` : ''}
   `;
 }
 
