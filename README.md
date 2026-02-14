@@ -1,89 +1,77 @@
 # TeamBuilderPro
 
-TeamBuilderPro is a realtime team-engagement app for remote and hybrid teams.  
-It combines collaborative games, pulse checks, and profile-based participation in a single web experience.
+TeamBuilderPro is a realtime team-engagement app for remote and hybrid teams.
+It combines multiplayer activities, host controls, and lightweight facilitation tools in one web experience.
 
 ## Main Features
 
-- Realtime multiplayer room flow:
-  - Host creates a room code
-  - Participants join with code
-  - Shared room state updates live via Socket.IO
-- Profile system:
-  - Display name + emoji/avatar
-  - In-session profile editing
-  - Room-safe profile rename propagation
-- Lightning Trivia:
-  - Timed rounds with auto-reveal conditions
-  - Dynamic/fixed scoring via Host Settings
-  - Answer-change policy toggle
-  - Live emoji reactions (Zoom-style)
-- Trivia Battle:
-  - Multi-question quiz mode
-  - Per-player scoring
-  - Randomized question order
-- Team Pulse Check:
-  - Randomized set of 5 prompts per session
-  - End-of-run aggregate results screen
-- Values Vote:
-  - Team values prioritization with vote counts
-- Icebreaker Roulette:
-  - Prompted responses and shared answer feed
-- Team Wordle:
-  - Group suggestion + majority submission loop
-- AI Question Generator:
-  - Host-controlled generation of new trivia items
-  - Topic, difficulty, count, endpoint/model/API key controls in Host Settings
-- Host Settings menu:
-  - Room-level behavior toggles
-  - Host-local AI configuration
+- Realtime multiplayer sessions with host-created room codes.
+- Lobby invite tools with room code, share link copy, and host QR join.
+- Profile system with editable display name and emoji/avatar.
+- Activity Queue with host-managed ordering and queue run controls.
+- Lightning Trivia with timer, reveal flow, reaction bar, dynamic scoring, and end confetti.
+- Emoji Charades with round-based team guessing, host reveal flow, and scoreboard.
+- Trivia Battle with randomized question order and per-player scoring.
+- Team Pulse Check with randomized 5-question run, aggregate results, and JSON/CSV export.
+- Values Vote with team value prioritization.
+- Icebreaker Roulette with shared response feed.
+- Team Wordle with suggestions, voting, and host typed-cell override.
+- Team Word Chain with shared team progression, suggestions, voting, host typed-cell override, and scoring.
+- Brainstorm Canvas activity with Start/Stop/Improve/Create lanes, sticky notes, votes, drag/move, lock, and JSON/CSV export.
+- Feedback Hub for user-submitted issues/ideas plus Admin workflow and notes.
+- Lobby quick access button for Feedback Hub submissions.
+- Host Settings with tabbed sections, game toggles, and AI configuration.
+- AI Content Generator for multiple targets:
+  - Lightning Trivia
+  - Emoji Charades
+  - Trivia Battle
+  - Icebreaker
+  - Team Pulse
+  - Values Vote
+  - Team Wordle
+  - Word Chain
+  - Brainstorm Canvas
 
-## Current Tech Stack
+## AI Generation and Keys
 
-### Frontend
-- HTML/CSS/Vanilla JavaScript (`index.html`)
-- Socket.IO client (CDN)
-- Local persistence via `localStorage` (for host-local settings and API key convenience)
+- Preferred mode: server-side key using `CHAT_GPT_MINI_KEY`.
+- Frontend calls backend endpoint `POST /api/ai/generate`.
+- Optional fallback: host can provide a local browser API key in Host Settings.
 
-### Backend
-- Node.js
-- Express
-- Socket.IO
-- File-based persistence for shared room state:
-  - `data/shared-state.json`
+## Tech Stack
 
-### CI/CD
-- GitHub Actions:
-  - Syntax checks for frontend embedded scripts and backend server
-- Vercel:
-  - Static frontend hosting
-- Render / Railway:
-  - Realtime Socket.IO backend hosting
+- Frontend: HTML, CSS, Vanilla JavaScript (`index.html`).
+- Realtime: Socket.IO client and server.
+- Backend: Node.js + Express (`server.js`).
+- Persistence: file-based shared room state in `data/shared-state.json`.
+- CI/CD: GitHub Actions + Vercel (frontend) + Render/Railway (backend).
 
-## Architecture
+## Progression Stats
 
-- Frontend is deployed as a static app (`index.html`).
-- Backend is a long-running Socket.IO server (`server.js`) for room sync.
-- Clients subscribe to room keys (`room:ABC123`) and receive shared updates.
-- Backend writes shared state to disk so room data survives process restarts.
+- `Activities` increments when any activity session is ended.
+- `Games` increments for game-type activities:
+  - Lightning Trivia
+  - Trivia Battle
+  - Team Wordle
+  - Team Word Chain
+  - Emoji Charades
 
-## Migration Notes
+## Environment Variables
 
-Project evolved through these major stages:
-
-1. Single-file prototype with local/shared storage abstraction
-2. Gameplay and UX expansion:
-   - host tools, pulse results, dynamic scoring, reactions, expanded prompt banks
-3. Realtime migration:
-   - Introduced Socket.IO backend (`server.js`)
-   - Added persistent shared state (`data/shared-state.json`)
-4. Deployment split:
-   - Frontend on Vercel
-   - Backend on Render/Railway
+- `PORT`:
+  - Backend port for `server.js`.
+- `ADMIN_TOKEN`:
+  - Admin console auth token.
+- `CHAT_GPT_MINI_KEY`:
+  - Server-side AI key for `/api/ai/generate`.
+- `AI_QUESTION_ENDPOINT`:
+  - Optional override for AI endpoint.
+- `AI_QUESTION_MODEL`:
+  - Optional override for AI model.
 
 ## Local Development
 
-Install and run backend:
+Install dependencies and start backend:
 
 ```bash
 npm install
@@ -91,33 +79,41 @@ npm start
 ```
 
 Open:
+
 - `http://localhost:3000`
 
-## Deployment
+## Deployment Notes
 
-See `DEPLOYMENT.md` for:
-- Vercel frontend deployment
-- Render/Railway backend deployment
-- Frontend-to-backend connection setup
-
-## Realtime Backend URL Configuration
-
-By default, frontend uses current origin.  
-To point frontend at a hosted backend:
+- `vercel.json` deploys static frontend routing.
+- Realtime backend should run on a long-lived host (Render/Railway/Fly/etc).
+- Configure frontend to backend if split-hosted:
 
 ```js
 localStorage.setItem('socket-server-url', 'https://YOUR-SOCKET-SERVER-DOMAIN');
 location.reload();
 ```
 
+See `DEPLOYMENT.md` for full deployment steps.
+
 ## Repository Structure
 
-- `index.html` - primary frontend app
-- `server.js` - realtime backend server
-- `package.json` - backend dependencies/scripts
-- `data/` - persisted shared room state
-- `vercel.json` - Vercel static routing
-- `render.yaml` - Render blueprint
-- `railway.json` - Railway deployment config
-- `.github/workflows/ci.yml` - CI checks
-- `DEPLOYMENT.md` - deployment playbook
+- `index.html`:
+  - Main frontend app.
+- `player-hub-v1 (2).html`:
+  - Mirrored frontend file.
+- `server.js`:
+  - Realtime + API backend.
+- `package.json`:
+  - Backend scripts and dependencies.
+- `data/`:
+  - Persisted runtime state.
+- `vercel.json`:
+  - Vercel routing.
+- `render.yaml`:
+  - Render blueprint.
+- `railway.json`:
+  - Railway config.
+- `.github/workflows/ci.yml`:
+  - Syntax-check workflow.
+- `DEPLOYMENT.md`:
+  - Deployment guide.

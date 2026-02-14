@@ -2754,6 +2754,7 @@ function renderAdminConsole() {
 
 function renderLobby() {
   const isHost = APP.room.host === APP.player.name;
+  const showFeedback = APP.preferences.enableFeedbackHub !== false;
   const safeRoomCode = escapeHtml(APP.roomCode);
   const joinUrl = `${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(APP.roomCode || '')}`;
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(joinUrl)}`;
@@ -2771,6 +2772,7 @@ function renderLobby() {
   return `
     <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:8px;">
       <button class="btn-secondary" data-action="edit-profile">✏️ Edit Profile</button>
+      ${showFeedback ? '<button class="btn-secondary" data-action="open-feedback">🗣️ Feedback</button>' : ''}
       <button class="btn-secondary" data-action="leave-session">🚪 Leave Session</button>
       ${isHost ? '<button class="btn-secondary" data-action="go-screen" data-screen="activity-queue">🗂️ Activity Queue</button>' : ''}
       ${isHost ? '<button class="btn-secondary" data-action="open-host-settings">⚙️ Host Settings</button>' : ''}
