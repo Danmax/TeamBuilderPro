@@ -1417,7 +1417,8 @@ const PlayerManager = {
       stats: {
         gamesPlayed: 0,
         activitiesCompleted: 0,
-        totalPoints: 0
+        totalPoints: 0,
+        participationInputs: 0
       },
       badges: [],
       created: Date.now()
@@ -1441,6 +1442,8 @@ const PlayerManager = {
     if (!profile) return;
     
     profile.xp += amount;
+    profile.stats = profile.stats || {};
+    profile.stats.totalPoints = (profile.stats.totalPoints || 0) + amount;
     
     // Level up logic
     const xpForNextLevel = profile.level * 1000;
@@ -1463,6 +1466,22 @@ const PlayerManager = {
     await this.updateProfile(profile);
   }
 };
+
+async function awardParticipationInput(room, actionKey, points = 5) {
+  if (!room || !APP.player?.name || !actionKey) return;
+  room.activityState = room.activityState || {};
+  const awards = room.activityState.participationAwards || {};
+  if (awards[actionKey]) return;
+  awards[actionKey] = Date.now();
+  room.activityState.participationAwards = awards;
+
+  const updatedProfile = await PlayerManager.awardXP(points, `participation:${actionKey}`);
+  if (!updatedProfile) return;
+  updatedProfile.stats = updatedProfile.stats || {};
+  updatedProfile.stats.participationInputs = (updatedProfile.stats.participationInputs || 0) + 1;
+  await PlayerManager.updateProfile(updatedProfile);
+  APP.player = updatedProfile;
+}
 
 // Room Manager
 const RoomManager = {
@@ -2350,6 +2369,8 @@ function renderEditProfile() {
           <div>XP: <strong>${APP.player.xp}</strong></div>
           <div>Games: <strong>${APP.player.stats.gamesPlayed}</strong></div>
           <div>Activities: <strong>${APP.player.stats.activitiesCompleted}</strong></div>
+          <div>Points: <strong>${APP.player.stats.totalPoints || 0}</strong></div>
+          <div>Inputs: <strong>${APP.player.stats.participationInputs || 0}</strong></div>
         </div>
       </div>
       
@@ -4761,6 +4782,8 @@ async function submitWordleSuggestion() {
   room.activityState.answers[APP.player.name] = input;
   // Reset this player's vote whenever they update suggestion.
   delete room.activityState.wordleVotes[APP.player.name];
+  const round = room.activityState.guesses?.length || 0;
+  await awardParticipationInput(room, `wordle_suggest:${round}:${APP.player.name}`, 3);
   
   await RoomManager.updateRoom(APP.roomCode, room);
 }
@@ -4785,6 +4808,8 @@ async function submitWordleVote(word) {
 
   if (!room.activityState.wordleVotes) room.activityState.wordleVotes = {};
   room.activityState.wordleVotes[APP.player.name] = normalized;
+  const round = room.activityState.guesses?.length || 0;
+  await awardParticipationInput(room, `wordle_vote:${round}:${APP.player.name}`, 2);
 
   await RoomManager.updateRoom(APP.roomCode, room);
 }
@@ -4890,6 +4915,8 @@ async function submitWordChainSuggestion() {
   if (!state.chainVotes) state.chainVotes = {};
   state.chainSuggestions[APP.player.name] = input.slice(0, 9);
   delete state.chainVotes[APP.player.name];
+  const row = state.progressIndex?.[TEAM_CHAIN_KEY] || 1;
+  await awardParticipationInput(room, `wordchain_suggest:${row}:${APP.player.name}`, 3);
   room.activityState = state;
   await RoomManager.updateRoom(APP.roomCode, room);
 }
@@ -4911,6 +4938,8 @@ async function submitWordChainVote(word) {
   }
   if (!state.chainVotes) state.chainVotes = {};
   state.chainVotes[APP.player.name] = normalized;
+  const row = state.progressIndex?.[TEAM_CHAIN_KEY] || 1;
+  await awardParticipationInput(room, `wordchain_vote:${row}:${APP.player.name}`, 2);
   room.activityState = state;
   await RoomManager.updateRoom(APP.roomCode, room);
 }
@@ -5511,8 +5540,9 @@ async function brainstormAddNote() {
     return;
   }
   state.notes = Array.isArray(state.notes) ? state.notes : [];
+  const noteId = generateBrainstormNoteId();
   state.notes.unshift({
-    id: generateBrainstormNoteId(),
+    id: noteId,
     text,
     author: APP.player.name,
     lane,
@@ -5522,6 +5552,7 @@ async function brainstormAddNote() {
     createdAt: Date.now(),
     updatedAt: Date.now()
   });
+  await awardParticipationInput(room, `brainstorm_note:${noteId}:${APP.player.name}`, 5);
   room.activityState = state;
   room.brainstormData = safeParseJson(JSON.stringify(state)) || state;
   room.brainstormLastUpdatedAt = Date.now();
@@ -5543,6 +5574,7 @@ async function brainstormToggleVote(noteId) {
     note.voters.splice(idx, 1);
   } else {
     note.voters.push(APP.player.name);
+    await awardParticipationInput(room, `brainstorm_vote:${noteId}:${APP.player.name}`, 1);
   }
   note.votes = note.voters.length;
   note.updatedAt = Date.now();
