@@ -544,6 +544,19 @@
     opacity: 0.5;
   }
 
+  .host-wordle-cell-input {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    text-transform: uppercase;
+    text-align: center;
+    font: inherit;
+    font-weight: 700;
+    outline: none;
+  }
+
   .word-chain-shell {
     max-width: 820px;
     margin: 0 auto 20px;
@@ -1712,6 +1725,8 @@ let roomChannel = null;
 let roomRealtimeEnabled = false;
 let lightningAutoRevealPending = false;
 let wordChainDraft = {};
+let hostWordleDraft = '';
+const TEAM_CHAIN_KEY = '__team__';
 let wordChainLastAutoFocusKey = '';
 let wordChainFocusCueTimer = null;
 let brainstormDraggedNoteId = null;
@@ -1760,7 +1775,8 @@ function createInitialActivityState(activityId) {
       guesses: [],
       currentRow: 0,
       gameOver: false,
-      answers: {}
+      answers: {},
+      wordleVotes: {}
     };
   }
   if (activityId === 'word-chain') {
@@ -1778,6 +1794,8 @@ function createInitialActivityState(activityId) {
       completedAt: {},
       scores: {},
       feedback: {},
+      chainSuggestions: {},
+      chainVotes: {},
       startedAt: Date.now(),
       wordCount: Math.min(8, puzzleWords.length)
     };
@@ -1833,6 +1851,9 @@ async function startActivityById(activityId) {
     wordChainDraft = {};
     resetWordChainFocusState();
   }
+  if (activityId === 'wordle') {
+    hostWordleDraft = '';
+  }
   render();
   return true;
 }
@@ -1868,6 +1889,9 @@ async function runNextQueuedActivity(roomOverride = null) {
   if (activityId === 'word-chain') {
     wordChainDraft = {};
     resetWordChainFocusState();
+  }
+  if (activityId === 'wordle') {
+    hostWordleDraft = '';
   }
   render();
   return true;
@@ -2091,6 +2115,7 @@ function autoFocusWordChainActiveCell() {
     wordChainLastAutoFocusKey = '';
     return;
   }
+  if (APP.room.host !== APP.player?.name) return;
   const state = APP.room.activityState || {};
   const puzzle = WORD_CHAIN_PUZZLES[state.puzzleIndex];
   if (!puzzle) return;
@@ -2098,8 +2123,7 @@ function autoFocusWordChainActiveCell() {
   const lastIndex = chain.length - 1;
   if (lastIndex < 2) return;
 
-  const playerName = APP.player?.name;
-  if (!playerName) return;
+  const playerName = TEAM_CHAIN_KEY;
   const progress = state.progressIndex?.[playerName] || 1;
   if (progress >= lastIndex) return;
 
@@ -3813,6 +3837,9 @@ function applyProfileUpdateToRoom(room, oldName, newName, newAvatar) {
   remapActivityStateKey(state, 'wordScores', oldName, newName);
   remapActivityStateKey(state, 'wordAttempts', oldName, newName);
   remapActivityStateKey(state, 'totalAttempts', oldName, newName);
+  remapActivityStateKey(state, 'chainSuggestions', oldName, newName);
+  remapActivityStateKey(state, 'chainVotes', oldName, newName);
+  remapActivityStateKey(state, 'wordleVotes', oldName, newName);
   if (Array.isArray(state.notes)) {
     state.notes = state.notes.map(note => {
       const voters = Array.isArray(note.voters)
@@ -3891,6 +3918,17 @@ function handleWordleKey(key) {
   }
 }
 
+function getHostTypedWordFromCells() {
+  const inputs = Array.from(document.querySelectorAll('.host-wordle-cell-input'))
+    .sort((a, b) => Number.parseInt(a.dataset.col || '0', 10) - Number.parseInt(b.dataset.col || '0', 10));
+  if (!inputs.length) return '';
+  return normalizeWord(inputs.map(input => String(input.value || '').slice(0, 1)).join(''));
+}
+
+function captureHostWordleDraft() {
+  hostWordleDraft = getHostTypedWordFromCells();
+}
+
 function handleWordChainArrowNavigation(event) {
   if (APP.room?.currentActivity !== 'word-chain') return;
   const active = document.activeElement;
@@ -3934,13 +3972,50 @@ function captureWordChainRowDraft(row) {
   wordChainDraft[row] = rowInputs.map(input => normalizeChainWord(input.value).slice(0, 1)).join('');
 }
 
+function handleHostWordleCellNavigation(event) {
+  const active = document.activeElement;
+  if (!active || !active.classList?.contains('host-wordle-cell-input')) return;
+  const col = Number.parseInt(active.dataset.col || '', 10);
+  if (!Number.isInteger(col)) return;
+
+  if (event.key === 'ArrowLeft' && col > 0) {
+    event.preventDefault();
+    const prev = document.querySelector(`.host-wordle-cell-input[data-col="${col - 1}"]`);
+    if (prev instanceof HTMLInputElement) prev.focus();
+    return;
+  }
+  if (event.key === 'ArrowRight' && col < 4) {
+    event.preventDefault();
+    const next = document.querySelector(`.host-wordle-cell-input[data-col="${col + 1}"]`);
+    if (next instanceof HTMLInputElement) next.focus();
+    return;
+  }
+  if (event.key === 'Backspace' && !active.value && col > 0) {
+    event.preventDefault();
+    const prev = document.querySelector(`.host-wordle-cell-input[data-col="${col - 1}"]`);
+    if (prev instanceof HTMLInputElement) prev.focus();
+    return;
+  }
+}
+
 document.addEventListener('keydown', event => {
+  handleHostWordleCellNavigation(event);
   handleWordChainArrowNavigation(event);
 });
 
 document.addEventListener('input', event => {
   const target = event.target;
   if (!(target instanceof HTMLInputElement)) return;
+  if (target.classList.contains('host-wordle-cell-input')) {
+    target.value = normalizeWord(target.value).slice(0, 1);
+    captureHostWordleDraft();
+    const col = Number.parseInt(target.dataset.col || '', 10);
+    if (target.value && Number.isInteger(col)) {
+      const next = document.querySelector(`.host-wordle-cell-input[data-col="${col + 1}"]`);
+      if (next instanceof HTMLInputElement) next.focus();
+    }
+    return;
+  }
   if (!target.classList.contains('word-chain-letter-input')) return;
   target.value = normalizeChainWord(target.value).slice(0, 1);
 
@@ -3987,7 +4062,7 @@ document.addEventListener('click', async (event) => {
   const target = event.target.closest('[data-action]');
   if (!target) return;
 
-  const { action, avatar, screen, key, index, feedbackId, activity, queueIndex, noteId, lane, direction, tab } = target.dataset;
+  const { action, avatar, screen, key, index, feedbackId, activity, queueIndex, noteId, lane, direction, tab, word } = target.dataset;
   const parsedIndex = Number.parseInt(index ?? '', 10);
   const parsedQueueIndex = Number.parseInt(queueIndex ?? '', 10);
 
@@ -4145,6 +4220,9 @@ document.addEventListener('click', async (event) => {
     case 'submit-wordle-suggestion':
       await submitWordleSuggestion();
       break;
+    case 'submit-wordle-vote':
+      await submitWordleVote(word || '');
+      break;
     case 'submit-wordle-guess':
       await submitWordleGuess();
       break;
@@ -4153,6 +4231,12 @@ document.addEventListener('click', async (event) => {
       break;
     case 'submit-word-chain-guess':
       await submitWordChainGuess();
+      break;
+    case 'submit-word-chain-suggestion':
+      await submitWordChainSuggestion();
+      break;
+    case 'submit-word-chain-vote':
+      await submitWordChainVote(word || '');
       break;
     case 'brainstorm-add-note':
       await brainstormAddNote();
@@ -4616,36 +4700,91 @@ async function submitWordleSuggestion() {
   
   const room = await RoomManager.loadRoom(APP.roomCode);
   if (!room.activityState.answers) room.activityState.answers = {};
+  if (!room.activityState.wordleVotes) room.activityState.wordleVotes = {};
   
   room.activityState.answers[APP.player.name] = input;
+  // Reset this player's vote whenever they update suggestion.
+  delete room.activityState.wordleVotes[APP.player.name];
   
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function submitWordleVote(word) {
+  const normalized = normalizeWord(word || '');
+  if (!normalized || normalized.length !== 5) {
+    showError('Select a valid suggested word.');
+    return;
+  }
+
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'wordle') return;
+  if (room.activityState?.gameOver) return;
+
+  const answers = room.activityState.answers || {};
+  const suggestedWords = new Set(Object.values(answers).map(w => normalizeWord(w)));
+  if (!suggestedWords.has(normalized)) {
+    showError('That suggestion is no longer available.');
+    return;
+  }
+
+  if (!room.activityState.wordleVotes) room.activityState.wordleVotes = {};
+  room.activityState.wordleVotes[APP.player.name] = normalized;
+
   await RoomManager.updateRoom(APP.roomCode, room);
 }
 
 async function submitWordleGuess() {
   const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'wordle') return;
   const answers = room.activityState.answers || {};
+  const wordleVotes = room.activityState.wordleVotes || {};
+  const isHost = room.host === APP.player?.name;
+  const hostTypedWord = isHost ? normalizeWord(hostWordleDraft || getHostTypedWordFromCells()) : '';
   
-  if (Object.keys(answers).length === 0) return;
-  
-  const voteCounts = {};
-  Object.values(answers).forEach(word => {
-    voteCounts[word] = (voteCounts[word] || 0) + 1;
-  });
-  
-  const mostPopular = Object.entries(voteCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
-  
-  if (mostPopular) {
-    room.activityState.guesses.push(mostPopular);
-    
-    if (mostPopular === room.activityState.targetWord) {
+  if (hostTypedWord.length === 5) {
+    room.activityState.guesses.push(hostTypedWord);
+    if (hostTypedWord === room.activityState.targetWord) {
       room.activityState.gameOver = true;
     } else if (room.activityState.guesses.length >= 6) {
       room.activityState.gameOver = true;
     }
-    
     room.activityState.answers = {};
+    room.activityState.wordleVotes = {};
+    hostWordleDraft = '';
+    await RoomManager.updateRoom(APP.roomCode, room);
+    return;
   }
+
+  if (Object.keys(answers).length === 0) return;
+  if (Object.keys(wordleVotes).length === 0) {
+    showError('Need at least one vote before submitting.');
+    return;
+  }
+  
+  const validSuggestions = new Set(Object.values(answers).map(w => normalizeWord(w)));
+  const voteCounts = {};
+  Object.values(wordleVotes).forEach(word => {
+    if (!validSuggestions.has(word)) return;
+    voteCounts[word] = (voteCounts[word] || 0) + 1;
+  });
+  
+  const mostPopular = Object.entries(voteCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+  if (!mostPopular) {
+    showError('No valid voted suggestion found. Ask team to vote again.');
+    return;
+  }
+  
+  room.activityState.guesses.push(mostPopular);
+  
+  if (mostPopular === room.activityState.targetWord) {
+    room.activityState.gameOver = true;
+  } else if (room.activityState.guesses.length >= 6) {
+    room.activityState.gameOver = true;
+  }
+  
+  room.activityState.answers = {};
+  room.activityState.wordleVotes = {};
+  hostWordleDraft = '';
   
   await RoomManager.updateRoom(APP.roomCode, room);
 }
@@ -4658,9 +4797,49 @@ async function newWordleRound() {
     guesses: [],
     currentRow: 0,
     gameOver: false,
-    answers: {}
+    answers: {},
+    wordleVotes: {}
   };
+  hostWordleDraft = '';
   
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function submitWordChainSuggestion() {
+  const input = normalizeChainWord(document.getElementById('wordChainSuggestionInput')?.value || '');
+  if (!input) {
+    showError('Enter a word suggestion first.');
+    return;
+  }
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'word-chain') return;
+  const state = room.activityState || {};
+  if (!state.chainSuggestions) state.chainSuggestions = {};
+  if (!state.chainVotes) state.chainVotes = {};
+  state.chainSuggestions[APP.player.name] = input.slice(0, 9);
+  delete state.chainVotes[APP.player.name];
+  room.activityState = state;
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function submitWordChainVote(word) {
+  const normalized = normalizeChainWord(word || '').slice(0, 9);
+  if (!normalized) {
+    showError('Select a valid suggestion.');
+    return;
+  }
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'word-chain') return;
+  const state = room.activityState || {};
+  const suggestions = state.chainSuggestions || {};
+  const suggestionSet = new Set(Object.values(suggestions).map(value => normalizeChainWord(value).slice(0, 9)));
+  if (!suggestionSet.has(normalized)) {
+    showError('That suggestion is no longer available.');
+    return;
+  }
+  if (!state.chainVotes) state.chainVotes = {};
+  state.chainVotes[APP.player.name] = normalized;
+  room.activityState = state;
   await RoomManager.updateRoom(APP.roomCode, room);
 }
 
@@ -4670,11 +4849,22 @@ function renderWordle() {
   const guesses = state.guesses || [];
   const gameOver = state.gameOver || false;
   const answers = state.answers || {};
+  const wordleVotes = state.wordleVotes || {};
   const userGuess = answers[APP.player.name] || '';
+  const userVote = wordleVotes[APP.player.name] || '';
   const isHost = APP.room.host === APP.player.name;
   const maxGuesses = 6;
   const safeRoomCode = escapeHtml(APP.roomCode);
   const safeUserGuess = escapeHtml(userGuess);
+  const suggestionWords = Array.from(new Set(Object.values(answers).map(word => normalizeWord(word)).filter(Boolean)));
+  const voteCounts = {};
+  Object.values(wordleVotes).forEach(word => {
+    const normalized = normalizeWord(word);
+    if (!normalized || !suggestionWords.includes(normalized)) return;
+    voteCounts[normalized] = (voteCounts[normalized] || 0) + 1;
+  });
+  const topVoteEntry = Object.entries(voteCounts).sort((a, b) => b[1] - a[1])[0] || null;
+  const topVoteWord = topVoteEntry?.[0] || '';
   
   const letterStates = {};
   guesses.forEach(guess => {
@@ -4690,9 +4880,11 @@ function renderWordle() {
   const lost = !won && guesses.length >= maxGuesses;
   
   let gridHtml = '';
+  const hostTypedWord = isHost ? normalizeWord(hostWordleDraft) : '';
   for (let row = 0; row < maxGuesses; row++) {
     gridHtml += '<div class="wordle-row">';
     const guess = guesses[row] || '';
+    const isActiveHostRow = isHost && !gameOver && row === guesses.length;
     for (let col = 0; col < 5; col++) {
       const letter = guess[col] || '';
       let cellClass = 'wordle-cell';
@@ -4701,7 +4893,12 @@ function renderWordle() {
         else if (targetWord.includes(letter)) cellClass += ' present';
         else cellClass += ' absent';
       }
-      gridHtml += '<div class="' + cellClass + '">' + letter + '</div>';
+      if (isActiveHostRow) {
+        const typedLetter = hostTypedWord[col] || '';
+        gridHtml += `<div class="${cellClass}"><input class="host-wordle-cell-input" data-col="${col}" maxlength="1" value="${escapeHtml(typedLetter)}" aria-label="Host letter ${col + 1}"></div>`;
+      } else {
+        gridHtml += '<div class="' + cellClass + '">' + letter + '</div>';
+      }
     }
     gridHtml += '</div>';
   }
@@ -4737,14 +4934,33 @@ function renderWordle() {
   
   let suggestionsHtml = '';
   Object.entries(answers).forEach(([name, word]) => {
+    const normalized = normalizeWord(word);
     const participant = APP.room.participants.find(p => p.name === name);
     const avatar = participant ? participant.avatar : '👤';
     suggestionsHtml += '<div style="background:var(--surface-2);border-radius:10px;padding:16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;">';
     suggestionsHtml += '<div style="font-size:1.5rem;">' + escapeHtml(avatar) + '</div>';
     suggestionsHtml += '<div style="flex:1;"><div style="color:var(--accent);font-weight:600;margin-bottom:4px;">' + escapeHtml(name) + '</div>';
     suggestionsHtml += '<div style="font-size:1.2rem;font-weight:700;letter-spacing:4px;">' + escapeHtml(word) + '</div></div>';
+    if (normalized && voteCounts[normalized]) {
+      suggestionsHtml += '<span style="background:var(--accent);color:var(--bg);padding:6px 10px;border-radius:999px;font-size:0.78rem;font-weight:700;">' + voteCounts[normalized] + ' vote' + (voteCounts[normalized] === 1 ? '' : 's') + '</span>';
+    }
     suggestionsHtml += '</div>';
   });
+  
+  const voteButtonsHtml = suggestionWords.map(word => {
+    const isSelected = userVote === word;
+    const count = voteCounts[word] || 0;
+    const selectedStyle = isSelected
+      ? 'background:rgba(0,210,211,0.08);border-color:var(--accent);'
+      : 'background:var(--surface-2);border-color:var(--border);';
+    return `
+      <button type="button" class="tile-btn" data-action="submit-wordle-vote" data-word="${word}" aria-pressed="${isSelected ? 'true' : 'false'}"
+        style="${selectedStyle}border:2px solid;border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:all 0.2s;">
+        <span style="font-weight:700;letter-spacing:3px;">${word}</span>
+        <span style="font-size:0.82rem;color:var(--text-dim);">${count} vote${count === 1 ? '' : 's'}</span>
+      </button>
+    `;
+  }).join('');
   
   return `
     <div class="header">
@@ -4787,16 +5003,32 @@ function renderWordle() {
       </div>
       
       <div style="background:var(--surface-solid);border:1px solid var(--border);
-        border-radius:var(--radius);padding:24px;margin-top:20px;">
+        border-radius:var(--radius);padding:24px;margin-top:16px;">
         <h3 aria-live="polite" aria-atomic="true" style="font-weight:600;margin-bottom:12px;text-align:center;">
-          Team Suggestions (${Object.keys(answers).length}/${APP.room.participants.length})
+          Team Suggestions & Voting (${Object.keys(answers).length}/${APP.room.participants.length})
         </h3>
-        ${suggestionsHtml || '<p style="text-align:center;color:var(--text-dim);padding:20px;">No suggestions yet...</p>'}
+        ${suggestionWords.length ? `
+          <div style="margin-bottom:12px;">
+            ${suggestionsHtml}
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
+            ${voteButtonsHtml}
+          </div>
+          <div role="status" aria-live="polite" aria-atomic="true" style="text-align:center;color:var(--text-dim);margin-top:12px;">
+            ${Object.keys(wordleVotes).length} of ${APP.room.participants.length} voted
+            ${userVote ? ` • Your vote: <strong style="color:var(--accent);letter-spacing:2px;">${escapeHtml(userVote)}</strong>` : ''}
+          </div>
+          ${topVoteWord ? `
+            <div style="text-align:center;margin-top:8px;color:var(--text-mid);font-size:0.9rem;">
+              Current leader: <strong style="color:var(--accent);letter-spacing:2px;">${escapeHtml(topVoteWord)}</strong>
+            </div>
+          ` : ''}
+        ` : '<p style="text-align:center;color:var(--text-dim);padding:8px;">Need at least one suggestion before voting.</p>'}
       </div>
       
-      ${isHost && Object.keys(answers).length > 0 ? `
+      ${isHost && (Object.keys(answers).length > 0 || hostTypedWord.length === 5) ? `
         <button class="btn-primary" data-action="submit-wordle-guess" style="margin-top:20px;">
-          Pick Most Popular & Submit to Grid
+          ${hostTypedWord.length === 5 ? 'Submit Typed Word to Grid' : 'Submit Voted Word to Grid'}
         </button>
       ` : ''}
     ` : `
@@ -4808,6 +5040,10 @@ function renderWordle() {
 async function submitWordChainGuess() {
   const room = await RoomManager.loadRoom(APP.roomCode);
   if (!room || room.currentActivity !== 'word-chain') return;
+  if (room.host !== APP.player?.name) {
+    showError('Only host can submit the team row.');
+    return;
+  }
 
   const state = room.activityState || {};
   const puzzle = WORD_CHAIN_PUZZLES[state.puzzleIndex];
@@ -4823,11 +5059,13 @@ async function submitWordChainGuess() {
   if (!state.completedAt) state.completedAt = {};
   if (!state.scores) state.scores = {};
   if (!state.feedback) state.feedback = {};
+  if (!state.chainSuggestions) state.chainSuggestions = {};
+  if (!state.chainVotes) state.chainVotes = {};
 
   const chain = (puzzle.words || []).slice(0, Math.min(8, state.wordCount || 8));
   if (chain.length < 3) return;
 
-  const playerName = APP.player.name;
+  const playerName = TEAM_CHAIN_KEY;
   const lastIndex = chain.length - 1;
   if (!state.progressIndex[playerName]) state.progressIndex[playerName] = 1;
   if (!state.revealedLetters[playerName]) state.revealedLetters[playerName] = { 1: 1 };
@@ -4839,12 +5077,31 @@ async function submitWordChainGuess() {
   const currentIndex = state.progressIndex[playerName];
   if (currentIndex >= lastIndex) return;
 
-  captureWordChainRowDraft(currentIndex);
-  const typedSuffix = normalizeChainWord(wordChainDraft[currentIndex] || '');
   const answer = normalizeChainWord(chain[currentIndex]);
   const revealCount = Math.max(1, Math.min(answer.length, state.revealedLetters[playerName]?.[currentIndex] || 1));
   const revealedPrefix = answer.slice(0, revealCount);
-  const guess = normalizeChainWord((revealedPrefix + typedSuffix).slice(0, answer.length));
+  captureWordChainRowDraft(currentIndex);
+  const typedSuffix = normalizeChainWord(wordChainDraft[currentIndex] || '');
+  const voteCounts = {};
+  const validSuggestions = new Set(
+    Object.values(state.chainSuggestions || {}).map(s => normalizeChainWord(s).slice(0, 9)).filter(Boolean)
+  );
+  Object.values(state.chainVotes || {}).forEach(v => {
+    const val = normalizeChainWord(v).slice(0, 9);
+    if (!validSuggestions.has(val)) return;
+    voteCounts[val] = (voteCounts[val] || 0) + 1;
+  });
+  const votedWord = Object.entries(voteCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+  let guess = '';
+  if (typedSuffix) {
+    guess = normalizeChainWord((revealedPrefix + typedSuffix).slice(0, answer.length));
+  } else if (votedWord) {
+    guess = normalizeChainWord(votedWord).slice(0, answer.length);
+  }
+  if (!guess) {
+    showError('Need host typed input or at least one voted suggestion.');
+    return;
+  }
 
   state.totalAttempts[playerName] = (state.totalAttempts[playerName] || 0) + 1;
   const attemptForWord = (state.wordAttempts[playerName][currentIndex] || 0) + 1;
@@ -4907,6 +5164,8 @@ async function submitWordChainGuess() {
       if (input instanceof HTMLInputElement) input.value = '';
     });
   }
+  state.chainSuggestions = {};
+  state.chainVotes = {};
 
   state.solvedWords[playerName] = solvedMap;
   state.wordScores[playerName] = wordScoreMap;
@@ -4950,7 +5209,7 @@ function renderWordChain() {
     `;
   }
 
-  const playerName = APP.player.name;
+  const playerName = TEAM_CHAIN_KEY;
   const chain = (puzzle.words || []).slice(0, Math.min(8, state.wordCount || 8));
   const lastIndex = chain.length - 1;
   const playerProgress = state.progressIndex?.[playerName] || 1;
@@ -4965,28 +5224,26 @@ function renderWordChain() {
   const completedAt = state.completedAt?.[playerName];
   const score = state.scores?.[playerName] || 0;
   const elapsedSec = Math.max(0, Math.floor((Date.now() - (state.startedAt || Date.now())) / 1000));
+  const suggestions = state.chainSuggestions || {};
+  const votes = state.chainVotes || {};
+  const userSuggestion = suggestions[APP.player.name] || '';
+  const userVote = votes[APP.player.name] || '';
+  const suggestionWords = Array.from(new Set(Object.values(suggestions).map(word => normalizeChainWord(word).slice(0, 9)).filter(Boolean)));
+  const voteCounts = {};
+  Object.values(votes).forEach(word => {
+    const normalized = normalizeChainWord(word).slice(0, 9);
+    if (!suggestionWords.includes(normalized)) return;
+    voteCounts[normalized] = (voteCounts[normalized] || 0) + 1;
+  });
+  const topVoteEntry = Object.entries(voteCounts).sort((a, b) => b[1] - a[1])[0] || null;
+  const topVoteWord = topVoteEntry?.[0] || '';
 
-  const leaderboard = APP.room.participants
-    .map(p => {
-      const pSolved = state.solvedWords?.[p.name] || {};
-      const solved = Object.keys(pSolved).length;
-      return {
-        name: p.name,
-        avatar: p.avatar,
-        score: state.scores?.[p.name] || 0,
-        attempts: state.totalAttempts?.[p.name] || 0,
-        solved,
-        doneAt: state.completedAt?.[p.name] || null
-      };
-    })
-    .sort((a, b) => {
-      const aDone = Boolean(a.doneAt);
-      const bDone = Boolean(b.doneAt);
-      if (aDone !== bDone) return aDone ? -1 : 1;
-      if (aDone && bDone && a.score !== b.score) return b.score - a.score;
-      if (a.solved !== b.solved) return b.solved - a.solved;
-      return a.attempts - b.attempts;
-    });
+  const participation = APP.room.participants.map(p => ({
+    name: p.name,
+    avatar: p.avatar,
+    suggestion: suggestions[p.name] || '',
+    vote: votes[p.name] || ''
+  }));
 
   let gridHtml = '<div class="word-chain-board">';
   chain.forEach((word, idx) => {
@@ -5022,7 +5279,7 @@ function renderWordChain() {
                 : isLast
                   ? 'word-chain-cell bottom-anchor'
                   : 'word-chain-cell';
-              if (isActiveRow && pos >= revealedChars) {
+              if (isActiveRow && pos >= revealedChars && isHost) {
                 const firstEditableAttr = pos === revealedChars ? 'data-first-editable="true"' : '';
                 const missStyle = rowAttempts > 0 ? `style="border-color:${missBorder};background:${missBg};"` : '';
                 return `<input class="word-chain-letter-input" data-row="${idx}" data-pos="${pos}" ${firstEditableAttr} ${missStyle} value="${escapeHtml(draftChar)}" maxlength="1" aria-label="Row ${idx + 1} letter ${pos + 1} of 9">`;
@@ -5059,10 +5316,10 @@ function renderWordChain() {
 
     <div class="word-chain-shell">
       <div class="word-chain-help">
-        First and last words are revealed. Solve the middle words (up to 8 total words).
+        Team mode: first and last words are revealed. Solve middle words together (up to 8 total words).
       </div>
       <div class="word-chain-help">
-        Each row supports up to 9 letters. On wrong attempts, one more letter is revealed.
+        Submit by voted suggestion or host typed row. On wrong attempts, one more letter is revealed.
       </div>
       ${gridHtml}
 
@@ -5083,10 +5340,42 @@ function renderWordChain() {
       ` : ''}
 
       ${!allDone ? `
+        <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:12px;">
+          <div style="font-weight:700;margin-bottom:10px;">Team Suggestions & Voting</div>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:10px;">
+            <input id="wordChainSuggestionInput" class="form-input" maxlength="9" value="${escapeHtml(userSuggestion)}" placeholder="Suggest word (up to 9 letters)">
+            <button class="btn-secondary" data-action="submit-word-chain-suggestion" style="width:auto;padding:10px 14px;">${userSuggestion ? 'Update' : 'Suggest'}</button>
+          </div>
+          ${suggestionWords.length ? `
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+              ${suggestionWords.map(word => {
+                const isSelected = userVote === word;
+                const count = voteCounts[word] || 0;
+                return `
+                  <button type="button" class="tile-btn" data-action="submit-word-chain-vote" data-word="${word}" aria-pressed="${isSelected ? 'true' : 'false'}"
+                    style="border:2px solid ${isSelected ? 'var(--accent)' : 'var(--border)'};background:${isSelected ? 'rgba(0,210,211,0.08)' : 'var(--surface-2)'};
+                    border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+                    <span style="font-weight:700;letter-spacing:2px;">${escapeHtml(word)}</span>
+                    <span style="font-size:0.82rem;color:var(--text-dim);">${count} vote${count === 1 ? '' : 's'}</span>
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          ` : '<div style="color:var(--text-dim);font-size:0.9rem;">No suggestions yet.</div>'}
+          <div style="margin-top:8px;color:var(--text-dim);font-size:0.85rem;">
+            ${Object.keys(votes).length} of ${APP.room.participants.length} voted
+            ${topVoteWord ? ` • Leader: <strong style="color:var(--accent);letter-spacing:2px;">${escapeHtml(topVoteWord)}</strong>` : ''}
+          </div>
+        </div>
+      ` : ''}
+
+      ${!allDone ? `
         <div style="margin-top:12px;display:flex;justify-content:flex-end;">
-          <button class="btn-primary" data-action="submit-word-chain-guess" style="width:auto;padding:12px 22px;">
-            Submit Row
-          </button>
+          ${isHost ? `
+            <button class="btn-primary" data-action="submit-word-chain-guess" style="width:auto;padding:12px 22px;">
+              Submit Team Row
+            </button>
+          ` : '<div style="color:var(--text-dim);font-size:0.9rem;">Host submits the team row.</div>'}
         </div>
       ` : ''}
 
@@ -5098,21 +5387,20 @@ function renderWordChain() {
     </div>
 
     <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;">
-      <h3 style="font-family:'Fraunces',serif;font-size:1.2rem;margin-bottom:10px;">Leaderboard</h3>
+      <h3 style="font-family:'Fraunces',serif;font-size:1.2rem;margin-bottom:10px;">Team Progress</h3>
       <div style="color:var(--text-dim);font-size:0.9rem;margin-bottom:10px;">
-        Elapsed: ${elapsedSec}s
+        Elapsed: ${elapsedSec}s • Score: <strong style="color:var(--accent);">${score}</strong>
       </div>
-      ${leaderboard.map((p, idx) => `
+      ${participation.map(p => `
         <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface-2);
-          border-radius:10px;padding:12px;margin-bottom:8px;">
+          border-radius:10px;padding:10px 12px;margin-bottom:8px;">
           <div style="display:flex;align-items:center;gap:10px;">
-            <strong>#${idx + 1}</strong>
             <span>${escapeHtml(p.avatar)}</span>
             <span>${escapeHtml(p.name)}</span>
           </div>
-          <div style="font-size:0.9rem;color:var(--text-mid);">
-            ${p.solved}/${hiddenTotal} solved • tries ${p.attempts}
-            ${p.doneAt ? ` • <strong style="color:var(--accent);">${p.score}</strong>` : ''}
+          <div style="font-size:0.85rem;color:var(--text-mid);text-align:right;">
+            ${p.suggestion ? `suggested <strong>${escapeHtml(p.suggestion)}</strong>` : 'no suggestion'}
+            ${p.vote ? ` • voted <strong>${escapeHtml(p.vote)}</strong>` : ''}
           </div>
         </div>
       `).join('')}
