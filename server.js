@@ -18,6 +18,9 @@ const DATA_DIR = path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'shared-state.json');
 const FEEDBACK_FILE = path.join(DATA_DIR, 'feedback-state.json');
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'change-me-admin-token';
+const CHAT_GPT_MINI_KEY = String(process.env.CHAT_GPT_MINI_KEY || '').trim();
+const AI_QUESTION_ENDPOINT = String(process.env.AI_QUESTION_ENDPOINT || 'https://api.openai.com/v1/chat/completions').trim();
+const AI_QUESTION_MODEL = String(process.env.AI_QUESTION_MODEL || 'gpt-4o-mini').trim();
 let persistTimer = null;
 let feedbackPersistTimer = null;
 
@@ -164,8 +167,64 @@ function requireAdmin(req, res, next) {
 app.get('/api/config', (_req, res) => {
   res.json({
     ok: true,
-    config: feedbackState.config
+    config: feedbackState.config,
+    ai: {
+      serverKeyConfigured: Boolean(CHAT_GPT_MINI_KEY),
+      model: AI_QUESTION_MODEL
+    }
   });
+});
+
+app.post('/api/ai/generate', async (req, res) => {
+  if (!CHAT_GPT_MINI_KEY) {
+    res.status(503).json({ ok: false, error: 'AI server key is not configured (CHAT_GPT_MINI_KEY).' });
+    return;
+  }
+
+  const prompt = String(req.body?.prompt || '').trim();
+  const model = String(req.body?.model || AI_QUESTION_MODEL).trim() || AI_QUESTION_MODEL;
+  const temperatureRaw = Number(req.body?.temperature);
+  const temperature = Number.isFinite(temperatureRaw) ? Math.max(0, Math.min(2, temperatureRaw)) : 0.7;
+
+  if (!prompt) {
+    res.status(400).json({ ok: false, error: 'Prompt is required.' });
+    return;
+  }
+
+  try {
+    const response = await fetch(AI_QUESTION_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${CHAT_GPT_MINI_KEY}`
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: 'You create accurate facilitator game content. Output strict JSON only.' },
+          { role: 'user', content: prompt }
+        ],
+        temperature
+      })
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const detail = String(data?.error?.message || data?.error || response.statusText || 'Unknown AI error');
+      res.status(502).json({ ok: false, error: `AI provider error: ${detail}` });
+      return;
+    }
+
+    const content = String(data?.choices?.[0]?.message?.content || '').trim();
+    if (!content) {
+      res.status(502).json({ ok: false, error: 'AI provider returned empty content.' });
+      return;
+    }
+
+    res.json({ ok: true, content });
+  } catch (error) {
+    res.status(502).json({ ok: false, error: `AI request failed: ${error.message}` });
+  }
 });
 
 app.post('/api/feedback', (req, res) => {

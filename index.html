@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Player Hub - Team Building & Games Platform</title>
+<title>Team Builder Pro - Team Building & Games Platform</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;800&family=Outfit:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -627,6 +627,124 @@
     color: var(--text-mid);
   }
 
+  .brain-board {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 18px;
+  }
+
+  .brain-lane {
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    min-height: 220px;
+  }
+
+  .brain-lane-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-weight: 700;
+  }
+
+  .brain-note {
+    background: #fef3a7;
+    color: #1f2937;
+    border: 1px solid rgba(0,0,0,0.18);
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 8px;
+    cursor: grab;
+  }
+
+  .brain-lane-notes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .brain-note:active {
+    cursor: grabbing;
+  }
+
+  .brain-note-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    font-size: 0.78rem;
+    color: #334155;
+  }
+
+  .brain-vote-btn {
+    border: 1px solid rgba(0,0,0,0.2);
+    border-radius: 999px;
+    background: #fff;
+    color: #0f172a;
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .brain-vote-btn.voted {
+    background: #dcfce7;
+    border-color: #16a34a;
+    color: #166534;
+  }
+
+  .brain-note-controls {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .brain-note-controls .btn-secondary {
+    padding: 4px 8px;
+    font-size: 0.78rem;
+  }
+
+  .host-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+
+  .host-tab-btn {
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-mid);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .host-tab-btn.active {
+    border-color: var(--accent);
+    background: rgba(0, 210, 211, 0.12);
+    color: var(--text);
+  }
+
+  .host-tab-panel[hidden] {
+    display: none !important;
+  }
+
+  @media (max-width: 900px) {
+    .brain-board {
+      grid-template-columns: 1fr;
+    }
+
+    .brain-lane-notes {
+      grid-template-columns: 1fr;
+    }
+  }
+
   .key-btn {
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -854,6 +972,95 @@ function validateAIQuestions(items) {
     .filter(Boolean);
 }
 
+function validateAIIcebreakerQuestions(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map(item => String(item ?? '').replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .map(text => text.slice(0, 220));
+}
+
+function validateAIPulseQuestions(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .filter(item => item && typeof item === 'object')
+    .map(item => {
+      const q = String(item.q || '').replace(/\s+/g, ' ').trim().slice(0, 220);
+      const opts = Array.isArray(item.opts)
+        ? item.opts.map(opt => String(opt || '').replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 4)
+        : [];
+      if (!q || opts.length !== 4) return null;
+      return { q, opts };
+    })
+    .filter(Boolean);
+}
+
+function validateAIValues(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .filter(item => item && typeof item === 'object')
+    .map(item => {
+      const name = String(item.name || '').replace(/\s+/g, ' ').trim().slice(0, 36);
+      const icon = normalizeEmoji(item.icon || '⭐');
+      if (!name) return null;
+      return { name, icon: icon || '⭐' };
+    })
+    .filter(Boolean);
+}
+
+function validateAIWordleWords(items) {
+  if (!Array.isArray(items)) return [];
+  const unique = new Set();
+  const out = [];
+  items.forEach(item => {
+    const word = normalizeWord(String(item || ''));
+    if (word.length !== 5 || unique.has(word)) return;
+    unique.add(word);
+    out.push(word);
+  });
+  return out;
+}
+
+function validateAIWordChainPuzzles(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .filter(item => item && typeof item === 'object')
+    .map((item, idx) => {
+      const title = String(item.title || `Chain AI ${idx + 1}`).replace(/\s+/g, ' ').trim().slice(0, 40) || `Chain AI ${idx + 1}`;
+      const words = Array.isArray(item.words)
+        ? item.words.map(word => String(word || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 9)).filter(Boolean).slice(0, 8)
+        : [];
+      if (words.length !== 8) return null;
+      return { title, words };
+    })
+    .filter(Boolean);
+}
+
+function validateAIBrainstormNotes(items) {
+  if (!Array.isArray(items)) return [];
+  const allowedLanes = new Set(['start', 'stop', 'improve', 'create']);
+  return items
+    .filter(item => item && typeof item === 'object')
+    .map(item => {
+      const text = String(item.text || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+      const laneRaw = String(item.lane || 'start').toLowerCase().trim();
+      const lane = allowedLanes.has(laneRaw) ? laneRaw : 'start';
+      if (!text) return null;
+      return { text, lane };
+    })
+    .filter(Boolean);
+}
+
+function coerceAIArrayPayload(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (payload && typeof payload === 'object') {
+    if (Array.isArray(payload.items)) return payload.items;
+    if (Array.isArray(payload.data)) return payload.data;
+    if (Array.isArray(payload.results)) return payload.results;
+  }
+  return [];
+}
+
 function buildShuffledQuestionOrder(total) {
   const order = Array.from({ length: total }, (_, i) => i);
   for (let i = order.length - 1; i > 0; i--) {
@@ -938,6 +1145,7 @@ function getDefaultHostLocalConfig() {
   return {
     aiEndpoint: window.AI_QUESTION_ENDPOINT || 'https://api.openai.com/v1/chat/completions',
     aiModel: window.AI_QUESTION_MODEL || 'gpt-4o-mini',
+    aiDefaultActivity: 'lightning-trivia',
     aiDefaultDifficulty: 'mixed',
     aiDefaultCount: 8,
     aiApiKey: localStorage.getItem('ai-question-api-key') || ''
@@ -948,7 +1156,11 @@ function loadHostLocalConfig() {
   const defaults = getDefaultHostLocalConfig();
   const stored = safeParseJson(localStorage.getItem('host-local-config') || '');
   if (!stored || typeof stored !== 'object') return defaults;
-  return { ...defaults, ...stored };
+  const merged = { ...defaults, ...stored };
+  if (!AI_GENERATION_TARGET_LABELS[merged.aiDefaultActivity]) {
+    merged.aiDefaultActivity = defaults.aiDefaultActivity;
+  }
+  return merged;
 }
 
 function saveHostLocalConfig(config) {
@@ -957,6 +1169,7 @@ function saveHostLocalConfig(config) {
 
 const SOCKET_SERVER_URL = window.SOCKET_SERVER_URL || localStorage.getItem('socket-server-url') || window.location.origin;
 const API_BASE_URL = window.APP_API_BASE_URL || window.location.origin;
+const ENABLE_PRESENTATION_SHARE = false;
 let socketClient = null;
 let socketRealtimeBound = false;
 let socketRoomKey = null;
@@ -1202,6 +1415,9 @@ const RoomManager = {
       }],
       currentActivity: null,
       activityState: {},
+      activityQueue: [],
+      queueIndex: 0,
+      queueActive: false,
       hostSettings: getDefaultRoomHostSettings(),
       created: Date.now(),
       lastUpdate: Date.now()
@@ -1254,10 +1470,11 @@ const APP = {
   currentActivity: null,
   editingProfile: false,
   showHostSettings: false,
+  hostSettingsTab: 'game',
   aiGenerating: false,
   aiStatus: null,
   branding: {
-    appName: 'Player Hub',
+    appName: 'Team Builder Pro',
     tagline: 'Team building, games, and challenges - all in one place',
     accent: '#00d2d3'
   },
@@ -1273,6 +1490,7 @@ const APP = {
     loading: false
   }
 };
+const APP_VERSION = 'v1.0.0';
 
 const TRIVIA_BANK = [
   { q: "What is the capital of France?", opts: ["London", "Paris", "Berlin", "Rome"], ans: 1 },
@@ -1375,8 +1593,68 @@ const WORD_CHAIN_PUZZLES = [
   {
     title: 'Chain D',
     words: ['BOOK', 'SHELF', 'LIFE', 'CYCLE', 'TRACK', 'SUIT', 'CASE', 'STUDY']
+  },
+  {
+    title: 'Chain E',
+    words: ['SUN', 'FLOWER', 'POT', 'LUCK', 'CHARM', 'BRACELET', 'CASE', 'FILE']
+  },
+  {
+    title: 'Chain F',
+    words: ['NEWS', 'PAPER', 'CLIP', 'BOARD', 'GAME', 'PLAN', 'B', 'MOVIE']
+  },
+  {
+    title: 'Chain G',
+    words: ['TOOTH', 'BRUSH', 'STROKE', 'OF', 'COURSE', 'WORK', 'SPACE', 'BAR']
+  },
+  {
+    title: 'Chain H',
+    words: ['EAR', 'RING', 'TONE', 'DEAF', 'LEAF', 'BLOWER', 'MOTOR', 'BIKE']
+  },
+  {
+    title: 'Chain I',
+    words: ['WATER', 'FALL', 'BACK', 'PACK', 'RAT', 'RACE', 'TRACK', 'SUIT']
+  },
+  {
+    title: 'Chain J',
+    words: ['BLACK', 'BOARD', 'ROOM', 'SERVICE', 'DOG', 'HOUSE', 'PLANT', 'FOOD']
+  },
+  {
+    title: 'Chain K',
+    words: ['MAIL', 'BOX', 'OFFICE', 'HOUR', 'GLASS', 'DOOR', 'BELL', 'HOP']
   }
 ];
+
+const ACTIVITY_QUEUE_ITEMS = [
+  { id: 'lightning-trivia', icon: '⚡', label: 'Lightning Trivia' },
+  { id: 'icebreaker', icon: '🎲', label: 'Icebreaker Roulette' },
+  { id: 'pulse-check', icon: '📊', label: 'Team Pulse Check' },
+  { id: 'values-vote', icon: '⭐', label: 'Values Vote' },
+  { id: 'wordle', icon: '🎯', label: 'Team Wordle' },
+  { id: 'word-chain', icon: '🔗', label: 'Word Chain' },
+  { id: 'brainstorm-canvas', icon: '🧩', label: 'Brainstorm Canvas' },
+  { id: 'regular-trivia', icon: '🧠', label: 'Trivia Battle' }
+];
+const ACTIVITY_QUEUE_ITEM_MAP = Object.fromEntries(ACTIVITY_QUEUE_ITEMS.map(item => [item.id, item]));
+const AI_GENERATION_TARGETS = [
+  { id: 'lightning-trivia', label: 'Lightning Trivia' },
+  { id: 'regular-trivia', label: 'Trivia Battle' },
+  { id: 'icebreaker', label: 'Icebreaker Roulette' },
+  { id: 'pulse-check', label: 'Team Pulse Check' },
+  { id: 'values-vote', label: 'Values Vote' },
+  { id: 'wordle', label: 'Team Wordle' },
+  { id: 'word-chain', label: 'Word Chain' },
+  { id: 'brainstorm-canvas', label: 'Brainstorm Canvas' }
+];
+const AI_GENERATION_TARGET_LABELS = Object.fromEntries(AI_GENERATION_TARGETS.map(item => [item.id, item.label]));
+
+const BRAINSTORM_LANES = [
+  { id: 'start', label: 'Start', icon: '🚀' },
+  { id: 'stop', label: 'Stop', icon: '🛑' },
+  { id: 'improve', label: 'Improve', icon: '🛠️' },
+  { id: 'create', label: 'Create', icon: '✨' }
+];
+const BRAINSTORM_LANE_INDEX = Object.fromEntries(BRAINSTORM_LANES.map((lane, idx) => [lane.id, idx]));
+const BRAINSTORM_NOTE_COLORS = ['#fef3a7', '#bfdbfe', '#fecdd3', '#bbf7d0', '#ddd6fe', '#fdba74'];
 
 let syncInterval = null;
 let roomChannel = null;
@@ -1385,136 +1663,173 @@ let lightningAutoRevealPending = false;
 let wordChainDraft = {};
 let wordChainLastAutoFocusKey = '';
 let wordChainFocusCueTimer = null;
+let brainstormDraggedNoteId = null;
 const ROOM_SYNC_MS = 300;
 
 // Activity Start Functions (must be before render functions)
-async function startLightningTrivia() {
+function createInitialActivityState(activityId) {
+  if (activityId === 'lightning-trivia') {
+    return {
+      currentQ: 0,
+      revealed: false,
+      answers: {},
+      scores: {},
+      lastPoints: {},
+      answerTimes: {},
+      reactions: [],
+      questionOrder: buildShuffledQuestionOrder(TRIVIA_BANK.length),
+      startTime: Date.now()
+    };
+  }
+  if (activityId === 'icebreaker') {
+    const randomQ = ICEBREAKER_QUESTIONS[Math.floor(Math.random() * ICEBREAKER_QUESTIONS.length)];
+    return {
+      currentQuestion: randomQ,
+      answers: {}
+    };
+  }
+  if (activityId === 'pulse-check') {
+    const questionOrder = buildShuffledQuestionOrder(PULSE_QUESTIONS.length);
+    const selectedPollIndexes = questionOrder.slice(0, Math.min(5, PULSE_QUESTIONS.length));
+    return {
+      currentPoll: 0,
+      selectedPollIndexes,
+      votes: {},
+      voteHistory: {},
+      showResults: false
+    };
+  }
+  if (activityId === 'values-vote') {
+    return { votes: {} };
+  }
+  if (activityId === 'wordle') {
+    const word = WORDLE_WORDS[Math.floor(Math.random() * WORDLE_WORDS.length)];
+    return {
+      targetWord: word,
+      guesses: [],
+      currentRow: 0,
+      gameOver: false,
+      answers: {}
+    };
+  }
+  if (activityId === 'word-chain') {
+    const puzzleIndex = Math.floor(Math.random() * WORD_CHAIN_PUZZLES.length);
+    const puzzleWords = WORD_CHAIN_PUZZLES[puzzleIndex]?.words || [];
+    return {
+      puzzleIndex,
+      progressIndex: {},
+      revealedLetters: {},
+      lastLetterGraceUsed: {},
+      solvedWords: {},
+      wordScores: {},
+      wordAttempts: {},
+      totalAttempts: {},
+      completedAt: {},
+      scores: {},
+      feedback: {},
+      startedAt: Date.now(),
+      wordCount: Math.min(8, puzzleWords.length)
+    };
+  }
+  if (activityId === 'brainstorm-canvas') {
+    return {
+      boardType: 'start-stop-improve-create',
+      notes: [],
+      sessionStatus: 'open',
+      createdAt: Date.now()
+    };
+  }
+  if (activityId === 'regular-trivia') {
+    return {
+      currentQ: 0,
+      revealed: false,
+      answers: {},
+      scores: {},
+      lastPoints: {},
+      answerTimes: {},
+      questionOrder: buildShuffledQuestionOrder(TRIVIA_BANK.length),
+      startTime: Date.now()
+    };
+  }
+  return null;
+}
+
+function getInitialActivityState(room, activityId) {
+  let initialState = createInitialActivityState(activityId);
+  if (activityId === 'brainstorm-canvas' && room?.brainstormData && typeof room.brainstormData === 'object') {
+    const resumed = safeParseJson(JSON.stringify(room.brainstormData));
+    if (resumed && typeof resumed === 'object') {
+      initialState = resumed;
+    }
+  }
+  return initialState;
+}
+
+async function startActivityById(activityId) {
+  if (!APP.roomCode || !APP.room) return false;
+  const room = { ...APP.room };
+  const initialState = getInitialActivityState(room, activityId);
+  if (!initialState) {
+    showError('Unsupported activity.');
+    return false;
+  }
   lightningAutoRevealPending = false;
-  const room = { ...APP.room };
-  room.currentActivity = 'lightning-trivia';
-  room.activityState = {
-    currentQ: 0,
-    revealed: false,
-    answers: {},
-    scores: {},
-    lastPoints: {},
-    answerTimes: {},
-    reactions: [],
-    questionOrder: buildShuffledQuestionOrder(TRIVIA_BANK.length),
-    startTime: Date.now()
-  };
-  
+  room.currentActivity = activityId;
+  room.activityState = initialState;
   await RoomManager.updateRoom(APP.roomCode, room);
   APP.room = room;
+  if (activityId === 'word-chain') {
+    wordChainDraft = {};
+    resetWordChainFocusState();
+  }
   render();
+  return true;
 }
 
-async function startIcebreaker() {
-  const room = { ...APP.room };
-  room.currentActivity = 'icebreaker';
-  const randomQ = ICEBREAKER_QUESTIONS[Math.floor(Math.random() * ICEBREAKER_QUESTIONS.length)];
-  room.activityState = {
-    currentQuestion: randomQ,
-    answers: {}
-  };
-  
+async function runNextQueuedActivity(roomOverride = null) {
+  const room = roomOverride ? { ...roomOverride } : await RoomManager.loadRoom(APP.roomCode);
+  if (!room) return false;
+  const queue = Array.isArray(room.activityQueue) ? room.activityQueue : [];
+  let queueIndex = Number.isInteger(room.queueIndex) ? room.queueIndex : 0;
+  if (!room.queueActive || queue.length === 0) return false;
+
+  while (queueIndex < queue.length && !ACTIVITY_QUEUE_ITEM_MAP[queue[queueIndex]]) {
+    queueIndex++;
+  }
+
+  if (queueIndex >= queue.length) {
+    room.queueActive = false;
+    room.queueIndex = 0;
+    room.currentActivity = null;
+    room.activityState = {};
+    await RoomManager.updateRoom(APP.roomCode, room);
+    APP.room = room;
+    render();
+    return false;
+  }
+
+  const activityId = queue[queueIndex];
+  room.queueIndex = queueIndex + 1;
+  room.currentActivity = activityId;
+  room.activityState = getInitialActivityState(room, activityId) || {};
   await RoomManager.updateRoom(APP.roomCode, room);
   APP.room = room;
+  if (activityId === 'word-chain') {
+    wordChainDraft = {};
+    resetWordChainFocusState();
+  }
   render();
+  return true;
 }
 
-async function startPulseCheck() {
-  const room = { ...APP.room };
-  room.currentActivity = 'pulse-check';
-  const questionOrder = buildShuffledQuestionOrder(PULSE_QUESTIONS.length);
-  const selectedPollIndexes = questionOrder.slice(0, Math.min(5, PULSE_QUESTIONS.length));
-  room.activityState = {
-    currentPoll: 0,
-    selectedPollIndexes,
-    votes: {},
-    voteHistory: {},
-    showResults: false
-  };
-  
-  await RoomManager.updateRoom(APP.roomCode, room);
-  APP.room = room;
-  render();
-}
-
-async function startValuesVote() {
-  const room = { ...APP.room };
-  room.currentActivity = 'values-vote';
-  room.activityState = {
-    votes: {}
-  };
-  
-  await RoomManager.updateRoom(APP.roomCode, room);
-  APP.room = room;
-  render();
-}
-
-async function startWordle() {
-  const room = { ...APP.room };
-  room.currentActivity = 'wordle';
-  const word = WORDLE_WORDS[Math.floor(Math.random() * WORDLE_WORDS.length)];
-  room.activityState = {
-    targetWord: word,
-    guesses: [],
-    currentRow: 0,
-    gameOver: false,
-    answers: {}
-  };
-  
-  await RoomManager.updateRoom(APP.roomCode, room);
-  APP.room = room;
-  render();
-}
-
-async function startWordChain() {
-  const room = { ...APP.room };
-  const puzzleIndex = Math.floor(Math.random() * WORD_CHAIN_PUZZLES.length);
-  const puzzleWords = WORD_CHAIN_PUZZLES[puzzleIndex]?.words || [];
-  room.currentActivity = 'word-chain';
-  room.activityState = {
-    puzzleIndex,
-    progressIndex: {},
-    revealedLetters: {},
-    lastLetterGraceUsed: {},
-    solvedWords: {},
-    wordScores: {},
-    wordAttempts: {},
-    totalAttempts: {},
-    completedAt: {},
-    scores: {},
-    feedback: {},
-    startedAt: Date.now(),
-    wordCount: Math.min(8, puzzleWords.length)
-  };
-
-  await RoomManager.updateRoom(APP.roomCode, room);
-  APP.room = room;
-  wordChainDraft = {};
-  render();
-}
-
-async function startRegularTrivia() {
-  const room = { ...APP.room };
-  room.currentActivity = 'regular-trivia';
-  room.activityState = {
-    currentQ: 0,
-    revealed: false,
-    answers: {},
-    scores: {},
-    lastPoints: {},
-    answerTimes: {},
-    questionOrder: buildShuffledQuestionOrder(TRIVIA_BANK.length),
-    startTime: Date.now()
-  };
-  
-  await RoomManager.updateRoom(APP.roomCode, room);
-  APP.room = room;
-  render();
-}
+async function startLightningTrivia() { await startActivityById('lightning-trivia'); }
+async function startIcebreaker() { await startActivityById('icebreaker'); }
+async function startPulseCheck() { await startActivityById('pulse-check'); }
+async function startValuesVote() { await startActivityById('values-vote'); }
+async function startWordle() { await startActivityById('wordle'); }
+async function startWordChain() { await startActivityById('word-chain'); }
+async function startBrainstormCanvas() { await startActivityById('brainstorm-canvas'); }
+async function startRegularTrivia() { await startActivityById('regular-trivia'); }
 
 // Lightning Trivia Functions
 async function submitAnswer(optionIndex) {
@@ -1617,6 +1932,11 @@ async function endActivity() {
   } else if (activity === 'word-chain') {
     const score = room.activityState.scores?.[APP.player.name] || 0;
     xpEarned = Math.max(40, Math.round(score / 25));
+  } else if (activity === 'brainstorm-canvas') {
+    const notes = Array.isArray(room.activityState?.notes) ? room.activityState.notes : [];
+    const userNotes = notes.filter(note => note.author === APP.player.name).length;
+    const userVotes = notes.filter(note => Array.isArray(note.voters) && note.voters.includes(APP.player.name)).length;
+    xpEarned = Math.max(30, (userNotes * 15) + (userVotes * 5));
   }
   
   if (xpEarned > 0) {
@@ -1629,12 +1949,21 @@ async function endActivity() {
   // Update activity completion stat
   APP.player.stats.activitiesCompleted = (APP.player.stats.activitiesCompleted || 0) + 1;
   await PlayerManager.updateProfile(APP.player);
+
+  if (activity === 'brainstorm-canvas') {
+    room.brainstormData = safeParseJson(JSON.stringify(room.activityState || {})) || room.activityState || {};
+    room.brainstormLastUpdatedAt = Date.now();
+  }
   
   room.currentActivity = null;
   room.activityState = {};
   
   await RoomManager.updateRoom(APP.roomCode, room);
   resetWordChainFocusState();
+
+  if (room.queueActive && room.host === APP.player?.name) {
+    await runNextQueuedActivity(room);
+  }
 }
 
 async function playAgain() {
@@ -1750,9 +2079,11 @@ function render() {
   if (APP.editingProfile) html = renderEditProfile();
   else if (APP.screen === 'welcome') html = renderWelcome();
   else if (APP.screen === 'dashboard') html = renderDashboard();
+  else if (APP.screen === 'about') html = renderAboutApp();
   else if (APP.screen === 'create-room') html = renderCreateRoom();
   else if (APP.screen === 'join-room') html = renderJoinRoom();
   else if (APP.screen === 'lobby') html = renderLobby();
+  else if (APP.screen === 'activity-queue') html = renderActivityQueue();
   else if (APP.screen === 'feedback') html = renderFeedbackHub();
   else if (APP.screen === 'admin') html = renderAdminConsole();
 
@@ -1849,10 +2180,41 @@ function renderDashboard() {
     </div>
     
     <div style="text-align:center;margin-top:40px;">
-      <button class="btn-secondary" data-action="view-stats">📊 View Full Stats</button>
+      <button class="btn-secondary" data-action="view-stats">ℹ️ About App</button>
       <button class="btn-secondary" data-action="edit-profile" style="margin-left:10px;">✏️ Edit Profile</button>
       ${showFeedback ? '<button class="btn-secondary" data-action="open-feedback" style="margin-left:10px;">🗣️ Feedback Hub</button>' : ''}
       <button class="btn-secondary" data-action="open-admin-console" style="margin-left:10px;">🛠️ Admin Console</button>
+    </div>
+  `;
+}
+
+function renderAboutApp() {
+  const safeAppName = escapeHtml(APP.branding.appName || 'Team Builder Pro');
+  const safeVersion = escapeHtml(APP_VERSION);
+  return `
+    <div class="header">
+      <h1 class="logo">About App</h1>
+      <p class="tagline">${safeAppName} • Version ${safeVersion}</p>
+    </div>
+
+    <button class="btn-secondary" data-action="go-screen" data-screen="dashboard">← Back</button>
+
+    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:20px;">
+      <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:10px;">General Purpose</h3>
+      <p style="color:var(--text-mid);line-height:1.6;">
+        A host-led team engagement app for running interactive activities in one shared room, with lightweight multiplayer sync and facilitator controls.
+      </p>
+    </div>
+
+    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:16px;">
+      <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:10px;">Highlights</h3>
+      <div style="display:grid;gap:10px;color:var(--text-mid);line-height:1.5;">
+        <div>• Multi-activity library: Lightning Trivia, Team Pulse, Values Vote, Wordle, Word Chain, and Brainstorm Canvas.</div>
+        <div>• Host controls: activity queue, room settings, and guided session flow.</div>
+        <div>• Brainstorm collaboration: sticky notes, upvotes, lane movement, and JSON/CSV export.</div>
+        <div>• Pulse reporting: export team sentiment snapshots to JSON or CSV.</div>
+        <div>• Session UX: editable profile, leave session control, and room-based collaboration.</div>
+      </div>
     </div>
   `;
 }
@@ -2111,6 +2473,11 @@ function renderAdminConsole() {
 function renderLobby() {
   const isHost = APP.room.host === APP.player.name;
   const safeRoomCode = escapeHtml(APP.roomCode);
+  const sharedPresentation = ENABLE_PRESENTATION_SHARE ? (APP.room.sharedPresentation || null) : null;
+  const safePresentationTitle = escapeHtml(sharedPresentation?.title || 'Shared Presentation');
+  const safePresentationUrl = escapeHtml(sharedPresentation?.url || '');
+  const safeSharedBy = escapeHtml(sharedPresentation?.sharedBy || '');
+  const sharedAtLabel = sharedPresentation?.updatedAt ? new Date(sharedPresentation.updatedAt).toLocaleString() : '';
   
   if (APP.room.currentActivity) {
     return renderActivity();
@@ -2120,6 +2487,7 @@ function renderLobby() {
     <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:8px;">
       <button class="btn-secondary" data-action="edit-profile">✏️ Edit Profile</button>
       <button class="btn-secondary" data-action="leave-session">🚪 Leave Session</button>
+      ${isHost ? '<button class="btn-secondary" data-action="go-screen" data-screen="activity-queue">🗂️ Activity Queue</button>' : ''}
       ${isHost ? '<button class="btn-secondary" data-action="open-host-settings">⚙️ Host Settings</button>' : ''}
     </div>
 
@@ -2139,6 +2507,39 @@ function renderLobby() {
       </div>
       <div style="font-size:0.85rem;color:var(--text-dim);">Share with your team</div>
     </div>
+
+    ${ENABLE_PRESENTATION_SHARE ? `
+    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:24px;">
+      <h3 style="font-weight:700;margin-bottom:12px;">📑 Shared Presentation</h3>
+      ${sharedPresentation ? `
+        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px;">
+          <div style="font-weight:700;margin-bottom:6px;">${safePresentationTitle}</div>
+          <div style="font-size:0.85rem;color:var(--text-mid);word-break:break-all;">${safePresentationUrl}</div>
+          <div style="font-size:0.78rem;color:var(--text-dim);margin-top:8px;">
+            Shared by ${safeSharedBy || 'host'}${sharedAtLabel ? ` • ${escapeHtml(sharedAtLabel)}` : ''}
+          </div>
+        </div>
+        <button class="btn-primary" data-action="open-shared-presentation">Open Presentation</button>
+        ${isHost ? '<button class="btn-secondary" data-action="clear-shared-presentation" style="margin-top:10px;">Clear Shared Presentation</button>' : ''}
+      ` : `
+        <div style="color:var(--text-dim);margin-bottom:12px;">No presentation shared yet.</div>
+      `}
+
+      ${isHost ? `
+        <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
+          <div class="form-group" style="margin-bottom:10px;">
+            <label class="form-label" for="presentationTitle">Title (optional)</label>
+            <input id="presentationTitle" class="form-input" maxlength="120" placeholder="Q4 Planning Deck">
+          </div>
+          <div class="form-group" style="margin-bottom:10px;">
+            <label class="form-label" for="presentationUrl">Presentation URL</label>
+            <input id="presentationUrl" class="form-input" maxlength="1000" placeholder="https://...">
+          </div>
+          <button class="btn-secondary" data-action="save-shared-presentation">Share Presentation Link</button>
+        </div>
+      ` : ''}
+    </div>
+    ` : ''}
     
     <div style="background:var(--surface-solid);border:1px solid var(--border);
       border-radius:var(--radius);padding:24px;margin-bottom:30px;">
@@ -2161,7 +2562,7 @@ function renderLobby() {
         </div>
       `).join('')}
     </div>
-    
+
     ${isHost ? `
       <h3 style="text-align:center;font-family:'Fraunces',serif;font-size:1.5rem;margin-bottom:20px;">
         Choose Activity
@@ -2203,6 +2604,18 @@ function renderLobby() {
           <h3 class="card-title">Word Chain</h3>
           <p class="card-desc">Solve 5 hidden compound words with the fewest tries</p>
         </button>
+
+        <button type="button" class="card" data-action="start-brainstorm-canvas" aria-label="Start Brainstorm Canvas">
+          <div class="card-icon">🧩</div>
+          <h3 class="card-title">Brainstorm Canvas</h3>
+          <p class="card-desc">Add sticky notes and vote in Start / Stop / Improve / Create</p>
+        </button>
+
+        <button type="button" class="card" data-action="go-screen" data-screen="activity-queue" aria-label="Open Activity Queue">
+          <div class="card-icon">🗂️</div>
+          <h3 class="card-title">Activity Queue</h3>
+          <p class="card-desc">Plan and run queued activities in sequence</p>
+        </button>
         
         <button type="button" class="card" data-action="start-regular-trivia" aria-label="Start Trivia Battle">
           <div class="card-icon">🧠</div>
@@ -2220,8 +2633,78 @@ function renderLobby() {
   `;
 }
 
+function renderActivityQueue() {
+  const isHost = APP.room.host === APP.player.name;
+  const safeRoomCode = escapeHtml(APP.roomCode);
+  const activityQueue = Array.isArray(APP.room.activityQueue) ? APP.room.activityQueue : [];
+  const queueIndex = Number.isInteger(APP.room.queueIndex) ? APP.room.queueIndex : 0;
+  const queueActive = Boolean(APP.room.queueActive);
+  const queueRemaining = activityQueue.slice(queueIndex);
+
+  return `
+    <div class="header">
+      <h1 class="logo">Activity Queue</h1>
+      <p class="tagline">Room: ${safeRoomCode}</p>
+    </div>
+
+    <button class="btn-secondary" data-action="go-screen" data-screen="lobby">← Back to Lobby</button>
+
+    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:16px;">
+      <h3 style="font-weight:700;margin-bottom:12px;">Queued Activities</h3>
+      ${activityQueue.length ? `
+        <div style="margin-bottom:12px;">
+          ${activityQueue.map((activityId, idx) => {
+            const item = ACTIVITY_QUEUE_ITEM_MAP[activityId];
+            if (!item) return '';
+            const isCurrentPointer = queueActive && idx === queueIndex;
+            const isDone = idx < queueIndex;
+            const bg = isDone ? 'rgba(0,210,106,0.06)' : (isCurrentPointer ? 'rgba(0,210,211,0.08)' : 'var(--surface-2)');
+            const border = isCurrentPointer ? 'var(--accent)' : 'var(--border)';
+            return `
+              <div style="display:flex;justify-content:space-between;align-items:center;background:${bg};
+                border:1px solid ${border};border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <span style="font-weight:700;min-width:20px;">${idx + 1}.</span>
+                  <span>${item.icon}</span>
+                  <span>${escapeHtml(item.label)}</span>
+                  ${isCurrentPointer ? '<span style="font-size:0.75rem;color:var(--accent);font-weight:700;">UP NEXT</span>' : ''}
+                  ${isDone ? '<span style="font-size:0.75rem;color:var(--success);font-weight:700;">DONE</span>' : ''}
+                </div>
+                ${isHost ? `<button class="btn-secondary" data-action="queue-remove" data-queue-index="${idx}" style="padding:6px 10px;">Remove</button>` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      ` : `
+        <div style="color:var(--text-dim);margin-bottom:12px;">No activities queued yet.</div>
+      `}
+      <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:10px;">
+        ${queueActive
+          ? (queueRemaining.length ? `${queueRemaining.length} remaining in queue` : 'Queue will complete after this activity')
+          : 'Queue is paused'}
+      </div>
+
+      ${isHost ? `
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px;">
+          ${ACTIVITY_QUEUE_ITEMS.map(item => `
+            <button class="btn-secondary" data-action="queue-add" data-activity="${item.id}" style="padding:10px 12px;">
+              ${item.icon} ${escapeHtml(item.label)}
+            </button>
+          `).join('')}
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn-primary" data-action="queue-start" style="width:auto;padding:10px 14px;">Start Queue</button>
+          <button class="btn-secondary" data-action="queue-next">Next in Queue</button>
+          <button class="btn-secondary" data-action="queue-clear">Clear Queue</button>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
 function renderHostSettingsModal() {
   const roomSettings = getRoomHostSettings(APP.room);
+  const activeTab = APP.hostSettingsTab || 'game';
   return `
     <div style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10020;display:grid;place-items:center;padding:16px;">
       <div style="width:min(760px,100%);max-height:90vh;overflow:auto;background:var(--surface-solid);
@@ -2231,7 +2714,16 @@ function renderHostSettingsModal() {
           <button class="btn-secondary" data-action="close-host-settings">Close</button>
         </div>
 
-        <div style="margin-bottom:18px;">
+        <div class="host-tabs" role="tablist" aria-label="Host settings sections">
+          <button class="host-tab-btn ${activeTab === 'game' ? 'active' : ''}" data-action="host-settings-tab" data-tab="game" role="tab" aria-selected="${activeTab === 'game' ? 'true' : 'false'}">
+            Game Rules
+          </button>
+          <button class="host-tab-btn ${activeTab === 'ai' ? 'active' : ''}" data-action="host-settings-tab" data-tab="ai" role="tab" aria-selected="${activeTab === 'ai' ? 'true' : 'false'}">
+            AI Settings
+          </button>
+        </div>
+
+        <div data-tab-panel="game" class="host-tab-panel" ${activeTab !== 'game' ? 'hidden' : ''} style="margin-bottom:18px;">
           <h4 style="margin-bottom:10px;">Game Toggles (Room-wide)</h4>
           <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
             <input type="checkbox" id="hsAutoRevealLightning" ${roomSettings.autoRevealLightning ? 'checked' : ''}>
@@ -2247,11 +2739,11 @@ function renderHostSettingsModal() {
           </label>
           <label style="display:flex;align-items:center;gap:8px;">
             <input type="checkbox" id="hsEnableAIGenerator" ${roomSettings.enableAIGenerator ? 'checked' : ''}>
-            Enable AI Question Generator
+            Enable AI Content Generator
           </label>
         </div>
 
-        <div style="margin-bottom:18px;">
+        <div data-tab-panel="ai" class="host-tab-panel" ${activeTab !== 'ai' ? 'hidden' : ''} style="margin-bottom:18px;">
           <h4 style="margin-bottom:10px;">AI Configuration (Host Local)</h4>
           <div class="form-group">
             <label class="form-label" for="hsAiEndpoint">Endpoint</label>
@@ -2261,7 +2753,15 @@ function renderHostSettingsModal() {
             <label class="form-label" for="hsAiModel">Model</label>
             <input id="hsAiModel" class="form-input" value="${escapeHtml(HOST_LOCAL_CONFIG.aiModel)}" placeholder="gpt-4o-mini">
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+            <div class="form-group">
+              <label class="form-label" for="hsAiDefaultActivity">Default Activity</label>
+              <select id="hsAiDefaultActivity" class="form-input">
+                ${AI_GENERATION_TARGETS.map(item => `
+                  <option value="${item.id}" ${HOST_LOCAL_CONFIG.aiDefaultActivity === item.id ? 'selected' : ''}>${escapeHtml(item.label)}</option>
+                `).join('')}
+              </select>
+            </div>
             <div class="form-group">
               <label class="form-label" for="hsAiDefaultDifficulty">Default Difficulty</label>
               <select id="hsAiDefaultDifficulty" class="form-input">
@@ -2277,14 +2777,19 @@ function renderHostSettingsModal() {
           </div>
           <div class="form-group">
             <label class="form-label" for="hsAiApiKey">API Key</label>
-            <input id="hsAiApiKey" class="form-input" type="password" value="${escapeHtml(HOST_LOCAL_CONFIG.aiApiKey)}" placeholder="Stored in this browser only">
+            <input id="hsAiApiKey" class="form-input" type="password" value="${escapeHtml(HOST_LOCAL_CONFIG.aiApiKey)}" placeholder="Optional fallback. Preferred: server env CHAT_GPT_MINI_KEY">
           </div>
 
           ${roomSettings.enableAIGenerator ? `
             <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
-              <h4 style="margin-bottom:10px;">🤖 AI Question Generator</h4>
-              <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:10px;">
-                <input id="aiTopic" class="form-input" placeholder="Topic (e.g., Space, NBA, Cybersecurity)">
+              <h4 style="margin-bottom:10px;">🤖 AI Content Generator</h4>
+              <div style="display:grid;grid-template-columns:1.2fr 2fr 1fr 1fr;gap:10px;margin-bottom:10px;">
+                <select id="aiActivity" class="form-input">
+                  ${AI_GENERATION_TARGETS.map(item => `
+                    <option value="${item.id}" ${HOST_LOCAL_CONFIG.aiDefaultActivity === item.id ? 'selected' : ''}>${escapeHtml(item.label)}</option>
+                  `).join('')}
+                </select>
+                <input id="aiTopic" class="form-input" placeholder="Topic or focus (e.g., Sprint Retro, Space, Leadership)">
                 <select id="aiDifficulty" class="form-input">
                   <option value="easy" ${HOST_LOCAL_CONFIG.aiDefaultDifficulty === 'easy' ? 'selected' : ''}>Easy</option>
                   <option value="mixed" ${HOST_LOCAL_CONFIG.aiDefaultDifficulty === 'mixed' ? 'selected' : ''}>Mixed</option>
@@ -2292,15 +2797,18 @@ function renderHostSettingsModal() {
                 </select>
                 <input id="aiCount" class="form-input" type="number" min="3" max="20" value="${HOST_LOCAL_CONFIG.aiDefaultCount}" placeholder="Count">
               </div>
-              <input id="aiApiKey" class="form-input" type="password" value="${escapeHtml(HOST_LOCAL_CONFIG.aiApiKey)}" placeholder="API key (saved locally in this browser)" style="margin-bottom:10px;">
+              <input id="aiApiKey" class="form-input" type="password" value="${escapeHtml(HOST_LOCAL_CONFIG.aiApiKey)}" placeholder="Optional fallback API key (local browser only)" style="margin-bottom:10px;">
               <button class="btn-primary" data-action="generate-ai-questions" ${APP.aiGenerating ? 'disabled' : ''}>
-                ${APP.aiGenerating ? 'Generating...' : 'Generate & Add Questions'}
+                ${APP.aiGenerating ? 'Generating...' : 'Generate & Add Content'}
               </button>
+              <div style="margin-top:8px;font-size:0.85rem;color:var(--text-dim);">
+                Uses server-side AI key from <code>CHAT_GPT_MINI_KEY</code> when configured. Supported targets: Lightning Trivia, Trivia Battle, Icebreaker, Team Pulse, Values Vote, Team Wordle, Word Chain, Brainstorm Canvas.
+              </div>
               ${APP.aiStatus ? `<div role="status" aria-live="polite" style="margin-top:10px;color:var(--text-mid);font-size:0.9rem;">${escapeHtml(APP.aiStatus)}</div>` : ''}
             </div>
           ` : `
             <div style="margin-top:10px;color:var(--text-dim);font-size:0.9rem;">
-              AI Question Generator is disabled. Enable it above to generate questions here.
+              AI Content Generator is disabled. Enable it above to generate content here.
             </div>
           `}
         </div>
@@ -2368,7 +2876,8 @@ async function createPlayer() {
 }
 
 function goToScreen(screen) {
-  if (screen !== 'lobby') {
+  const roomScreens = new Set(['lobby', 'activity-queue']);
+  if (!roomScreens.has(screen)) {
     stopRoomSync();
     APP.showHostSettings = false;
     resetWordChainFocusState();
@@ -2583,8 +3092,159 @@ function resetWordChainFocusState() {
   }
 }
 
+function normalizePresentationUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    const parsed = new URL(withProtocol);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+    return parsed.toString();
+  } catch (_error) {
+    return '';
+  }
+}
+
+async function saveSharedPresentation() {
+  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
+  const title = String(document.getElementById('presentationTitle')?.value || '').trim().slice(0, 120);
+  const url = normalizePresentationUrl(document.getElementById('presentationUrl')?.value || '');
+  if (!url) {
+    showError('Enter a valid presentation URL.');
+    return;
+  }
+
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room) {
+    showError('Room no longer available.');
+    return;
+  }
+  room.sharedPresentation = {
+    title: title || 'Shared Presentation',
+    url,
+    sharedBy: APP.player.name,
+    updatedAt: Date.now()
+  };
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
+
+async function clearSharedPresentation() {
+  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room) {
+    showError('Room no longer available.');
+    return;
+  }
+  delete room.sharedPresentation;
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
+
+function openSharedPresentation() {
+  const url = APP.room?.sharedPresentation?.url;
+  if (!url) {
+    showError('No shared presentation link is available.');
+    return;
+  }
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+async function queueAddActivity(activityId) {
+  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
+  if (!ACTIVITY_QUEUE_ITEM_MAP[activityId]) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room) {
+    showError('Room no longer available.');
+    return;
+  }
+  room.activityQueue = Array.isArray(room.activityQueue) ? room.activityQueue : [];
+  room.activityQueue.push(activityId);
+  if (!Number.isInteger(room.queueIndex)) room.queueIndex = 0;
+  if (typeof room.queueActive !== 'boolean') room.queueActive = false;
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
+
+async function queueRemoveActivityAt(index) {
+  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
+  if (!Number.isInteger(index) || index < 0) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room) {
+    showError('Room no longer available.');
+    return;
+  }
+  room.activityQueue = Array.isArray(room.activityQueue) ? room.activityQueue : [];
+  if (index >= room.activityQueue.length) return;
+  room.activityQueue.splice(index, 1);
+  room.queueIndex = Math.max(0, Math.min(room.queueIndex || 0, room.activityQueue.length));
+  if (!room.activityQueue.length) {
+    room.queueActive = false;
+    room.queueIndex = 0;
+  }
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
+
+async function queueClearAll() {
+  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room) {
+    showError('Room no longer available.');
+    return;
+  }
+  room.activityQueue = [];
+  room.queueIndex = 0;
+  room.queueActive = false;
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
+
+async function queueStartRun() {
+  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room) {
+    showError('Room no longer available.');
+    return;
+  }
+  room.activityQueue = Array.isArray(room.activityQueue) ? room.activityQueue : [];
+  if (!room.activityQueue.length) {
+    showError('Add at least one activity to the queue.');
+    return;
+  }
+  room.queueActive = true;
+  room.queueIndex = 0;
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  await runNextQueuedActivity(room);
+}
+
+async function queueNextActivity() {
+  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room) {
+    showError('Room no longer available.');
+    return;
+  }
+  room.activityQueue = Array.isArray(room.activityQueue) ? room.activityQueue : [];
+  if (!room.activityQueue.length) {
+    showError('Queue is empty.');
+    return;
+  }
+  room.queueActive = true;
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  await runNextQueuedActivity(room);
+}
+
 function viewStats() {
-  alert('Full stats dashboard coming soon!');
+  APP.screen = 'about';
+  render();
 }
 
 async function loadPublicConfig() {
@@ -2756,6 +3416,7 @@ async function saveAdminConfig() {
 
 function openHostSettings() {
   if (!APP.room || APP.room.host !== APP.player?.name) return;
+  APP.hostSettingsTab = 'game';
   APP.showHostSettings = true;
   render();
 }
@@ -2763,6 +3424,30 @@ function openHostSettings() {
 function closeHostSettings() {
   APP.showHostSettings = false;
   render();
+}
+
+function switchHostSettingsTab(tabId) {
+  if (!APP.showHostSettings) return;
+  const allowedTabs = new Set(['game', 'ai']);
+  const nextTab = allowedTabs.has(tabId) ? tabId : 'game';
+  APP.hostSettingsTab = nextTab;
+
+  const tabButtons = document.querySelectorAll('.host-tab-btn');
+  const tabPanels = document.querySelectorAll('.host-tab-panel');
+  if (!tabButtons.length || !tabPanels.length) {
+    render();
+    return;
+  }
+
+  tabButtons.forEach(button => {
+    const isActive = button.dataset.tab === nextTab;
+    button.classList.toggle('active', isActive);
+    button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+
+  tabPanels.forEach(panel => {
+    panel.hidden = panel.getAttribute('data-tab-panel') !== nextTab;
+  });
 }
 
 async function saveHostSettings() {
@@ -2779,6 +3464,9 @@ async function saveHostSettings() {
     ...HOST_LOCAL_CONFIG,
     aiEndpoint: (document.getElementById('hsAiEndpoint')?.value || '').trim() || getDefaultHostLocalConfig().aiEndpoint,
     aiModel: (document.getElementById('hsAiModel')?.value || '').trim() || getDefaultHostLocalConfig().aiModel,
+    aiDefaultActivity: AI_GENERATION_TARGET_LABELS[document.getElementById('hsAiDefaultActivity')?.value || '']
+      ? String(document.getElementById('hsAiDefaultActivity')?.value || '')
+      : getDefaultHostLocalConfig().aiDefaultActivity,
     aiDefaultDifficulty: String(document.getElementById('hsAiDefaultDifficulty')?.value || 'mixed'),
     aiDefaultCount: Math.max(3, Math.min(20, Number.parseInt(document.getElementById('hsAiDefaultCount')?.value || '8', 10) || 8)),
     aiApiKey: (document.getElementById('hsAiApiKey')?.value || '').trim()
@@ -2798,68 +3486,214 @@ async function saveHostSettings() {
   render();
 }
 
+function buildAIPromptForActivity(activityId, topic, difficulty, count) {
+  const targetTopic = topic || 'team collaboration';
+  switch (activityId) {
+    case 'lightning-trivia':
+    case 'regular-trivia':
+      return `Generate ${count} multiple-choice trivia questions about "${targetTopic}" at ${difficulty} difficulty.
+Return only valid JSON as an array. Each item must be:
+{"q":"question text","opts":["A","B","C","D"],"ans":0}
+where ans is the zero-based index of the correct option.`;
+    case 'icebreaker':
+      return `Generate ${count} icebreaker prompts about "${targetTopic}" at ${difficulty} difficulty.
+Return only valid JSON as an array of strings.`;
+    case 'pulse-check':
+      return `Generate ${count} pulse-check polls about "${targetTopic}" for a team session.
+Return only valid JSON as an array. Each item must be:
+{"q":"question text","opts":["Option 1","Option 2","Option 3","Option 4"]}`;
+    case 'values-vote':
+      return `Generate ${count} team values themed around "${targetTopic}".
+Return only valid JSON as an array. Each item must be:
+{"name":"short value name","icon":"emoji"}`;
+    case 'wordle':
+      return `Generate ${count} distinct single English words related to "${targetTopic}".
+Rules: exactly 5 letters, uppercase alphabetic only, no spaces, no punctuation.
+Return only valid JSON as an array of strings.`;
+    case 'word-chain':
+      return `Generate ${Math.max(1, Math.min(5, count))} word-chain puzzles themed around "${targetTopic}".
+Rules:
+- Each puzzle contains exactly 8 singular words.
+- Words use only letters A-Z and each word is 1 to 9 letters.
+- Adjacent words should form a common two-word phrase or compound expression.
+Return only valid JSON as an array. Each item must be:
+{"title":"Chain name","words":["WORD1","WORD2","WORD3","WORD4","WORD5","WORD6","WORD7","WORD8"]}`;
+    case 'brainstorm-canvas':
+      return `Generate ${count} brainstorming sticky notes for a Start/Stop/Improve/Create retrospective about "${targetTopic}".
+Return only valid JSON as an array. Each item must be:
+{"text":"short sticky note","lane":"start|stop|improve|create"}`;
+    default:
+      return '';
+  }
+}
+
+async function applyAIGeneratedContent(activityId, parsed, topic) {
+  if (activityId === 'lightning-trivia' || activityId === 'regular-trivia') {
+    const validated = validateAIQuestions(parsed);
+    if (!validated.length) throw new Error('AI returned invalid trivia format.');
+    TRIVIA_BANK.push(...validated);
+    APP.aiStatus = `Added ${validated.length} trivia question${validated.length === 1 ? '' : 's'} for ${AI_GENERATION_TARGET_LABELS[activityId]}. Total trivia questions: ${TRIVIA_BANK.length}.`;
+    return;
+  }
+
+  if (activityId === 'icebreaker') {
+    const validated = validateAIIcebreakerQuestions(parsed);
+    if (!validated.length) throw new Error('AI returned invalid icebreaker format.');
+    ICEBREAKER_QUESTIONS.push(...validated);
+    APP.aiStatus = `Added ${validated.length} icebreaker prompt${validated.length === 1 ? '' : 's'} on "${topic || 'general'}".`;
+    return;
+  }
+
+  if (activityId === 'pulse-check') {
+    const validated = validateAIPulseQuestions(parsed);
+    if (!validated.length) throw new Error('AI returned invalid pulse poll format.');
+    PULSE_QUESTIONS.push(...validated);
+    APP.aiStatus = `Added ${validated.length} pulse poll${validated.length === 1 ? '' : 's'}.`;
+    return;
+  }
+
+  if (activityId === 'values-vote') {
+    const validated = validateAIValues(parsed);
+    if (!validated.length) throw new Error('AI returned invalid values format.');
+    TEAM_VALUES.push(...validated);
+    APP.aiStatus = `Added ${validated.length} value option${validated.length === 1 ? '' : 's'}.`;
+    return;
+  }
+
+  if (activityId === 'wordle') {
+    const validated = validateAIWordleWords(parsed);
+    if (!validated.length) throw new Error('AI returned invalid Team Wordle format.');
+    WORDLE_WORDS.push(...validated);
+    APP.aiStatus = `Added ${validated.length} Team Wordle word${validated.length === 1 ? '' : 's'}.`;
+    return;
+  }
+
+  if (activityId === 'word-chain') {
+    const validated = validateAIWordChainPuzzles(parsed);
+    if (!validated.length) throw new Error('AI returned invalid Word Chain puzzle format.');
+    WORD_CHAIN_PUZZLES.push(...validated);
+    APP.aiStatus = `Added ${validated.length} Word Chain puzzle${validated.length === 1 ? '' : 's'}.`;
+    return;
+  }
+
+  if (activityId === 'brainstorm-canvas') {
+    const validated = validateAIBrainstormNotes(parsed);
+    if (!validated.length) throw new Error('AI returned invalid Brainstorm note format.');
+    if (!APP.roomCode) throw new Error('Join a room to add brainstorm notes.');
+    const room = await RoomManager.loadRoom(APP.roomCode);
+    if (!room) throw new Error('Room no longer available.');
+
+    const baseState = (room.currentActivity === 'brainstorm-canvas' && room.activityState && typeof room.activityState === 'object')
+      ? room.activityState
+      : (room.brainstormData && typeof room.brainstormData === 'object'
+        ? room.brainstormData
+        : { boardType: 'start-stop-improve-create', notes: [], sessionStatus: 'open', createdAt: Date.now() });
+    const notes = Array.isArray(baseState.notes) ? [...baseState.notes] : [];
+    const ts = Date.now();
+    validated.forEach((item, idx) => {
+      notes.unshift({
+        id: generateBrainstormNoteId(),
+        text: item.text,
+        author: 'AI Facilitator',
+        lane: item.lane,
+        votes: 0,
+        voters: [],
+        color: BRAINSTORM_NOTE_COLORS[idx % BRAINSTORM_NOTE_COLORS.length],
+        createdAt: ts + idx,
+        updatedAt: ts + idx
+      });
+    });
+
+    const nextState = { ...baseState, notes };
+    room.brainstormData = safeParseJson(JSON.stringify(nextState)) || nextState;
+    room.brainstormLastUpdatedAt = Date.now();
+    if (room.currentActivity === 'brainstorm-canvas') {
+      room.activityState = nextState;
+    }
+    await RoomManager.updateRoom(APP.roomCode, room);
+    APP.room = room;
+    APP.aiStatus = `Added ${validated.length} brainstorm note${validated.length === 1 ? '' : 's'} to the canvas session data.`;
+    return;
+  }
+
+  throw new Error('Unsupported AI generation target.');
+}
+
 async function generateAIQuestions() {
+  const activityIdRaw = String(document.getElementById('aiActivity')?.value || HOST_LOCAL_CONFIG.aiDefaultActivity || 'lightning-trivia');
+  const activityId = AI_GENERATION_TARGET_LABELS[activityIdRaw] ? activityIdRaw : 'lightning-trivia';
   const topic = normalizeTopic(document.getElementById('aiTopic')?.value || '');
   const difficulty = String(document.getElementById('aiDifficulty')?.value || HOST_LOCAL_CONFIG.aiDefaultDifficulty || 'mixed');
   const count = Math.max(3, Math.min(20, Number.parseInt(document.getElementById('aiCount')?.value || String(HOST_LOCAL_CONFIG.aiDefaultCount || 8), 10) || 8));
   const apiKeyInput = document.getElementById('aiApiKey')?.value?.trim() || '';
   const apiKey = apiKeyInput || HOST_LOCAL_CONFIG.aiApiKey || localStorage.getItem('ai-question-api-key') || '';
 
-  if (!topic) {
-    showError('Enter a topic first.');
-    return;
-  }
-  if (!apiKey) {
-    showError('Enter an API key to generate questions.');
+  const prompt = buildAIPromptForActivity(activityId, topic, difficulty, count);
+  if (!prompt) {
+    showError('Unsupported activity selected for AI generation.');
     return;
   }
 
   APP.aiGenerating = true;
-  APP.aiStatus = 'Generating questions...';
+  APP.aiStatus = `Generating ${AI_GENERATION_TARGET_LABELS[activityId] || 'content'}...`;
   render();
 
   try {
-    HOST_LOCAL_CONFIG.aiApiKey = apiKey;
-    localStorage.setItem('ai-question-api-key', apiKey);
+    HOST_LOCAL_CONFIG.aiDefaultActivity = activityId;
+    if (apiKey) {
+      HOST_LOCAL_CONFIG.aiApiKey = apiKey;
+      localStorage.setItem('ai-question-api-key', apiKey);
+    }
     saveHostLocalConfig(HOST_LOCAL_CONFIG);
-    const prompt = `Generate ${count} multiple-choice trivia questions about "${topic}" at ${difficulty} difficulty.
-Return only valid JSON as an array. Each item must be:
-{"q":"question text","opts":["A","B","C","D"],"ans":0}
-where ans is the zero-based index of the correct option.`;
-
-    const response = await fetch(HOST_LOCAL_CONFIG.aiEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: HOST_LOCAL_CONFIG.aiModel,
-        messages: [
-          { role: 'system', content: 'You create accurate trivia questions. Output strict JSON only.' },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.7
-      })
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`AI request failed (${response.status}): ${errText.slice(0, 180)}`);
+    let textContent = '';
+    let serverError = '';
+    try {
+      const serverData = await apiRequest('/api/ai/generate', {
+        method: 'POST',
+        body: {
+          prompt,
+          model: HOST_LOCAL_CONFIG.aiModel,
+          temperature: 0.7
+        }
+      });
+      textContent = String(serverData?.content || '');
+    } catch (serverErr) {
+      serverError = serverErr?.message || 'Server AI generation failed.';
     }
 
-    const data = await response.json();
-    const textContent = data?.choices?.[0]?.message?.content || '';
+    if (!textContent) {
+      if (!apiKey) {
+        throw new Error(`${serverError || 'Server AI generation failed.'} Add CHAT_GPT_MINI_KEY on the server or provide an API key in Host Settings.`);
+      }
+
+      const response = await fetch(HOST_LOCAL_CONFIG.aiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: HOST_LOCAL_CONFIG.aiModel,
+          messages: [
+            { role: 'system', content: 'You create accurate facilitator game content. Output strict JSON only.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.7
+        })
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`AI request failed (${response.status}): ${errText.slice(0, 180)}`);
+      }
+      const data = await response.json();
+      textContent = String(data?.choices?.[0]?.message?.content || '');
+    }
+
     const jsonText = extractFirstJson(textContent);
     const parsed = safeParseJson(jsonText);
-    const validated = validateAIQuestions(parsed);
-
-    if (!validated.length) {
-      throw new Error('AI returned invalid question format.');
-    }
-
-    TRIVIA_BANK.push(...validated);
-    APP.aiStatus = `Added ${validated.length} question${validated.length === 1 ? '' : 's'} on "${topic}". Total trivia questions: ${TRIVIA_BANK.length}.`;
+    const items = coerceAIArrayPayload(parsed);
+    await applyAIGeneratedContent(activityId, items, topic);
   } catch (e) {
     APP.aiStatus = `AI generation failed: ${e.message}`;
   } finally {
@@ -2928,7 +3762,25 @@ function applyProfileUpdateToRoom(room, oldName, newName, newAvatar) {
   remapActivityStateKey(state, 'wordScores', oldName, newName);
   remapActivityStateKey(state, 'wordAttempts', oldName, newName);
   remapActivityStateKey(state, 'totalAttempts', oldName, newName);
+  if (Array.isArray(state.notes)) {
+    state.notes = state.notes.map(note => {
+      const voters = Array.isArray(note.voters)
+        ? note.voters.map(voter => (voter === oldName ? newName : voter))
+        : [];
+      const author = note.author === oldName ? newName : note.author;
+      return { ...note, voters, author };
+    });
+  }
   room.activityState = state;
+  if (room.brainstormData && typeof room.brainstormData === 'object' && Array.isArray(room.brainstormData.notes)) {
+    room.brainstormData.notes = room.brainstormData.notes.map(note => {
+      const voters = Array.isArray(note.voters)
+        ? note.voters.map(voter => (voter === oldName ? newName : voter))
+        : [];
+      const author = note.author === oldName ? newName : note.author;
+      return { ...note, voters, author };
+    });
+  }
 
   return room;
 }
@@ -3052,12 +3904,41 @@ document.addEventListener('input', event => {
   }
 });
 
+document.addEventListener('dragstart', event => {
+  const note = event.target instanceof HTMLElement ? event.target.closest('.brain-note') : null;
+  if (!note) return;
+  brainstormDraggedNoteId = note.dataset.noteId || null;
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', brainstormDraggedNoteId || '');
+  }
+});
+
+document.addEventListener('dragover', event => {
+  const lane = event.target instanceof HTMLElement ? event.target.closest('[data-brain-lane]') : null;
+  if (!lane) return;
+  event.preventDefault();
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+});
+
+document.addEventListener('drop', async event => {
+  const laneEl = event.target instanceof HTMLElement ? event.target.closest('[data-brain-lane]') : null;
+  if (!laneEl) return;
+  event.preventDefault();
+  const laneId = laneEl.dataset.brainLane;
+  const droppedNoteId = (event.dataTransfer?.getData('text/plain') || brainstormDraggedNoteId || '').trim();
+  brainstormDraggedNoteId = null;
+  if (!laneId || !droppedNoteId) return;
+  await brainstormMoveNote(droppedNoteId, laneId);
+});
+
 document.addEventListener('click', async (event) => {
   const target = event.target.closest('[data-action]');
   if (!target) return;
 
-  const { action, avatar, screen, key, index, feedbackId } = target.dataset;
+  const { action, avatar, screen, key, index, feedbackId, activity, queueIndex, noteId, lane, direction, tab } = target.dataset;
   const parsedIndex = Number.parseInt(index ?? '', 10);
+  const parsedQueueIndex = Number.parseInt(queueIndex ?? '', 10);
 
   switch (action) {
     case 'toggle-presentation':
@@ -3102,6 +3983,30 @@ document.addEventListener('click', async (event) => {
     case 'save-admin-config':
       await saveAdminConfig();
       break;
+    case 'queue-add':
+      if (activity) await queueAddActivity(activity);
+      break;
+    case 'queue-remove':
+      if (Number.isInteger(parsedQueueIndex)) await queueRemoveActivityAt(parsedQueueIndex);
+      break;
+    case 'queue-clear':
+      await queueClearAll();
+      break;
+    case 'queue-start':
+      await queueStartRun();
+      break;
+    case 'queue-next':
+      await queueNextActivity();
+      break;
+    case 'save-shared-presentation':
+      await saveSharedPresentation();
+      break;
+    case 'clear-shared-presentation':
+      await clearSharedPresentation();
+      break;
+    case 'open-shared-presentation':
+      openSharedPresentation();
+      break;
     case 'edit-profile':
       editProfile();
       break;
@@ -3110,6 +4015,9 @@ document.addEventListener('click', async (event) => {
       break;
     case 'close-host-settings':
       closeHostSettings();
+      break;
+    case 'host-settings-tab':
+      switchHostSettingsTab(tab || 'game');
       break;
     case 'save-host-settings':
       await saveHostSettings();
@@ -3147,6 +4055,9 @@ document.addEventListener('click', async (event) => {
     case 'start-word-chain':
       await startWordChain();
       break;
+    case 'start-brainstorm-canvas':
+      await startBrainstormCanvas();
+      break;
     case 'start-regular-trivia':
       await startRegularTrivia();
       break;
@@ -3168,6 +4079,12 @@ document.addEventListener('click', async (event) => {
     case 'next-pulse-question':
       await nextPulseQuestion();
       break;
+    case 'pulse-export-json':
+      await exportPulseCheckData('json');
+      break;
+    case 'pulse-export-csv':
+      await exportPulseCheckData('csv');
+      break;
     case 'toggle-value-vote':
       if (Number.isInteger(parsedIndex)) await toggleValueVote(parsedIndex);
       break;
@@ -3185,6 +4102,27 @@ document.addEventListener('click', async (event) => {
       break;
     case 'submit-word-chain-guess':
       await submitWordChainGuess();
+      break;
+    case 'brainstorm-add-note':
+      await brainstormAddNote();
+      break;
+    case 'brainstorm-toggle-vote':
+      if (noteId) await brainstormToggleVote(noteId);
+      break;
+    case 'brainstorm-move-note':
+      if (noteId && lane) await brainstormMoveNote(noteId, lane);
+      break;
+    case 'brainstorm-shift-note':
+      if (noteId && direction) await brainstormShiftNote(noteId, direction);
+      break;
+    case 'brainstorm-toggle-lock':
+      await brainstormToggleLock();
+      break;
+    case 'brainstorm-export-json':
+      await exportBrainstormData('json');
+      break;
+    case 'brainstorm-export-csv':
+      await exportBrainstormData('csv');
       break;
     case 'new-word-chain-puzzle':
       await startWordChain();
@@ -3228,6 +4166,7 @@ function renderActivity() {
   else if (activity === 'values-vote') content = renderValuesVote();
   else if (activity === 'wordle') content = renderWordle();
   else if (activity === 'word-chain') content = renderWordChain();
+  else if (activity === 'brainstorm-canvas') content = renderBrainstormCanvas();
   else if (activity === 'regular-trivia') content = renderRegularTrivia();
 
   return `
@@ -3402,8 +4341,14 @@ function renderPulseCheck() {
       <h1 style="font-size:2rem;font-weight:700;">📊 Team Pulse Check</h1>
       <p class="tagline">Poll ${(state.currentPoll || 0) + 1} of ${totalPolls} • Room: ${safeRoomCode}</p>
     </div>
-    
-    ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
+
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+      ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : '<span></span>'}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-secondary" data-action="pulse-export-json">Export JSON</button>
+        <button class="btn-secondary" data-action="pulse-export-csv">Export CSV</button>
+      </div>
+    </div>
     
     <div style="background:var(--surface-solid);border:2px solid var(--accent);
       border-radius:var(--radius);padding:40px 30px;margin:30px 0;text-align:center;">
@@ -3497,6 +4442,11 @@ function renderPulseResults(state, isHost, safeRoomCode) {
     <div class="header">
       <h1 style="font-size:2rem;font-weight:700;">📊 Pulse Check Results</h1>
       <p class="tagline">Room: ${safeRoomCode}</p>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <button class="btn-secondary" data-action="pulse-export-json">Export JSON</button>
+      <button class="btn-secondary" data-action="pulse-export-csv">Export CSV</button>
     </div>
 
     <div role="status" aria-live="polite" aria-atomic="true"
@@ -4010,26 +4960,26 @@ function renderWordChain() {
     gridHtml += `
       <div class="word-chain-board-row">
         <div class="word-chain-row">
-              ${Array.from({ length: 9 }, (_, pos) => {
-                const char = pos < revealedChars ? normalized[pos] || '' : '';
-                const isBlank = pos >= normalized.length;
+            ${Array.from({ length: 9 }, (_, pos) => {
+              const showChar = pos < revealedChars && pos < normalized.length;
+              const char = showChar ? normalized[pos] || '' : '';
+              const isBlank = pos >= normalized.length;
               const draftChar = (wordChainDraft[idx] || '')[Math.max(0, pos - revealedChars)] || '';
               const isMiddleSolved = isSolved && !isFirst && !isLast;
-              const cellClass = isBlank
-                ? 'word-chain-cell blank'
-                : isFirst
-                  ? 'word-chain-cell top-anchor'
-                  : isLast
-                    ? 'word-chain-cell bottom-anchor'
-                    : isMiddleSolved
-                      ? 'word-chain-cell'
-                      : 'word-chain-cell';
+              const cellClass = isFirst
+                ? 'word-chain-cell top-anchor'
+                : isLast
+                  ? 'word-chain-cell bottom-anchor'
+                  : 'word-chain-cell';
               if (isActiveRow && pos >= revealedChars) {
                 const firstEditableAttr = pos === revealedChars ? 'data-first-editable="true"' : '';
                 const missStyle = rowAttempts > 0 ? `style="border-color:${missBorder};background:${missBg};"` : '';
                 return `<input class="word-chain-letter-input" data-row="${idx}" data-pos="${pos}" ${firstEditableAttr} ${missStyle} value="${escapeHtml(draftChar)}" maxlength="1" aria-label="Row ${idx + 1} letter ${pos + 1} of 9">`;
               }
-              if (isBlank) return `<div class="${cellClass}"></div>`;
+              if (isBlank && !isFirst && !isLast && !isMiddleSolved) {
+                const missStyle = rowAttempts > 0 ? `style="border-color:${missBorder};background:${missBg};"` : '';
+                return `<div class="${cellClass}" ${missStyle}></div>`;
+              }
               const solvedStyle = isMiddleSolved ? `style="border-color:${finalBorder};background:${finalBg};"` : '';
               const missStyle = (!isFirst && !isLast && !isSolved && rowAttempts > 0) ? `style="border-color:${missBorder};background:${missBg};"` : '';
               return `<div class="${cellClass}" ${solvedStyle || missStyle}>${escapeHtml(char)}</div>`;
@@ -4122,6 +5072,348 @@ function renderWordChain() {
         New Word Chain Puzzle
       </button>
     ` : ''}
+  `;
+}
+
+function generateBrainstormNoteId() {
+  return `note_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+async function brainstormAddNote() {
+  if (!APP.roomCode || APP.room?.currentActivity !== 'brainstorm-canvas') return;
+  const text = String(document.getElementById('brainNoteText')?.value || '').trim().slice(0, 200);
+  const lane = String(document.getElementById('brainNoteLane')?.value || 'start');
+  if (!text) {
+    showError('Enter an idea before adding a note.');
+    return;
+  }
+  if (!BRAINSTORM_LANE_INDEX.hasOwnProperty(lane)) {
+    showError('Choose a valid lane.');
+    return;
+  }
+
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'brainstorm-canvas') return;
+  const state = room.activityState || {};
+  if (state.sessionStatus === 'locked') {
+    showError('Canvas is locked by host.');
+    return;
+  }
+  state.notes = Array.isArray(state.notes) ? state.notes : [];
+  state.notes.unshift({
+    id: generateBrainstormNoteId(),
+    text,
+    author: APP.player.name,
+    lane,
+    votes: 0,
+    voters: [],
+    color: BRAINSTORM_NOTE_COLORS[Math.floor(Math.random() * BRAINSTORM_NOTE_COLORS.length)],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  });
+  room.activityState = state;
+  room.brainstormData = safeParseJson(JSON.stringify(state)) || state;
+  room.brainstormLastUpdatedAt = Date.now();
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function brainstormToggleVote(noteId) {
+  if (!APP.roomCode || !noteId || APP.room?.currentActivity !== 'brainstorm-canvas') return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'brainstorm-canvas') return;
+  const state = room.activityState || {};
+  if (state.sessionStatus === 'locked') return;
+  const notes = Array.isArray(state.notes) ? state.notes : [];
+  const note = notes.find(item => item.id === noteId);
+  if (!note) return;
+  note.voters = Array.isArray(note.voters) ? note.voters : [];
+  const idx = note.voters.indexOf(APP.player.name);
+  if (idx >= 0) {
+    note.voters.splice(idx, 1);
+  } else {
+    note.voters.push(APP.player.name);
+  }
+  note.votes = note.voters.length;
+  note.updatedAt = Date.now();
+  state.notes = notes;
+  room.activityState = state;
+  room.brainstormData = safeParseJson(JSON.stringify(state)) || state;
+  room.brainstormLastUpdatedAt = Date.now();
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function brainstormMoveNote(noteId, lane) {
+  if (!APP.roomCode || !noteId || !BRAINSTORM_LANE_INDEX.hasOwnProperty(lane) || APP.room?.currentActivity !== 'brainstorm-canvas') return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'brainstorm-canvas') return;
+  const state = room.activityState || {};
+  if (state.sessionStatus === 'locked') return;
+  const notes = Array.isArray(state.notes) ? state.notes : [];
+  const note = notes.find(item => item.id === noteId);
+  if (!note) return;
+  note.lane = lane;
+  note.updatedAt = Date.now();
+  room.activityState = state;
+  room.brainstormData = safeParseJson(JSON.stringify(state)) || state;
+  room.brainstormLastUpdatedAt = Date.now();
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function brainstormShiftNote(noteId, direction) {
+  const room = APP.room;
+  if (!room || room.currentActivity !== 'brainstorm-canvas') return;
+  const notes = Array.isArray(room.activityState?.notes) ? room.activityState.notes : [];
+  const note = notes.find(item => item.id === noteId);
+  if (!note) return;
+  const laneIndex = BRAINSTORM_LANE_INDEX[note.lane];
+  if (!Number.isInteger(laneIndex)) return;
+  const nextIndex = direction === 'left' ? laneIndex - 1 : laneIndex + 1;
+  if (nextIndex < 0 || nextIndex >= BRAINSTORM_LANES.length) return;
+  await brainstormMoveNote(noteId, BRAINSTORM_LANES[nextIndex].id);
+}
+
+async function brainstormToggleLock() {
+  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name || APP.room.currentActivity !== 'brainstorm-canvas') return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'brainstorm-canvas') return;
+  const state = room.activityState || {};
+  state.sessionStatus = state.sessionStatus === 'locked' ? 'open' : 'locked';
+  room.activityState = state;
+  room.brainstormData = safeParseJson(JSON.stringify(state)) || state;
+  room.brainstormLastUpdatedAt = Date.now();
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+function triggerTextFileDownload(filename, mimeType, content) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function getBrainstormExportSnapshot() {
+  const state = APP.room?.currentActivity === 'brainstorm-canvas'
+    ? (APP.room.activityState || {})
+    : (APP.room?.brainstormData || {});
+  const notes = Array.isArray(state.notes)
+    ? state.notes.map(note => ({ ...note, voters: Array.isArray(note.voters) ? [...note.voters] : [] }))
+    : [];
+  return {
+    exportedAt: new Date().toISOString(),
+    roomCode: APP.roomCode || '',
+    boardType: state.boardType || 'start-stop-improve-create',
+    sessionStatus: state.sessionStatus || 'open',
+    notes
+  };
+}
+
+async function exportBrainstormData(format) {
+  if (!APP.roomCode || !APP.room) return;
+  const snapshot = getBrainstormExportSnapshot();
+  if (!Array.isArray(snapshot.notes) || snapshot.notes.length === 0) {
+    showError('No brainstorm notes to export yet.');
+    return;
+  }
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  const safeRoom = String(snapshot.roomCode || 'session').replace(/[^a-zA-Z0-9_-]/g, '');
+
+  if (format === 'json') {
+    const filename = `brainstorm-${safeRoom || 'session'}-${stamp}.json`;
+    triggerTextFileDownload(filename, 'application/json;charset=utf-8', JSON.stringify(snapshot, null, 2));
+    return;
+  }
+
+  if (format === 'csv') {
+    const header = ['id', 'lane', 'text', 'author', 'votes', 'voters', 'createdAt', 'updatedAt'];
+    const escapeCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const rows = snapshot.notes.map(note => [
+      note.id || '',
+      note.lane || '',
+      note.text || '',
+      note.author || '',
+      Number(note.votes || 0),
+      Array.isArray(note.voters) ? note.voters.join('|') : '',
+      note.createdAt ? new Date(note.createdAt).toISOString() : '',
+      note.updatedAt ? new Date(note.updatedAt).toISOString() : ''
+    ]);
+    const csv = [header.map(escapeCell).join(','), ...rows.map(row => row.map(escapeCell).join(','))].join('\n');
+    const filename = `brainstorm-${safeRoom || 'session'}-${stamp}.csv`;
+    triggerTextFileDownload(filename, 'text/csv;charset=utf-8', csv);
+  }
+}
+
+function getPulseExportSnapshot() {
+  const state = APP.room?.activityState || {};
+  const selected = Array.isArray(state.selectedPollIndexes) ? state.selectedPollIndexes : [];
+  const resultIndexes = selected.length ? selected : PULSE_QUESTIONS.map((_, idx) => idx);
+  const voteHistory = state.voteHistory && typeof state.voteHistory === 'object' ? { ...state.voteHistory } : {};
+  const currentPoll = Number.isInteger(state.currentPoll) ? state.currentPoll : 0;
+
+  // Include the in-progress poll in export when results are not finalized yet.
+  if (!state.showResults && state.votes && typeof state.votes === 'object' && !voteHistory[currentPoll]) {
+    voteHistory[currentPoll] = { ...state.votes };
+  }
+
+  const polls = resultIndexes.map((sourceIndex, displayIndex) => {
+    const poll = PULSE_QUESTIONS[sourceIndex];
+    if (!poll) return null;
+    const pollVotes = voteHistory[displayIndex] && typeof voteHistory[displayIndex] === 'object'
+      ? voteHistory[displayIndex]
+      : {};
+    const counts = {};
+    Object.values(pollVotes).forEach(value => {
+      counts[value] = (counts[value] || 0) + 1;
+    });
+    const totalVotes = Object.keys(pollVotes).length;
+    return {
+      order: displayIndex + 1,
+      question: poll.q,
+      totalVotes,
+      options: poll.opts.map((option, optionIndex) => {
+        const votes = counts[optionIndex] || 0;
+        const percent = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+        return {
+          optionIndex,
+          option,
+          votes,
+          percent
+        };
+      })
+    };
+  }).filter(Boolean);
+
+  return {
+    exportedAt: new Date().toISOString(),
+    roomCode: APP.roomCode || '',
+    activity: 'pulse-check',
+    showResults: Boolean(state.showResults),
+    totalParticipants: Array.isArray(APP.room?.participants) ? APP.room.participants.length : 0,
+    polls
+  };
+}
+
+async function exportPulseCheckData(format) {
+  if (!APP.roomCode || APP.room?.currentActivity !== 'pulse-check') return;
+  const snapshot = getPulseExportSnapshot();
+  if (!Array.isArray(snapshot.polls) || snapshot.polls.length === 0) {
+    showError('No pulse data to export yet.');
+    return;
+  }
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  const safeRoom = String(snapshot.roomCode || 'session').replace(/[^a-zA-Z0-9_-]/g, '');
+
+  if (format === 'json') {
+    const filename = `pulse-check-${safeRoom || 'session'}-${stamp}.json`;
+    triggerTextFileDownload(filename, 'application/json;charset=utf-8', JSON.stringify(snapshot, null, 2));
+    return;
+  }
+
+  if (format === 'csv') {
+    const header = ['pollOrder', 'question', 'optionIndex', 'option', 'votes', 'percent', 'totalVotes'];
+    const escapeCell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const rows = [];
+    snapshot.polls.forEach(poll => {
+      poll.options.forEach(option => {
+        rows.push([
+          poll.order,
+          poll.question,
+          option.optionIndex,
+          option.option,
+          option.votes,
+          option.percent,
+          poll.totalVotes
+        ]);
+      });
+    });
+    const csv = [header.map(escapeCell).join(','), ...rows.map(row => row.map(escapeCell).join(','))].join('\n');
+    const filename = `pulse-check-${safeRoom || 'session'}-${stamp}.csv`;
+    triggerTextFileDownload(filename, 'text/csv;charset=utf-8', csv);
+  }
+}
+
+function renderBrainstormCanvas() {
+  const isHost = APP.room.host === APP.player.name;
+  const safeRoomCode = escapeHtml(APP.roomCode);
+  const state = APP.room.activityState || {};
+  const notes = Array.isArray(state.notes) ? state.notes : [];
+  const sessionLocked = state.sessionStatus === 'locked';
+
+  const notesByLane = Object.fromEntries(BRAINSTORM_LANES.map(lane => [lane.id, []]));
+  notes.forEach(note => {
+    const laneId = BRAINSTORM_LANE_INDEX.hasOwnProperty(note.lane) ? note.lane : 'start';
+    notesByLane[laneId].push(note);
+  });
+  Object.values(notesByLane).forEach(list => list.sort((a, b) => (b.votes || 0) - (a.votes || 0) || (b.createdAt || 0) - (a.createdAt || 0)));
+
+  return `
+    <div class="header">
+      <h1 style="font-size:2rem;font-weight:700;">🧩 Brainstorm Canvas</h1>
+      <p class="tagline">Start • Stop • Improve • Create • Room: ${safeRoomCode}</p>
+    </div>
+
+    ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
+
+    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div style="color:${sessionLocked ? 'var(--warning)' : 'var(--success)'};font-weight:700;">
+          ${sessionLocked ? 'Canvas Locked' : 'Canvas Open'}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          ${isHost ? `<button class="btn-secondary" data-action="brainstorm-toggle-lock">${sessionLocked ? 'Unlock Canvas' : 'Lock Canvas'}</button>` : ''}
+          <button class="btn-secondary" data-action="brainstorm-export-json">Export JSON</button>
+          <button class="btn-secondary" data-action="brainstorm-export-csv">Export CSV</button>
+        </div>
+      </div>
+
+      <div class="brain-board">
+        ${BRAINSTORM_LANES.map(lane => `
+          <div class="brain-lane" data-brain-lane="${lane.id}">
+            <div class="brain-lane-header">
+              <span>${lane.icon} ${escapeHtml(lane.label)}</span>
+              <span style="font-size:0.8rem;color:var(--text-dim);">${notesByLane[lane.id].length}</span>
+            </div>
+            ${notesByLane[lane.id].length ? `
+              <div class="brain-lane-notes">
+                ${notesByLane[lane.id].map(note => {
+                  const voted = Array.isArray(note.voters) && note.voters.includes(APP.player.name);
+                  const color = /^#[0-9a-fA-F]{6}$/.test(note.color || '') ? note.color : '#fef3a7';
+                  return `
+                    <div class="brain-note" draggable="${sessionLocked ? 'false' : 'true'}" data-note-id="${note.id}" style="background:${escapeHtml(color)};">
+                      <div style="font-weight:600;white-space:pre-wrap;">${escapeHtml(note.text || '')}</div>
+                      <div class="brain-note-meta">
+                        <span>by ${escapeHtml(note.author || 'anon')}</span>
+                        <button class="brain-vote-btn ${voted ? 'voted' : ''}" data-action="brainstorm-toggle-vote" data-note-id="${note.id}" ${sessionLocked ? 'disabled' : ''}>
+                          👍 ${Number(note.votes || 0)}
+                        </button>
+                      </div>
+                      <div class="brain-note-controls">
+                        <button class="btn-secondary" data-action="brainstorm-shift-note" data-note-id="${note.id}" data-direction="left" ${sessionLocked ? 'disabled' : ''}>←</button>
+                        <button class="btn-secondary" data-action="brainstorm-shift-note" data-note-id="${note.id}" data-direction="right" ${sessionLocked ? 'disabled' : ''}>→</button>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            ` : '<div style="color:var(--text-dim);font-size:0.85rem;">No ideas yet.</div>'}
+          </div>
+        `).join('')}
+      </div>
+
+      <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px;">
+        <div style="display:grid;grid-template-columns:1.5fr 1fr auto;gap:8px;">
+          <input id="brainNoteText" class="form-input" maxlength="200" placeholder="Add a sticky note idea..." ${sessionLocked ? 'disabled' : ''}>
+          <select id="brainNoteLane" class="form-input" ${sessionLocked ? 'disabled' : ''}>
+            ${BRAINSTORM_LANES.map(lane => `<option value="${lane.id}">${escapeHtml(lane.label)}</option>`).join('')}
+          </select>
+          <button class="btn-primary" data-action="brainstorm-add-note" ${sessionLocked ? 'disabled' : ''} style="width:auto;padding:10px 16px;">Add</button>
+        </div>
+      </div>
+    </div>
   `;
 }
 
