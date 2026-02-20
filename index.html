@@ -4394,7 +4394,6 @@ document.addEventListener('click', async (event) => {
         localStorage.setItem('scheduled-meetings', JSON.stringify(meetings));
         showError('Meeting saved!');
         goToScreen('dashboard');
-        break;
       }
   const target = event.target.closest('[data-action]');
   if (!target) return;
