@@ -6623,17 +6623,17 @@ init();
 function renderScheduleMeeting() {
   return `
     <div class="header">
-      <h1 class="logo">Schedule Team Meeting</h1>
-      <p class="tagline">Set up a date, time, Zoom link, meeting details, and Activity Queue</p>
+      <h1 class="logo">Schedule Team Meeting & Activities</h1>
+      <p class="tagline">Set up your team meeting, pick a date and time, add a Zoom link, agenda, and build your Activity Queue in one place.</p>
     </div>
     <div class="form-container">
       <div class="form-group">
         <label class="form-label" for="meetingDate">Date</label>
-        <input type="date" id="meetingDate" class="form-input">
+        <input type="date" id="meetingDate" class="form-input" style="max-width:220px;">
       </div>
       <div class="form-group">
         <label class="form-label" for="meetingTime">Time</label>
-        <input type="time" id="meetingTime" class="form-input">
+        <input type="time" id="meetingTime" class="form-input" style="max-width:220px;">
       </div>
       <div class="form-group">
         <label class="form-label" for="zoomLink">Zoom Meeting Link</label>
@@ -6644,7 +6644,7 @@ function renderScheduleMeeting() {
         <textarea id="meetingDetails" class="form-input" rows="4" placeholder="Agenda, goals, etc."></textarea>
       </div>
       <div class="form-group">
-        <label class="form-label">Activity Queue</label>
+        <label class="form-label">Activity Queue (select activities to run in order)</label>
         <div id="activityQueueSelector" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
           ${ACTIVITY_QUEUE_ITEMS.map(item => `
             <label style="display:flex;align-items:center;gap:8px;padding:6px 0;">
@@ -6654,10 +6654,15 @@ function renderScheduleMeeting() {
             </label>
           `).join('')}
         </div>
+        <div style="font-size:0.9rem;color:var(--text-dim);margin-top:6px;">You can select multiple activities. They will run in the order selected.</div>
       </div>
       <button class="btn-primary" data-action="save-meeting">Save Meeting</button>
       <button class="btn-secondary" data-action="go-screen" data-screen="dashboard" style="margin-top:10px;">Cancel</button>
     </div>
+    <script>
+      // Optionally, enhance with a modern calendar/time picker if needed (e.g., flatpickr, Pikaday, etc.)
+      // For now, native date/time pickers are used for best compatibility.
+    </script>
   `;
 }
 
