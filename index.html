@@ -4362,37 +4362,6 @@ document.addEventListener('drop', async event => {
 });
 
 document.addEventListener('click', async (event) => {
-  if (event.target && event.target.id === 'save-meeting') {
-        // Collect meeting details
-        const date = document.getElementById('meetingDate')?.value || '';
-        const time = document.getElementById('meetingTime')?.value || '';
-        const zoomLink = document.getElementById('zoomLink')?.value || '';
-        const details = document.getElementById('meetingDetails')?.value || '';
-        // Collect selected activities for the queue
-        const activityCheckboxes = document.querySelectorAll('.activity-queue-checkbox');
-        const activityQueue = Array.from(activityCheckboxes)
-          .filter(cb => cb.checked)
-          .map(cb => cb.value);
-        // Build meeting object
-        const meeting = {
-          date,
-          time,
-          zoomLink,
-          details,
-          activityQueue,
-          createdAt: new Date().toISOString()
-        };
-        // Save to localStorage (can be replaced with backend/API later)
-        let meetings = [];
-        try {
-          meetings = JSON.parse(localStorage.getItem('scheduled-meetings') || '[]');
-          if (!Array.isArray(meetings)) meetings = [];
-        } catch (e) { meetings = []; }
-        meetings.push(meeting);
-        localStorage.setItem('scheduled-meetings', JSON.stringify(meetings));
-        showError('Meeting saved!');
-        goToScreen('dashboard');
-  }
   const target = event.target.closest('[data-action]');
   if (!target) return;
 
@@ -4638,6 +4607,32 @@ document.addEventListener('click', async (event) => {
     case 'play-again':
       await playAgain();
       break;
+    case 'save-meeting': {
+      const date = document.getElementById('meetingDate')?.value || '';
+      const time = document.getElementById('meetingTime')?.value || '';
+      const zoomLink = document.getElementById('zoomLink')?.value || '';
+      const details = document.getElementById('meetingDetails')?.value || '';
+      const activityQueue = Array.from(
+        document.querySelectorAll('.activity-queue-checkbox:checked')
+      ).map(cb => cb.value);
+
+      const meeting = { date, time, zoomLink, details, activityQueue, createdAt: new Date().toISOString() };
+
+      let meetings = [];
+      try {
+        meetings = JSON.parse(localStorage.getItem('scheduled-meetings') || '[]');
+        if (!Array.isArray(meetings)) meetings = [];
+      } catch (_) { meetings = []; }
+      meetings.push(meeting);
+      localStorage.setItem('scheduled-meetings', JSON.stringify(meetings));
+
+      const icsContent = generateMeetingICS(meeting);
+      triggerTextFileDownload('team-meeting.ics', 'text/calendar;charset=utf-8', icsContent);
+
+      showError('Meeting saved! Calendar invite downloaded.');
+      goToScreen('dashboard');
+      break;
+    }
     default:
       break;
   }
@@ -5913,6 +5908,45 @@ function triggerTextFileDownload(filename, mimeType, content) {
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function generateMeetingICS(meeting) {
+  const uid = `meeting-${Date.now()}@teambuilder`;
+  const now = new Date().toISOString().replace(/[-:\.]/g, '').slice(0, 15) + 'Z';
+
+  let dtStart = now;
+  let dtEnd = now;
+  if (meeting.date && meeting.time) {
+    const start = new Date(`${meeting.date}T${meeting.time}`);
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+    dtStart = start.toISOString().replace(/[-:\.]/g, '').slice(0, 15) + 'Z';
+    dtEnd = end.toISOString().replace(/[-:\.]/g, '').slice(0, 15) + 'Z';
+  }
+
+  const activities = (meeting.activityQueue || [])
+    .map(id => ACTIVITY_QUEUE_ITEM_MAP[id]?.label || id)
+    .join(', ');
+  const desc = [meeting.details, activities ? `Activities: ${activities}` : '']
+    .filter(Boolean).join('\\n')
+    .replace(/,/g, '\\,').replace(/;/g, '\\;');
+  const location = (meeting.zoomLink || '').replace(/,/g, '\\,').replace(/;/g, '\\;');
+
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Team Builder Pro//EN',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTAMP:${now}`,
+    `DTSTART:${dtStart}`,
+    `DTEND:${dtEnd}`,
+    'SUMMARY:Team Meeting',
+    `DESCRIPTION:${desc}`,
+    `LOCATION:${location}`,
+    `URL:${meeting.zoomLink || ''}`,
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ].join('\r\n');
 }
 
 function getBrainstormExportSnapshot() {
