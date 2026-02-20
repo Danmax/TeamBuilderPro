@@ -4362,6 +4362,38 @@ document.addEventListener('drop', async event => {
 });
 
 document.addEventListener('click', async (event) => {
+      case 'save-meeting': {
+        // Collect meeting details
+        const date = document.getElementById('meetingDate')?.value || '';
+        const time = document.getElementById('meetingTime')?.value || '';
+        const zoomLink = document.getElementById('zoomLink')?.value || '';
+        const details = document.getElementById('meetingDetails')?.value || '';
+        // Collect selected activities for the queue
+        const activityCheckboxes = document.querySelectorAll('.activity-queue-checkbox');
+        const activityQueue = Array.from(activityCheckboxes)
+          .filter(cb => cb.checked)
+          .map(cb => cb.value);
+        // Build meeting object
+        const meeting = {
+          date,
+          time,
+          zoomLink,
+          details,
+          activityQueue,
+          createdAt: new Date().toISOString()
+        };
+        // Save to localStorage (can be replaced with backend/API later)
+        let meetings = [];
+        try {
+          meetings = JSON.parse(localStorage.getItem('scheduled-meetings') || '[]');
+          if (!Array.isArray(meetings)) meetings = [];
+        } catch (e) { meetings = []; }
+        meetings.push(meeting);
+        localStorage.setItem('scheduled-meetings', JSON.stringify(meetings));
+        showError('Meeting saved!');
+        goToScreen('dashboard');
+        break;
+      }
   const target = event.target.closest('[data-action]');
   if (!target) return;
 
@@ -6592,7 +6624,7 @@ function renderScheduleMeeting() {
   return `
     <div class="header">
       <h1 class="logo">Schedule Team Meeting</h1>
-      <p class="tagline">Set up a date, time, Zoom link, and meeting details</p>
+      <p class="tagline">Set up a date, time, Zoom link, meeting details, and Activity Queue</p>
     </div>
     <div class="form-container">
       <div class="form-group">
@@ -6610,6 +6642,18 @@ function renderScheduleMeeting() {
       <div class="form-group">
         <label class="form-label" for="meetingDetails">Meeting Details</label>
         <textarea id="meetingDetails" class="form-input" rows="4" placeholder="Agenda, goals, etc."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Activity Queue</label>
+        <div id="activityQueueSelector" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+          ${ACTIVITY_QUEUE_ITEMS.map(item => `
+            <label style="display:flex;align-items:center;gap:8px;padding:6px 0;">
+              <input type="checkbox" class="activity-queue-checkbox" value="${item.id}">
+              <span style="font-size:1.2rem;">${item.icon}</span>
+              <span>${escapeHtml(item.label)}</span>
+            </label>
+          `).join('')}
+        </div>
       </div>
       <button class="btn-primary" data-action="save-meeting">Save Meeting</button>
       <button class="btn-secondary" data-action="go-screen" data-screen="dashboard" style="margin-top:10px;">Cancel</button>
