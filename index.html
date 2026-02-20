@@ -4362,7 +4362,7 @@ document.addEventListener('drop', async event => {
 });
 
 document.addEventListener('click', async (event) => {
-      case 'save-meeting': {
+  if (event.target && event.target.id === 'save-meeting') {
         // Collect meeting details
         const date = document.getElementById('meetingDate')?.value || '';
         const time = document.getElementById('meetingTime')?.value || '';
@@ -4388,6 +4388,8 @@ document.addEventListener('click', async (event) => {
           meetings = JSON.parse(localStorage.getItem('scheduled-meetings') || '[]');
           if (!Array.isArray(meetings)) meetings = [];
         } catch (e) { meetings = []; }
+    // ...existing code...
+  }
         meetings.push(meeting);
         localStorage.setItem('scheduled-meetings', JSON.stringify(meetings));
         showError('Meeting saved!');
