@@ -4388,13 +4388,11 @@ document.addEventListener('click', async (event) => {
           meetings = JSON.parse(localStorage.getItem('scheduled-meetings') || '[]');
           if (!Array.isArray(meetings)) meetings = [];
         } catch (e) { meetings = []; }
-    // ...existing code...
-  }
         meetings.push(meeting);
         localStorage.setItem('scheduled-meetings', JSON.stringify(meetings));
         showError('Meeting saved!');
         goToScreen('dashboard');
-      }
+  }
   const target = event.target.closest('[data-action]');
   if (!target) return;
 
