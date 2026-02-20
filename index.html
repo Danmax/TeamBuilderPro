@@ -2382,60 +2382,6 @@ function render() {
 
   if (APP.showHostSettings && APP.room && APP.room.host === APP.player?.name) {
     html += renderHostSettingsModal();
-        function renderScheduleMeeting() {
-          return `
-            <div class="header">
-              <h1 class="logo">Schedule Team Meeting</h1>
-              <p class="tagline">Set up a date, time, Zoom link, and meeting details</p>
-            </div>
-            <div class="form-container">
-              <div class="form-group">
-                <label class="form-label" for="meetingDate">Date</label>
-                <input type="date" id="meetingDate" class="form-input">
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="meetingTime">Time</label>
-                <input type="time" id="meetingTime" class="form-input">
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="zoomLink">Zoom Meeting Link</label>
-                <input type="url" id="zoomLink" class="form-input" placeholder="https://zoom.us/...">
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="meetingDetails">Meeting Details</label>
-                <textarea id="meetingDetails" class="form-input" rows="4" placeholder="Agenda, goals, etc."></textarea>
-              </div>
-              <button class="btn-primary" data-action="save-meeting">Save Meeting</button>
-              <button class="btn-secondary" data-action="go-screen" data-screen="dashboard" style="margin-top:10px;">Cancel</button>
-            </div>
-          `;
-        }
-
-        function renderLoadSession() {
-          // Placeholder: Replace with actual session loading logic
-          return `
-            <div class="header">
-              <h1 class="logo">Load Saved Session</h1>
-              <p class="tagline">Select a session to load</p>
-            </div>
-            <div class="form-container">
-              <div class="form-group">
-                <label class="form-label">Saved Sessions</label>
-                <select id="savedSessions" class="form-input">
-                  <option value="">-- Select Session --</option>
-                  <option value="session1">Session 1 (Example)</option>
-                  <option value="session2">Session 2 (Example)</option>
-                </select>
-              </div>
-              <button class="btn-primary" data-action="load-selected-session">Load Session</button>
-              <button class="btn-secondary" data-action="go-screen" data-screen="dashboard" style="margin-top:10px;">Cancel</button>
-            </div>
-          `;
-        }
-        <button class="btn-secondary" data-action="go-screen" data-screen="dashboard" style="margin-top:10px;">Cancel</button>
-      </div>
-    `;
-  }
   }
   
   if (APP.error) {
