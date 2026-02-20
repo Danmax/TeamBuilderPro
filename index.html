@@ -909,6 +909,17 @@
       grid-template-columns: 1fr;
     }
     
+      .qr-grid {
+        grid-template-columns: 1fr !important;
+        align-items: stretch !important;
+      }
+      .qr-grid > div {
+        margin-bottom: 18px;
+      }
+      .qr-grid img {
+        margin-left: auto;
+        margin-right: auto;
+      }
     .kahoot-answer {
       padding: 18px;
       font-size: 1rem;
@@ -2366,9 +2377,61 @@ function render() {
   else if (APP.screen === 'activity-queue') html = renderActivityQueue();
   else if (APP.screen === 'feedback') html = renderFeedbackHub();
   else if (APP.screen === 'admin') html = renderAdminConsole();
+  else if (APP.screen === 'schedule-meeting') html = renderScheduleMeeting();
+  else if (APP.screen === 'load-session') html = renderLoadSession();
 
   if (APP.showHostSettings && APP.room && APP.room.host === APP.player?.name) {
     html += renderHostSettingsModal();
+  function renderScheduleMeeting() {
+    return `
+      <div class="header">
+        <h1 class="logo">Schedule Team Meeting</h1>
+        <p class="tagline">Set up a date, time, Zoom link, and meeting details</p>
+      </div>
+      <div class="form-container">
+        <div class="form-group">
+          <label class="form-label" for="meetingDate">Date</label>
+          <input type="date" id="meetingDate" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="meetingTime">Time</label>
+          <input type="time" id="meetingTime" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="zoomLink">Zoom Meeting Link</label>
+          <input type="url" id="zoomLink" class="form-input" placeholder="https://zoom.us/...">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="meetingDetails">Meeting Details</label>
+          <textarea id="meetingDetails" class="form-input" rows="4" placeholder="Agenda, goals, etc."></textarea>
+        </div>
+        <button class="btn-primary" data-action="save-meeting">Save Meeting</button>
+        <button class="btn-secondary" data-action="go-screen" data-screen="dashboard" style="margin-top:10px;">Cancel</button>
+      </div>
+    `;
+  }
+
+  function renderLoadSession() {
+    // Placeholder: Replace with actual session loading logic
+    return `
+      <div class="header">
+        <h1 class="logo">Load Saved Session</h1>
+        <p class="tagline">Select a session to load</p>
+      </div>
+      <div class="form-container">
+        <div class="form-group">
+          <label class="form-label">Saved Sessions</label>
+          <select id="savedSessions" class="form-input">
+            <option value="">-- Select Session --</option>
+            <option value="session1">Session 1 (Example)</option>
+            <option value="session2">Session 2 (Example)</option>
+          </select>
+        </div>
+        <button class="btn-primary" data-action="load-selected-session">Load Session</button>
+        <button class="btn-secondary" data-action="go-screen" data-screen="dashboard" style="margin-top:10px;">Cancel</button>
+      </div>
+    `;
+  }
   }
   
   if (APP.error) {
@@ -2457,6 +2520,18 @@ function renderDashboard() {
         <h3 class="card-title">Join Session</h3>
         <p class="card-desc">Enter a room code to join your team</p>
       </button>
+
+        <button type="button" class="card" data-action="go-screen" data-screen="schedule-meeting" aria-label="Schedule Team Meeting">
+          <div class="card-icon">📅</div>
+          <h3 class="card-title">Schedule Team Meeting</h3>
+          <p class="card-desc">Set up a date, time, Zoom link, and meeting details</p>
+        </button>
+
+        <button type="button" class="card" data-action="go-screen" data-screen="load-session" aria-label="Load Saved Session">
+          <div class="card-icon">💾</div>
+          <h3 class="card-title">Load Saved Session</h3>
+          <p class="card-desc">Select and load a previously saved session</p>
+        </button>
     </div>
     
     <div style="text-align:center;margin-top:40px;">
@@ -2786,7 +2861,7 @@ function renderLobby() {
     
     <div style="background:rgba(0,210,211,0.05);border:2px solid var(--accent);
       border-radius:var(--radius);padding:24px;margin-bottom:24px;">
-      <div style="display:grid;grid-template-columns:${isHost ? '1.4fr 1fr' : '1fr'};gap:18px;align-items:center;">
+      <div class="qr-grid" style="display:grid;grid-template-columns:${isHost ? '1.4fr 1fr' : '1fr'};gap:18px;align-items:center;">
         <div style="text-align:center;">
           <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">
             Room Code
@@ -2922,11 +2997,7 @@ function renderLobby() {
           <p class="card-desc">Add sticky notes and vote in Start / Stop / Improve / Create</p>
         </button>
 
-        <button type="button" class="card" data-action="go-screen" data-screen="activity-queue" aria-label="Open Activity Queue">
-          <div class="card-icon">🗂️</div>
-          <h3 class="card-title">Activity Queue</h3>
-          <p class="card-desc">Plan and run queued activities in sequence</p>
-        </button>
+        <!-- Activity Queue button removed from Choose Activity menu -->
         
         <button type="button" class="card" data-action="start-regular-trivia" aria-label="Start Trivia Battle">
           <div class="card-icon">🧠</div>
