@@ -1806,7 +1806,8 @@ const ACTIVITY_QUEUE_ITEMS = [
   { id: 'wordle', icon: '🎯', label: 'Team Wordle' },
   { id: 'word-chain', icon: '🔗', label: 'Word Chain' },
   { id: 'brainstorm-canvas', icon: '🧩', label: 'Brainstorm Canvas' },
-  { id: 'regular-trivia', icon: '🧠', label: 'Trivia Battle' }
+  { id: 'regular-trivia', icon: '🧠', label: 'Trivia Battle' },
+  { id: 'tic-tac-toe-blitz', icon: '❌', label: 'Tic-Tac-Toe Blitz Arena' }
 ];
 const ACTIVITY_QUEUE_ITEM_MAP = Object.fromEntries(ACTIVITY_QUEUE_ITEMS.map(item => [item.id, item]));
 const GAME_ACTIVITY_IDS = new Set([
@@ -1814,7 +1815,8 @@ const GAME_ACTIVITY_IDS = new Set([
   'regular-trivia',
   'wordle',
   'word-chain',
-  'emoji-charades'
+  'emoji-charades',
+  'tic-tac-toe-blitz'
 ]);
 const AI_GENERATION_TARGETS = [
   { id: 'lightning-trivia', label: 'Lightning Trivia' },
@@ -1849,6 +1851,18 @@ let wordChainLastAutoFocusKey = '';
 let wordChainFocusCueTimer = null;
 let brainstormDraggedNoteId = null;
 const ROOM_SYNC_MS = 300;
+const TTT_BLITZ_ROUND_MS = 120000;
+const TTT_WIN_LINES = [
+  [0, 1, 2],
+  [3, 4, 5],
+  [6, 7, 8],
+  [0, 3, 6],
+  [1, 4, 7],
+  [2, 5, 8],
+  [0, 4, 8],
+  [2, 4, 6]
+];
+let ticTacToeFinalizePending = false;
 
 // Activity Start Functions (must be before render functions)
 function createInitialActivityState(activityId) {
@@ -1953,7 +1967,233 @@ function createInitialActivityState(activityId) {
   return null;
 }
 
+function formatClockFromMs(ms) {
+  const safeMs = Math.max(0, Number(ms) || 0);
+  const totalSeconds = Math.ceil(safeMs / 1000);
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = totalSeconds % 60;
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function getTicTacToeWinnerSymbol(board) {
+  const safeBoard = Array.isArray(board) ? board : [];
+  for (const [a, b, c] of TTT_WIN_LINES) {
+    if (!safeBoard[a] || safeBoard[a] !== safeBoard[b] || safeBoard[a] !== safeBoard[c]) continue;
+    return safeBoard[a];
+  }
+  return null;
+}
+
+function ensureTicTacToeStanding(state, playerName) {
+  if (!state.standings || typeof state.standings !== 'object') state.standings = {};
+  if (!state.standings[playerName]) {
+    state.standings[playerName] = {
+      points: 0,
+      wins: 0,
+      draws: 0,
+      losses: 0,
+      byes: 0,
+      played: 0
+    };
+  }
+  return state.standings[playerName];
+}
+
+function applyTicTacToeMatchResult(state, matchId, winnerName, reason) {
+  const match = state?.matches?.[matchId];
+  if (!match || match.scored) return false;
+  const players = Array.isArray(match.players) ? match.players : [];
+  if (players.length !== 2) return false;
+  const [playerA, playerB] = players;
+  const standingA = ensureTicTacToeStanding(state, playerA);
+  const standingB = ensureTicTacToeStanding(state, playerB);
+  standingA.played += 1;
+  standingB.played += 1;
+
+  if (winnerName && players.includes(winnerName)) {
+    const loserName = winnerName === playerA ? playerB : playerA;
+    const winnerStanding = ensureTicTacToeStanding(state, winnerName);
+    const loserStanding = ensureTicTacToeStanding(state, loserName);
+    winnerStanding.points += 3;
+    winnerStanding.wins += 1;
+    loserStanding.losses += 1;
+    match.winner = winnerName;
+  } else {
+    standingA.points += 1;
+    standingB.points += 1;
+    standingA.draws += 1;
+    standingB.draws += 1;
+    match.winner = null;
+  }
+
+  match.complete = true;
+  match.scored = true;
+  match.resultReason = reason || 'round-end';
+  match.finishedAt = Date.now();
+  return true;
+}
+
+function areAllTicTacToeMatchesComplete(state) {
+  const matches = Object.values(state?.matches || {});
+  if (matches.length === 0) return true;
+  return matches.every(match => Boolean(match?.complete));
+}
+
+function finalizeTicTacToeRoundState(rawState) {
+  const state = rawState && typeof rawState === 'object' ? rawState : {};
+  if (state.roundClosed) return state;
+
+  Object.entries(state.matches || {}).forEach(([matchId, match]) => {
+    if (!match || match.complete) return;
+    const board = Array.isArray(match.board) ? match.board : Array(9).fill('');
+    const winnerSymbol = getTicTacToeWinnerSymbol(board);
+    let winnerName = null;
+    if (winnerSymbol) {
+      winnerName = Object.entries(match.symbols || {}).find(([, symbol]) => symbol === winnerSymbol)?.[0] || null;
+    } else {
+      const xCount = board.filter(cell => cell === 'X').length;
+      const oCount = board.filter(cell => cell === 'O').length;
+      if (xCount !== oCount) {
+        const symbol = xCount > oCount ? 'X' : 'O';
+        winnerName = Object.entries(match.symbols || {}).find(([, s]) => s === symbol)?.[0] || null;
+      }
+    }
+    applyTicTacToeMatchResult(state, matchId, winnerName, winnerName ? 'time' : 'time-draw');
+  });
+
+  state.roundClosed = true;
+  state.roundClosedAt = Date.now();
+  state.updatedAt = Date.now();
+  return state;
+}
+
+function createTicTacToeBlitzState(participants, previousState = null) {
+  const now = Date.now();
+  const participantNames = Array.from(new Set((participants || [])
+    .map(player => String(player?.name || '').trim())
+    .filter(Boolean)));
+  const previousStandings = previousState?.standings && typeof previousState.standings === 'object'
+    ? previousState.standings
+    : {};
+  const standings = {};
+  participantNames.forEach(name => {
+    const old = previousStandings[name] || {};
+    standings[name] = {
+      points: Number(old.points) || 0,
+      wins: Number(old.wins) || 0,
+      draws: Number(old.draws) || 0,
+      losses: Number(old.losses) || 0,
+      byes: Number(old.byes) || 0,
+      played: Number(old.played) || 0
+    };
+  });
+
+  const previousOpponents = previousState?.opponents && typeof previousState.opponents === 'object'
+    ? previousState.opponents
+    : {};
+  const opponents = {};
+  participantNames.forEach(name => {
+    const recent = Array.isArray(previousOpponents[name]) ? previousOpponents[name].filter(Boolean) : [];
+    opponents[name] = recent.slice(-12);
+  });
+
+  const sortedPlayers = [...participantNames]
+    .sort((a, b) => {
+      const aStanding = standings[a] || {};
+      const bStanding = standings[b] || {};
+      if ((bStanding.points || 0) !== (aStanding.points || 0)) {
+        return (bStanding.points || 0) - (aStanding.points || 0);
+      }
+      if ((bStanding.wins || 0) !== (aStanding.wins || 0)) {
+        return (bStanding.wins || 0) - (aStanding.wins || 0);
+      }
+      return Math.random() - 0.5;
+    });
+
+  const previousPairings = Array.isArray(previousState?.lastPairings) ? previousState.lastPairings : [];
+  const previousPairSet = new Set(previousPairings
+    .filter(pair => Array.isArray(pair) && pair.length === 2)
+    .map(pair => pair.slice().sort().join('|')));
+
+  const matches = {};
+  const matchByPlayer = {};
+  const lastPairings = [];
+  const pool = [...sortedPlayers];
+  let pairIndex = 0;
+  while (pool.length > 1) {
+    const playerA = pool.shift();
+    let bestIdx = 0;
+    let bestPenalty = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < pool.length; i++) {
+      const candidate = pool[i];
+      const pairKey = [playerA, candidate].sort().join('|');
+      const repeatPenalty = previousPairSet.has(pairKey) ? 100 : 0;
+      const recentPenalty = (opponents[playerA] || []).includes(candidate) ? 20 : 0;
+      const pointsGapPenalty = Math.abs((standings[playerA]?.points || 0) - (standings[candidate]?.points || 0));
+      const score = repeatPenalty + recentPenalty + pointsGapPenalty;
+      if (score < bestPenalty) {
+        bestPenalty = score;
+        bestIdx = i;
+      }
+    }
+    const playerB = pool.splice(bestIdx, 1)[0];
+    if (!playerB) break;
+
+    const playerAIsX = ((Number(previousState?.round) || 0) + pairIndex) % 2 === 0;
+    const symbols = playerAIsX
+      ? { [playerA]: 'X', [playerB]: 'O' }
+      : { [playerA]: 'O', [playerB]: 'X' };
+    const matchId = `ttt_${now}_${pairIndex}_${Math.random().toString(36).slice(2, 8)}`;
+    matches[matchId] = {
+      id: matchId,
+      players: [playerA, playerB],
+      symbols,
+      board: Array(9).fill(''),
+      turn: 'X',
+      complete: false,
+      scored: false,
+      winner: null,
+      resultReason: null,
+      startedAt: now,
+      updatedAt: now
+    };
+    matchByPlayer[playerA] = matchId;
+    matchByPlayer[playerB] = matchId;
+    lastPairings.push([playerA, playerB]);
+    opponents[playerA] = [...(opponents[playerA] || []), playerB].slice(-12);
+    opponents[playerB] = [...(opponents[playerB] || []), playerA].slice(-12);
+    pairIndex += 1;
+  }
+
+  const byePlayers = [...pool];
+  byePlayers.forEach(playerName => {
+    const standing = ensureTicTacToeStanding({ standings }, playerName);
+    standing.points += 1;
+    standing.byes += 1;
+  });
+
+  return {
+    mode: 'blitz',
+    round: Math.max(1, (Number(previousState?.round) || 0) + 1),
+    roundDurationMs: TTT_BLITZ_ROUND_MS,
+    roundStartedAt: now,
+    roundEndsAt: now + TTT_BLITZ_ROUND_MS,
+    roundClosed: false,
+    roundClosedAt: null,
+    standings,
+    matches,
+    matchByPlayer,
+    byePlayers,
+    lastPairings,
+    opponents,
+    updatedAt: now
+  };
+}
+
 function getInitialActivityState(room, activityId) {
+  if (activityId === 'tic-tac-toe-blitz') {
+    return createTicTacToeBlitzState(room?.participants || []);
+  }
   let initialState = createInitialActivityState(activityId);
   if (activityId === 'brainstorm-canvas' && room?.brainstormData && typeof room.brainstormData === 'object') {
     const resumed = safeParseJson(JSON.stringify(room.brainstormData));
@@ -1973,6 +2213,7 @@ async function startActivityById(activityId) {
     return false;
   }
   lightningAutoRevealPending = false;
+  ticTacToeFinalizePending = false;
   room.currentActivity = activityId;
   room.activityState = initialState;
   await RoomManager.updateRoom(APP.roomCode, room);
@@ -2011,6 +2252,7 @@ async function runNextQueuedActivity(roomOverride = null) {
   }
 
   const activityId = queue[queueIndex];
+  ticTacToeFinalizePending = false;
   room.queueIndex = queueIndex + 1;
   room.currentActivity = activityId;
   room.activityState = getInitialActivityState(room, activityId) || {};
@@ -2037,6 +2279,77 @@ async function startWordle() { await startActivityById('wordle'); }
 async function startWordChain() { await startActivityById('word-chain'); }
 async function startBrainstormCanvas() { await startActivityById('brainstorm-canvas'); }
 async function startRegularTrivia() { await startActivityById('regular-trivia'); }
+async function startTicTacToeBlitz() { await startActivityById('tic-tac-toe-blitz'); }
+
+async function submitTicTacToeMove(index) {
+  if (!APP.roomCode || !Number.isInteger(index) || index < 0 || index > 8) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'tic-tac-toe-blitz') return;
+  const state = room.activityState || {};
+  if (state.roundClosed || Date.now() >= (Number(state.roundEndsAt) || 0)) return;
+  const matchId = state.matchByPlayer?.[APP.player?.name];
+  if (!matchId) return;
+  const match = state.matches?.[matchId];
+  if (!match || match.complete) return;
+  if (!Array.isArray(match.board) || match.board[index]) return;
+  const symbol = match.symbols?.[APP.player?.name];
+  if (!symbol || symbol !== match.turn) return;
+
+  match.board[index] = symbol;
+  match.turn = symbol === 'X' ? 'O' : 'X';
+  match.updatedAt = Date.now();
+  const winnerSymbol = getTicTacToeWinnerSymbol(match.board);
+
+  if (winnerSymbol) {
+    const winnerName = Object.entries(match.symbols || {}).find(([, mark]) => mark === winnerSymbol)?.[0] || null;
+    applyTicTacToeMatchResult(state, matchId, winnerName, 'line');
+  } else if (match.board.every(Boolean)) {
+    applyTicTacToeMatchResult(state, matchId, null, 'draw');
+  }
+
+  if (areAllTicTacToeMatchesComplete(state)) {
+    state.roundClosed = true;
+    state.roundClosedAt = Date.now();
+  }
+  state.updatedAt = Date.now();
+  room.activityState = state;
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function closeTicTacToeRound() {
+  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'tic-tac-toe-blitz') return;
+  room.activityState = finalizeTicTacToeRoundState(room.activityState || {});
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
+
+async function startNextTicTacToeRound() {
+  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'tic-tac-toe-blitz') return;
+  const currentState = room.activityState || {};
+  if (!currentState.roundClosed) {
+    showError('Close the current round before starting the next one.');
+    return;
+  }
+  room.activityState = createTicTacToeBlitzState(room.participants || [], currentState);
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
+
+async function restartTicTacToeBlitz() {
+  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'tic-tac-toe-blitz') return;
+  room.activityState = createTicTacToeBlitzState(room.participants || []);
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
 
 // Lightning Trivia Functions
 async function submitAnswer(optionIndex) {
@@ -2142,6 +2455,9 @@ async function endActivity() {
   } else if (activity === 'word-chain') {
     const score = room.activityState.scores?.[APP.player.name] || 0;
     xpEarned = Math.max(40, Math.round(score / 25));
+  } else if (activity === 'tic-tac-toe-blitz') {
+    const points = room.activityState?.standings?.[APP.player.name]?.points || 0;
+    xpEarned = Math.max(40, points * 20);
   } else if (activity === 'brainstorm-canvas') {
     const notes = Array.isArray(room.activityState?.notes) ? room.activityState.notes : [];
     const userNotes = notes.filter(note => note.author === APP.player.name).length;
@@ -2173,6 +2489,7 @@ async function endActivity() {
   room.activityState = {};
   
   await RoomManager.updateRoom(APP.roomCode, room);
+  ticTacToeFinalizePending = false;
   resetWordChainFocusState();
 
   if (room.queueActive && room.host === APP.player?.name) {
@@ -2480,7 +2797,7 @@ function renderDashboard() {
         <button type="button" class="card" data-action="go-screen" data-screen="load-session" aria-label="Load Saved Session">
           <div class="card-icon">💾</div>
           <h3 class="card-title">Load Saved Session</h3>
-          <p class="card-desc">Select and load a previously saved session</p>
+          <p class="card-desc">Upload a .calendar invite, then use the card info to initiate the session</p>
         </button>
     </div>
     
@@ -2954,6 +3271,12 @@ function renderLobby() {
           <h3 class="card-title">Trivia Battle</h3>
           <p class="card-desc">Compete with classic trivia questions</p>
         </button>
+
+        <button type="button" class="card" data-action="start-tic-tac-toe-blitz" aria-label="Start Tic-Tac-Toe Blitz Arena">
+          <div class="card-icon">❌</div>
+          <h3 class="card-title">Tic-Tac-Toe Blitz Arena</h3>
+          <p class="card-desc">Auto-matched 1v1 games with a 2-minute round timer</p>
+        </button>
       </div>
     ` : `
       <div style="text-align:center;padding:60px 20px;">
@@ -3388,6 +3711,7 @@ async function leaveSession() {
   }
 
   stopRoomSync();
+  ticTacToeFinalizePending = false;
   APP.room = null;
   APP.roomCode = null;
   APP.showHostSettings = false;
@@ -3426,6 +3750,21 @@ function startRoomSync() {
           await revealAnswer();
         } finally {
           lightningAutoRevealPending = false;
+        }
+      }
+      render();
+    }
+
+    if (APP.room?.currentActivity === 'tic-tac-toe-blitz') {
+      const state = APP.room.activityState || {};
+      const isHost = APP.room.host === APP.player?.name;
+      const timedOut = !state.roundClosed && Date.now() >= (Number(state.roundEndsAt) || 0);
+      if (timedOut && isHost && !ticTacToeFinalizePending) {
+        ticTacToeFinalizePending = true;
+        try {
+          await closeTicTacToeRound();
+        } finally {
+          ticTacToeFinalizePending = false;
         }
       }
       render();
@@ -4136,6 +4475,29 @@ function applyProfileUpdateToRoom(room, oldName, newName, newAvatar) {
   remapActivityStateKey(state, 'chainSuggestions', oldName, newName);
   remapActivityStateKey(state, 'chainVotes', oldName, newName);
   remapActivityStateKey(state, 'wordleVotes', oldName, newName);
+  remapActivityStateKey(state, 'standings', oldName, newName);
+  remapActivityStateKey(state, 'matchByPlayer', oldName, newName);
+  remapActivityStateKey(state, 'opponents', oldName, newName);
+  if (Array.isArray(state.byePlayers)) {
+    state.byePlayers = state.byePlayers.map(name => (name === oldName ? newName : name));
+  }
+  if (Array.isArray(state.lastPairings)) {
+    state.lastPairings = state.lastPairings.map(pair => (
+      Array.isArray(pair) ? pair.map(name => (name === oldName ? newName : name)) : pair
+    ));
+  }
+  if (state.matches && typeof state.matches === 'object') {
+    Object.values(state.matches).forEach(match => {
+      if (!match || typeof match !== 'object') return;
+      if (Array.isArray(match.players)) {
+        match.players = match.players.map(name => (name === oldName ? newName : name));
+      }
+      if (match.winner === oldName) {
+        match.winner = newName;
+      }
+      remapActivityStateKey(match, 'symbols', oldName, newName);
+    });
+  }
   if (Array.isArray(state.notes)) {
     state.notes = state.notes.map(note => {
       const voters = Array.isArray(note.voters)
@@ -4496,6 +4858,9 @@ document.addEventListener('click', async (event) => {
     case 'start-regular-trivia':
       await startRegularTrivia();
       break;
+    case 'start-tic-tac-toe-blitz':
+      await startTicTacToeBlitz();
+      break;
     case 'generate-ai-questions':
       await generateAIQuestions();
       break;
@@ -4595,6 +4960,18 @@ document.addEventListener('click', async (event) => {
     case 'submit-answer':
       if (Number.isInteger(parsedIndex)) await submitAnswer(parsedIndex);
       break;
+    case 'submit-ttt-move':
+      if (Number.isInteger(parsedIndex)) await submitTicTacToeMove(parsedIndex);
+      break;
+    case 'ttt-close-round':
+      await closeTicTacToeRound();
+      break;
+    case 'ttt-next-round':
+      await startNextTicTacToeRound();
+      break;
+    case 'ttt-restart-blitz':
+      await restartTicTacToeBlitz();
+      break;
     case 'send-lightning-reaction':
       if (target.dataset.emoji) await sendLightningReaction(target.dataset.emoji);
       break;
@@ -4651,6 +5028,7 @@ function renderActivity() {
   else if (activity === 'word-chain') content = renderWordChain();
   else if (activity === 'brainstorm-canvas') content = renderBrainstormCanvas();
   else if (activity === 'regular-trivia') content = renderRegularTrivia();
+  else if (activity === 'tic-tac-toe-blitz') content = renderTicTacToeBlitz();
 
   return `
     <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:8px;">
@@ -6371,6 +6749,133 @@ function renderRegularTrivia() {
   `;
 }
 
+function renderTicTacToeBlitz() {
+  const state = APP.room.activityState || {};
+  const isHost = APP.room.host === APP.player.name;
+  const safeRoomCode = escapeHtml(APP.roomCode);
+  const round = Number(state.round) || 1;
+  const roundClosed = Boolean(state.roundClosed);
+  const remainingMs = roundClosed ? 0 : ((Number(state.roundEndsAt) || 0) - Date.now());
+  const timerLabel = formatClockFromMs(remainingMs);
+  const standings = state.standings && typeof state.standings === 'object' ? state.standings : {};
+  const standingsRows = Object.entries(standings)
+    .sort((a, b) => {
+      const aStats = a[1] || {};
+      const bStats = b[1] || {};
+      if ((bStats.points || 0) !== (aStats.points || 0)) return (bStats.points || 0) - (aStats.points || 0);
+      if ((bStats.wins || 0) !== (aStats.wins || 0)) return (bStats.wins || 0) - (aStats.wins || 0);
+      return a[0].localeCompare(b[0]);
+    });
+  const playerMatchId = state.matchByPlayer?.[APP.player.name] || '';
+  const playerMatch = state.matches?.[playerMatchId] || null;
+  const byePlayers = Array.isArray(state.byePlayers) ? state.byePlayers : [];
+  const currentPlayerIsBye = byePlayers.includes(APP.player.name);
+  const roundMatchCount = Object.keys(state.matches || {}).length;
+  const completedCount = Object.values(state.matches || {}).filter(match => Boolean(match?.complete)).length;
+
+  let boardHtml = `
+    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:18px;">
+      <div style="color:var(--text-dim);">You are waiting for a matchup in this round.</div>
+    </div>
+  `;
+
+  if (currentPlayerIsBye) {
+    boardHtml = `
+      <div style="background:rgba(0,210,106,0.08);border:1px solid rgba(0,210,106,0.35);border-radius:var(--radius);padding:18px;">
+        <div style="font-weight:700;margin-bottom:6px;">Bye Round</div>
+        <div style="color:var(--text-mid);">No opponent this round. You received +1 point.</div>
+      </div>
+    `;
+  } else if (playerMatch) {
+    const symbols = playerMatch.symbols || {};
+    const playerSymbol = symbols[APP.player.name] || '';
+    const opponentName = (playerMatch.players || []).find(name => name !== APP.player.name) || 'Opponent';
+    const opponentSymbol = symbols[opponentName] || '';
+    const board = Array.isArray(playerMatch.board) ? playerMatch.board : Array(9).fill('');
+    const canPlay = !roundClosed && !playerMatch.complete && playerMatch.turn === playerSymbol;
+    const winner = playerMatch.winner || null;
+    const statusText = playerMatch.complete
+      ? (winner ? `${escapeHtml(winner)} won this match.` : 'Match ended in a draw.')
+      : (canPlay ? 'Your turn.' : `${escapeHtml(opponentName)} is up.`);
+
+    boardHtml = `
+      <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:18px;">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:12px;">
+          <div>
+            <div style="font-weight:700;">Match vs ${escapeHtml(opponentName)}</div>
+            <div style="color:var(--text-mid);font-size:0.9rem;">You: ${escapeHtml(playerSymbol)} • Opponent: ${escapeHtml(opponentSymbol)}</div>
+          </div>
+          <div style="font-size:0.85rem;color:${canPlay ? 'var(--success)' : 'var(--text-dim)'};">${statusText}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-width:360px;">
+          ${board.map((cell, idx) => {
+            const disabled = Boolean(cell) || !canPlay;
+            const label = cell || '';
+            const attrs = disabled ? '' : `data-action="submit-ttt-move" data-index="${idx}"`;
+            return `
+              <button type="button" ${attrs} ${disabled ? 'disabled' : ''} style="
+                aspect-ratio:1/1;
+                border-radius:12px;
+                border:2px solid var(--border);
+                background:${cell ? 'rgba(0,210,211,0.12)' : 'var(--surface-2)'};
+                color:var(--text);
+                font-size:2rem;
+                font-weight:700;
+                cursor:${disabled ? 'default' : 'pointer'};
+              ">${escapeHtml(label)}</button>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="header">
+      <h1 style="font-size:2rem;font-weight:700;">❌ Tic-Tac-Toe Blitz Arena</h1>
+      <p class="tagline">Round ${round} • Room: ${safeRoomCode}</p>
+    </div>
+
+    ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
+
+    <div style="background:var(--surface-solid);border:2px solid var(--accent);border-radius:var(--radius);padding:18px;margin:16px 0;">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;">
+        <div style="font-weight:700;">Round Timer: <span style="color:${roundClosed ? 'var(--text-dim)' : 'var(--accent)'};">${timerLabel}</span></div>
+        <div style="color:var(--text-mid);font-size:0.92rem;">Matches complete: ${completedCount}/${roundMatchCount}</div>
+      </div>
+      ${roundClosed ? '<div style="margin-top:8px;color:var(--success);font-size:0.9rem;">Round closed. Start the next round when ready.</div>' : ''}
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;align-items:start;">
+      ${boardHtml}
+      <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:18px;">
+        <h3 style="font-family:'Fraunces',serif;font-size:1.1rem;margin-bottom:10px;">Standings</h3>
+        ${standingsRows.length ? `
+          <div style="display:grid;gap:8px;">
+            ${standingsRows.map(([name, stats], idx) => `
+              <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;background:var(--surface-2);padding:10px;border-radius:10px;">
+                <div style="min-width:0;">
+                  <div style="font-weight:700;">#${idx + 1} ${escapeHtml(name)}</div>
+                  <div style="font-size:0.82rem;color:var(--text-dim);">W ${stats.wins || 0} • D ${stats.draws || 0} • L ${stats.losses || 0} • Bye ${stats.byes || 0}</div>
+                </div>
+                <div style="font-weight:700;color:var(--accent);">${stats.points || 0} pts</div>
+              </div>
+            `).join('')}
+          </div>
+        ` : '<div style="color:var(--text-dim);">No standings yet.</div>'}
+      </div>
+    </div>
+
+    ${isHost ? `
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
+        ${!roundClosed ? '<button class="btn-secondary" data-action="ttt-close-round">Close Round Now</button>' : ''}
+        ${roundClosed ? '<button class="btn-primary" data-action="ttt-next-round">Start Next 2-Min Round</button>' : ''}
+        <button class="btn-secondary" data-action="ttt-restart-blitz">Restart Blitz</button>
+      </div>
+    ` : ''}
+  `;
+}
+
 function renderLightningTrivia() {
   const state = APP.room.activityState || {};
   const currentQ = state.currentQ || 0;
@@ -6700,7 +7205,7 @@ function renderLoadSession() {
   return `
     <div class="header">
       <h1 class="logo">Load Saved Session</h1>
-      <p class="tagline">Select a session to load</p>
+      <p class="tagline">Upload a .calendar invite and use the card info to initiate the session</p>
     </div>
     <div class="form-container">
       <div class="form-group">
