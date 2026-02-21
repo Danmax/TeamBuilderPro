@@ -1208,9 +1208,45 @@ function getFeedbackUserToken() {
   return token;
 }
 
+function getDefaultAppPreferences() {
+  return {
+    enableFeedbackHub: true,
+    enableActivityQueue: true,
+    enableScheduleMeeting: true,
+    enableLoadSession: true,
+    enableAIGenerator: true,
+    enableSampleQuestions: true,
+    enabledActivities: Object.fromEntries((ALL_ACTIVITY_IDS || []).map(activityId => [activityId, true]))
+  };
+}
+
+function normalizeEnabledActivities(raw) {
+  const defaults = getDefaultAppPreferences().enabledActivities;
+  if (!raw || typeof raw !== 'object') return defaults;
+  return Object.fromEntries(Object.keys(defaults).map(activityId => [
+    activityId,
+    Boolean(raw[activityId] ?? defaults[activityId])
+  ]));
+}
+
+function normalizeAppPreferences(raw) {
+  const defaults = getDefaultAppPreferences();
+  const source = raw && typeof raw === 'object' ? raw : {};
+  return {
+    ...defaults,
+    enableFeedbackHub: Boolean(source.enableFeedbackHub ?? defaults.enableFeedbackHub),
+    enableActivityQueue: Boolean(source.enableActivityQueue ?? defaults.enableActivityQueue),
+    enableScheduleMeeting: Boolean(source.enableScheduleMeeting ?? defaults.enableScheduleMeeting),
+    enableLoadSession: Boolean(source.enableLoadSession ?? defaults.enableLoadSession),
+    enableAIGenerator: Boolean(source.enableAIGenerator ?? defaults.enableAIGenerator),
+    enableSampleQuestions: Boolean(source.enableSampleQuestions ?? defaults.enableSampleQuestions),
+    enabledActivities: normalizeEnabledActivities(source.enabledActivities)
+  };
+}
+
 function applyBranding(config) {
   const branding = config?.branding || {};
-  const preferences = config?.preferences || {};
+  const preferences = normalizeAppPreferences(config?.preferences || {});
   const appName = String(branding.appName || APP.branding.appName).trim();
   const tagline = String(branding.tagline || APP.branding.tagline).trim();
   const accent = /^#[0-9a-fA-F]{6}$/.test(String(branding.accent || '').trim())
@@ -1227,6 +1263,80 @@ function applyBranding(config) {
     ...preferences
   };
   document.documentElement.style.setProperty('--accent', APP.branding.accent);
+}
+
+function isActivityEnabled(activityId) {
+  return APP.preferences?.enabledActivities?.[activityId] !== false;
+}
+
+function getEnabledActivityItems() {
+  return ACTIVITY_QUEUE_ITEMS.filter(item => isActivityEnabled(item.id));
+}
+
+function activityHasPlayableContent(activityId) {
+  if (activityId === 'lightning-trivia' || activityId === 'regular-trivia') {
+    return TRIVIA_BANK.length > 0;
+  }
+  if (activityId === 'icebreaker') {
+    return ICEBREAKER_QUESTIONS.length > 0;
+  }
+  if (activityId === 'emoji-charades') {
+    return EMOJI_CHARADES_BANK.length > 0;
+  }
+  if (activityId === 'pulse-check') {
+    return PULSE_QUESTIONS.length > 0;
+  }
+  if (activityId === 'values-vote') {
+    return TEAM_VALUES.length > 0;
+  }
+  if (activityId === 'wordle') {
+    return WORDLE_WORDS.length > 0;
+  }
+  if (activityId === 'word-chain') {
+    return WORD_CHAIN_PUZZLES.length > 0;
+  }
+  return true;
+}
+
+function normalizeClientCollections(rawCollections) {
+  if (!Array.isArray(rawCollections)) return [];
+  const seen = new Set();
+  const normalized = [];
+  rawCollections.forEach((raw, idx) => {
+    if (!raw || typeof raw !== 'object') return;
+    const idBase = String(raw.id || raw.name || `collection_${idx + 1}`)
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 48);
+    const id = idBase || `collection_${Date.now()}_${idx}`;
+    if (seen.has(id)) return;
+    seen.add(id);
+    const activities = raw.activities && typeof raw.activities === 'object' ? raw.activities : {};
+    const filtered = {};
+    Object.entries(activities).forEach(([activityId, items]) => {
+      if (!ALL_ACTIVITY_IDS.includes(activityId)) return;
+      if (!Array.isArray(items) || !items.length) return;
+      filtered[activityId] = items;
+    });
+    if (!Object.keys(filtered).length) return;
+    normalized.push({
+      id,
+      name: String(raw.name || id).trim().slice(0, 80) || id,
+      description: String(raw.description || '').trim().slice(0, 240),
+      activities: filtered
+    });
+  });
+  return normalized;
+}
+
+function applyConfigPayload(data) {
+  const config = data?.config || {};
+  applyBranding(config);
+  const collections = normalizeClientCollections(data?.collections || []);
+  APP.admin.collections = collections;
+  APP.admin.configDatabaseConnected = Boolean(data?.storage?.configDatabaseConnected);
+  rehydrateActivityBanksFromConfig(collections);
 }
 
 async function apiRequest(path, options = {}) {
@@ -1617,6 +1727,19 @@ const RoomManager = {
 };
 
 // App State
+const ALL_ACTIVITY_IDS = [
+  'lightning-trivia',
+  'emoji-charades',
+  'icebreaker',
+  'pulse-check',
+  'values-vote',
+  'wordle',
+  'word-chain',
+  'brainstorm-canvas',
+  'regular-trivia',
+  'tic-tac-toe-blitz'
+];
+
 const APP = {
   screen: 'welcome',
   player: null,
@@ -1637,7 +1760,7 @@ const APP = {
     accent: '#00d2d3'
   },
   preferences: {
-    enableFeedbackHub: true
+    ...normalizeAppPreferences({})
   },
   feedback: [],
   feedbackLoading: false,
@@ -1645,7 +1768,9 @@ const APP = {
     authenticated: false,
     token: localStorage.getItem('admin-token') || '',
     feedback: [],
-    loading: false
+    loading: false,
+    collections: [],
+    configDatabaseConnected: false
   }
 };
 const APP_VERSION = 'v1.0.0';
@@ -1796,6 +1921,62 @@ const EMOJI_CHARADES_BANK = [
   { emojis: '🐟🍟', answer: 'Fish and chips' },
   { emojis: '🍿🎬', answer: 'Movie night' }
 ];
+
+const SAMPLE_TRIVIA_BANK = safeParseJson(JSON.stringify(TRIVIA_BANK)) || [];
+const SAMPLE_ICEBREAKER_QUESTIONS = [...ICEBREAKER_QUESTIONS];
+const SAMPLE_PULSE_QUESTIONS = safeParseJson(JSON.stringify(PULSE_QUESTIONS)) || [];
+const SAMPLE_TEAM_VALUES = safeParseJson(JSON.stringify(TEAM_VALUES)) || [];
+const SAMPLE_WORDLE_WORDS = [...WORDLE_WORDS];
+const SAMPLE_WORD_CHAIN_PUZZLES = safeParseJson(JSON.stringify(WORD_CHAIN_PUZZLES)) || [];
+const SAMPLE_EMOJI_CHARADES_BANK = safeParseJson(JSON.stringify(EMOJI_CHARADES_BANK)) || [];
+
+function replaceArrayContents(target, items) {
+  target.splice(0, target.length, ...items);
+}
+
+function rehydrateActivityBanksFromConfig(collections = []) {
+  const useSamples = APP.preferences?.enableSampleQuestions !== false;
+
+  replaceArrayContents(TRIVIA_BANK, useSamples ? SAMPLE_TRIVIA_BANK : []);
+  replaceArrayContents(ICEBREAKER_QUESTIONS, useSamples ? SAMPLE_ICEBREAKER_QUESTIONS : []);
+  replaceArrayContents(PULSE_QUESTIONS, useSamples ? SAMPLE_PULSE_QUESTIONS : []);
+  replaceArrayContents(TEAM_VALUES, useSamples ? SAMPLE_TEAM_VALUES : []);
+  replaceArrayContents(WORDLE_WORDS, useSamples ? SAMPLE_WORDLE_WORDS : []);
+  replaceArrayContents(WORD_CHAIN_PUZZLES, useSamples ? SAMPLE_WORD_CHAIN_PUZZLES : []);
+  replaceArrayContents(EMOJI_CHARADES_BANK, useSamples ? SAMPLE_EMOJI_CHARADES_BANK : []);
+
+  const safeCollections = Array.isArray(collections) ? collections : [];
+  safeCollections.forEach(collection => {
+    const activities = collection?.activities && typeof collection.activities === 'object'
+      ? collection.activities
+      : {};
+    Object.entries(activities).forEach(([activityId, items]) => {
+      if (!Array.isArray(items) || !items.length) return;
+      if (activityId === 'lightning-trivia' || activityId === 'regular-trivia') {
+        const validated = validateAIQuestions(items);
+        if (validated.length) TRIVIA_BANK.push(...validated);
+      } else if (activityId === 'icebreaker') {
+        const validated = validateAIIcebreakerQuestions(items);
+        if (validated.length) ICEBREAKER_QUESTIONS.push(...validated);
+      } else if (activityId === 'emoji-charades') {
+        const validated = validateAIEmojiCharades(items);
+        if (validated.length) EMOJI_CHARADES_BANK.push(...validated);
+      } else if (activityId === 'pulse-check') {
+        const validated = validateAIPulseQuestions(items);
+        if (validated.length) PULSE_QUESTIONS.push(...validated);
+      } else if (activityId === 'values-vote') {
+        const validated = validateAIValues(items);
+        if (validated.length) TEAM_VALUES.push(...validated);
+      } else if (activityId === 'wordle') {
+        const validated = validateAIWordleWords(items);
+        if (validated.length) WORDLE_WORDS.push(...validated);
+      } else if (activityId === 'word-chain') {
+        const validated = validateAIWordChainPuzzles(items);
+        if (validated.length) WORD_CHAIN_PUZZLES.push(...validated);
+      }
+    });
+  });
+}
 
 const ACTIVITY_QUEUE_ITEMS = [
   { id: 'lightning-trivia', icon: '⚡', label: 'Lightning Trivia' },
@@ -1973,6 +2154,19 @@ function formatClockFromMs(ms) {
   const mins = Math.floor(totalSeconds / 60);
   const secs = totalSeconds % 60;
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function buildCelebrationConfettiPieces(count = 24) {
+  const confettiPalette = ['#00d2d3', '#feca57', '#00d26a', '#ff4060', '#ffd700'];
+  return Array.from({ length: count }, (_, idx) => {
+    const left = Math.floor(Math.random() * 100);
+    const delay = (Math.random() * 1.6).toFixed(2);
+    const duration = (5.8 + (Math.random() * 2.4)).toFixed(2);
+    const drift = Math.floor((Math.random() * 140) - 70);
+    const rotate = Math.floor(Math.random() * 70) - 35;
+    const color = confettiPalette[idx % confettiPalette.length];
+    return `<span class="trivia-confetti-piece" style="left:${left}%;background:${color};animation-delay:${delay}s;animation-duration:${duration}s;--confetti-drift:${drift}px;transform:rotate(${rotate}deg);"></span>`;
+  }).join('');
 }
 
 function getTicTacToeWinnerSymbol(board) {
@@ -2206,6 +2400,14 @@ function getInitialActivityState(room, activityId) {
 
 async function startActivityById(activityId) {
   if (!APP.roomCode || !APP.room) return false;
+  if (!isActivityEnabled(activityId)) {
+    showError('This activity is disabled by admin.');
+    return false;
+  }
+  if (!activityHasPlayableContent(activityId)) {
+    showError('No content available for this activity. Enable sample questions or side-load a collection.');
+    return false;
+  }
   const room = { ...APP.room };
   const initialState = getInitialActivityState(room, activityId);
   if (!initialState) {
@@ -2236,7 +2438,14 @@ async function runNextQueuedActivity(roomOverride = null) {
   let queueIndex = Number.isInteger(room.queueIndex) ? room.queueIndex : 0;
   if (!room.queueActive || queue.length === 0) return false;
 
-  while (queueIndex < queue.length && !ACTIVITY_QUEUE_ITEM_MAP[queue[queueIndex]]) {
+  while (
+    queueIndex < queue.length
+    && (
+      !ACTIVITY_QUEUE_ITEM_MAP[queue[queueIndex]]
+      || !isActivityEnabled(queue[queueIndex])
+      || !activityHasPlayableContent(queue[queueIndex])
+    )
+  ) {
     queueIndex++;
   }
 
@@ -2757,6 +2966,8 @@ function renderDashboard() {
   const safePlayerName = escapeHtml(APP.player.name);
   const safeAppName = escapeHtml(APP.branding.appName);
   const showFeedback = APP.preferences.enableFeedbackHub !== false;
+  const showScheduleMeeting = APP.preferences.enableScheduleMeeting !== false;
+  const showLoadSession = APP.preferences.enableLoadSession !== false;
   return `
     <div class="header">
       <h1 class="logo">${safeAppName}</h1>
@@ -2788,17 +2999,21 @@ function renderDashboard() {
         <p class="card-desc">Enter a room code to join your team</p>
       </button>
 
-        <button type="button" class="card" data-action="go-screen" data-screen="schedule-meeting" aria-label="Schedule Team Meeting">
-          <div class="card-icon">📅</div>
-          <h3 class="card-title">Schedule Team Meeting</h3>
-          <p class="card-desc">Set up a date, time, Zoom link, and meeting details</p>
-        </button>
+        ${showScheduleMeeting ? `
+          <button type="button" class="card" data-action="go-screen" data-screen="schedule-meeting" aria-label="Schedule Team Meeting">
+            <div class="card-icon">📅</div>
+            <h3 class="card-title">Schedule Team Meeting</h3>
+            <p class="card-desc">Set up a date, time, Zoom link, and meeting details</p>
+          </button>
+        ` : ''}
 
-        <button type="button" class="card" data-action="go-screen" data-screen="load-session" aria-label="Load Saved Session">
-          <div class="card-icon">💾</div>
-          <h3 class="card-title">Load Saved Session</h3>
-          <p class="card-desc">Upload a .calendar invite, then use the card info to initiate the session</p>
-        </button>
+        ${showLoadSession ? `
+          <button type="button" class="card" data-action="go-screen" data-screen="load-session" aria-label="Load Saved Session">
+            <div class="card-icon">💾</div>
+            <h3 class="card-title">Load Saved Session</h3>
+            <p class="card-desc">Upload a .calendar invite, then use the card info to initiate the session</p>
+          </button>
+        ` : ''}
     </div>
     
     <div style="text-align:center;margin-top:40px;">
@@ -3012,6 +3227,10 @@ function renderAdminConsole() {
   const safeAppName = escapeHtml(APP.branding.appName || '');
   const safeTagline = escapeHtml(APP.branding.tagline || '');
   const safeAccent = escapeHtml(APP.branding.accent || '#00d2d3');
+  const preferences = normalizeAppPreferences(APP.preferences || {});
+  const enabledActivities = preferences.enabledActivities || {};
+  const collections = Array.isArray(admin.collections) ? admin.collections : [];
+  const dbConnected = Boolean(admin.configDatabaseConnected);
   const feedback = admin.feedback || [];
   const statusColor = {
     open: 'var(--warning)',
@@ -3039,13 +3258,16 @@ function renderAdminConsole() {
   return `
     <div class="header">
       <h1 class="logo">Admin Console</h1>
-      <p class="tagline">Manage feedback workflow, branding, and global preferences.</p>
+      <p class="tagline">Manage activities, features, question libraries, and feedback workflow.</p>
     </div>
     <button class="btn-secondary" data-action="go-screen" data-screen="dashboard">← Back</button>
     <button class="btn-secondary" data-action="admin-logout" style="margin-left:10px;">Log Out</button>
 
     <div class="form-container" style="margin-top:20px;">
       <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:14px;">Branding & Preferences</h3>
+      <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:12px;">
+        Config storage: <strong>${dbConnected ? 'Database connected' : 'Local file fallback'}</strong>
+      </div>
       <div class="form-group">
         <label class="form-label" for="adminBrandAppName">App Name</label>
         <input id="adminBrandAppName" class="form-input" value="${safeAppName}" maxlength="64">
@@ -3059,9 +3281,61 @@ function renderAdminConsole() {
         <input id="adminBrandAccent" class="form-input" value="${safeAccent}" maxlength="7" placeholder="#00d2d3">
       </div>
       <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-        <input id="adminEnableFeedbackHub" type="checkbox" ${APP.preferences.enableFeedbackHub !== false ? 'checked' : ''}>
+        <input id="adminEnableFeedbackHub" type="checkbox" ${preferences.enableFeedbackHub !== false ? 'checked' : ''}>
         Enable user Feedback Hub
       </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <input id="adminEnableActivityQueue" type="checkbox" ${preferences.enableActivityQueue !== false ? 'checked' : ''}>
+        Enable Activity Queue
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <input id="adminEnableScheduleMeeting" type="checkbox" ${preferences.enableScheduleMeeting !== false ? 'checked' : ''}>
+        Enable Schedule Team Meeting
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <input id="adminEnableLoadSession" type="checkbox" ${preferences.enableLoadSession !== false ? 'checked' : ''}>
+        Enable Load Saved Session
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <input id="adminEnableAIGenerator" type="checkbox" ${preferences.enableAIGenerator !== false ? 'checked' : ''}>
+        Enable AI Content Generator
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <input id="adminEnableSampleQuestions" type="checkbox" ${preferences.enableSampleQuestions !== false ? 'checked' : ''}>
+        Include built-in sample question sets
+      </label>
+
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+        <div style="font-weight:700;margin-bottom:8px;">Enable Activities in Main Menu</div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+          ${ACTIVITY_QUEUE_ITEMS.map(item => `
+            <label style="display:flex;align-items:center;gap:8px;">
+              <input id="adminActivityEnabled-${item.id}" type="checkbox" ${enabledActivities[item.id] !== false ? 'checked' : ''}>
+              <span>${escapeHtml(item.icon)} ${escapeHtml(item.label)}</span>
+            </label>
+          `).join('')}
+        </div>
+      </div>
+
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+        <div style="font-weight:700;margin-bottom:8px;">Side-Load Collection (JSON)</div>
+        <textarea id="adminCollectionJson" class="form-input" rows="6" placeholder='{"name":"Q4 Pack","activities":{"lightning-trivia":[{"q":"...","opts":["A","B","C","D"],"ans":1}]}}'></textarea>
+        <button class="btn-secondary" data-action="admin-add-collection" style="margin-top:10px;">Add Collection</button>
+        ${collections.length ? `
+          <div style="margin-top:12px;display:grid;gap:8px;">
+            ${collections.map(col => `
+              <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px;display:flex;justify-content:space-between;gap:10px;align-items:center;">
+                <div>
+                  <div style="font-weight:700;">${escapeHtml(col.name || col.id)}</div>
+                  <div style="font-size:0.8rem;color:var(--text-dim);">${escapeHtml(col.id || '')}</div>
+                </div>
+                <button class="btn-secondary" data-action="admin-remove-collection" data-key="${escapeHtml(col.id || '')}" style="padding:6px 10px;">Remove</button>
+              </div>
+            `).join('')}
+          </div>
+        ` : '<div style="margin-top:10px;color:var(--text-dim);font-size:0.9rem;">No side-loaded collections yet.</div>'}
+      </div>
+
       <button class="btn-primary" data-action="save-admin-config">Save Branding & Preferences</button>
     </div>
 
@@ -3107,6 +3381,7 @@ function renderLobby() {
   const safePresentationUrl = escapeHtml(sharedPresentation?.url || '');
   const safeSharedBy = escapeHtml(sharedPresentation?.sharedBy || '');
   const sharedAtLabel = sharedPresentation?.updatedAt ? new Date(sharedPresentation.updatedAt).toLocaleString() : '';
+  const enabledActivities = APP.preferences?.enabledActivities || {};
   
   if (APP.room.currentActivity) {
     return renderActivity();
@@ -3117,7 +3392,7 @@ function renderLobby() {
       <button class="btn-secondary" data-action="edit-profile">✏️ Edit Profile</button>
       ${showFeedback ? '<button class="btn-secondary" data-action="open-feedback">🗣️ Feedback</button>' : ''}
       <button class="btn-secondary" data-action="leave-session">🚪 Leave Session</button>
-      ${isHost ? '<button class="btn-secondary" data-action="go-screen" data-screen="activity-queue">🗂️ Activity Queue</button>' : ''}
+      ${(isHost && APP.preferences.enableActivityQueue !== false) ? '<button class="btn-secondary" data-action="go-screen" data-screen="activity-queue">🗂️ Activity Queue</button>' : ''}
       ${isHost ? '<button class="btn-secondary" data-action="open-host-settings">⚙️ Host Settings</button>' : ''}
     </div>
 
@@ -3216,49 +3491,49 @@ function renderLobby() {
       </h3>
       
       <div class="grid-2">
-        <button type="button" class="card" data-action="start-lightning-trivia" aria-label="Start Lightning Trivia">
+        <button type="button" class="card" data-action="start-lightning-trivia" aria-label="Start Lightning Trivia" style="${enabledActivities['lightning-trivia'] === false ? 'display:none;' : ''}">
           <div class="card-icon">⚡</div>
           <h3 class="card-title">Lightning Trivia</h3>
           <p class="card-desc">Kahoot-style quiz with 20s timer & speed scoring</p>
         </button>
 
-        <button type="button" class="card" data-action="start-emoji-charades" aria-label="Start Emoji Charades">
+        <button type="button" class="card" data-action="start-emoji-charades" aria-label="Start Emoji Charades" style="${enabledActivities['emoji-charades'] === false ? 'display:none;' : ''}">
           <div class="card-icon">🎭</div>
           <h3 class="card-title">Emoji Charades</h3>
           <p class="card-desc">Guess the phrase behind each emoji clue</p>
         </button>
         
-        <button type="button" class="card" data-action="start-icebreaker" aria-label="Start Icebreaker Roulette">
+        <button type="button" class="card" data-action="start-icebreaker" aria-label="Start Icebreaker Roulette" style="${enabledActivities['icebreaker'] === false ? 'display:none;' : ''}">
           <div class="card-icon">🎲</div>
           <h3 class="card-title">Icebreaker Roulette</h3>
           <p class="card-desc">Fun questions to spark great conversations</p>
         </button>
         
-        <button type="button" class="card" data-action="start-pulse-check" aria-label="Start Team Pulse Check">
+        <button type="button" class="card" data-action="start-pulse-check" aria-label="Start Team Pulse Check" style="${enabledActivities['pulse-check'] === false ? 'display:none;' : ''}">
           <div class="card-icon">📊</div>
           <h3 class="card-title">Team Pulse Check</h3>
           <p class="card-desc">Quick polls to gauge team sentiment</p>
         </button>
         
-        <button type="button" class="card" data-action="start-values-vote" aria-label="Start Values Vote">
+        <button type="button" class="card" data-action="start-values-vote" aria-label="Start Values Vote" style="${enabledActivities['values-vote'] === false ? 'display:none;' : ''}">
           <div class="card-icon">⭐</div>
           <h3 class="card-title">Values Vote</h3>
           <p class="card-desc">Discover what matters most to your team</p>
         </button>
         
-        <button type="button" class="card" data-action="start-wordle" aria-label="Start Team Wordle">
+        <button type="button" class="card" data-action="start-wordle" aria-label="Start Team Wordle" style="${enabledActivities['wordle'] === false ? 'display:none;' : ''}">
           <div class="card-icon">🎯</div>
           <h3 class="card-title">Team Wordle</h3>
           <p class="card-desc">Guess the 5-letter word together</p>
         </button>
 
-        <button type="button" class="card" data-action="start-word-chain" aria-label="Start Word Chain">
+        <button type="button" class="card" data-action="start-word-chain" aria-label="Start Word Chain" style="${enabledActivities['word-chain'] === false ? 'display:none;' : ''}">
           <div class="card-icon">🔗</div>
           <h3 class="card-title">Word Chain</h3>
           <p class="card-desc">Solve 5 hidden compound words with the fewest tries</p>
         </button>
 
-        <button type="button" class="card" data-action="start-brainstorm-canvas" aria-label="Start Brainstorm Canvas">
+        <button type="button" class="card" data-action="start-brainstorm-canvas" aria-label="Start Brainstorm Canvas" style="${enabledActivities['brainstorm-canvas'] === false ? 'display:none;' : ''}">
           <div class="card-icon">🧩</div>
           <h3 class="card-title">Brainstorm Canvas</h3>
           <p class="card-desc">Add sticky notes and vote in Start / Stop / Improve / Create</p>
@@ -3266,13 +3541,13 @@ function renderLobby() {
 
         <!-- Activity Queue button removed from Choose Activity menu -->
         
-        <button type="button" class="card" data-action="start-regular-trivia" aria-label="Start Trivia Battle">
+        <button type="button" class="card" data-action="start-regular-trivia" aria-label="Start Trivia Battle" style="${enabledActivities['regular-trivia'] === false ? 'display:none;' : ''}">
           <div class="card-icon">🧠</div>
           <h3 class="card-title">Trivia Battle</h3>
           <p class="card-desc">Compete with classic trivia questions</p>
         </button>
 
-        <button type="button" class="card" data-action="start-tic-tac-toe-blitz" aria-label="Start Tic-Tac-Toe Blitz Arena">
+        <button type="button" class="card" data-action="start-tic-tac-toe-blitz" aria-label="Start Tic-Tac-Toe Blitz Arena" style="${enabledActivities['tic-tac-toe-blitz'] === false ? 'display:none;' : ''}">
           <div class="card-icon">❌</div>
           <h3 class="card-title">Tic-Tac-Toe Blitz Arena</h3>
           <p class="card-desc">Auto-matched 1v1 games with a 2-minute round timer</p>
@@ -3291,10 +3566,23 @@ function renderLobby() {
 function renderActivityQueue() {
   const isHost = APP.room.host === APP.player.name;
   const safeRoomCode = escapeHtml(APP.roomCode);
+  const queueFeatureEnabled = APP.preferences.enableActivityQueue !== false;
+  const availableQueueItems = getEnabledActivityItems();
   const activityQueue = Array.isArray(APP.room.activityQueue) ? APP.room.activityQueue : [];
   const queueIndex = Number.isInteger(APP.room.queueIndex) ? APP.room.queueIndex : 0;
   const queueActive = Boolean(APP.room.queueActive);
   const queueRemaining = activityQueue.slice(queueIndex);
+
+  if (!queueFeatureEnabled) {
+    return `
+      <div class="header">
+        <h1 class="logo">Activity Queue</h1>
+        <p class="tagline">Room: ${safeRoomCode}</p>
+      </div>
+      <button class="btn-secondary" data-action="go-screen" data-screen="lobby">← Back to Lobby</button>
+      <div style="margin-top:20px;color:var(--text-dim);">Activity Queue is disabled by admin.</div>
+    `;
+  }
 
   return `
     <div class="header">
@@ -3341,7 +3629,7 @@ function renderActivityQueue() {
 
       ${isHost ? `
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px;">
-          ${ACTIVITY_QUEUE_ITEMS.map(item => `
+          ${availableQueueItems.map(item => `
             <button class="btn-secondary" data-action="queue-add" data-activity="${item.id}" style="padding:10px 12px;">
               ${item.icon} ${escapeHtml(item.label)}
             </button>
@@ -3359,6 +3647,7 @@ function renderActivityQueue() {
 
 function renderHostSettingsModal() {
   const roomSettings = getRoomHostSettings(APP.room);
+  const globalAiEnabled = APP.preferences.enableAIGenerator !== false;
   const activeTab = APP.hostSettingsTab || 'game';
   return `
     <div style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10020;display:grid;place-items:center;padding:16px;">
@@ -3373,9 +3662,11 @@ function renderHostSettingsModal() {
           <button class="host-tab-btn ${activeTab === 'game' ? 'active' : ''}" data-action="host-settings-tab" data-tab="game" role="tab" aria-selected="${activeTab === 'game' ? 'true' : 'false'}">
             Game Rules
           </button>
-          <button class="host-tab-btn ${activeTab === 'ai' ? 'active' : ''}" data-action="host-settings-tab" data-tab="ai" role="tab" aria-selected="${activeTab === 'ai' ? 'true' : 'false'}">
-            AI Settings
-          </button>
+          ${globalAiEnabled ? `
+            <button class="host-tab-btn ${activeTab === 'ai' ? 'active' : ''}" data-action="host-settings-tab" data-tab="ai" role="tab" aria-selected="${activeTab === 'ai' ? 'true' : 'false'}">
+              AI Settings
+            </button>
+          ` : ''}
         </div>
 
         <div data-tab-panel="game" class="host-tab-panel" ${activeTab !== 'game' ? 'hidden' : ''} style="margin-bottom:18px;">
@@ -3393,12 +3684,13 @@ function renderHostSettingsModal() {
             Dynamic time-based scoring
           </label>
           <label style="display:flex;align-items:center;gap:8px;">
-            <input type="checkbox" id="hsEnableAIGenerator" ${roomSettings.enableAIGenerator ? 'checked' : ''}>
+            <input type="checkbox" id="hsEnableAIGenerator" ${roomSettings.enableAIGenerator && globalAiEnabled ? 'checked' : ''} ${globalAiEnabled ? '' : 'disabled'}>
             Enable AI Content Generator
           </label>
+          ${globalAiEnabled ? '' : '<div style="font-size:0.84rem;color:var(--text-dim);margin-top:6px;">AI is disabled globally by admin.</div>'}
         </div>
 
-        <div data-tab-panel="ai" class="host-tab-panel" ${activeTab !== 'ai' ? 'hidden' : ''} style="margin-bottom:18px;">
+        <div data-tab-panel="ai" class="host-tab-panel" ${activeTab !== 'ai' ? 'hidden' : ''} style="margin-bottom:18px;${globalAiEnabled ? '' : 'display:none;'}">
           <h4 style="margin-bottom:10px;">AI Configuration (Host Local)</h4>
           <div class="form-group">
             <label class="form-label" for="hsAiEndpoint">Endpoint</label>
@@ -3556,6 +3848,18 @@ async function copyJoinLink() {
 }
 
 function goToScreen(screen) {
+  if (screen === 'schedule-meeting' && APP.preferences.enableScheduleMeeting === false) {
+    showError('Schedule Team Meeting is disabled by admin.');
+    return;
+  }
+  if (screen === 'load-session' && APP.preferences.enableLoadSession === false) {
+    showError('Load Saved Session is disabled by admin.');
+    return;
+  }
+  if (screen === 'activity-queue' && APP.preferences.enableActivityQueue === false) {
+    showError('Activity Queue is disabled by admin.');
+    return;
+  }
   const roomScreens = new Set(['lobby', 'activity-queue']);
   if (!roomScreens.has(screen)) {
     stopRoomSync();
@@ -3850,8 +4154,13 @@ function openSharedPresentation() {
 }
 
 async function queueAddActivity(activityId) {
+  if (APP.preferences.enableActivityQueue === false) return;
   if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
   if (!ACTIVITY_QUEUE_ITEM_MAP[activityId]) return;
+  if (!isActivityEnabled(activityId)) {
+    showError('That activity is disabled by admin.');
+    return;
+  }
   const room = await RoomManager.loadRoom(APP.roomCode);
   if (!room) {
     showError('Room no longer available.');
@@ -3867,6 +4176,7 @@ async function queueAddActivity(activityId) {
 }
 
 async function queueRemoveActivityAt(index) {
+  if (APP.preferences.enableActivityQueue === false) return;
   if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
   if (!Number.isInteger(index) || index < 0) return;
   const room = await RoomManager.loadRoom(APP.roomCode);
@@ -3888,6 +4198,7 @@ async function queueRemoveActivityAt(index) {
 }
 
 async function queueClearAll() {
+  if (APP.preferences.enableActivityQueue === false) return;
   if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
   const room = await RoomManager.loadRoom(APP.roomCode);
   if (!room) {
@@ -3903,6 +4214,7 @@ async function queueClearAll() {
 }
 
 async function queueStartRun() {
+  if (APP.preferences.enableActivityQueue === false) return;
   if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
   const room = await RoomManager.loadRoom(APP.roomCode);
   if (!room) {
@@ -3922,6 +4234,7 @@ async function queueStartRun() {
 }
 
 async function queueNextActivity() {
+  if (APP.preferences.enableActivityQueue === false) return;
   if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
   const room = await RoomManager.loadRoom(APP.roomCode);
   if (!room) {
@@ -3947,7 +4260,7 @@ function viewStats() {
 async function loadPublicConfig() {
   try {
     const data = await apiRequest('/api/config');
-    applyBranding(data.config || {});
+    applyConfigPayload(data);
   } catch (e) {
     console.warn('Failed to load config:', e.message);
   }
@@ -4051,7 +4364,8 @@ async function refreshAdminConfig() {
   if (!APP.admin.authenticated || !APP.admin.token) return;
   try {
     const data = await apiRequest('/api/admin/config', { adminToken: APP.admin.token });
-    applyBranding(data.config || {});
+    applyConfigPayload(data);
+    render();
   } catch (e) {
     showError(e.message);
   }
@@ -4088,12 +4402,53 @@ async function saveAdminFeedbackItem(feedbackId) {
   }
 }
 
+function adminAddCollectionFromInput() {
+  const input = document.getElementById('adminCollectionJson');
+  const raw = String(input?.value || '').trim();
+  if (!raw) {
+    showError('Paste collection JSON first.');
+    return;
+  }
+  const parsed = safeParseJson(raw);
+  if (!parsed) {
+    showError('Invalid JSON payload.');
+    return;
+  }
+  const additions = normalizeClientCollections(Array.isArray(parsed) ? parsed : [parsed]);
+  if (!additions.length) {
+    showError('No valid collection payload was found.');
+    return;
+  }
+  const existing = normalizeClientCollections(APP.admin.collections || []);
+  const merged = new Map(existing.map(item => [item.id, item]));
+  additions.forEach(item => merged.set(item.id, item));
+  APP.admin.collections = Array.from(merged.values());
+  if (input) input.value = '';
+  rehydrateActivityBanksFromConfig(APP.admin.collections);
+  render();
+}
+
+function adminRemoveCollection(collectionId) {
+  if (!collectionId) return;
+  APP.admin.collections = normalizeClientCollections(APP.admin.collections || []).filter(item => item.id !== collectionId);
+  rehydrateActivityBanksFromConfig(APP.admin.collections);
+  render();
+}
+
 async function saveAdminConfig() {
   if (!APP.admin.authenticated) return;
   const appName = String(document.getElementById('adminBrandAppName')?.value || '').trim();
   const tagline = String(document.getElementById('adminBrandTagline')?.value || '').trim();
   const accent = String(document.getElementById('adminBrandAccent')?.value || '').trim();
   const enableFeedbackHub = Boolean(document.getElementById('adminEnableFeedbackHub')?.checked);
+  const enableActivityQueue = Boolean(document.getElementById('adminEnableActivityQueue')?.checked);
+  const enableScheduleMeeting = Boolean(document.getElementById('adminEnableScheduleMeeting')?.checked);
+  const enableLoadSession = Boolean(document.getElementById('adminEnableLoadSession')?.checked);
+  const enableAIGenerator = Boolean(document.getElementById('adminEnableAIGenerator')?.checked);
+  const enableSampleQuestions = Boolean(document.getElementById('adminEnableSampleQuestions')?.checked);
+  const enabledActivities = Object.fromEntries(
+    ACTIVITY_QUEUE_ITEMS.map(item => [item.id, Boolean(document.getElementById(`adminActivityEnabled-${item.id}`)?.checked)])
+  );
 
   try {
     const data = await apiRequest('/api/admin/config', {
@@ -4101,10 +4456,19 @@ async function saveAdminConfig() {
       adminToken: APP.admin.token,
       body: {
         branding: { appName, tagline, accent },
-        preferences: { enableFeedbackHub }
+        preferences: {
+          enableFeedbackHub,
+          enableActivityQueue,
+          enableScheduleMeeting,
+          enableLoadSession,
+          enableAIGenerator,
+          enableSampleQuestions,
+          enabledActivities
+        },
+        collections: normalizeClientCollections(APP.admin.collections || [])
       }
     });
-    applyBranding(data.config || {});
+    applyConfigPayload(data);
     render();
   } catch (e) {
     showError(e.message);
@@ -4125,7 +4489,10 @@ function closeHostSettings() {
 
 function switchHostSettingsTab(tabId) {
   if (!APP.showHostSettings) return;
-  const allowedTabs = new Set(['game', 'ai']);
+  const allowedTabs = new Set(['game']);
+  if (APP.preferences.enableAIGenerator !== false) {
+    allowedTabs.add('ai');
+  }
   const nextTab = allowedTabs.has(tabId) ? tabId : 'game';
   APP.hostSettingsTab = nextTab;
 
@@ -4154,7 +4521,8 @@ async function saveHostSettings() {
     autoRevealLightning: Boolean(document.getElementById('hsAutoRevealLightning')?.checked),
     allowAnswerChanges: Boolean(document.getElementById('hsAllowAnswerChanges')?.checked),
     dynamicScoring: Boolean(document.getElementById('hsDynamicScoring')?.checked),
-    enableAIGenerator: Boolean(document.getElementById('hsEnableAIGenerator')?.checked)
+    enableAIGenerator: APP.preferences.enableAIGenerator !== false
+      && Boolean(document.getElementById('hsEnableAIGenerator')?.checked)
   };
 
   HOST_LOCAL_CONFIG = {
@@ -4329,6 +4697,10 @@ async function applyAIGeneratedContent(activityId, parsed, topic) {
 }
 
 async function generateAIQuestions() {
+  if (APP.preferences.enableAIGenerator === false) {
+    showError('AI generator is disabled by admin.');
+    return;
+  }
   const activityIdRaw = String(document.getElementById('aiActivity')?.value || HOST_LOCAL_CONFIG.aiDefaultActivity || 'lightning-trivia');
   const activityId = AI_GENERATION_TARGET_LABELS[activityIdRaw] ? activityIdRaw : 'lightning-trivia';
   const topic = normalizeTopic(document.getElementById('aiTopic')?.value || '');
@@ -4773,6 +5145,12 @@ document.addEventListener('click', async (event) => {
       break;
     case 'save-admin-config':
       await saveAdminConfig();
+      break;
+    case 'admin-add-collection':
+      adminAddCollectionFromInput();
+      break;
+    case 'admin-remove-collection':
+      if (key) adminRemoveCollection(key);
       break;
     case 'queue-add':
       if (activity) await queueAddActivity(activity);
@@ -6766,6 +7144,14 @@ function renderTicTacToeBlitz() {
       if ((bStats.wins || 0) !== (aStats.wins || 0)) return (bStats.wins || 0) - (aStats.wins || 0);
       return a[0].localeCompare(b[0]);
     });
+  const topScore = standingsRows.length ? (standingsRows[0][1]?.points || 0) : 0;
+  const topPlayers = standingsRows
+    .filter(([, stats]) => (stats?.points || 0) === topScore)
+    .map(([name]) => name);
+  const isTieForFirst = roundClosed && topPlayers.length > 1;
+  const winnerName = roundClosed && topPlayers.length === 1 ? topPlayers[0] : '';
+  const confettiPieces = roundClosed && topPlayers.length ? buildCelebrationConfettiPieces(28) : '';
+  const avatarByName = Object.fromEntries((APP.room.participants || []).map(player => [player.name, player.avatar || '👤']));
   const playerMatchId = state.matchByPlayer?.[APP.player.name] || '';
   const playerMatch = state.matches?.[playerMatchId] || null;
   const byePlayers = Array.isArray(state.byePlayers) ? state.byePlayers : [];
@@ -6831,12 +7217,30 @@ function renderTicTacToeBlitz() {
   }
 
   return `
+    ${roundClosed && topPlayers.length ? `<div class="trivia-confetti" aria-hidden="true">${confettiPieces}</div>` : ''}
     <div class="header">
       <h1 style="font-size:2rem;font-weight:700;">❌ Tic-Tac-Toe Blitz Arena</h1>
       <p class="tagline">Round ${round} • Room: ${safeRoomCode}</p>
     </div>
 
     ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
+
+    ${roundClosed && topPlayers.length ? `
+      <div style="background:linear-gradient(135deg, rgba(0,210,211,0.16), rgba(254,202,87,0.16));border:2px solid var(--accent);border-radius:var(--radius);padding:18px;margin:16px 0;text-align:center;">
+        ${isTieForFirst ? `
+          <div style="font-size:1.4rem;font-weight:700;margin-bottom:6px;">🤝 Tie for First Place!</div>
+          <div style="color:var(--text-mid);font-size:1.02rem;">
+            ${topPlayers.map(name => `${escapeHtml(avatarByName[name] || '👤')} ${escapeHtml(name)}`).join(' • ')}
+          </div>
+          <div style="margin-top:8px;color:var(--accent);font-weight:700;">${topScore} points each</div>
+        ` : `
+          <div style="font-size:1.4rem;font-weight:700;margin-bottom:6px;">🏆 Blitz Leader: ${escapeHtml(winnerName)}</div>
+          <div style="font-size:2rem;line-height:1;">${escapeHtml(avatarByName[winnerName] || '👤')}</div>
+          <div style="margin-top:8px;color:var(--accent);font-weight:700;">${topScore} points</div>
+          <div style="margin-top:4px;color:var(--text-mid);">Round ${round} complete. Celebrate the win!</div>
+        `}
+      </div>
+    ` : ''}
 
     <div style="background:var(--surface-solid);border:2px solid var(--accent);border-radius:var(--radius);padding:18px;margin:16px 0;">
       <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;">
@@ -7159,6 +7563,15 @@ init();
 
 // --- MISSING RENDER SCREENS ---
 function renderScheduleMeeting() {
+  if (APP.preferences.enableScheduleMeeting === false) {
+    return `
+      <div class="header">
+        <h1 class="logo">Schedule Team Meeting</h1>
+        <p class="tagline">This feature is disabled by admin.</p>
+      </div>
+      <button class="btn-secondary" data-action="go-screen" data-screen="dashboard">← Back</button>
+    `;
+  }
   return `
     <div class="header">
       <h1 class="logo">Schedule Team Meeting & Activities</h1>
@@ -7181,19 +7594,21 @@ function renderScheduleMeeting() {
         <label class="form-label" for="meetingDetails">Meeting Details</label>
         <textarea id="meetingDetails" class="form-input" rows="4" placeholder="Agenda, goals, etc."></textarea>
       </div>
-      <div class="form-group">
-        <label class="form-label">Activity Queue (select activities to run in order)</label>
-        <div id="activityQueueSelector" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
-          ${ACTIVITY_QUEUE_ITEMS.map(item => `
-            <label style="display:flex;align-items:center;gap:8px;padding:6px 0;">
-              <input type="checkbox" class="activity-queue-checkbox" value="${item.id}">
-              <span style="font-size:1.2rem;">${item.icon}</span>
-              <span>${escapeHtml(item.label)}</span>
-            </label>
-          `).join('')}
+      ${APP.preferences.enableActivityQueue !== false ? `
+        <div class="form-group">
+          <label class="form-label">Activity Queue (select activities to run in order)</label>
+          <div id="activityQueueSelector" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+            ${getEnabledActivityItems().map(item => `
+              <label style="display:flex;align-items:center;gap:8px;padding:6px 0;">
+                <input type="checkbox" class="activity-queue-checkbox" value="${item.id}">
+                <span style="font-size:1.2rem;">${item.icon}</span>
+                <span>${escapeHtml(item.label)}</span>
+              </label>
+            `).join('')}
+          </div>
+          <div style="font-size:0.9rem;color:var(--text-dim);margin-top:6px;">You can select multiple activities. They will run in the order selected.</div>
         </div>
-        <div style="font-size:0.9rem;color:var(--text-dim);margin-top:6px;">You can select multiple activities. They will run in the order selected.</div>
-      </div>
+      ` : ''}
       <button class="btn-primary" data-action="save-meeting">Save Meeting</button>
       <button class="btn-secondary" data-action="go-screen" data-screen="dashboard" style="margin-top:10px;">Cancel</button>
     </div>
@@ -7201,6 +7616,15 @@ function renderScheduleMeeting() {
 }
 
 function renderLoadSession() {
+  if (APP.preferences.enableLoadSession === false) {
+    return `
+      <div class="header">
+        <h1 class="logo">Load Saved Session</h1>
+        <p class="tagline">This feature is disabled by admin.</p>
+      </div>
+      <button class="btn-secondary" data-action="go-screen" data-screen="dashboard">← Back</button>
+    `;
+  }
   // Placeholder: Replace with actual session loading logic
   return `
     <div class="header">

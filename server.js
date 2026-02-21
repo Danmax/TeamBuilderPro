@@ -3,6 +3,14 @@ const fs = require('fs');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+let pg = null;
+try {
+  // Optional dependency for DATABASE_URL-backed config storage.
+  // Falls back to file persistence if unavailable.
+  pg = require('pg');
+} catch (_error) {
+  pg = null;
+}
 
 const app = express();
 const server = http.createServer(app);
@@ -21,21 +29,125 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'change-me-admin-token';
 const CHAT_GPT_MINI_KEY = String(process.env.CHAT_GPT_MINI_KEY || '').trim();
 const AI_QUESTION_ENDPOINT = String(process.env.AI_QUESTION_ENDPOINT || 'https://api.openai.com/v1/chat/completions').trim();
 const AI_QUESTION_MODEL = String(process.env.AI_QUESTION_MODEL || 'gpt-4o-mini').trim();
+const DATABASE_URL = String(process.env.DATABASE_URL || '').trim();
+const GLOBAL_CONFIG_DB_KEY = 'global_config';
+const ALL_ACTIVITY_IDS = [
+  'lightning-trivia',
+  'emoji-charades',
+  'icebreaker',
+  'pulse-check',
+  'values-vote',
+  'wordle',
+  'word-chain',
+  'brainstorm-canvas',
+  'regular-trivia',
+  'tic-tac-toe-blitz'
+];
+const FEATURE_FLAG_IDS = [
+  'enableFeedbackHub',
+  'enableActivityQueue',
+  'enableScheduleMeeting',
+  'enableLoadSession',
+  'enableAIGenerator',
+  'enableSampleQuestions'
+];
 let persistTimer = null;
 let feedbackPersistTimer = null;
+let configDb = null;
+
+function getDefaultPreferences() {
+  return {
+    enableFeedbackHub: true,
+    enableActivityQueue: true,
+    enableScheduleMeeting: true,
+    enableLoadSession: true,
+    enableAIGenerator: true,
+    enableSampleQuestions: true,
+    enabledActivities: Object.fromEntries(ALL_ACTIVITY_IDS.map(activityId => [activityId, true]))
+  };
+}
+
+function normalizeEnabledActivities(raw) {
+  const defaults = getDefaultPreferences().enabledActivities;
+  if (!raw || typeof raw !== 'object') return defaults;
+  return Object.fromEntries(ALL_ACTIVITY_IDS.map(activityId => [
+    activityId,
+    Boolean(raw[activityId] ?? defaults[activityId])
+  ]));
+}
+
+function normalizePreferences(raw) {
+  const defaults = getDefaultPreferences();
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const normalized = { ...defaults };
+  FEATURE_FLAG_IDS.forEach(flag => {
+    normalized[flag] = Boolean(source[flag] ?? defaults[flag]);
+  });
+  normalized.enabledActivities = normalizeEnabledActivities(source.enabledActivities);
+  return normalized;
+}
+
+function normalizeCollection(rawCollection, idx = 0) {
+  if (!rawCollection || typeof rawCollection !== 'object') return null;
+  const idBase = String(rawCollection.id || rawCollection.name || `collection_${idx + 1}`)
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48);
+  const id = idBase || `collection_${Date.now()}_${idx}`;
+  const name = String(rawCollection.name || rawCollection.id || `Collection ${idx + 1}`).trim().slice(0, 80) || `Collection ${idx + 1}`;
+  const description = String(rawCollection.description || '').trim().slice(0, 240);
+  const activitiesRaw = rawCollection.activities && typeof rawCollection.activities === 'object' ? rawCollection.activities : {};
+  const activities = {};
+  Object.entries(activitiesRaw).forEach(([activityId, items]) => {
+    if (!ALL_ACTIVITY_IDS.includes(activityId)) return;
+    if (!Array.isArray(items)) return;
+    activities[activityId] = items.slice(0, 200);
+  });
+  if (!Object.keys(activities).length) return null;
+  return {
+    id,
+    name,
+    description,
+    activities
+  };
+}
+
+function normalizeCollections(rawCollections) {
+  if (!Array.isArray(rawCollections)) return [];
+  const seen = new Set();
+  const normalized = [];
+  rawCollections.forEach((raw, idx) => {
+    const collection = normalizeCollection(raw, idx);
+    if (!collection) return;
+    if (seen.has(collection.id)) return;
+    seen.add(collection.id);
+    normalized.push(collection);
+  });
+  return normalized;
+}
+
+function normalizeConfig(rawConfig) {
+  const source = rawConfig && typeof rawConfig === 'object' ? rawConfig : {};
+  const existingBranding = source.branding && typeof source.branding === 'object' ? source.branding : {};
+  const appName = String(existingBranding.appName || 'Player Hub').trim().slice(0, 64) || 'Player Hub';
+  const tagline = String(existingBranding.tagline || 'Team building, games, and challenges - all in one place').trim().slice(0, 140)
+    || 'Team building, games, and challenges - all in one place';
+  const accentRaw = String(existingBranding.accent || '#00d2d3').trim();
+  return {
+    branding: {
+      appName,
+      tagline,
+      accent: isValidHexColor(accentRaw) ? accentRaw : '#00d2d3'
+    },
+    preferences: normalizePreferences(source.preferences)
+  };
+}
 
 const feedbackState = {
   feedback: [],
-  config: {
-    branding: {
-      appName: 'Player Hub',
-      tagline: 'Team building, games, and challenges - all in one place',
-      accent: '#00d2d3'
-    },
-    preferences: {
-      enableFeedbackHub: true
-    }
-  }
+  config: normalizeConfig({}),
+  collections: []
 };
 
 app.use(express.json({ limit: '1mb' }));
@@ -71,19 +183,20 @@ function loadFeedbackStateFromDisk() {
       feedbackState.feedback = parsed.feedback;
     }
     if (parsed.config && typeof parsed.config === 'object') {
-      feedbackState.config = {
+      feedbackState.config = normalizeConfig({
         ...feedbackState.config,
         ...parsed.config,
         branding: {
-          ...feedbackState.config.branding,
+          ...(feedbackState.config.branding || {}),
           ...(parsed.config.branding || {})
         },
         preferences: {
-          ...feedbackState.config.preferences,
+          ...(feedbackState.config.preferences || {}),
           ...(parsed.config.preferences || {})
         }
-      };
+      });
     }
+    feedbackState.collections = normalizeCollections(parsed.collections || []);
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Failed to load feedback state:', error.message);
@@ -135,6 +248,69 @@ function scheduleFeedbackPersist() {
   }, 150);
 }
 
+async function initializeConfigDatabase() {
+  if (!DATABASE_URL) return;
+  if (!pg?.Pool) {
+    // eslint-disable-next-line no-console
+    console.warn('DATABASE_URL is set but pg is unavailable. Falling back to file config storage.');
+    return;
+  }
+  try {
+    configDb = new pg.Pool({
+      connectionString: DATABASE_URL,
+      ssl: process.env.PGSSL === 'disable' ? false : { rejectUnauthorized: false }
+    });
+    await configDb.query(`
+      CREATE TABLE IF NOT EXISTS app_config (
+        key TEXT PRIMARY KEY,
+        value JSONB NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to initialize config database:', error.message);
+    configDb = null;
+  }
+}
+
+async function loadConfigFromDatabase() {
+  if (!configDb) return;
+  try {
+    const result = await configDb.query(
+      'SELECT value FROM app_config WHERE key = $1 LIMIT 1',
+      [GLOBAL_CONFIG_DB_KEY]
+    );
+    const stored = result.rows?.[0]?.value;
+    if (!stored || typeof stored !== 'object') return;
+    feedbackState.config = normalizeConfig(stored.config || {});
+    feedbackState.collections = normalizeCollections(stored.collections || []);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to load config from database:', error.message);
+  }
+}
+
+async function persistConfigToDatabase() {
+  if (!configDb) return;
+  const value = {
+    config: feedbackState.config,
+    collections: feedbackState.collections
+  };
+  try {
+    await configDb.query(
+      `INSERT INTO app_config (key, value, updated_at)
+       VALUES ($1, $2::jsonb, NOW())
+       ON CONFLICT (key)
+       DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+      [GLOBAL_CONFIG_DB_KEY, JSON.stringify(value)]
+    );
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to persist config to database:', error.message);
+  }
+}
+
 function isRoomKey(key) {
   return /^room:[A-Z0-9]{6}$/.test(key || '');
 }
@@ -168,9 +344,13 @@ app.get('/api/config', (_req, res) => {
   res.json({
     ok: true,
     config: feedbackState.config,
+    collections: feedbackState.collections,
     ai: {
       serverKeyConfigured: Boolean(CHAT_GPT_MINI_KEY),
       model: AI_QUESTION_MODEL
+    },
+    storage: {
+      configDatabaseConnected: Boolean(configDb)
     }
   });
 });
@@ -309,12 +489,20 @@ app.patch('/api/admin/feedback/:id', requireAdmin, (req, res) => {
 });
 
 app.get('/api/admin/config', requireAdmin, (_req, res) => {
-  res.json({ ok: true, config: feedbackState.config });
+  res.json({
+    ok: true,
+    config: feedbackState.config,
+    collections: feedbackState.collections,
+    storage: {
+      configDatabaseConnected: Boolean(configDb)
+    }
+  });
 });
 
-app.put('/api/admin/config', requireAdmin, (req, res) => {
+app.put('/api/admin/config', requireAdmin, async (req, res) => {
   const branding = req.body?.branding || {};
   const preferences = req.body?.preferences || {};
+  const collections = normalizeCollections(req.body?.collections || feedbackState.collections);
 
   const appName = String(branding.appName ?? feedbackState.config.branding.appName).trim().slice(0, 64);
   const tagline = String(branding.tagline ?? feedbackState.config.branding.tagline).trim().slice(0, 140);
@@ -328,12 +516,18 @@ app.put('/api/admin/config', requireAdmin, (req, res) => {
   };
 
   feedbackState.config.preferences = {
-    ...feedbackState.config.preferences,
-    enableFeedbackHub: Boolean(preferences.enableFeedbackHub ?? feedbackState.config.preferences.enableFeedbackHub)
+    ...normalizePreferences(feedbackState.config.preferences),
+    ...normalizePreferences({
+      ...feedbackState.config.preferences,
+      ...preferences,
+      enabledActivities: preferences.enabledActivities ?? feedbackState.config.preferences.enabledActivities
+    })
   };
+  feedbackState.collections = collections;
 
   scheduleFeedbackPersist();
-  res.json({ ok: true, config: feedbackState.config });
+  await persistConfigToDatabase();
+  res.json({ ok: true, config: feedbackState.config, collections: feedbackState.collections });
 });
 
 io.on('connection', socket => {
@@ -371,17 +565,31 @@ io.on('connection', socket => {
 
 loadStateFromDisk();
 loadFeedbackStateFromDisk();
-
-server.listen(PORT, () => {
-  // eslint-disable-next-line no-console
-  console.log(`Player Hub realtime server listening on http://localhost:${PORT}`);
-});
+Promise.resolve()
+  .then(() => initializeConfigDatabase())
+  .then(() => loadConfigFromDatabase())
+  .finally(() => {
+    server.listen(PORT, () => {
+      // eslint-disable-next-line no-console
+      console.log(`Player Hub realtime server listening on http://localhost:${PORT}`);
+      if (configDb) {
+        // eslint-disable-next-line no-console
+        console.log('Global config storage: PostgreSQL');
+      } else {
+        // eslint-disable-next-line no-console
+        console.log('Global config storage: Local file');
+      }
+    });
+  });
 
 process.on('SIGINT', () => {
   if (persistTimer) clearTimeout(persistTimer);
   if (feedbackPersistTimer) clearTimeout(feedbackPersistTimer);
   persistStateToDisk();
   persistFeedbackStateToDisk();
+  if (configDb) {
+    configDb.end().catch(() => {});
+  }
   process.exit(0);
 });
 
@@ -390,5 +598,8 @@ process.on('SIGTERM', () => {
   if (feedbackPersistTimer) clearTimeout(feedbackPersistTimer);
   persistStateToDisk();
   persistFeedbackStateToDisk();
+  if (configDb) {
+    configDb.end().catch(() => {});
+  }
   process.exit(0);
 });
