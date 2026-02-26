@@ -1917,6 +1917,7 @@ const SPIN_WHEEL_DEFAULT_OPTIONS = [
   'Mini Break',
   'Wildcard'
 ];
+const SPIN_WHEEL_DEFAULT_TITLE = 'Spin Wheel';
 
 let HOST_LOCAL_CONFIG = loadHostLocalConfig();
 
@@ -2338,6 +2339,13 @@ function normalizeSpinWheelOptions(rawOptions) {
   return normalized.slice(0, 12);
 }
 
+function normalizeSpinWheelTitle(value) {
+  return String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 48);
+}
+
 function buildSpinWheelSegments(options) {
   const baseOptions = normalizeSpinWheelOptions(options);
   const fallback = baseOptions.length ? baseOptions : [...SPIN_WHEEL_DEFAULT_OPTIONS];
@@ -2524,6 +2532,7 @@ function createInitialActivityState(activityId) {
   }
   if (activityId === 'spin-wheel') {
     return {
+      title: SPIN_WHEEL_DEFAULT_TITLE,
       options: [...SPIN_WHEEL_DEFAULT_OPTIONS],
       selectedIndex: null,
       pendingSelectedIndex: null,
@@ -3278,7 +3287,9 @@ async function saveSpinWheelOptions() {
   const room = await RoomManager.loadRoom(APP.roomCode);
   if (!room || room.currentActivity !== 'spin-wheel') return;
   if (room.host !== APP.player?.name) return;
+  const titleInput = document.getElementById('spinWheelTitleInput');
   const input = document.getElementById('spinWheelOptionsInput');
+  const title = normalizeSpinWheelTitle(titleInput?.value || '') || SPIN_WHEEL_DEFAULT_TITLE;
   const rawLines = String(input?.value || '').split('\n');
   const options = normalizeSpinWheelOptions(rawLines);
   if (options.length < 2) {
@@ -3287,18 +3298,25 @@ async function saveSpinWheelOptions() {
   }
 
   const state = room.activityState || {};
+  const previousOptions = normalizeSpinWheelOptions(state.options || SPIN_WHEEL_DEFAULT_OPTIONS);
+  const optionsChanged = previousOptions.length !== options.length
+    || previousOptions.some((value, idx) => value !== options[idx]);
+
+  state.title = title;
   state.options = options;
-  state.pendingSelectedIndex = null;
-  state.selectedIndex = null;
-  state.spinWinners = [];
-  state.winnerXpClaimed = {};
-  state.currentResult = '';
-  state.lastResult = '';
-  state.prevWheelRotation = Number(state.wheelRotation) || 0;
-  state.wheelRotation = Number(state.wheelRotation) || 0;
-  state.lastSpinAt = 0;
-  state.spinSettledAt = 0;
-  state.isSpinning = false;
+  if (optionsChanged) {
+    state.pendingSelectedIndex = null;
+    state.selectedIndex = null;
+    state.spinWinners = [];
+    state.winnerXpClaimed = {};
+    state.currentResult = '';
+    state.lastResult = '';
+    state.prevWheelRotation = Number(state.wheelRotation) || 0;
+    state.wheelRotation = Number(state.wheelRotation) || 0;
+    state.lastSpinAt = 0;
+    state.spinSettledAt = 0;
+    state.isSpinning = false;
+  }
   room.activityState = state;
   await RoomManager.updateRoom(APP.roomCode, room);
 }
@@ -8143,6 +8161,7 @@ function renderTeamJeopardy() {
 function renderSpinWheel() {
   const state = APP.room.activityState || {};
   const isHost = APP.room.host === APP.player.name;
+  const wheelTitle = normalizeSpinWheelTitle(state.title || '') || SPIN_WHEEL_DEFAULT_TITLE;
   const safeRoomCode = escapeHtml(APP.roomCode);
   const roomSettings = getRoomHostSettings(APP.room);
   const allowPlayerPicks = roomSettings.spinWheelAllowPlayerPicks !== false;
@@ -8271,7 +8290,7 @@ function renderSpinWheel() {
 
   return `
     <div class="header">
-      <h1 style="font-size:2rem;font-weight:700;">🎡 Spin Wheel</h1>
+      <h1 style="font-size:2rem;font-weight:700;">🎡 ${escapeHtml(wheelTitle)}</h1>
       <p class="tagline">Spin to decide what happens next • Room: ${safeRoomCode}</p>
     </div>
 
@@ -8355,12 +8374,16 @@ function renderSpinWheel() {
       </div>
 
       <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:16px;padding:16px;">
-        <h3 style="margin-bottom:8px;">Wheel Options</h3>
-        <div style="font-size:0.86rem;color:var(--text-dim);margin-bottom:10px;">One option per line (2 to 12). Wheel auto-duplicates options to spread sections evenly.</div>
+        <h3 style="margin-bottom:8px;">Wheel Settings</h3>
+        <div style="font-size:0.86rem;color:var(--text-dim);margin-bottom:10px;">Set a wheel title and one option per line (2 to 12). Wheel auto-duplicates options to spread sections evenly.</div>
         ${isHost ? `
+          <label class="form-label" for="spinWheelTitleInput">Wheel Title</label>
+          <input id="spinWheelTitleInput" class="form-input" maxlength="48" value="${escapeHtml(wheelTitle)}" placeholder="Spin Wheel">
+          <div style="height:8px;"></div>
+          <label class="form-label" for="spinWheelOptionsInput">Wheel Options</label>
           <textarea id="spinWheelOptionsInput" class="form-input" rows="8" placeholder="Lightning Round&#10;Trivia Challenge&#10;Team Shoutout">${escapeHtml(optionsEditorValue)}</textarea>
           <div style="display:flex;gap:10px;margin-top:10px;">
-            <button class="btn-secondary" data-action="spin-wheel-save-options" style="flex:1;">Save Options</button>
+            <button class="btn-secondary" data-action="spin-wheel-save-options" style="flex:1;">Save Wheel Settings</button>
           </div>
           <div style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">
             ${optionSummary.map(item => `
