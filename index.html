@@ -1470,7 +1470,17 @@ const SOCKET_SERVER_URL = (() => {
   }
   return window.location.origin;
 })();
-const API_BASE_URL = window.APP_API_BASE_URL || window.location.origin;
+const API_BASE_URL = (() => {
+  if (window.APP_API_BASE_URL) return window.APP_API_BASE_URL;
+  const host = String(window.location.hostname || '').toLowerCase();
+  const port = String(window.location.port || '');
+  const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+  const isLikelyStaticLiveServerPort = /^55\d{2}$/.test(port);
+  if (isLocalHost && isLikelyStaticLiveServerPort) {
+    return `${window.location.protocol}//${window.location.hostname}:3000`;
+  }
+  return window.location.origin;
+})();
 const ENABLE_PRESENTATION_SHARE = false;
 let socketClient = null;
 let socketRealtimeBound = false;
@@ -3339,7 +3349,9 @@ async function spinWheelNow() {
   const targetDeg = (360 - centerDeg + 360) % 360;
   const fullTurns = 6 + Math.floor(Math.random() * 3);
   const currentRotation = Number(state.wheelRotation) || 0;
-  const nextRotation = currentRotation + (fullTurns * 360) + targetDeg;
+  const normalizedCurrent = ((currentRotation % 360) + 360) % 360;
+  const deltaToTarget = ((targetDeg - normalizedCurrent) + 360) % 360;
+  const nextRotation = currentRotation + (fullTurns * 360) + deltaToTarget;
   const spinDurationMs = 4800;
   const spinToken = (Number(state.spinToken) || 0) + 1;
 
