@@ -41,7 +41,9 @@ const ALL_ACTIVITY_IDS = [
   'word-chain',
   'brainstorm-canvas',
   'regular-trivia',
-  'tic-tac-toe-blitz'
+  'tic-tac-toe-blitz',
+  'team-jeopardy',
+  'spin-wheel'
 ];
 const FEATURE_FLAG_IDS = [
   'enableFeedbackHub',

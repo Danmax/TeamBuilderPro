@@ -903,6 +903,24 @@
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
   }
+  @keyframes wheelSpinBetween {
+    from { transform: rotate(var(--wheel-spin-from, 0deg)); }
+    to { transform: rotate(var(--wheel-spin-to, 0deg)); }
+  }
+  @keyframes wheelWinnerPulse {
+    0% { transform: scale(0.96); opacity: 0; }
+    20% { transform: scale(1.03); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  @keyframes wheelRingFlash {
+    0% { transform: translate(-50%, -50%) scale(0.85); opacity: 0.75; }
+    100% { transform: translate(-50%, -50%) scale(1.35); opacity: 0; }
+  }
+  @keyframes wheelWinnerBounce {
+    0% { transform: scale(0.9); opacity: 0; }
+    35% { transform: scale(1.07); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
 
   @media (max-width: 768px) {
     .grid-2 {
@@ -1014,6 +1032,20 @@ function normalizeCharadesAnswer(value) {
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 80);
+}
+
+function getEmojiCharadesGuessOutcome(guess, answerKey, closeAccepted) {
+  const guessKey = normalizeCharadesAnswer(guess);
+  if (!guessKey) {
+    return { guessKey: '', isExact: false, isCloseAccepted: false, points: 0 };
+  }
+  if (guessKey === answerKey) {
+    return { guessKey, isExact: true, isCloseAccepted: false, points: 100 };
+  }
+  if (closeAccepted) {
+    return { guessKey, isExact: false, isCloseAccepted: true, points: 100 };
+  }
+  return { guessKey, isExact: false, isCloseAccepted: false, points: 0 };
 }
 
 function normalizeEmoji(value) {
@@ -1295,6 +1327,12 @@ function activityHasPlayableContent(activityId) {
   if (activityId === 'word-chain') {
     return WORD_CHAIN_PUZZLES.length > 0;
   }
+  if (activityId === 'team-jeopardy') {
+    return Array.isArray(TEAM_JEOPARDY_BOARD) && TEAM_JEOPARDY_BOARD.length > 0;
+  }
+  if (activityId === 'spin-wheel') {
+    return Array.isArray(SPIN_WHEEL_DEFAULT_OPTIONS) && SPIN_WHEEL_DEFAULT_OPTIONS.length > 1;
+  }
   return true;
 }
 
@@ -1362,7 +1400,9 @@ function getDefaultRoomHostSettings() {
     autoRevealLightning: true,
     allowAnswerChanges: true,
     dynamicScoring: true,
-    enableAIGenerator: true
+    enableAIGenerator: true,
+    spinWheelAllowPlayerPicks: true,
+    emojiCharadesAllowCloseAnswers: true
   };
 }
 
@@ -1406,7 +1446,18 @@ function saveHostLocalConfig(config) {
   localStorage.setItem('host-local-config', JSON.stringify(config));
 }
 
-const SOCKET_SERVER_URL = window.SOCKET_SERVER_URL || localStorage.getItem('socket-server-url') || window.location.origin;
+const SOCKET_SERVER_OVERRIDE = window.SOCKET_SERVER_URL || localStorage.getItem('socket-server-url') || '';
+const SOCKET_SERVER_URL = (() => {
+  if (SOCKET_SERVER_OVERRIDE) return SOCKET_SERVER_OVERRIDE;
+  const host = String(window.location.hostname || '').toLowerCase();
+  const port = String(window.location.port || '');
+  const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+  const isLikelyStaticLiveServerPort = /^55\d{2}$/.test(port);
+  if (isLocalHost && isLikelyStaticLiveServerPort) {
+    return `${window.location.protocol}//${window.location.hostname}:3000`;
+  }
+  return window.location.origin;
+})();
 const API_BASE_URL = window.APP_API_BASE_URL || window.location.origin;
 const ENABLE_PRESENTATION_SHARE = false;
 let socketClient = null;
@@ -1430,7 +1481,7 @@ function isValidSharedKey(key) {
 }
 
 function isSocketConfigured() {
-  return Boolean(window.io);
+  return Boolean(window.io && SOCKET_SERVER_URL);
 }
 
 function socketEmitAck(eventName, payload, timeoutMs = 1500) {
@@ -1497,6 +1548,7 @@ async function getSocketClient() {
       const room = safeParseJson(value);
       if (room) {
         APP.room = room;
+        void maybeClaimSpinWheelWinnerXp();
         roomRealtimeEnabled = true;
         render();
       }
@@ -1737,7 +1789,9 @@ const ALL_ACTIVITY_IDS = [
   'word-chain',
   'brainstorm-canvas',
   'regular-trivia',
-  'tic-tac-toe-blitz'
+  'tic-tac-toe-blitz',
+  'team-jeopardy',
+  'spin-wheel'
 ];
 
 const APP = {
@@ -1786,6 +1840,68 @@ const TRIVIA_BANK = [
   { q: "What is the smallest country?", opts: ["Monaco", "Vatican City", "San Marino", "Malta"], ans: 1 },
   { q: "Which element has atomic number 1?", opts: ["Helium", "Hydrogen", "Oxygen", "Carbon"], ans: 1 },
   { q: "How many strings does a guitar have?", opts: ["4", "5", "6", "7"], ans: 2 }
+];
+
+const TEAM_JEOPARDY_BOARD = [
+  {
+    category: 'Science',
+    clues: [
+      { value: 100, q: 'What gas do humans breathe in to survive?', opts: ['Nitrogen', 'Carbon Dioxide', 'Oxygen', 'Hydrogen'], ans: 2 },
+      { value: 200, q: 'How many planets are in our solar system?', opts: ['7', '8', '9', '10'], ans: 1 },
+      { value: 300, q: 'What force keeps us on the ground?', opts: ['Magnetism', 'Friction', 'Gravity', 'Pressure'], ans: 2 },
+      { value: 400, q: 'What part of the plant conducts photosynthesis most often?', opts: ['Root', 'Stem', 'Leaf', 'Seed'], ans: 2 },
+      { value: 500, q: 'What is the chemical symbol for sodium?', opts: ['S', 'So', 'Na', 'Sn'], ans: 2 }
+    ]
+  },
+  {
+    category: 'History',
+    clues: [
+      { value: 100, q: 'Who was the first president of the United States?', opts: ['Thomas Jefferson', 'George Washington', 'John Adams', 'Abraham Lincoln'], ans: 1 },
+      { value: 200, q: 'In what year did World War II end?', opts: ['1945', '1944', '1939', '1950'], ans: 0 },
+      { value: 300, q: 'The Great Wall is located in which country?', opts: ['Japan', 'India', 'China', 'Korea'], ans: 2 },
+      { value: 400, q: 'Which civilization built Machu Picchu?', opts: ['Maya', 'Aztec', 'Roman', 'Inca'], ans: 3 },
+      { value: 500, q: 'The Renaissance began in which country?', opts: ['France', 'Italy', 'England', 'Spain'], ans: 1 }
+    ]
+  },
+  {
+    category: 'Geography',
+    clues: [
+      { value: 100, q: 'What is the largest ocean on Earth?', opts: ['Atlantic', 'Pacific', 'Indian', 'Arctic'], ans: 1 },
+      { value: 200, q: 'Which continent is Egypt in?', opts: ['Asia', 'Europe', 'Africa', 'South America'], ans: 2 },
+      { value: 300, q: 'What is the capital city of Canada?', opts: ['Toronto', 'Vancouver', 'Montreal', 'Ottawa'], ans: 3 },
+      { value: 400, q: 'Mount Everest sits on the border of Nepal and what other country?', opts: ['China', 'India', 'Bhutan', 'Pakistan'], ans: 0 },
+      { value: 500, q: 'Which river runs through Egypt?', opts: ['Amazon', 'Nile', 'Danube', 'Mississippi'], ans: 1 }
+    ]
+  },
+  {
+    category: 'Pop Culture',
+    clues: [
+      { value: 100, q: 'What streaming platform is known for "Stranger Things"?', opts: ['Hulu', 'Disney+', 'Netflix', 'Prime Video'], ans: 2 },
+      { value: 200, q: 'Which movie features a young lion named Simba?', opts: ['Madagascar', 'The Lion King', 'Tarzan', 'Kung Fu Panda'], ans: 1 },
+      { value: 300, q: 'What is Spider-Man\'s first name?', opts: ['Peter', 'Bruce', 'Clark', 'Tony'], ans: 0 },
+      { value: 400, q: 'Which artist is known as the "Queen of Pop"?', opts: ['Madonna', 'Beyonce', 'Adele', 'Rihanna'], ans: 0 },
+      { value: 500, q: 'In "The Office" (US), what company does the Scranton branch belong to?', opts: ['Sabre Corp', 'Dunder Mifflin', 'Vance Refrigeration', 'Athlead'], ans: 1 }
+    ]
+  },
+  {
+    category: 'Workplace',
+    clues: [
+      { value: 100, q: 'What does KPI stand for?', opts: ['Key Performance Indicator', 'Known Process Input', 'Key Product Initiative', 'Knowledge Practice Index'], ans: 0 },
+      { value: 200, q: 'Which meeting format is usually 10-15 minutes, daily, and focused on blockers?', opts: ['Retrospective', 'Town hall', 'Standup', 'Kickoff'], ans: 2 },
+      { value: 300, q: 'What is the main purpose of a retrospective?', opts: ['Set salaries', 'Review and improve team process', 'Announce layoffs', 'Write job descriptions'], ans: 1 },
+      { value: 400, q: 'What is a common meaning of "MVP" in product work?', opts: ['Most Valuable Professional', 'Minimum Viable Product', 'Managed Version Plan', 'Main Value Program'], ans: 1 },
+      { value: 500, q: 'What is "scope creep"?', opts: ['Hiring too fast', 'A project timeline moving earlier', 'Uncontrolled expansion of project requirements', 'Losing source control history'], ans: 2 }
+    ]
+  }
+];
+
+const SPIN_WHEEL_DEFAULT_OPTIONS = [
+  'Lightning Round',
+  'Trivia Challenge',
+  'Team Shoutout',
+  'Icebreaker',
+  'Mini Break',
+  'Wildcard'
 ];
 
 let HOST_LOCAL_CONFIG = loadHostLocalConfig();
@@ -1988,7 +2104,9 @@ const ACTIVITY_QUEUE_ITEMS = [
   { id: 'word-chain', icon: '🔗', label: 'Word Chain' },
   { id: 'brainstorm-canvas', icon: '🧩', label: 'Brainstorm Canvas' },
   { id: 'regular-trivia', icon: '🧠', label: 'Trivia Battle' },
-  { id: 'tic-tac-toe-blitz', icon: '❌', label: 'Tic-Tac-Toe Blitz Arena' }
+  { id: 'tic-tac-toe-blitz', icon: '❌', label: 'Tic-Tac-Toe Blitz Arena' },
+  { id: 'team-jeopardy', icon: '🏆', label: 'Team Jeopardy' },
+  { id: 'spin-wheel', icon: '🎡', label: 'Spin Wheel' }
 ];
 const ACTIVITY_QUEUE_ITEM_MAP = Object.fromEntries(ACTIVITY_QUEUE_ITEMS.map(item => [item.id, item]));
 const GAME_ACTIVITY_IDS = new Set([
@@ -1997,7 +2115,9 @@ const GAME_ACTIVITY_IDS = new Set([
   'wordle',
   'word-chain',
   'emoji-charades',
-  'tic-tac-toe-blitz'
+  'tic-tac-toe-blitz',
+  'team-jeopardy',
+  'spin-wheel'
 ]);
 const AI_GENERATION_TARGETS = [
   { id: 'lightning-trivia', label: 'Lightning Trivia' },
@@ -2046,6 +2166,107 @@ const TTT_WIN_LINES = [
 let ticTacToeFinalizePending = false;
 
 // Activity Start Functions (must be before render functions)
+function buildTeamJeopardyBoard() {
+  return safeParseJson(JSON.stringify(TEAM_JEOPARDY_BOARD)) || [];
+}
+
+function normalizeSpinWheelOptions(rawOptions) {
+  const lines = Array.isArray(rawOptions) ? rawOptions : [];
+  const unique = new Set();
+  const normalized = [];
+  lines.forEach(raw => {
+    if (raw && typeof raw === 'object') {
+      const label = String(raw.label || raw.option || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+      if (!label) return;
+      const key = label.toLowerCase();
+      if (unique.has(key)) return;
+      unique.add(key);
+      normalized.push(label);
+      return;
+    }
+    const text = String(raw || '').replace(/\s+/g, ' ').trim();
+    if (!text) return;
+    const label = String(text.split('|')[0] || text).replace(/\s+/g, ' ').trim().slice(0, 40);
+    if (!label) return;
+    const key = label.toLowerCase();
+    if (unique.has(key)) return;
+    unique.add(key);
+    normalized.push(label);
+  });
+  return normalized.slice(0, 12);
+}
+
+function buildSpinWheelSegments(options) {
+  const baseOptions = normalizeSpinWheelOptions(options);
+  const fallback = baseOptions.length ? baseOptions : [...SPIN_WHEEL_DEFAULT_OPTIONS];
+  const duplicateFactor = fallback.length <= 6 ? 2 : 1;
+  const expanded = Array.from({ length: fallback.length * duplicateFactor }, (_, idx) => fallback[idx % fallback.length]);
+  const sectionAngle = 360 / expanded.length;
+  let cursor = 0;
+  return expanded.map((label, idx) => {
+    const angle = sectionAngle;
+    const start = cursor;
+    const end = cursor + angle;
+    cursor = end;
+    return {
+      id: `${idx}:${label}`,
+      label,
+      start,
+      end,
+      center: start + (angle / 2),
+      percent: 100 / expanded.length
+    };
+  });
+}
+
+function formatSpinWheelOptionsForEditor(options) {
+  const normalized = normalizeSpinWheelOptions(options);
+  return normalized.join('\n');
+}
+
+function findSpinWheelLandedIndex(segments, wheelRotation) {
+  const safeSegments = Array.isArray(segments) ? segments : [];
+  if (!safeSegments.length) return 0;
+  const normalizedRotation = ((Number(wheelRotation) || 0) % 360 + 360) % 360;
+  const pointerAngle = (360 - normalizedRotation) % 360;
+  const windowStart = (pointerAngle - 1 + 360) % 360;
+  const windowEnd = (pointerAngle + 1) % 360;
+  const windowRanges = windowStart <= windowEnd
+    ? [{ start: windowStart, end: windowEnd }]
+    : [{ start: windowStart, end: 360 }, { start: 0, end: windowEnd }];
+  let bestIdx = -1;
+  let bestOverlap = -1;
+  safeSegments.forEach((segment, idx) => {
+    const segStart = Math.max(0, Number(segment?.start) || 0);
+    const segEnd = Math.min(360, Number(segment?.end) || 0);
+    let overlap = 0;
+    windowRanges.forEach(range => {
+      const a = Math.max(segStart, range.start);
+      const b = Math.min(segEnd, range.end);
+      if (b > a) overlap += (b - a);
+    });
+    if (overlap > bestOverlap) {
+      bestOverlap = overlap;
+      bestIdx = idx;
+    } else if (overlap === bestOverlap && overlap > 0) {
+      const centerA = Number(segment?.center) || 0;
+      const centerB = Number(safeSegments[bestIdx]?.center) || 0;
+      const distA = Math.min(centerA, 360 - centerA);
+      const distB = Math.min(centerB, 360 - centerB);
+      if (distA < distB) bestIdx = idx;
+    }
+  });
+  if (bestIdx >= 0 && bestOverlap > 0) return bestIdx;
+
+  const idx = safeSegments.findIndex((segment, i) => {
+    const start = Number(segment?.start) || 0;
+    const end = Number(segment?.end) || 0;
+    if (i === safeSegments.length - 1) return pointerAngle >= start && pointerAngle <= 360;
+    return pointerAngle >= start && pointerAngle < end;
+  });
+  return idx >= 0 ? idx : 0;
+}
+
 function createInitialActivityState(activityId) {
   if (activityId === 'lightning-trivia') {
     return {
@@ -2072,6 +2293,7 @@ function createInitialActivityState(activityId) {
       round: 0,
       revealed: false,
       guesses: {},
+      closeAccepted: {},
       scores: {},
       roundPoints: {},
       questionOrder: buildShuffledQuestionOrder(EMOJI_CHARADES_BANK.length),
@@ -2143,6 +2365,40 @@ function createInitialActivityState(activityId) {
       answerTimes: {},
       questionOrder: buildShuffledQuestionOrder(TRIVIA_BANK.length),
       startTime: Date.now()
+    };
+  }
+  if (activityId === 'team-jeopardy') {
+    return {
+      board: buildTeamJeopardyBoard(),
+      selectedClues: {},
+      currentClue: null,
+      revealed: false,
+      answers: {},
+      scores: {},
+      lastPoints: {},
+      finished: false,
+      startedAt: Date.now()
+    };
+  }
+  if (activityId === 'spin-wheel') {
+    return {
+      options: [...SPIN_WHEEL_DEFAULT_OPTIONS],
+      selectedIndex: null,
+      pendingSelectedIndex: null,
+      playerSelections: {},
+      spinWinners: [],
+      winnerXpClaimed: {},
+      currentResult: '',
+      lastResult: '',
+      prevWheelRotation: 0,
+      wheelRotation: 0,
+      lastSpinAt: 0,
+      spinSettledAt: 0,
+      isSpinning: false,
+      spinDurationMs: 4800,
+      spinToken: 0,
+      spinCount: 0,
+      startedAt: Date.now()
     };
   }
   return null;
@@ -2489,6 +2745,8 @@ async function startWordChain() { await startActivityById('word-chain'); }
 async function startBrainstormCanvas() { await startActivityById('brainstorm-canvas'); }
 async function startRegularTrivia() { await startActivityById('regular-trivia'); }
 async function startTicTacToeBlitz() { await startActivityById('tic-tac-toe-blitz'); }
+async function startTeamJeopardy() { await startActivityById('team-jeopardy'); }
+async function startSpinWheel() { await startActivityById('spin-wheel'); }
 
 async function submitTicTacToeMove(index) {
   if (!APP.roomCode || !Number.isInteger(index) || index < 0 || index > 8) return;
@@ -2667,6 +2925,12 @@ async function endActivity() {
   } else if (activity === 'tic-tac-toe-blitz') {
     const points = room.activityState?.standings?.[APP.player.name]?.points || 0;
     xpEarned = Math.max(40, points * 20);
+  } else if (activity === 'team-jeopardy') {
+    const score = room.activityState.scores?.[APP.player.name] || 0;
+    xpEarned = Math.max(40, Math.round(score / 8));
+  } else if (activity === 'spin-wheel') {
+    const spins = Number(room.activityState?.spinCount) || 0;
+    xpEarned = Math.max(20, Math.min(60, spins * 10));
   } else if (activity === 'brainstorm-canvas') {
     const notes = Array.isArray(room.activityState?.notes) ? room.activityState.notes : [];
     const userNotes = notes.filter(note => note.author === APP.player.name).length;
@@ -2774,6 +3038,251 @@ async function nextRegularTrivia() {
   await RoomManager.updateRoom(APP.roomCode, room);
 }
 
+function getTeamJeopardyActiveClue(state) {
+  const clueRef = state?.currentClue;
+  if (!clueRef || !Number.isInteger(clueRef.categoryIndex) || !Number.isInteger(clueRef.clueIndex)) return null;
+  const category = state?.board?.[clueRef.categoryIndex];
+  const clue = category?.clues?.[clueRef.clueIndex];
+  if (!category || !clue) return null;
+  return { category, clue };
+}
+
+async function selectTeamJeopardyClue(categoryIndex, clueIndex) {
+  if (!APP.roomCode || !Number.isInteger(categoryIndex) || !Number.isInteger(clueIndex)) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'team-jeopardy') return;
+  if (room.host !== APP.player?.name) return;
+  const state = room.activityState || {};
+  if (state.finished || state.currentClue) return;
+  const category = state.board?.[categoryIndex];
+  const clue = category?.clues?.[clueIndex];
+  if (!clue) return;
+  const clueKey = `${categoryIndex}:${clueIndex}`;
+  if (state.selectedClues?.[clueKey]) return;
+
+  state.currentClue = { categoryIndex, clueIndex };
+  state.revealed = false;
+  state.answers = {};
+  state.lastPoints = {};
+  room.activityState = state;
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function submitTeamJeopardyAnswer(optionIndex) {
+  if (!APP.roomCode || !Number.isInteger(optionIndex)) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'team-jeopardy') return;
+  const state = room.activityState || {};
+  if (!state.currentClue || state.revealed || state.finished) return;
+  if (!state.answers || typeof state.answers !== 'object') state.answers = {};
+  state.answers[APP.player.name] = optionIndex;
+  room.activityState = state;
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function revealTeamJeopardyAnswer() {
+  if (!APP.roomCode) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'team-jeopardy') return;
+  if (room.host !== APP.player?.name) return;
+  const state = room.activityState || {};
+  if (state.revealed || state.finished || !state.currentClue) return;
+  const active = getTeamJeopardyActiveClue(state);
+  if (!active) return;
+
+  const { clue } = active;
+  const value = Number(clue.value) || 100;
+  const answers = state.answers || {};
+  const participants = Array.isArray(room.participants) ? room.participants : [];
+  if (!state.scores || typeof state.scores !== 'object') state.scores = {};
+  if (!state.lastPoints || typeof state.lastPoints !== 'object') state.lastPoints = {};
+  participants.forEach(player => {
+    const playerName = player?.name;
+    if (!playerName) return;
+    const points = answers[playerName] === clue.ans ? value : 0;
+    state.lastPoints[playerName] = points;
+    state.scores[playerName] = (state.scores[playerName] || 0) + points;
+  });
+
+  if (!state.selectedClues || typeof state.selectedClues !== 'object') state.selectedClues = {};
+  const clueKey = `${state.currentClue.categoryIndex}:${state.currentClue.clueIndex}`;
+  state.selectedClues[clueKey] = true;
+  const totalClues = Array.isArray(state.board)
+    ? state.board.reduce((sum, category) => sum + ((Array.isArray(category?.clues) ? category.clues.length : 0)), 0)
+    : 0;
+  state.finished = Object.keys(state.selectedClues).length >= totalClues;
+  state.revealed = true;
+  room.activityState = state;
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function closeTeamJeopardyClue() {
+  if (!APP.roomCode) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'team-jeopardy') return;
+  if (room.host !== APP.player?.name) return;
+  const state = room.activityState || {};
+  if (!state.currentClue) return;
+  state.currentClue = null;
+  state.revealed = false;
+  state.answers = {};
+  state.lastPoints = {};
+  room.activityState = state;
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function saveSpinWheelOptions() {
+  if (!APP.roomCode) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'spin-wheel') return;
+  if (room.host !== APP.player?.name) return;
+  const input = document.getElementById('spinWheelOptionsInput');
+  const rawLines = String(input?.value || '').split('\n');
+  const options = normalizeSpinWheelOptions(rawLines);
+  if (options.length < 2) {
+    showError('Add at least 2 unique options (one per line).');
+    return;
+  }
+
+  const state = room.activityState || {};
+  state.options = options;
+  state.pendingSelectedIndex = null;
+  state.selectedIndex = null;
+  state.spinWinners = [];
+  state.winnerXpClaimed = {};
+  state.currentResult = '';
+  state.lastResult = '';
+  state.prevWheelRotation = Number(state.wheelRotation) || 0;
+  state.wheelRotation = Number(state.wheelRotation) || 0;
+  state.lastSpinAt = 0;
+  state.spinSettledAt = 0;
+  state.isSpinning = false;
+  room.activityState = state;
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function spinWheelNow() {
+  if (!APP.roomCode) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'spin-wheel') return;
+  if (room.host !== APP.player?.name) return;
+  const state = room.activityState || {};
+  if (state.isSpinning) return;
+  const baseOptions = normalizeSpinWheelOptions(state.options || SPIN_WHEEL_DEFAULT_OPTIONS);
+  const segments = buildSpinWheelSegments(baseOptions);
+  if (segments.length < 2) {
+    showError('Wheel needs at least 2 options.');
+    return;
+  }
+  const selectedIndex = Math.floor(Math.random() * segments.length);
+  const centerDeg = segments[selectedIndex].center;
+  const targetDeg = (360 - centerDeg + 360) % 360;
+  const fullTurns = 6 + Math.floor(Math.random() * 3);
+  const currentRotation = Number(state.wheelRotation) || 0;
+  const nextRotation = currentRotation + (fullTurns * 360) + targetDeg;
+  const spinDurationMs = 4800;
+  const spinToken = (Number(state.spinToken) || 0) + 1;
+
+  state.options = baseOptions;
+  state.pendingSelectedIndex = selectedIndex;
+  state.selectedIndex = null;
+  state.spinWinners = [];
+  state.winnerXpClaimed = {};
+  state.currentResult = '';
+  state.lastResult = '';
+  state.spinCount = (Number(state.spinCount) || 0) + 1;
+  state.spinDurationMs = spinDurationMs;
+  state.lastSpinAt = Date.now();
+  state.spinSettledAt = 0;
+  state.isSpinning = true;
+  state.spinToken = spinToken;
+  state.prevWheelRotation = currentRotation;
+  state.wheelRotation = nextRotation;
+  room.activityState = state;
+  await RoomManager.updateRoom(APP.roomCode, room);
+
+  window.setTimeout(async () => {
+    const latestRoom = await RoomManager.loadRoom(APP.roomCode);
+    if (!latestRoom || latestRoom.currentActivity !== 'spin-wheel') return;
+    const latestState = latestRoom.activityState || {};
+    if ((Number(latestState.spinToken) || 0) !== spinToken) return;
+    const pendingIndex = Number.isInteger(latestState.pendingSelectedIndex) ? latestState.pendingSelectedIndex : null;
+    const latestSegments = buildSpinWheelSegments(latestState.options || SPIN_WHEEL_DEFAULT_OPTIONS);
+    if (pendingIndex === null || !latestSegments[pendingIndex]) return;
+    const landedIndex = findSpinWheelLandedIndex(latestSegments, Number(latestState.wheelRotation) || nextRotation);
+    const landedLabel = latestSegments[landedIndex]?.label || latestSegments[pendingIndex].label;
+    const selections = latestState.playerSelections && typeof latestState.playerSelections === 'object'
+      ? latestState.playerSelections
+      : {};
+    const winners = Object.entries(selections)
+      .filter(([, idx]) => Number(idx) === landedIndex)
+      .map(([playerName]) => playerName);
+    latestState.selectedIndex = landedIndex;
+    latestState.currentResult = landedLabel;
+    latestState.lastResult = landedLabel;
+    latestState.spinWinners = winners;
+    latestState.pendingSelectedIndex = null;
+    latestState.isSpinning = false;
+    latestState.spinSettledAt = Date.now();
+    latestRoom.activityState = latestState;
+    await RoomManager.updateRoom(APP.roomCode, latestRoom);
+  }, spinDurationMs + 60);
+}
+
+async function selectSpinWheelSection(sectionIndex) {
+  if (!APP.roomCode || !Number.isInteger(sectionIndex)) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'spin-wheel') return;
+  const roomSettings = getRoomHostSettings(room);
+  if (roomSettings.spinWheelAllowPlayerPicks === false) return;
+  const state = room.activityState || {};
+  if (state.isSpinning) return;
+  const segments = buildSpinWheelSegments(state.options || SPIN_WHEEL_DEFAULT_OPTIONS);
+  if (sectionIndex < 0 || sectionIndex >= segments.length) return;
+  if (!state.playerSelections || typeof state.playerSelections !== 'object') state.playerSelections = {};
+  state.playerSelections[APP.player.name] = sectionIndex;
+  room.activityState = state;
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+let spinWheelXpClaimPending = false;
+async function maybeClaimSpinWheelWinnerXp() {
+  if (spinWheelXpClaimPending || !APP.roomCode || !APP.player?.name) return;
+  const room = APP.room;
+  if (!room || room.currentActivity !== 'spin-wheel') return;
+  const state = room.activityState || {};
+  if (state.selectedIndex === null || state.isSpinning) return;
+  const winners = Array.isArray(state.spinWinners) ? state.spinWinners : [];
+  if (!winners.includes(APP.player.name)) return;
+  const claimed = state.winnerXpClaimed && typeof state.winnerXpClaimed === 'object' ? state.winnerXpClaimed : {};
+  if (claimed[APP.player.name]) return;
+
+  spinWheelXpClaimPending = true;
+  try {
+    const freshRoom = await RoomManager.loadRoom(APP.roomCode);
+    if (!freshRoom || freshRoom.currentActivity !== 'spin-wheel') return;
+    const freshState = freshRoom.activityState || {};
+    const freshWinners = Array.isArray(freshState.spinWinners) ? freshState.spinWinners : [];
+    if (!freshWinners.includes(APP.player.name)) return;
+    if (!freshState.winnerXpClaimed || typeof freshState.winnerXpClaimed !== 'object') {
+      freshState.winnerXpClaimed = {};
+    }
+    if (freshState.winnerXpClaimed[APP.player.name]) return;
+
+    const updatedProfile = await PlayerManager.awardXP(50, 'spin-wheel-winner');
+    if (updatedProfile) APP.player = updatedProfile;
+    freshState.winnerXpClaimed[APP.player.name] = true;
+    freshRoom.activityState = freshState;
+    await RoomManager.updateRoom(APP.roomCode, freshRoom);
+    APP.room = freshRoom;
+    render();
+  } catch (_) {
+    // Ignore claim retries; room sync will attempt again.
+  } finally {
+    spinWheelXpClaimPending = false;
+  }
+}
+
 // Emoji Charades Functions
 async function submitEmojiCharadesGuess() {
   if (!APP.roomCode || APP.room?.currentActivity !== 'emoji-charades') return;
@@ -2801,6 +3310,8 @@ async function revealEmojiCharades() {
   if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name || APP.room.currentActivity !== 'emoji-charades') return;
   const room = await RoomManager.loadRoom(APP.roomCode);
   if (!room || room.currentActivity !== 'emoji-charades') return;
+  const roomSettings = getRoomHostSettings(room);
+  const allowCloseAnswers = roomSettings.emojiCharadesAllowCloseAnswers !== false;
   const state = room.activityState || {};
   if (state.revealed) return;
 
@@ -2813,25 +3324,84 @@ async function revealEmojiCharades() {
 
   const answerKey = normalizeCharadesAnswer(prompt.answer);
   const guesses = state.guesses && typeof state.guesses === 'object' ? state.guesses : {};
+  const closeAcceptedSource = state.closeAccepted && typeof state.closeAccepted === 'object' ? state.closeAccepted : {};
+  const closeAccepted = allowCloseAnswers ? { ...closeAcceptedSource } : {};
   const scores = state.scores && typeof state.scores === 'object' ? state.scores : {};
   const roundPoints = {};
 
   APP.room.participants.forEach(player => {
-    const guessKey = normalizeCharadesAnswer(guesses[player.name] || '');
-    const points = guessKey && guessKey === answerKey ? 100 : 0;
-    roundPoints[player.name] = points;
-    if (points > 0) {
-      scores[player.name] = (scores[player.name] || 0) + points;
+    const outcome = getEmojiCharadesGuessOutcome(
+      guesses[player.name] || '',
+      answerKey,
+      Boolean(closeAccepted[player.name])
+    );
+    roundPoints[player.name] = outcome.points;
+    if (outcome.points > 0) {
+      scores[player.name] = (scores[player.name] || 0) + outcome.points;
     }
   });
 
   room.activityState = {
     ...state,
     revealed: true,
+    closeAccepted,
     scores,
     roundPoints
   };
   await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+async function toggleEmojiCharadesCloseAnswer(playerName, accepted) {
+  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name || APP.room.currentActivity !== 'emoji-charades') return;
+  const normalizedName = String(playerName || '').trim();
+  if (!normalizedName) return;
+
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'emoji-charades') return;
+  const roomSettings = getRoomHostSettings(room);
+  if (roomSettings.emojiCharadesAllowCloseAnswers === false) return;
+
+  const state = room.activityState || {};
+  if (!state.revealed) return;
+
+  const round = Number.isInteger(state.round) ? state.round : 0;
+  const roundsTotal = Math.max(1, Math.min(8, Number.parseInt(state.roundsTotal || '8', 10) || 8));
+  if (round >= roundsTotal) return;
+  const questionIndex = state.questionOrder?.[round] ?? round;
+  const prompt = EMOJI_CHARADES_BANK[questionIndex];
+  if (!prompt) return;
+
+  const guesses = state.guesses && typeof state.guesses === 'object' ? state.guesses : {};
+  const guess = guesses[normalizedName] || '';
+  if (!guess) return;
+  const answerKey = normalizeCharadesAnswer(prompt.answer);
+  const closeAccepted = state.closeAccepted && typeof state.closeAccepted === 'object' ? { ...state.closeAccepted } : {};
+  const roundPoints = state.roundPoints && typeof state.roundPoints === 'object' ? { ...state.roundPoints } : {};
+  const scores = state.scores && typeof state.scores === 'object' ? { ...state.scores } : {};
+
+  const wasAccepted = Boolean(closeAccepted[normalizedName]);
+  const oldOutcome = getEmojiCharadesGuessOutcome(guess, answerKey, wasAccepted);
+  if (oldOutcome.isExact) return;
+
+  if (accepted) closeAccepted[normalizedName] = true;
+  else delete closeAccepted[normalizedName];
+
+  const newOutcome = getEmojiCharadesGuessOutcome(guess, answerKey, Boolean(closeAccepted[normalizedName]));
+  const delta = newOutcome.points - oldOutcome.points;
+  if (delta === 0) return;
+
+  roundPoints[normalizedName] = newOutcome.points;
+  scores[normalizedName] = Math.max(0, (Number(scores[normalizedName]) || 0) + delta);
+
+  room.activityState = {
+    ...state,
+    closeAccepted,
+    roundPoints,
+    scores
+  };
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
 }
 
 async function nextEmojiCharadesRound() {
@@ -2846,6 +3416,7 @@ async function nextEmojiCharadesRound() {
     round: nextRound,
     revealed: false,
     guesses: {},
+    closeAccepted: {},
     roundPoints: {}
   };
   await RoomManager.updateRoom(APP.roomCode, room);
@@ -2966,8 +3537,6 @@ function renderDashboard() {
   const safePlayerName = escapeHtml(APP.player.name);
   const safeAppName = escapeHtml(APP.branding.appName);
   const showFeedback = APP.preferences.enableFeedbackHub !== false;
-  const showScheduleMeeting = APP.preferences.enableScheduleMeeting !== false;
-  const showLoadSession = APP.preferences.enableLoadSession !== false;
   return `
     <div class="header">
       <h1 class="logo">${safeAppName}</h1>
@@ -2999,21 +3568,6 @@ function renderDashboard() {
         <p class="card-desc">Enter a room code to join your team</p>
       </button>
 
-        ${showScheduleMeeting ? `
-          <button type="button" class="card" data-action="go-screen" data-screen="schedule-meeting" aria-label="Schedule Team Meeting">
-            <div class="card-icon">📅</div>
-            <h3 class="card-title">Schedule Team Meeting</h3>
-            <p class="card-desc">Set up a date, time, Zoom link, and meeting details</p>
-          </button>
-        ` : ''}
-
-        ${showLoadSession ? `
-          <button type="button" class="card" data-action="go-screen" data-screen="load-session" aria-label="Load Saved Session">
-            <div class="card-icon">💾</div>
-            <h3 class="card-title">Load Saved Session</h3>
-            <p class="card-desc">Upload a .calendar invite, then use the card info to initiate the session</p>
-          </button>
-        ` : ''}
     </div>
     
     <div style="text-align:center;margin-top:40px;">
@@ -3552,6 +4106,18 @@ function renderLobby() {
           <h3 class="card-title">Tic-Tac-Toe Blitz Arena</h3>
           <p class="card-desc">Auto-matched 1v1 games with a 2-minute round timer</p>
         </button>
+
+        <button type="button" class="card" data-action="start-team-jeopardy" aria-label="Start Team Jeopardy" style="${enabledActivities['team-jeopardy'] === false ? 'display:none;' : ''}">
+          <div class="card-icon">🏆</div>
+          <h3 class="card-title">Team Jeopardy</h3>
+          <p class="card-desc">Pick a category and value, then race to answer and score points</p>
+        </button>
+
+        <button type="button" class="card" data-action="start-spin-wheel" aria-label="Start Spin Wheel" style="${enabledActivities['spin-wheel'] === false ? 'display:none;' : ''}">
+          <div class="card-icon">🎡</div>
+          <h3 class="card-title">Spin Wheel</h3>
+          <p class="card-desc">Customize options, spin the wheel, and let chance pick the next move</p>
+        </button>
       </div>
     ` : `
       <div style="text-align:center;padding:60px 20px;">
@@ -3682,6 +4248,14 @@ function renderHostSettingsModal() {
           <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
             <input type="checkbox" id="hsDynamicScoring" ${roomSettings.dynamicScoring ? 'checked' : ''}>
             Dynamic time-based scoring
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <input type="checkbox" id="hsSpinWheelAllowPlayerPicks" ${roomSettings.spinWheelAllowPlayerPicks !== false ? 'checked' : ''}>
+            Spin Wheel: allow players to select a section
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <input type="checkbox" id="hsEmojiCharadesAllowCloseAnswers" ${roomSettings.emojiCharadesAllowCloseAnswers !== false ? 'checked' : ''}>
+            Emoji Charades: host can accept close answers
           </label>
           <label style="display:flex;align-items:center;gap:8px;">
             <input type="checkbox" id="hsEnableAIGenerator" ${roomSettings.enableAIGenerator && globalAiEnabled ? 'checked' : ''} ${globalAiEnabled ? '' : 'disabled'}>
@@ -4033,6 +4607,7 @@ function startRoomSync() {
       const room = await RoomManager.loadRoom(APP.roomCode);
       if (room && room.lastUpdate !== APP.room?.lastUpdate) {
         APP.room = room;
+        void maybeClaimSpinWheelWinnerXp();
         render();
       }
     }
@@ -4521,6 +5096,8 @@ async function saveHostSettings() {
     autoRevealLightning: Boolean(document.getElementById('hsAutoRevealLightning')?.checked),
     allowAnswerChanges: Boolean(document.getElementById('hsAllowAnswerChanges')?.checked),
     dynamicScoring: Boolean(document.getElementById('hsDynamicScoring')?.checked),
+    spinWheelAllowPlayerPicks: Boolean(document.getElementById('hsSpinWheelAllowPlayerPicks')?.checked),
+    emojiCharadesAllowCloseAnswers: Boolean(document.getElementById('hsEmojiCharadesAllowCloseAnswers')?.checked),
     enableAIGenerator: APP.preferences.enableAIGenerator !== false
       && Boolean(document.getElementById('hsEnableAIGenerator')?.checked)
   };
@@ -4850,6 +5427,9 @@ function applyProfileUpdateToRoom(room, oldName, newName, newAvatar) {
   remapActivityStateKey(state, 'standings', oldName, newName);
   remapActivityStateKey(state, 'matchByPlayer', oldName, newName);
   remapActivityStateKey(state, 'opponents', oldName, newName);
+  remapActivityStateKey(state, 'playerSelections', oldName, newName);
+  remapActivityStateKey(state, 'winnerXpClaimed', oldName, newName);
+  remapActivityStateKey(state, 'closeAccepted', oldName, newName);
   if (Array.isArray(state.byePlayers)) {
     state.byePlayers = state.byePlayers.map(name => (name === oldName ? newName : name));
   }
@@ -4857,6 +5437,9 @@ function applyProfileUpdateToRoom(room, oldName, newName, newAvatar) {
     state.lastPairings = state.lastPairings.map(pair => (
       Array.isArray(pair) ? pair.map(name => (name === oldName ? newName : name)) : pair
     ));
+  }
+  if (Array.isArray(state.spinWinners)) {
+    state.spinWinners = state.spinWinners.map(name => (name === oldName ? newName : name));
   }
   if (state.matches && typeof state.matches === 'object') {
     Object.values(state.matches).forEach(match => {
@@ -5099,9 +5682,11 @@ document.addEventListener('click', async (event) => {
   const target = event.target.closest('[data-action]');
   if (!target) return;
 
-  const { action, avatar, screen, key, index, feedbackId, activity, queueIndex, noteId, lane, direction, tab, word } = target.dataset;
+  const { action, avatar, screen, key, index, feedbackId, activity, queueIndex, noteId, lane, direction, tab, word, cat, clue, player, accepted } = target.dataset;
   const parsedIndex = Number.parseInt(index ?? '', 10);
   const parsedQueueIndex = Number.parseInt(queueIndex ?? '', 10);
+  const parsedCategoryIndex = Number.parseInt(cat ?? '', 10);
+  const parsedClueIndex = Number.parseInt(clue ?? '', 10);
 
   switch (action) {
     case 'toggle-presentation':
@@ -5239,6 +5824,12 @@ document.addEventListener('click', async (event) => {
     case 'start-tic-tac-toe-blitz':
       await startTicTacToeBlitz();
       break;
+    case 'start-team-jeopardy':
+      await startTeamJeopardy();
+      break;
+    case 'start-spin-wheel':
+      await startSpinWheel();
+      break;
     case 'generate-ai-questions':
       await generateAIQuestions();
       break;
@@ -5256,6 +5847,9 @@ document.addEventListener('click', async (event) => {
       break;
     case 'next-emoji-charades':
       await nextEmojiCharadesRound();
+      break;
+    case 'toggle-emoji-charades-close-answer':
+      if (player) await toggleEmojiCharadesCloseAnswer(player, accepted === '1' || accepted === 'true');
       break;
     case 'new-emoji-charades-round':
       await startEmojiCharades();
@@ -5335,6 +5929,32 @@ document.addEventListener('click', async (event) => {
     case 'next-regular-trivia':
       await nextRegularTrivia();
       break;
+    case 'pick-jeopardy-clue':
+      if (Number.isInteger(parsedCategoryIndex) && Number.isInteger(parsedClueIndex)) {
+        await selectTeamJeopardyClue(parsedCategoryIndex, parsedClueIndex);
+      }
+      break;
+    case 'submit-jeopardy-answer':
+      if (Number.isInteger(parsedIndex)) await submitTeamJeopardyAnswer(parsedIndex);
+      break;
+    case 'reveal-jeopardy-answer':
+      await revealTeamJeopardyAnswer();
+      break;
+    case 'close-jeopardy-clue':
+      await closeTeamJeopardyClue();
+      break;
+    case 'new-jeopardy-game':
+      await startTeamJeopardy();
+      break;
+    case 'spin-wheel-save-options':
+      await saveSpinWheelOptions();
+      break;
+    case 'spin-wheel-spin':
+      await spinWheelNow();
+      break;
+    case 'spin-wheel-pick-section':
+      if (Number.isInteger(parsedIndex)) await selectSpinWheelSection(parsedIndex);
+      break;
     case 'submit-answer':
       if (Number.isInteger(parsedIndex)) await submitAnswer(parsedIndex);
       break;
@@ -5407,6 +6027,8 @@ function renderActivity() {
   else if (activity === 'brainstorm-canvas') content = renderBrainstormCanvas();
   else if (activity === 'regular-trivia') content = renderRegularTrivia();
   else if (activity === 'tic-tac-toe-blitz') content = renderTicTacToeBlitz();
+  else if (activity === 'team-jeopardy') content = renderTeamJeopardy();
+  else if (activity === 'spin-wheel') content = renderSpinWheel();
 
   return `
     <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:8px;">
@@ -6965,6 +7587,8 @@ function renderEmojiCharadesResults() {
 function renderEmojiCharades() {
   const state = APP.room.activityState || {};
   const isHost = APP.room.host === APP.player.name;
+  const roomSettings = getRoomHostSettings(APP.room);
+  const allowCloseAnswers = roomSettings.emojiCharadesAllowCloseAnswers !== false;
   const round = Number.isInteger(state.round) ? state.round : 0;
   const roundsTotal = Math.max(1, Math.min(8, Number.parseInt(state.roundsTotal || '8', 10) || 8));
   const questionIndex = state.questionOrder?.[round] ?? round;
@@ -6976,6 +7600,7 @@ function renderEmojiCharades() {
 
   const revealed = Boolean(state.revealed);
   const guesses = state.guesses || {};
+  const closeAccepted = state.closeAccepted && typeof state.closeAccepted === 'object' ? state.closeAccepted : {};
   const userGuess = guesses[APP.player.name] || '';
   const roundPoints = state.roundPoints || {};
   const answerKey = normalizeCharadesAnswer(prompt.answer);
@@ -6984,12 +7609,26 @@ function renderEmojiCharades() {
   const guessRows = APP.room.participants.map(player => {
     const guess = guesses[player.name] || '';
     const score = roundPoints[player.name] || 0;
-    const guessKey = normalizeCharadesAnswer(guess);
-    const isCorrect = revealed && guess && guessKey === answerKey;
+    const outcome = getEmojiCharadesGuessOutcome(
+      guess,
+      answerKey,
+      allowCloseAnswers && Boolean(closeAccepted[player.name])
+    );
+    const isCorrect = revealed && outcome.points > 0;
+    const isCloseAccepted = revealed && outcome.isCloseAccepted;
+    const closeAction = revealed && isHost && allowCloseAnswers && guess && !outcome.isExact
+      ? `
+        <button class="btn-secondary" data-action="toggle-emoji-charades-close-answer" data-player="${escapeHtml(player.name)}" data-accepted="${isCloseAccepted ? '0' : '1'}" style="width:auto;padding:4px 10px;font-size:0.78rem;">
+          ${isCloseAccepted ? 'Remove Close Accept' : 'Accept Close'}
+        </button>
+      `
+      : '';
     const statusChip = !revealed
       ? (guess ? '<span class="emoji-charades-chip" style="background:rgba(0,210,211,0.12);color:var(--accent);">Submitted</span>' : '<span class="emoji-charades-chip" style="background:var(--surface);color:var(--text-dim);">Waiting</span>')
       : (isCorrect
-        ? `<span class="emoji-charades-chip" style="background:rgba(0,210,106,0.14);color:var(--success);">✓ Correct +${score}</span>`
+        ? (isCloseAccepted
+          ? `<span class="emoji-charades-chip" style="background:rgba(0,210,211,0.14);color:var(--accent);">✓ Close Accepted +${score}</span>`
+          : `<span class="emoji-charades-chip" style="background:rgba(0,210,106,0.14);color:var(--success);">✓ Correct +${score}</span>`)
         : '<span class="emoji-charades-chip" style="background:rgba(255,64,96,0.12);color:var(--danger);">✕ Miss</span>');
     return `
       <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;">
@@ -6998,7 +7637,10 @@ function renderEmojiCharades() {
           <span style="font-weight:600;">${escapeHtml(player.name)}</span>
           ${revealed ? `<span style="color:var(--text-mid);font-size:0.86rem;">${guess ? escapeHtml(guess) : 'No guess'}</span>` : ''}
         </div>
-        ${statusChip}
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;">
+          ${statusChip}
+          ${closeAction}
+        </div>
       </div>
     `;
   }).join('');
@@ -7033,6 +7675,7 @@ function renderEmojiCharades() {
     <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;">
       <h3 style="margin-bottom:10px;">Team Guesses</h3>
       ${guessRows}
+      ${revealed && isHost && allowCloseAnswers ? '<div style="margin-top:8px;font-size:0.82rem;color:var(--text-dim);">Host can mark near-miss guesses as close accepted.</div>' : ''}
     </div>
 
     ${isHost ? `
@@ -7124,6 +7767,403 @@ function renderRegularTrivia() {
         ${revealed ? (currentQ < TRIVIA_BANK.length - 1 ? 'Next Question' : 'View Final Results') : 'Reveal Answer'}
       </button>
     ` : ''}
+  `;
+}
+
+function renderTeamJeopardy() {
+  const state = APP.room.activityState || {};
+  const isHost = APP.room.host === APP.player.name;
+  const safeRoomCode = escapeHtml(APP.roomCode);
+  const board = Array.isArray(state.board) ? state.board : [];
+  const selectedClues = state.selectedClues && typeof state.selectedClues === 'object' ? state.selectedClues : {};
+  const current = getTeamJeopardyActiveClue(state);
+  const answers = state.answers && typeof state.answers === 'object' ? state.answers : {};
+  const userAnswer = answers[APP.player.name];
+  const totalClues = board.reduce((sum, category) => sum + (Array.isArray(category?.clues) ? category.clues.length : 0), 0);
+  const pickedCount = Object.keys(selectedClues).length;
+  const scores = state.scores && typeof state.scores === 'object' ? state.scores : {};
+  const leaderboard = (APP.room.participants || [])
+    .map(player => ({ name: player.name, score: scores[player.name] || 0 }))
+    .sort((a, b) => b.score - a.score);
+
+  if (state.finished && !current) {
+    return `
+      <div class="header">
+        <h1 style="font-size:2rem;font-weight:700;">🏆 Team Jeopardy</h1>
+        <p class="tagline">Final scores • Room: ${safeRoomCode}</p>
+      </div>
+
+      ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
+
+      <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:20px;">
+        <h3 style="margin-bottom:12px;">Leaderboard</h3>
+        <div style="display:grid;gap:10px;">
+          ${leaderboard.map((entry, idx) => `
+            <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
+              <span style="font-weight:700;">${idx + 1}. ${escapeHtml(entry.name)}</span>
+              <span style="color:var(--accent);font-weight:700;">${entry.score}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      ${isHost ? `
+        <div style="display:flex;gap:10px;margin-top:16px;">
+          <button class="btn-primary" data-action="new-jeopardy-game" style="flex:1;">Play New Board</button>
+          <button class="btn-secondary" data-action="end-activity" style="flex:1;">Back to Lobby</button>
+        </div>
+      ` : '<div style="margin-top:14px;color:var(--text-dim);text-align:center;">Waiting for host to continue.</div>'}
+    `;
+  }
+
+  if (!current) {
+    const boardHtml = board.map((category, catIndex) => `
+      <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:12px;padding:12px;">
+        <div style="font-weight:700;text-align:center;margin-bottom:10px;min-height:42px;display:flex;align-items:center;justify-content:center;">
+          ${escapeHtml(category.category || `Category ${catIndex + 1}`)}
+        </div>
+        <div style="display:grid;gap:8px;">
+          ${(Array.isArray(category.clues) ? category.clues : []).map((clue, clueIndex) => {
+            const clueKey = `${catIndex}:${clueIndex}`;
+            const used = Boolean(selectedClues[clueKey]);
+            const canPick = isHost && !used && !state.finished;
+            const buttonStyle = used
+              ? 'background:var(--surface-2);color:var(--text-dim);border:1px solid var(--border);'
+              : 'background:rgba(0,210,211,0.08);color:var(--accent);border:1px solid rgba(0,210,211,0.35);';
+            return `
+              <button class="btn-secondary" ${canPick ? `data-action="pick-jeopardy-clue" data-cat="${catIndex}" data-clue="${clueIndex}"` : 'disabled'}
+                style="${buttonStyle}width:100%;margin:0;padding:10px 12px;font-weight:700;">
+                ${used ? 'Answered' : `$${Number(clue?.value) || 100}`}
+              </button>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `).join('');
+
+    return `
+      <div class="header">
+        <h1 style="font-size:2rem;font-weight:700;">🏆 Team Jeopardy</h1>
+        <p class="tagline">Board ${pickedCount}/${totalClues} clues completed • Room: ${safeRoomCode}</p>
+      </div>
+
+      ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:22px;">
+        ${boardHtml}
+      </div>
+
+      <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:16px;">
+        <div style="font-weight:700;margin-bottom:10px;">Scores</div>
+        <div style="display:grid;gap:8px;">
+          ${leaderboard.map(entry => `
+            <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface-2);border-radius:10px;padding:10px 12px;">
+              <span>${escapeHtml(entry.name)}</span>
+              <strong style="color:var(--accent);">${entry.score}</strong>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      ${!isHost ? '<div style="text-align:center;color:var(--text-dim);margin-top:14px;">Waiting for host to select the next clue.</div>' : ''}
+    `;
+  }
+
+  const { category, clue } = current;
+  const revealed = Boolean(state.revealed);
+  let optionsHtml = '';
+  (Array.isArray(clue.opts) ? clue.opts : []).forEach((opt, idx) => {
+    const isCorrect = revealed && idx === clue.ans;
+    const isUserPick = userAnswer === idx;
+    const voteCount = revealed ? Object.values(answers).filter(answer => answer === idx).length : 0;
+    let style = 'background:var(--surface-2);border:2px solid var(--border);';
+    if (isCorrect) {
+      style = 'background:rgba(0,210,106,0.15);border:2px solid var(--success);';
+    } else if (!revealed && isUserPick) {
+      style = 'background:rgba(0,210,211,0.09);border:2px solid var(--accent);';
+    } else if (revealed) {
+      style = 'background:var(--surface-2);border:2px solid var(--border);opacity:0.6;';
+    }
+    optionsHtml += `
+      <button type="button" class="tile-btn" ${revealed ? 'disabled' : `data-action="submit-jeopardy-answer" data-index="${idx}"`}
+        style="${style}border-radius:12px;padding:14px 18px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
+        <span>${escapeHtml(opt)}</span>
+        ${revealed ? `<span style="background:var(--accent);color:var(--bg);padding:4px 10px;border-radius:999px;font-size:0.8rem;font-weight:700;">${voteCount}</span>` : ''}
+      </button>
+    `;
+  });
+
+  return `
+    <div class="header">
+      <h1 style="font-size:2rem;font-weight:700;">🏆 Team Jeopardy</h1>
+      <p class="tagline">${escapeHtml(category.category || 'Category')} • $${Number(clue.value) || 100} • Room: ${safeRoomCode}</p>
+    </div>
+
+    ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
+
+    <div style="background:var(--surface-solid);border:2px solid var(--accent);border-radius:var(--radius);padding:28px 24px;margin:22px 0;text-align:center;">
+      <div style="font-family:'Fraunces',serif;font-size:1.7rem;font-weight:700;line-height:1.35;">
+        ${escapeHtml(clue.q || '')}
+      </div>
+    </div>
+
+    <div style="max-width:760px;margin:0 auto;">
+      ${optionsHtml}
+    </div>
+
+    <div role="status" aria-live="polite" aria-atomic="true" style="text-align:center;padding:12px;color:var(--text-dim);">
+      ${Object.keys(answers).length} of ${APP.room.participants.length} answered
+    </div>
+
+    ${isHost ? `
+      <button class="btn-primary" data-action="${revealed ? 'close-jeopardy-clue' : 'reveal-jeopardy-answer'}">
+        ${revealed ? (state.finished ? 'View Final Scores' : 'Back to Board') : 'Reveal Answer'}
+      </button>
+    ` : '<div style="text-align:center;color:var(--text-dim);margin-top:8px;">Waiting for host to reveal the answer.</div>'}
+  `;
+}
+
+function renderSpinWheel() {
+  const state = APP.room.activityState || {};
+  const isHost = APP.room.host === APP.player.name;
+  const safeRoomCode = escapeHtml(APP.roomCode);
+  const roomSettings = getRoomHostSettings(APP.room);
+  const allowPlayerPicks = roomSettings.spinWheelAllowPlayerPicks !== false;
+  const baseOptions = normalizeSpinWheelOptions(state.options || SPIN_WHEEL_DEFAULT_OPTIONS);
+  const displayOptions = baseOptions.length ? baseOptions : [...SPIN_WHEEL_DEFAULT_OPTIONS];
+  const segments = buildSpinWheelSegments(displayOptions);
+  const optionCount = Math.max(1, segments.length);
+  const optionSummary = displayOptions.map(label => {
+    const sectionCount = segments.filter(segment => segment.label === label).length;
+    return {
+      label,
+      sectionCount,
+      percent: (sectionCount / Math.max(1, segments.length)) * 100
+    };
+  });
+  const wheelRotation = Number(state.wheelRotation) || 0;
+  const prevWheelRotation = Number(state.prevWheelRotation ?? wheelRotation) || 0;
+  const now = Date.now();
+  const spinning = Boolean(state.isSpinning);
+  const selectedIndex = Number.isInteger(state.selectedIndex) ? state.selectedIndex : null;
+  const currentResult = String(state.currentResult || '').trim();
+  const spinDurationMs = Math.max(1500, Number(state.spinDurationMs) || 4800);
+  const isAnimating = spinning && state.lastSpinAt && (now - Number(state.lastSpinAt) < spinDurationMs + 250);
+  const isCelebrating = Boolean(currentResult) && state.spinSettledAt && (now - Number(state.spinSettledAt) < 1800);
+  const segmentColors = ['#00d2d3', '#feca57', '#ff6b6b', '#6c5ce7', '#00d26a', '#ff9f43', '#54a0ff', '#ff7fbb', '#10ac84', '#a29bfe', '#f368e0', '#2e86de'];
+  const gradientParts = segments.map((segment, idx) => {
+    const start = segment.start.toFixed(3);
+    const end = segment.end.toFixed(3);
+    const color = segmentColors[idx % segmentColors.length];
+    return `${color} ${start}deg ${end}deg`;
+  }).join(', ');
+  const selectedStart = selectedIndex !== null ? segments[selectedIndex]?.start?.toFixed(3) : null;
+  const selectedEnd = selectedIndex !== null ? segments[selectedIndex]?.end?.toFixed(3) : null;
+  const playerSelections = state.playerSelections && typeof state.playerSelections === 'object' ? state.playerSelections : {};
+  const selectedByMe = Number.isInteger(playerSelections[APP.player.name]) ? playerSelections[APP.player.name] : null;
+  const spinWinners = Array.isArray(state.spinWinners) ? state.spinWinners : [];
+  const wheelStyle = `
+    position:relative;
+    width:100%;
+    aspect-ratio:1/1;
+    --wheel-spin-from:${prevWheelRotation}deg;
+    --wheel-spin-to:${wheelRotation}deg;
+    ${isAnimating
+      ? `animation:wheelSpinBetween ${spinDurationMs}ms cubic-bezier(.16,1,.3,1) both;`
+      : `transform:rotate(${wheelRotation}deg);`
+    }
+  `;
+  const wheelFaceStyle = `
+    position:absolute;
+    inset:0;
+    border-radius:50%;
+    border:6px solid rgba(255,255,255,0.85);
+    box-shadow:0 18px 50px rgba(0,0,0,0.25), inset 0 0 0 3px rgba(0,0,0,0.1);
+    background:conic-gradient(from -90deg, ${gradientParts || '#00d2d3 0deg 360deg'});
+  `;
+  // Place labels near each sector centroid and scale for option count/text length.
+  const labelRadius = optionCount >= 10 ? 29 : optionCount >= 8 ? 31 : 32;
+  const labelsSvg = segments.map((segment, idx) => {
+    const option = segment.label;
+    const thetaDeg = -90 + segment.center;
+    const theta = (thetaDeg * Math.PI) / 180;
+    const x = 50 + (labelRadius * Math.cos(theta));
+    const y = 50 + (labelRadius * Math.sin(theta));
+    // Align text with each wedge centerline.
+    const rotate = thetaDeg;
+    const optionLen = String(option || '').length;
+    const baseSize = optionCount >= 10 ? 2.6 : optionCount >= 8 ? 2.95 : 3.25;
+    const sizeByLen = optionLen > 16 ? -0.4 : optionLen > 12 ? -0.2 : 0;
+    const fontSize = Math.max(2.0, baseSize + sizeByLen);
+    const isWinner = !isAnimating && selectedIndex === idx;
+    const labelY = y - 2;
+    return `
+      <text
+        x="${x.toFixed(3)}"
+        y="${labelY.toFixed(3)}"
+        text-anchor="middle"
+        dominant-baseline="middle"
+        transform="rotate(${rotate.toFixed(3)} ${x.toFixed(3)} ${y.toFixed(3)})"
+        fill="${isWinner ? '#ffffff' : 'rgba(255,255,255,0.92)'}"
+        font-size="${fontSize.toFixed(2)}"
+        font-weight="${isWinner ? '800' : '700'}"
+        style="paint-order:stroke;stroke:rgba(0,0,0,0.6);stroke-width:${isWinner ? '1.05' : '0.88'};stroke-linejoin:round;letter-spacing:0.15px;"
+      >${escapeHtml(option)}</text>
+    `;
+  }).join('');
+  const winnerOutlineSvg = (!isAnimating && selectedIndex !== null && selectedStart !== null && selectedEnd !== null)
+    ? (() => {
+      const segment = segments[selectedIndex];
+      if (!segment) return '';
+      const startDeg = -90 + segment.start;
+      const endDeg = -90 + segment.end;
+      const innerR = 13;
+      const outerR = 48;
+      const toXY = (deg, radius) => {
+        const rad = (deg * Math.PI) / 180;
+        return { x: 50 + (radius * Math.cos(rad)), y: 50 + (radius * Math.sin(rad)) };
+      };
+      const pOuterStart = toXY(startDeg, outerR);
+      const pOuterEnd = toXY(endDeg, outerR);
+      const pInnerEnd = toXY(endDeg, innerR);
+      const pInnerStart = toXY(startDeg, innerR);
+      const largeArc = (segment.end - segment.start) > 180 ? 1 : 0;
+      const outerArc = [
+        `M ${pOuterStart.x.toFixed(3)} ${pOuterStart.y.toFixed(3)}`,
+        `A ${outerR} ${outerR} 0 ${largeArc} 1 ${pOuterEnd.x.toFixed(3)} ${pOuterEnd.y.toFixed(3)}`
+      ].join(' ');
+      const sideA = `M ${pInnerStart.x.toFixed(3)} ${pInnerStart.y.toFixed(3)} L ${pOuterStart.x.toFixed(3)} ${pOuterStart.y.toFixed(3)}`;
+      const sideB = `M ${pInnerEnd.x.toFixed(3)} ${pInnerEnd.y.toFixed(3)} L ${pOuterEnd.x.toFixed(3)} ${pOuterEnd.y.toFixed(3)}`;
+      return `
+        <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true" style="display:block;position:absolute;inset:0;pointer-events:none;">
+          <defs>
+            <linearGradient id="winnerBorderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#9be4ff"/>
+              <stop offset="100%" stop-color="#63f3c7"/>
+            </linearGradient>
+          </defs>
+          <path d="${outerArc}" fill="none" stroke="url(#winnerBorderGrad)" stroke-width="1.5" stroke-linecap="round" style="filter:drop-shadow(0 0 5px rgba(126,228,255,0.95));"/>
+          <path d="${sideA}" fill="none" stroke="url(#winnerBorderGrad)" stroke-width="1.25" stroke-linecap="round" style="filter:drop-shadow(0 0 4px rgba(126,228,255,0.85));"/>
+          <path d="${sideB}" fill="none" stroke="url(#winnerBorderGrad)" stroke-width="1.25" stroke-linecap="round" style="filter:drop-shadow(0 0 4px rgba(126,228,255,0.85));"/>
+        </svg>
+      `;
+    })()
+    : '';
+  const confetti = isCelebrating ? buildCelebrationConfettiPieces(20) : '';
+  const optionsEditorValue = formatSpinWheelOptionsForEditor(displayOptions);
+
+  return `
+    <div class="header">
+      <h1 style="font-size:2rem;font-weight:700;">🎡 Spin Wheel</h1>
+      <p class="tagline">Spin to decide what happens next • Room: ${safeRoomCode}</p>
+    </div>
+
+    ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
+
+    <div style="display:grid;grid-template-columns:1fr;gap:16px;max-width:920px;margin:18px auto 0;">
+      <div style="position:relative;overflow:hidden;background:var(--surface-solid);border:1px solid var(--border);border-radius:16px;padding:18px;">
+        ${isCelebrating ? `<div class="trivia-confetti" aria-hidden="true">${confetti}</div>` : ''}
+        <div style="position:relative;max-width:420px;margin:0 auto;">
+          <div style="position:absolute;left:50%;top:-14px;transform:translateX(-50%);width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:24px solid #ffd166;filter:drop-shadow(0 2px 2px rgba(0,0,0,0.3));z-index:3;"></div>
+          ${(!isAnimating && selectedIndex !== null) ? '<div style="position:absolute;left:50%;top:-20px;transform:translateX(-50%);width:26px;height:26px;border-radius:50%;background:rgba(255,209,102,0.35);filter:blur(6px);z-index:2;"></div>' : ''}
+          <div style="${wheelStyle}">
+            <div style="${wheelFaceStyle}"></div>
+            <div style="position:absolute;inset:0;border-radius:50%;overflow:hidden;">
+              <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true" style="display:block;">
+                ${labelsSvg}
+              </svg>
+            </div>
+            ${winnerOutlineSvg}
+          </div>
+          <button type="button" ${isHost ? 'data-action="spin-wheel-spin"' : 'disabled'} style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:78px;height:78px;border-radius:50%;background:#111827;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;letter-spacing:0.5px;box-shadow:0 4px 14px rgba(0,0,0,0.35);z-index:4;border:none;cursor:${isHost && !isAnimating ? 'pointer' : 'default'};opacity:${isAnimating ? '0.8' : '1'};" ${isAnimating ? 'disabled' : ''}>
+            ${isAnimating
+              ? '<span style="width:18px;height:18px;border:2px solid rgba(255,255,255,0.35);border-top-color:#ffffff;border-radius:50%;animation:spin 0.8s linear infinite;display:inline-block;" aria-label="Spinning"></span>'
+              : 'SPIN'
+            }
+          </button>
+        </div>
+        <div style="text-align:center;margin-top:14px;color:var(--text-mid);">${isAnimating ? 'Spinning...' : ''}</div>
+        ${currentResult ? `
+          <div style="
+            margin:10px auto 0;
+            width:min(420px,92%);
+            text-align:center;
+            border-radius:12px;
+            border:2px solid rgba(116, 193, 255, 0.7);
+            background:linear-gradient(135deg, rgba(155,228,255,0.93), rgba(124,189,255,0.93));
+            box-shadow:0 8px 20px rgba(0,0,0,0.28);
+            color:#073a66;
+            font-weight:800;
+            padding:10px 14px;
+            letter-spacing:0.2px;
+            animation:${isCelebrating ? 'wheelWinnerBounce 700ms ease-out 1' : 'none'};
+          ">
+            ${`Landed on: ${escapeHtml(currentResult)}`}
+          </div>
+        ` : ''}
+        <div style="text-align:center;margin-top:10px;color:var(--text-dim);">${isHost ? 'Click the center button to spin.' : 'Host controls the spin.'}</div>
+        ${allowPlayerPicks ? `
+          <div style="margin:14px auto 0;max-width:640px;">
+            <div style="font-size:0.84rem;color:var(--text-dim);text-align:center;margin-bottom:8px;">Pick a section before the spin</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;">
+              ${segments.map((segment, idx) => {
+                const pickedCount = Object.values(playerSelections).filter(value => Number(value) === idx).length;
+                const pickedByMe = selectedByMe === idx;
+                const winner = !isAnimating && selectedIndex === idx;
+                return `
+                  <button type="button" class="btn-secondary" data-action="spin-wheel-pick-section" data-index="${idx}"
+                    style="margin:0;padding:8px 10px;border:${winner ? '2px solid #8de8ff' : pickedByMe ? '2px solid var(--accent)' : '1px solid var(--border)'};background:${winner ? 'rgba(141,232,255,0.16)' : pickedByMe ? 'rgba(0,210,211,0.12)' : 'var(--surface-2)'};">
+                    <div style="font-weight:700;font-size:0.9rem;">${escapeHtml(segment.label)}</div>
+                    <div style="font-size:0.75rem;color:var(--text-dim);">Section ${idx + 1}${pickedCount ? ` • ${pickedCount} pick${pickedCount === 1 ? '' : 's'}` : ''}</div>
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        ` : ''}
+        ${currentResult ? `
+          <div style="margin:14px auto 0;max-width:520px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;">
+            <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:6px;">Winners</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              ${spinWinners.length
+                ? spinWinners.map(name => {
+                  const avatar = APP.room?.participants?.find(p => p.name === name)?.avatar || '🏅';
+                  return `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,210,106,0.14);border:1px solid rgba(0,210,106,0.35);border-radius:999px;padding:5px 10px;font-size:0.84rem;"><span>${escapeHtml(avatar)}</span><strong>${escapeHtml(name)}</strong></span>`;
+                }).join('')
+                : '<span style="color:var(--text-dim);font-size:0.84rem;">No winners this spin.</span>'
+              }
+            </div>
+          </div>
+        ` : ''}
+      </div>
+
+      <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:16px;padding:16px;">
+        <h3 style="margin-bottom:8px;">Wheel Options</h3>
+        <div style="font-size:0.86rem;color:var(--text-dim);margin-bottom:10px;">One option per line (2 to 12). Wheel auto-duplicates options to spread sections evenly.</div>
+        ${isHost ? `
+          <textarea id="spinWheelOptionsInput" class="form-input" rows="8" placeholder="Lightning Round&#10;Trivia Challenge&#10;Team Shoutout">${escapeHtml(optionsEditorValue)}</textarea>
+          <div style="display:flex;gap:10px;margin-top:10px;">
+            <button class="btn-secondary" data-action="spin-wheel-save-options" style="flex:1;">Save Options</button>
+          </div>
+          <div style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">
+            ${optionSummary.map(item => `
+              <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:0.85rem;">
+                <strong>${escapeHtml(item.label)}</strong>
+                <div style="color:var(--text-dim);">${item.sectionCount} section${item.sectionCount === 1 ? '' : 's'} • ${item.percent.toFixed(1)}%</div>
+              </div>
+            `).join('')}
+          </div>
+        ` : `
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
+            ${optionSummary.map(item => `
+              <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
+                ${escapeHtml(item.label)} <span style="color:var(--text-dim);">(${item.sectionCount} sections • ${item.percent.toFixed(1)}%)</span>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      </div>
+    </div>
   `;
 }
 
