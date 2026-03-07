@@ -2545,6 +2545,7 @@ function createInitialActivityState(activityId) {
     return {
       title: SPIN_WHEEL_DEFAULT_TITLE,
       options: [...SPIN_WHEEL_DEFAULT_OPTIONS],
+      spinnerTurnPlayer: null,
       selectedIndex: null,
       pendingSelectedIndex: null,
       playerSelections: {},
@@ -3332,12 +3333,43 @@ async function saveSpinWheelOptions() {
   await RoomManager.updateRoom(APP.roomCode, room);
 }
 
+async function setSpinWheelSpinnerTurn(playerName) {
+  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'spin-wheel') return;
+  if (room.host !== APP.player?.name) return;
+
+  const normalizedPlayer = String(playerName || '').trim();
+  const allowedPlayer = normalizedPlayer
+    && normalizedPlayer !== room.host
+    && Array.isArray(room.participants)
+    && room.participants.some(participant => participant?.name === normalizedPlayer)
+      ? normalizedPlayer
+      : null;
+
+  const state = room.activityState || {};
+  if (state.isSpinning) return;
+  state.spinnerTurnPlayer = allowedPlayer;
+  room.activityState = state;
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
 async function spinWheelNow() {
   if (!APP.roomCode) return;
   const room = await RoomManager.loadRoom(APP.roomCode);
   if (!room || room.currentActivity !== 'spin-wheel') return;
-  if (room.host !== APP.player?.name) return;
   const state = room.activityState || {};
+  const assignedSpinnerRaw = String(state.spinnerTurnPlayer || '').trim();
+  const assignedSpinner = assignedSpinnerRaw
+    && assignedSpinnerRaw !== room.host
+    && Array.isArray(room.participants)
+    && room.participants.some(participant => participant?.name === assignedSpinnerRaw)
+      ? assignedSpinnerRaw
+      : '';
+  const canCurrentPlayerSpin = APP.player?.name === room.host
+    ? !assignedSpinner
+    : assignedSpinner === APP.player?.name;
+  if (!canCurrentPlayerSpin) return;
   if (state.isSpinning) return;
   const baseOptions = normalizeSpinWheelOptions(state.options || SPIN_WHEEL_DEFAULT_OPTIONS);
   const segments = buildSpinWheelSegments(baseOptions);
@@ -3357,6 +3389,7 @@ async function spinWheelNow() {
   const spinToken = (Number(state.spinToken) || 0) + 1;
 
   state.options = baseOptions;
+  state.spinnerTurnPlayer = null;
   state.pendingSelectedIndex = selectedIndex;
   state.selectedIndex = null;
   state.spinWinners = [];
@@ -6197,6 +6230,9 @@ document.addEventListener('click', async (event) => {
     case 'spin-wheel-save-options':
       await saveSpinWheelOptions();
       break;
+    case 'spin-wheel-assign-turn':
+      await setSpinWheelSpinnerTurn(player || null);
+      break;
     case 'spin-wheel-spin':
       await spinWheelNow();
       break;
@@ -8174,10 +8210,17 @@ function renderTeamJeopardy() {
 function renderSpinWheel() {
   const state = APP.room.activityState || {};
   const isHost = APP.room.host === APP.player.name;
+  const hostName = APP.room.host;
   const wheelTitle = normalizeSpinWheelTitle(state.title || '') || SPIN_WHEEL_DEFAULT_TITLE;
   const safeRoomCode = escapeHtml(APP.roomCode);
   const roomSettings = getRoomHostSettings(APP.room);
   const allowPlayerPicks = roomSettings.spinWheelAllowPlayerPicks !== false;
+  const participantList = Array.isArray(APP.room.participants) ? APP.room.participants : [];
+  const nonHostParticipants = participantList.filter(participant => participant?.name && participant.name !== hostName);
+  const assignedSpinnerRaw = String(state.spinnerTurnPlayer || '').trim();
+  const assignedSpinner = nonHostParticipants.some(participant => participant.name === assignedSpinnerRaw) ? assignedSpinnerRaw : '';
+  const mySpinTurn = isHost ? !assignedSpinner : assignedSpinner === APP.player.name;
+  const turnLabel = assignedSpinner ? `${assignedSpinner} spins next.` : 'Host controls the spin.';
   const baseOptions = normalizeSpinWheelOptions(state.options || SPIN_WHEEL_DEFAULT_OPTIONS);
   const displayOptions = baseOptions.length ? baseOptions : [...SPIN_WHEEL_DEFAULT_OPTIONS];
   const segments = buildSpinWheelSegments(displayOptions);
@@ -8324,7 +8367,7 @@ function renderSpinWheel() {
             </div>
             ${winnerOutlineSvg}
           </div>
-          <button type="button" ${isHost ? 'data-action="spin-wheel-spin"' : 'disabled'} style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:78px;height:78px;border-radius:50%;background:#111827;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;letter-spacing:0.5px;box-shadow:0 4px 14px rgba(0,0,0,0.35);z-index:4;border:none;cursor:${isHost && !isAnimating ? 'pointer' : 'default'};opacity:${isAnimating ? '0.8' : '1'};" ${isAnimating ? 'disabled' : ''}>
+          <button type="button" ${mySpinTurn ? 'data-action="spin-wheel-spin"' : 'disabled'} style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:78px;height:78px;border-radius:50%;background:#111827;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;letter-spacing:0.5px;box-shadow:0 4px 14px rgba(0,0,0,0.35);z-index:4;border:none;cursor:${mySpinTurn && !isAnimating ? 'pointer' : 'default'};opacity:${isAnimating ? '0.8' : mySpinTurn ? '1' : '0.5'};" ${isAnimating ? 'disabled' : ''}>
             ${isAnimating
               ? '<span style="width:18px;height:18px;border:2px solid rgba(255,255,255,0.35);border-top-color:#ffffff;border-radius:50%;animation:spin 0.8s linear infinite;display:inline-block;" aria-label="Spinning"></span>'
               : 'SPIN'
@@ -8350,7 +8393,12 @@ function renderSpinWheel() {
             ${`Landed on: ${escapeHtml(currentResult)}`}
           </div>
         ` : ''}
-        <div style="text-align:center;margin-top:10px;color:var(--text-dim);">${isHost ? 'Click the center button to spin.' : 'Host controls the spin.'}</div>
+        <div style="text-align:center;margin-top:10px;color:var(--text-dim);">${isAnimating ? 'Wheel is in motion.' : escapeHtml(turnLabel)}</div>
+        ${assignedSpinner ? `
+          <div style="text-align:center;margin-top:8px;color:${APP.player.name === assignedSpinner ? 'var(--accent-2)' : 'var(--text-dim)'};font-weight:${APP.player.name === assignedSpinner ? '700' : '500'};">
+            ${APP.player.name === assignedSpinner ? 'It is your turn to spin.' : `${escapeHtml(assignedSpinner)} has the next spin.`}
+          </div>
+        ` : ''}
         ${allowPlayerPicks ? `
           <div style="margin:14px auto 0;max-width:640px;">
             <div style="font-size:0.84rem;color:var(--text-dim);text-align:center;margin-bottom:8px;">Pick a section before the spin</div>
@@ -8390,6 +8438,19 @@ function renderSpinWheel() {
         <h3 style="margin-bottom:8px;">Wheel Settings</h3>
         <div style="font-size:0.86rem;color:var(--text-dim);margin-bottom:10px;">Set a wheel title and one option per line (2 to 12). Wheel auto-duplicates options to spread sections evenly.</div>
         ${isHost ? `
+          <div style="margin-bottom:12px;padding:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;">
+            <div style="font-size:0.86rem;font-weight:700;margin-bottom:8px;">Spin Turn</div>
+            <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:10px;">Choose who gets the next spin. After they spin, control returns to the host.</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              <button class="btn-secondary" data-action="spin-wheel-assign-turn" style="${!assignedSpinner ? 'border-color:var(--accent);background:rgba(0,210,211,0.12);' : ''}">Host Spins</button>
+              ${nonHostParticipants.map(participant => `
+                <button class="btn-secondary" data-action="spin-wheel-assign-turn" data-player="${escapeHtml(participant.name)}" style="${assignedSpinner === participant.name ? 'border-color:var(--accent);background:rgba(0,210,211,0.12);' : ''}">
+                  ${escapeHtml(participant.avatar || '🎯')} ${escapeHtml(participant.name)}
+                </button>
+              `).join('')}
+            </div>
+            ${nonHostParticipants.length === 0 ? '<div style="margin-top:8px;font-size:0.8rem;color:var(--text-dim);">Add participants to hand off the spin.</div>' : ''}
+          </div>
           <label class="form-label" for="spinWheelTitleInput">Wheel Title</label>
           <input id="spinWheelTitleInput" class="form-input" maxlength="48" value="${escapeHtml(wheelTitle)}" placeholder="Spin Wheel">
           <div style="height:8px;"></div>
