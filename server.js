@@ -3,6 +3,8 @@ const fs = require('fs');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 let pg = null;
 try {
   // Optional dependency for DATABASE_URL-backed config storage.
@@ -16,6 +18,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
+    // Security Note: In production, replace '*' with specific frontend domain(s)
     origin: '*'
   }
 });
@@ -154,6 +157,20 @@ const feedbackState = {
 
 app.use(express.json({ limit: '1mb' }));
 
+// Security: Add Helmet for secure headers
+app.use(helmet({
+  contentSecurityPolicy: false // Disabled for simplicity with inline scripts in single-file frontend
+}));
+
+// Security: Rate limiting for API routes
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/', apiLimiter);
+
 app.use(express.static(__dirname));
 
 app.get('/', (_req, res) => {
@@ -258,9 +275,14 @@ async function initializeConfigDatabase() {
     return;
   }
   try {
+    // Security: Enforce stricter SSL in production if supported by provider
+    const sslConfig = process.env.PGSSL === 'disable' 
+      ? false 
+      : { rejectUnauthorized: true }; 
+
     configDb = new pg.Pool({
       connectionString: DATABASE_URL,
-      ssl: process.env.PGSSL === 'disable' ? false : { rejectUnauthorized: false }
+      ssl: sslConfig
     });
     await configDb.query(`
       CREATE TABLE IF NOT EXISTS app_config (
@@ -334,6 +356,10 @@ function isValidHexColor(value) {
 }
 
 function requireAdmin(req, res, next) {
+  if (ADMIN_TOKEN === 'change-me-admin-token') {
+    // eslint-disable-next-line no-console
+    console.warn('SECURITY WARNING: Using default ADMIN_TOKEN. Set this env var immediately.');
+  }
   const token = String(req.header('x-admin-token') || '').trim();
   if (!token || token !== ADMIN_TOKEN) {
     res.status(401).json({ ok: false, error: 'Unauthorized' });
@@ -558,7 +584,14 @@ io.on('connection', socket => {
       return;
     }
 
-    state.set(key, String(value ?? ''));
+    // Security: Input validation to prevent large payloads (DoS)
+    const strValue = String(value ?? '');
+    if (strValue.length > 20000) {
+      ack?.({ ok: false, error: 'Payload too large' });
+      return;
+    }
+
+    state.set(key, strValue);
     schedulePersist();
     io.to(key).emit('shared:update', { key, value: state.get(key) });
     ack?.({ ok: true });

@@ -8,8 +8,9 @@ It combines multiplayer activities, host controls, and lightweight facilitation 
 - Realtime multiplayer sessions with host-created room codes.
 - Lobby invite tools with room code, share link copy, and host QR join.
 - Profile system with editable display name and emoji/avatar.
+- Responsive avatar picker for mobile-first initial setup and profile editing.
 - Activity Queue with host-managed ordering and queue run controls.
-- Lightning Trivia with timer, reveal flow, reaction bar, dynamic scoring, and end confetti.
+- Lightning Trivia with timer, reveal flow, dynamic scoring, floating emoji/name reactions, and end confetti.
 - Emoji Charades with round-based team guessing, host reveal flow, and scoreboard.
 - Trivia Battle with randomized question order and per-player scoring.
 - Team Pulse Check with randomized 5-question run, aggregate results, and JSON/CSV export.
@@ -21,6 +22,8 @@ It combines multiplayer activities, host controls, and lightweight facilitation 
 - Feedback Hub for user-submitted issues/ideas plus Admin workflow and notes.
 - Lobby quick access button for Feedback Hub submissions.
 - Host Settings with tabbed sections, game toggles, and AI configuration.
+- App-wide accessibility keyboard shortcuts with shortcut help modal and escape/back behavior.
+- Admin Console sample-data controls with per-activity or generate-all content creation, including Spin Wheel sample clearing.
 - AI Content Generator for multiple targets:
   - Lightning Trivia
   - Emoji Charades
@@ -31,6 +34,21 @@ It combines multiplayer activities, host controls, and lightweight facilitation 
   - Team Wordle
   - Word Chain
   - Brainstorm Canvas
+  - Spin Wheel
+
+## Keyboard Shortcuts
+
+- `?`: open keyboard shortcut help.
+- `Esc`: close open dialogs or go back from secondary screens.
+- `Alt+H`: go to dashboard.
+- `Alt+N`: host session.
+- `Alt+J`: join session.
+- `Alt+F`: open Feedback Hub.
+- `Alt+A`: open Admin Console.
+- `Alt+L`: go to lobby when in a room.
+- `Alt+P`: toggle presentation mode.
+- `Alt+Q`: open Activity Queue as host.
+- `Alt+S`: open Host Settings as host.
 
 ## AI Generation and Keys
 
@@ -43,6 +61,7 @@ It combines multiplayer activities, host controls, and lightweight facilitation 
 - Frontend: HTML, CSS, Vanilla JavaScript (`index.html`).
 - Realtime: Socket.IO client and server.
 - Backend: Node.js + Express (`server.js`).
+- API hardening: `helmet` secure headers and `express-rate-limit` API throttling.
 - Persistence: file-based shared room state in `data/shared-state.json`.
 - CI/CD: GitHub Actions + Vercel (frontend) + Render/Railway (backend).
 
@@ -68,6 +87,8 @@ It combines multiplayer activities, host controls, and lightweight facilitation 
   - Optional override for AI endpoint.
 - `AI_QUESTION_MODEL`:
   - Optional override for AI model.
+- `PGSSL`:
+  - Set to `disable` to turn off Postgres SSL when required by local environments.
 
 ## Local Development
 
@@ -86,6 +107,8 @@ Open:
 
 - `vercel.json` deploys static frontend routing.
 - Realtime backend should run on a long-lived host (Render/Railway/Fly/etc).
+- API routes are rate-limited and secure headers are enabled via Helmet.
+- If you use the database-backed config store, ensure your Postgres provider supports the configured SSL mode.
 - Configure frontend to backend if split-hosted:
 
 ```js
