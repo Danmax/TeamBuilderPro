@@ -1357,6 +1357,46 @@ function randomAlphaNum(length) {
   return Array.from(bytes, b => chars[b % chars.length]).join('');
 }
 
+function normalizeRoomAccessToken(token) {
+  const normalized = String(token || '').trim();
+  return /^[A-Za-z0-9_-]{20,128}$/.test(normalized) ? normalized : '';
+}
+
+function getRoomAccessStorageKey(code) {
+  const normalizedCode = normalizeRoomCode(code || '');
+  return normalizedCode ? `${ROOM_ACCESS_TOKEN_KEY_PREFIX}${normalizedCode}` : '';
+}
+
+function getStoredRoomAccessToken(code) {
+  const storageKey = getRoomAccessStorageKey(code);
+  if (!storageKey) return '';
+  return normalizeRoomAccessToken(localStorage.getItem(storageKey) || '');
+}
+
+function setStoredRoomAccessToken(code, token) {
+  const storageKey = getRoomAccessStorageKey(code);
+  const normalizedToken = normalizeRoomAccessToken(token);
+  if (!storageKey || !normalizedToken) return;
+  localStorage.setItem(storageKey, normalizedToken);
+}
+
+function getRoomAccessTokenForKey(key, overrideToken = '') {
+  const normalizedOverride = normalizeRoomAccessToken(overrideToken);
+  if (normalizedOverride) return normalizedOverride;
+  const match = /^room:([A-Z0-9]{6})$/.exec(String(key || ''));
+  if (!match) return '';
+  return getStoredRoomAccessToken(match[1]);
+}
+
+function buildJoinUrl(code, accessToken = '') {
+  const params = new URLSearchParams();
+  const normalizedCode = normalizeRoomCode(code || '');
+  if (normalizedCode) params.set('join', normalizedCode);
+  const normalizedToken = normalizeRoomAccessToken(accessToken);
+  if (normalizedToken) params.set('token', normalizedToken);
+  return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+}
+
 function getFeedbackUserToken() {
   let token = localStorage.getItem(FEEDBACK_USER_TOKEN_KEY) || '';
   if (!token) {
@@ -1367,6 +1407,14 @@ function getFeedbackUserToken() {
 }
 
 function getDefaultAppPreferences() {
+  const enabledByDefault = new Set([
+    'lightning-trivia',
+    'icebreaker',
+    'pulse-check',
+    'wordle',
+    'word-chain',
+    'spin-wheel'
+  ]);
   return {
     enableFeedbackHub: true,
     enableActivityQueue: true,
@@ -1374,7 +1422,7 @@ function getDefaultAppPreferences() {
     enableLoadSession: true,
     enableAIGenerator: true,
     enableSampleQuestions: true,
-    enabledActivities: Object.fromEntries((ALL_ACTIVITY_IDS || []).map(activityId => [activityId, true]))
+    enabledActivities: Object.fromEntries((ALL_ACTIVITY_IDS || []).map(activityId => [activityId, enabledByDefault.has(activityId)]))
   };
 }
 
@@ -1507,6 +1555,7 @@ async function apiRequest(path, options = {}) {
   const headers = { ...(options.headers || {}) };
   if (options.withUserToken) headers['x-user-token'] = getFeedbackUserToken();
   if (options.adminToken) headers['x-admin-token'] = options.adminToken;
+  if (options.roomToken) headers['x-room-token'] = options.roomToken;
   if (options.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -1601,6 +1650,7 @@ let socketClient = null;
 let socketRealtimeBound = false;
 let socketRoomKey = null;
 const FEEDBACK_USER_TOKEN_KEY = 'feedback-user-token';
+const ROOM_ACCESS_TOKEN_KEY_PREFIX = 'room-access-token:';
 
 // Configure these for cross-device realtime sync via Supabase.
 // You can also set window.SUPABASE_URL / window.SUPABASE_ANON_KEY before this script loads.
@@ -1669,8 +1719,11 @@ async function getSocketClient() {
     socketClient.on('connect', () => {
       if (APP.roomCode) {
         socketRoomKey = `room:${APP.roomCode}`;
-        socketClient.emit('room:subscribe', socketRoomKey);
-        roomRealtimeEnabled = true;
+        const authToken = getRoomAccessTokenForKey(socketRoomKey, APP.roomAccessToken || '');
+        if (authToken) {
+          socketClient.emit('room:subscribe', { key: socketRoomKey, authToken });
+          roomRealtimeEnabled = true;
+        }
       }
     });
     socketClient.on('disconnect', () => {
@@ -1705,13 +1758,15 @@ async function getSupabaseClient() {
 
 // Storage API wrapper
 const Storage = {
-  get: async function(key, shared = false) {
+  get: async function(key, shared = false, accessToken = '') {
     try {
       if (shared) {
         if (!isValidSharedKey(key)) return null;
+        const authToken = getRoomAccessTokenForKey(key, accessToken);
+        if (!authToken) return null;
         const socket = await getSocketClient();
         if (socket && (socket.connected || await waitForSocketConnection())) {
-          const response = await socketEmitAck('shared:get', { key });
+          const response = await socketEmitAck('shared:get', { key, authToken });
           return response.value === null || response.value === undefined ? null : { value: response.value };
         }
         const client = await getSupabaseClient();
@@ -1735,13 +1790,15 @@ const Storage = {
       return null;
     }
   },
-  set: async function(key, value, shared = false) {
+  set: async function(key, value, shared = false, accessToken = '') {
     try {
       if (shared) {
         if (!isValidSharedKey(key)) return null;
+        const authToken = getRoomAccessTokenForKey(key, accessToken);
+        if (!authToken) throw new Error('Missing room access token');
         const socket = await getSocketClient();
         if (socket && (socket.connected || await waitForSocketConnection())) {
-          await socketEmitAck('shared:set', { key, value });
+          await socketEmitAck('shared:set', { key, value, authToken });
           return { key, value };
         }
         const client = await getSupabaseClient();
@@ -1857,9 +1914,14 @@ const RoomManager = {
   generateCode() {
     return randomAlphaNum(6);
   },
+
+  generateAccessToken() {
+    return randomAlphaNum(24);
+  },
   
   async createRoom(hostName, hostAvatar) {
     const code = this.generateCode();
+    const accessToken = this.generateAccessToken();
     const room = {
       code: code,
       host: hostName,
@@ -1879,12 +1941,14 @@ const RoomManager = {
       lastUpdate: Date.now()
     };
     
-    await Storage.set(`room:${code}`, JSON.stringify(room), true);
-    return room;
+    await Storage.set(`room:${code}`, JSON.stringify(room), true, accessToken);
+    setStoredRoomAccessToken(code, accessToken);
+    return { room, accessToken };
   },
   
-  async joinRoom(code, playerName, playerAvatar) {
-    const result = await Storage.get(`room:${code}`, true);
+  async joinRoom(code, playerName, playerAvatar, accessToken = '') {
+    const normalizedToken = normalizeRoomAccessToken(accessToken);
+    const result = await Storage.get(`room:${code}`, true, normalizedToken);
     if (!result) return null;
     
     const room = safeParseJson(result.value);
@@ -1898,20 +1962,23 @@ const RoomManager = {
         ready: true
       });
       room.lastUpdate = Date.now();
-      await Storage.set(`room:${code}`, JSON.stringify(room), true);
+      await Storage.set(`room:${code}`, JSON.stringify(room), true, normalizedToken);
     }
     
+    if (normalizedToken) {
+      setStoredRoomAccessToken(code, normalizedToken);
+    }
     return room;
   },
   
-  async loadRoom(code) {
-    const result = await Storage.get(`room:${code}`, true);
+  async loadRoom(code, accessToken = '') {
+    const result = await Storage.get(`room:${code}`, true, accessToken);
     return result ? safeParseJson(result.value) : null;
   },
   
-  async updateRoom(code, room) {
+  async updateRoom(code, room, accessToken = '') {
     room.lastUpdate = Date.now();
-    await Storage.set(`room:${code}`, JSON.stringify(room), true);
+    await Storage.set(`room:${code}`, JSON.stringify(room), true, accessToken);
   }
 };
 
@@ -1936,7 +2003,9 @@ const APP = {
   player: null,
   room: null,
   roomCode: null,
+  roomAccessToken: null,
   pendingJoinCode: '',
+  pendingJoinToken: '',
   presentationMode: false,
   error: null,
   currentActivity: null,
@@ -4118,6 +4187,7 @@ function renderCreateRoom() {
 
 function renderJoinRoom() {
   const prefillCode = escapeHtml(normalizeRoomCode(APP.pendingJoinCode || ''));
+  const prefillToken = escapeHtml(normalizeRoomAccessToken(APP.pendingJoinToken || getStoredRoomAccessToken(APP.pendingJoinCode || '')));
   return `
     <div class="header">
       <h1 class="logo">Join Session</h1>
@@ -4132,7 +4202,11 @@ function renderJoinRoom() {
           style="text-align:center;font-size:2rem;letter-spacing:8px;text-transform:uppercase;"
           maxlength="6" value="${prefillCode}" placeholder="ABC123" autocapitalize="characters" inputmode="text">
       </div>
-      ${prefillCode ? `<div style="color:var(--text-dim);font-size:0.9rem;margin-bottom:10px;">Invite link detected. Tap <strong>Join Room</strong>.</div>` : ''}
+      <div class="form-group">
+        <label class="form-label" for="joinToken">Invite Token</label>
+        <input type="password" id="joinToken" class="form-input" value="${prefillToken}" placeholder="Paste invite token or use the full invite link" autocomplete="off" spellcheck="false">
+      </div>
+      ${prefillCode ? `<div style="color:var(--text-dim);font-size:0.9rem;margin-bottom:10px;">Invite link detected. Tap <strong>Join Room</strong>.</div>` : '<div style="color:var(--text-dim);font-size:0.9rem;margin-bottom:10px;">Use the full invite link or ask the host for the current token.</div>'}
       
       <button class="btn-primary" data-action="join-room">Join Room</button>
     </div>
@@ -4385,7 +4459,7 @@ function renderLobby() {
   const isHost = APP.room.host === APP.player.name;
   const showFeedback = APP.preferences.enableFeedbackHub !== false;
   const safeRoomCode = escapeHtml(APP.roomCode);
-  const joinUrl = `${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(APP.roomCode || '')}`;
+  const joinUrl = buildJoinUrl(APP.roomCode || '', APP.roomAccessToken || '');
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(joinUrl)}`;
   const safeJoinUrl = escapeHtml(joinUrl);
   const sharedPresentation = ENABLE_PRESENTATION_SHARE ? (APP.room.sharedPresentation || null) : null;
@@ -4885,7 +4959,7 @@ async function createPlayer() {
 
 async function copyJoinLink() {
   if (!APP.roomCode) return;
-  const joinUrl = `${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(APP.roomCode)}`;
+  const joinUrl = buildJoinUrl(APP.roomCode, APP.roomAccessToken || '');
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(joinUrl);
@@ -4938,14 +5012,14 @@ function goToScreen(screen) {
 
 async function startRoomRealtime() {
   roomRealtimeEnabled = false;
-  if (!APP.roomCode) return false;
+  if (!APP.roomCode || !APP.roomAccessToken) return false;
 
   const sharedKey = `room:${APP.roomCode}`;
 
   const socket = await getSocketClient();
   if (socket && socket.connected) {
     socketRoomKey = sharedKey;
-    socket.emit('room:subscribe', sharedKey);
+    socket.emit('room:subscribe', { key: sharedKey, authToken: APP.roomAccessToken });
     roomRealtimeEnabled = true;
     return true;
   }
@@ -4987,7 +5061,7 @@ async function startRoomRealtime() {
 async function stopRoomRealtime() {
   const socket = await getSocketClient();
   if (socket && socket.connected && socketRoomKey) {
-    socket.emit('room:unsubscribe', socketRoomKey);
+    socket.emit('room:unsubscribe', { key: socketRoomKey });
     socketRoomKey = null;
   }
 
@@ -5010,9 +5084,10 @@ function stopRoomSync() {
 async function createRoomAndNavigate() {
   render();
   
-  const room = await RoomManager.createRoom(APP.player.name, APP.player.avatar);
+  const { room, accessToken } = await RoomManager.createRoom(APP.player.name, APP.player.avatar);
   APP.room = room;
   APP.roomCode = room.code;
+  APP.roomAccessToken = accessToken;
   APP.screen = 'lobby';
   
   startRoomSync();
@@ -5021,20 +5096,31 @@ async function createRoomAndNavigate() {
 
 async function joinRoom() {
   const code = normalizeRoomCode(document.getElementById('joinCode')?.value || '');
+  const accessToken = normalizeRoomAccessToken(
+    document.getElementById('joinToken')?.value
+    || APP.pendingJoinToken
+    || getStoredRoomAccessToken(code)
+  );
   if (!/^[A-Z0-9]{6}$/.test(code || '')) {
     showError('Please enter a valid 6-digit room code');
     return;
   }
+  if (!accessToken) {
+    showError('Invite token is required. Use the full invite link or ask the host for the current token.');
+    return;
+  }
   
-  const room = await RoomManager.joinRoom(code, APP.player.name, APP.player.avatar);
+  const room = await RoomManager.joinRoom(code, APP.player.name, APP.player.avatar, accessToken);
   if (!room) {
-    showError('Room not found. Check the code.');
+    showError('Room not found or invite token is invalid.');
     return;
   }
   
   APP.room = room;
   APP.roomCode = code;
+  APP.roomAccessToken = accessToken;
   APP.pendingJoinCode = '';
+  APP.pendingJoinToken = '';
   APP.screen = 'lobby';
   
   startRoomSync();
@@ -5045,6 +5131,7 @@ async function leaveSession() {
   if (!APP.roomCode || !APP.player?.name) {
     APP.room = null;
     APP.roomCode = null;
+    APP.roomAccessToken = null;
     APP.showHostSettings = false;
     APP.screen = 'dashboard';
     stopRoomSync();
@@ -5079,6 +5166,7 @@ async function leaveSession() {
   ticTacToeFinalizePending = false;
   APP.room = null;
   APP.roomCode = null;
+  APP.roomAccessToken = null;
   APP.showHostSettings = false;
   APP.screen = 'dashboard';
   resetWordChainFocusState();
@@ -5091,7 +5179,7 @@ function startRoomSync() {
   syncInterval = setInterval(async () => {
     if (!APP.roomCode) return;
     if (!roomRealtimeEnabled) {
-      const room = await RoomManager.loadRoom(APP.roomCode);
+      const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
       if (room && room.lastUpdate !== APP.room?.lastUpdate) {
         APP.room = room;
         void maybeClaimSpinWheelWinnerXp();
@@ -5954,10 +6042,12 @@ async function requestAIGeneratedArray(prompt, apiKey = '') {
   try {
     const serverData = await apiRequest('/api/ai/generate', {
       method: 'POST',
+      roomToken: APP.roomAccessToken || '',
       body: {
         prompt,
         model: HOST_LOCAL_CONFIG.aiModel,
-        temperature: 0.7
+        temperature: 0.7,
+        roomCode: APP.roomCode || ''
       }
     });
     textContent = String(serverData?.content || '');
@@ -9466,8 +9556,15 @@ function renderTriviaResults() {
 async function init() {
   const params = new URLSearchParams(window.location.search);
   const deepJoinCode = normalizeRoomCode(params.get('join') || params.get('room') || params.get('code') || '');
+  const deepJoinToken = normalizeRoomAccessToken(params.get('token') || params.get('roomToken') || '');
   if (/^[A-Z0-9]{6}$/.test(deepJoinCode)) {
     APP.pendingJoinCode = deepJoinCode;
+  }
+  if (deepJoinToken) {
+    APP.pendingJoinToken = deepJoinToken;
+    if (deepJoinCode) {
+      setStoredRoomAccessToken(deepJoinCode, deepJoinToken);
+    }
   }
   getFeedbackUserToken();
   await loadPublicConfig();

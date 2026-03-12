@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -25,10 +26,11 @@ const io = new Server(server, {
 
 const PORT = Number.parseInt(process.env.PORT || '3000', 10);
 const state = new Map();
-const DATA_DIR = path.join(__dirname, 'data');
+const DATA_DIR = path.join(__dirname, '.runtime-data');
 const DATA_FILE = path.join(DATA_DIR, 'shared-state.json');
 const FEEDBACK_FILE = path.join(DATA_DIR, 'feedback-state.json');
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'change-me-admin-token';
+const ROOM_META_FILE = path.join(DATA_DIR, 'room-meta.json');
+const ADMIN_TOKEN = String(process.env.ADMIN_TOKEN || '').trim();
 const CHAT_GPT_MINI_KEY = String(process.env.CHAT_GPT_MINI_KEY || '').trim();
 const AI_QUESTION_ENDPOINT = String(process.env.AI_QUESTION_ENDPOINT || 'https://api.openai.com/v1/chat/completions').trim();
 const AI_QUESTION_MODEL = String(process.env.AI_QUESTION_MODEL || 'gpt-4o-mini').trim();
@@ -58,9 +60,19 @@ const FEATURE_FLAG_IDS = [
 ];
 let persistTimer = null;
 let feedbackPersistTimer = null;
+let roomMetaPersistTimer = null;
 let configDb = null;
+const roomSecrets = new Map();
 
 function getDefaultPreferences() {
+  const enabledByDefault = new Set([
+    'lightning-trivia',
+    'icebreaker',
+    'pulse-check',
+    'wordle',
+    'word-chain',
+    'spin-wheel'
+  ]);
   return {
     enableFeedbackHub: true,
     enableActivityQueue: true,
@@ -68,7 +80,7 @@ function getDefaultPreferences() {
     enableLoadSession: true,
     enableAIGenerator: true,
     enableSampleQuestions: true,
-    enabledActivities: Object.fromEntries(ALL_ACTIVITY_IDS.map(activityId => [activityId, true]))
+    enabledActivities: Object.fromEntries(ALL_ACTIVITY_IDS.map(activityId => [activityId, enabledByDefault.has(activityId)]))
   };
 }
 
@@ -171,11 +183,15 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
-app.use(express.static(__dirname));
+function sendFrontendFile(filename) {
+  return (_req, res) => {
+    res.sendFile(path.join(__dirname, filename));
+  };
+}
 
-app.get('/', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'player-hub-v1 (2).html'));
-});
+app.get('/', sendFrontendFile('index.html'));
+app.get('/index.html', sendFrontendFile('index.html'));
+app.get('/player-hub-v1 (2).html', sendFrontendFile('player-hub-v1 (2).html'));
 
 function loadStateFromDisk() {
   try {
@@ -222,6 +238,26 @@ function loadFeedbackStateFromDisk() {
   }
 }
 
+function loadRoomMetaFromDisk() {
+  try {
+    if (!fs.existsSync(ROOM_META_FILE)) return;
+    const raw = fs.readFileSync(ROOM_META_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return;
+    Object.entries(parsed).forEach(([key, meta]) => {
+      const token = String(meta?.token || '').trim();
+      if (!isRoomKey(key) || !isValidRoomToken(token)) return;
+      roomSecrets.set(key, {
+        token,
+        createdAt: Number(meta?.createdAt) || Date.now()
+      });
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to load room metadata:', error.message);
+  }
+}
+
 function persistStateToDisk() {
   try {
     if (!fs.existsSync(DATA_DIR)) {
@@ -251,6 +287,27 @@ function persistFeedbackStateToDisk() {
   }
 }
 
+function persistRoomMetaToDisk() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    const snapshot = Object.fromEntries(Array.from(roomSecrets.entries()).map(([key, meta]) => [
+      key,
+      {
+        token: meta.token,
+        createdAt: meta.createdAt
+      }
+    ]));
+    const tempFile = `${ROOM_META_FILE}.tmp`;
+    fs.writeFileSync(tempFile, JSON.stringify(snapshot, null, 2), 'utf8');
+    fs.renameSync(tempFile, ROOM_META_FILE);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to persist room metadata:', error.message);
+  }
+}
+
 function schedulePersist() {
   if (persistTimer) clearTimeout(persistTimer);
   persistTimer = setTimeout(() => {
@@ -264,6 +321,14 @@ function scheduleFeedbackPersist() {
   feedbackPersistTimer = setTimeout(() => {
     feedbackPersistTimer = null;
     persistFeedbackStateToDisk();
+  }, 150);
+}
+
+function scheduleRoomMetaPersist() {
+  if (roomMetaPersistTimer) clearTimeout(roomMetaPersistTimer);
+  roomMetaPersistTimer = setTimeout(() => {
+    roomMetaPersistTimer = null;
+    persistRoomMetaToDisk();
   }, 150);
 }
 
@@ -339,6 +404,10 @@ function isRoomKey(key) {
   return /^room:[A-Z0-9]{6}$/.test(key || '');
 }
 
+function isValidRoomToken(token) {
+  return /^[A-Za-z0-9_-]{20,128}$/.test(String(token || '').trim());
+}
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -356,9 +425,9 @@ function isValidHexColor(value) {
 }
 
 function requireAdmin(req, res, next) {
-  if (ADMIN_TOKEN === 'change-me-admin-token') {
-    // eslint-disable-next-line no-console
-    console.warn('SECURITY WARNING: Using default ADMIN_TOKEN. Set this env var immediately.');
+  if (!ADMIN_TOKEN) {
+    res.status(503).json({ ok: false, error: 'Admin access is not configured on this server.' });
+    return;
   }
   const token = String(req.header('x-admin-token') || '').trim();
   if (!token || token !== ADMIN_TOKEN) {
@@ -366,6 +435,37 @@ function requireAdmin(req, res, next) {
     return;
   }
   next();
+}
+
+function getRequestRoomToken(source) {
+  return String(source?.authToken || source?.roomToken || source?.['x-room-token'] || '').trim();
+}
+
+function hasValidRoomAccess(key, authToken) {
+  const expected = roomSecrets.get(key)?.token;
+  if (!expected || !authToken) return false;
+  const expectedBuffer = Buffer.from(expected);
+  const providedBuffer = Buffer.from(authToken);
+  if (expectedBuffer.length !== providedBuffer.length) return false;
+  return crypto.timingSafeEqual(expectedBuffer, providedBuffer);
+}
+
+function ensureRoomAccess(key, authToken) {
+  if (!isRoomKey(key) || !isValidRoomToken(authToken)) return false;
+  if (!roomSecrets.has(key)) {
+    roomSecrets.set(key, {
+      token: authToken,
+      createdAt: Date.now()
+    });
+    scheduleRoomMetaPersist();
+    return true;
+  }
+  return hasValidRoomAccess(key, authToken);
+}
+
+function isAuthorizedForRoom(key, authToken) {
+  if (!isRoomKey(key) || !isValidRoomToken(authToken)) return false;
+  return hasValidRoomAccess(key, authToken);
 }
 
 app.get('/api/config', (_req, res) => {
@@ -386,6 +486,17 @@ app.get('/api/config', (_req, res) => {
 app.post('/api/ai/generate', async (req, res) => {
   if (!CHAT_GPT_MINI_KEY) {
     res.status(503).json({ ok: false, error: 'AI server key is not configured (CHAT_GPT_MINI_KEY).' });
+    return;
+  }
+
+  const roomCode = String(req.body?.roomCode || '').trim().toUpperCase();
+  const roomKey = isRoomKey(`room:${roomCode}`) ? `room:${roomCode}` : '';
+  const adminToken = String(req.header('x-admin-token') || '').trim();
+  const roomToken = String(req.header('x-room-token') || '').trim();
+  const isAdminRequest = Boolean(ADMIN_TOKEN && adminToken && adminToken === ADMIN_TOKEN);
+  const isRoomAuthorized = roomKey ? isAuthorizedForRoom(roomKey, roomToken) : false;
+  if (!isAdminRequest && !isRoomAuthorized) {
+    res.status(401).json({ ok: false, error: 'Unauthorized AI request.' });
     return;
   }
 
@@ -559,28 +670,44 @@ app.put('/api/admin/config', requireAdmin, async (req, res) => {
 });
 
 io.on('connection', socket => {
-  socket.on('room:subscribe', key => {
-    if (!isRoomKey(key)) return;
+  socket.on('room:subscribe', payload => {
+    const key = typeof payload === 'string' ? payload : payload?.key;
+    const authToken = getRequestRoomToken(payload);
+    if (!isRoomKey(key) || !isAuthorizedForRoom(key, authToken)) return;
     socket.join(key);
   });
 
-  socket.on('room:unsubscribe', key => {
+  socket.on('room:unsubscribe', payload => {
+    const key = typeof payload === 'string' ? payload : payload?.key;
     if (!isRoomKey(key)) return;
     socket.leave(key);
   });
 
-  socket.on('shared:get', ({ key }, ack) => {
+  socket.on('shared:get', (payload, ack) => {
+    const key = payload?.key;
+    const authToken = getRequestRoomToken(payload);
     if (!isRoomKey(key)) {
       ack?.({ ok: false, error: 'Invalid room key' });
+      return;
+    }
+    if (!isAuthorizedForRoom(key, authToken)) {
+      ack?.({ ok: false, error: 'Unauthorized room access' });
       return;
     }
     const value = state.get(key) || null;
     ack?.({ ok: true, value });
   });
 
-  socket.on('shared:set', ({ key, value }, ack) => {
+  socket.on('shared:set', (payload, ack) => {
+    const key = payload?.key;
+    const value = payload?.value;
+    const authToken = getRequestRoomToken(payload);
     if (!isRoomKey(key)) {
       ack?.({ ok: false, error: 'Invalid room key' });
+      return;
+    }
+    if (!ensureRoomAccess(key, authToken)) {
+      ack?.({ ok: false, error: 'Unauthorized room write' });
       return;
     }
 
@@ -600,6 +727,7 @@ io.on('connection', socket => {
 
 loadStateFromDisk();
 loadFeedbackStateFromDisk();
+loadRoomMetaFromDisk();
 Promise.resolve()
   .then(() => initializeConfigDatabase())
   .then(() => loadConfigFromDatabase())
@@ -620,8 +748,10 @@ Promise.resolve()
 process.on('SIGINT', () => {
   if (persistTimer) clearTimeout(persistTimer);
   if (feedbackPersistTimer) clearTimeout(feedbackPersistTimer);
+  if (roomMetaPersistTimer) clearTimeout(roomMetaPersistTimer);
   persistStateToDisk();
   persistFeedbackStateToDisk();
+  persistRoomMetaToDisk();
   if (configDb) {
     configDb.end().catch(() => {});
   }
@@ -631,8 +761,10 @@ process.on('SIGINT', () => {
 process.on('SIGTERM', () => {
   if (persistTimer) clearTimeout(persistTimer);
   if (feedbackPersistTimer) clearTimeout(feedbackPersistTimer);
+  if (roomMetaPersistTimer) clearTimeout(roomMetaPersistTimer);
   persistStateToDisk();
   persistFeedbackStateToDisk();
+  persistRoomMetaToDisk();
   if (configDb) {
     configDb.end().catch(() => {});
   }
