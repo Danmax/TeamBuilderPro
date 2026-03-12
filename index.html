@@ -433,11 +433,16 @@
   .kahoot-answer.correct {
     background: var(--success);
     border-color: var(--success);
-    animation: pulse 0.5s ease-in-out;
+    box-shadow: 0 0 0 4px rgba(255,255,255,0.18), 0 0 0 8px rgba(0, 210, 106, 0.38), 0 0 36px rgba(0, 210, 106, 0.42);
   }
 
   .kahoot-answer.wrong {
-    opacity: 0.3;
+    opacity: 1;
+  }
+
+  .kahoot-answer.disabled.correct,
+  .kahoot-answer.disabled.wrong {
+    opacity: 1;
   }
 
   .kahoot-red { background: #e21b3c; border-color: #e21b3c; color: white; }
@@ -800,8 +805,27 @@
   }
 
   .brain-note-controls .btn-secondary {
-    padding: 4px 8px;
-    font-size: 0.78rem;
+    min-width: 34px;
+    padding: 5px 8px;
+    font-size: 0.95rem;
+    font-weight: 800;
+    line-height: 1;
+    background: rgba(255,255,255,0.72);
+    border-color: rgba(15,23,42,0.18);
+    color: #0f172a;
+    box-shadow: 0 3px 10px rgba(15,23,42,0.12);
+  }
+
+  .brain-note-controls .btn-secondary:hover:not(:disabled) {
+    background: rgba(255,255,255,0.92);
+    border-color: rgba(15,23,42,0.32);
+    transform: translateY(-1px);
+  }
+
+  .brain-note-controls .btn-secondary:disabled {
+    opacity: 0.45;
+    background: rgba(255,255,255,0.48);
+    color: rgba(15,23,42,0.55);
   }
 
   .host-tabs {
@@ -908,28 +932,30 @@
     left: var(--reaction-left, 50%);
     bottom: 0;
     display: inline-flex;
+    flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
     background: rgba(15, 23, 42, 0.42);
     border: 1px solid rgba(255,255,255,0.16);
-    border-radius: 999px;
-    padding: 6px 12px;
+    border-radius: 18px;
+    padding: 8px 12px;
     backdrop-filter: blur(10px);
     box-shadow: 0 10px 24px rgba(0,0,0,0.18);
-    animation: riseFade 3s ease-out forwards;
+    animation: riseFade 3s ease-out both;
     transform: translateX(-50%);
     white-space: nowrap;
   }
 
   .reaction-pill-emoji {
-    font-size: 1.15rem;
+    font-size: 1.5rem;
     line-height: 1;
   }
 
   .reaction-pill-name {
-    font-size: 0.82rem;
+    font-size: 0.76rem;
     color: rgba(255,255,255,0.88);
-    line-height: 1;
+    line-height: 1.1;
+    text-align: center;
   }
 
   @keyframes riseFade {
@@ -1242,6 +1268,38 @@ function validateAISpinWheelOptions(items) {
   return normalizeSpinWheelOptions(items);
 }
 
+function validateAITeamJeopardyBoard(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .filter(item => item && typeof item === 'object')
+    .map((item, categoryIdx) => {
+      const category = String(item.category || item.title || `Category ${categoryIdx + 1}`)
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 40);
+      const clues = Array.isArray(item.clues)
+        ? item.clues
+          .filter(clue => clue && typeof clue === 'object')
+          .map((clue, clueIdx) => {
+            const q = String(clue.q || clue.question || '').replace(/\s+/g, ' ').trim().slice(0, 220);
+            const opts = Array.isArray(clue.opts) ? clue.opts.map(v => normalizeTriviaOption(v)) : [];
+            const ans = normalizeAnswerIndex(clue.ans);
+            const fallbackValue = (clueIdx + 1) * 100;
+            const rawValue = Number.parseInt(String(clue.value ?? fallbackValue), 10);
+            const value = [100, 200, 300, 400, 500].includes(rawValue) ? rawValue : fallbackValue;
+            if (!q || opts.length !== 4 || opts.some(v => !v) || Number.isNaN(ans) || ans < 0 || ans > 3) return null;
+            return { value, q, opts, ans };
+          })
+          .filter(Boolean)
+          .slice(0, 5)
+        : [];
+      if (!category || !clues.length) return null;
+      return { category, clues };
+    })
+    .filter(Boolean)
+    .slice(0, 6);
+}
+
 const AI_BANK_EDITOR_TARGETS = [
   { id: 'trivia-bank', label: 'Trivia Bank (Lightning + Trivia Battle)' },
   { id: 'emoji-charades', label: 'Emoji Charades' },
@@ -1250,6 +1308,7 @@ const AI_BANK_EDITOR_TARGETS = [
   { id: 'values-vote', label: 'Values Vote' },
   { id: 'wordle', label: 'Team Wordle' },
   { id: 'word-chain', label: 'Word Chain' },
+  { id: 'team-jeopardy', label: 'Team Jeopardy' },
   { id: 'spin-wheel', label: 'Spin Wheel' }
 ];
 const AI_BANK_EDITOR_TARGET_LABELS = Object.fromEntries(AI_BANK_EDITOR_TARGETS.map(item => [item.id, item.label]));
@@ -1884,6 +1943,7 @@ const APP = {
   editingProfile: false,
   showHostSettings: false,
   showShortcutHelp: false,
+  brainstormAddingNote: false,
   hostSettingsTab: 'game',
   aiBankEditorTarget: AI_BANK_EDITOR_TARGETS[0]?.id || 'trivia-bank',
   aiBankEditorStatus: null,
@@ -1998,6 +2058,7 @@ const ADMIN_GENERATION_TARGETS = [
   { id: 'values-vote', label: 'Values Vote' },
   { id: 'wordle', label: 'Team Wordle' },
   { id: 'word-chain', label: 'Word Chain' },
+  { id: 'team-jeopardy', label: 'Team Jeopardy' },
   { id: 'spin-wheel', label: 'Spin Wheel' }
 ];
 
@@ -2142,6 +2203,7 @@ const SAMPLE_TEAM_VALUES = safeParseJson(JSON.stringify(TEAM_VALUES)) || [];
 const SAMPLE_WORDLE_WORDS = [...WORDLE_WORDS];
 const SAMPLE_WORD_CHAIN_PUZZLES = safeParseJson(JSON.stringify(WORD_CHAIN_PUZZLES)) || [];
 const SAMPLE_EMOJI_CHARADES_BANK = safeParseJson(JSON.stringify(EMOJI_CHARADES_BANK)) || [];
+const SAMPLE_TEAM_JEOPARDY_BOARD = safeParseJson(JSON.stringify(TEAM_JEOPARDY_BOARD)) || [];
 const SAMPLE_SPIN_WHEEL_DEFAULT_OPTIONS = [...SPIN_WHEEL_DEFAULT_OPTIONS];
 
 function replaceArrayContents(target, items) {
@@ -2158,6 +2220,7 @@ function rehydrateActivityBanksFromConfig(collections = []) {
   replaceArrayContents(WORDLE_WORDS, useSamples ? SAMPLE_WORDLE_WORDS : []);
   replaceArrayContents(WORD_CHAIN_PUZZLES, useSamples ? SAMPLE_WORD_CHAIN_PUZZLES : []);
   replaceArrayContents(EMOJI_CHARADES_BANK, useSamples ? SAMPLE_EMOJI_CHARADES_BANK : []);
+  replaceArrayContents(TEAM_JEOPARDY_BOARD, useSamples ? SAMPLE_TEAM_JEOPARDY_BOARD : []);
   replaceArrayContents(SPIN_WHEEL_DEFAULT_OPTIONS, useSamples ? SAMPLE_SPIN_WHEEL_DEFAULT_OPTIONS : []);
 
   const safeCollections = Array.isArray(collections) ? collections : [];
@@ -2188,6 +2251,9 @@ function rehydrateActivityBanksFromConfig(collections = []) {
       } else if (activityId === 'word-chain') {
         const validated = validateAIWordChainPuzzles(items);
         if (validated.length) WORD_CHAIN_PUZZLES.push(...validated);
+      } else if (activityId === 'team-jeopardy') {
+        const validated = validateAITeamJeopardyBoard(items);
+        if (validated.length) replaceArrayContents(TEAM_JEOPARDY_BOARD, validated);
       } else if (activityId === 'spin-wheel') {
         const validated = validateAISpinWheelOptions(items);
         if (validated.length) replaceArrayContents(SPIN_WHEEL_DEFAULT_OPTIONS, validated);
@@ -2230,6 +2296,7 @@ const AI_GENERATION_TARGETS = [
   { id: 'values-vote', label: 'Values Vote' },
   { id: 'wordle', label: 'Team Wordle' },
   { id: 'word-chain', label: 'Word Chain' },
+  { id: 'team-jeopardy', label: 'Team Jeopardy' },
   { id: 'brainstorm-canvas', label: 'Brainstorm Canvas' },
   { id: 'spin-wheel', label: 'Spin Wheel' }
 ];
@@ -2243,6 +2310,7 @@ function getAIGenerationTargetCount(activityId) {
   if (activityId === 'values-vote') return TEAM_VALUES.length;
   if (activityId === 'wordle') return WORDLE_WORDS.length;
   if (activityId === 'word-chain') return WORD_CHAIN_PUZZLES.length;
+  if (activityId === 'team-jeopardy') return TEAM_JEOPARDY_BOARD.reduce((sum, category) => sum + (Array.isArray(category?.clues) ? category.clues.length : 0), 0);
   if (activityId === 'spin-wheel') return SPIN_WHEEL_DEFAULT_OPTIONS.length;
   return null;
 }
@@ -2273,6 +2341,8 @@ function getAIBankEditorItems(targetId) {
       return [...WORDLE_WORDS];
     case 'word-chain':
       return safeParseJson(JSON.stringify(WORD_CHAIN_PUZZLES)) || [];
+    case 'team-jeopardy':
+      return safeParseJson(JSON.stringify(TEAM_JEOPARDY_BOARD)) || [];
     case 'spin-wheel':
       return [...SPIN_WHEEL_DEFAULT_OPTIONS];
     default:
@@ -2296,6 +2366,8 @@ function getAIBankEditorCount(targetId) {
       return WORDLE_WORDS.length;
     case 'word-chain':
       return WORD_CHAIN_PUZZLES.length;
+    case 'team-jeopardy':
+      return TEAM_JEOPARDY_BOARD.reduce((sum, category) => sum + (Array.isArray(category?.clues) ? category.clues.length : 0), 0);
     case 'spin-wheel':
       return SPIN_WHEEL_DEFAULT_OPTIONS.length;
     default:
@@ -2319,6 +2391,8 @@ function getAIBankEditorTargetHelp(targetId) {
       return 'Format: ["APPLE","BRAIN"] (5 letters each)';
     case 'word-chain':
       return 'Format: [{"title":"Chain Name","words":["WORD1",...,"WORD8"]}]';
+    case 'team-jeopardy':
+      return 'Format: [{"category":"Science","clues":[{"value":100,"q":"question","opts":["A","B","C","D"],"ans":0}]}]';
     case 'spin-wheel':
       return 'Format: ["Coffee Chat","Show and Tell"]';
     default:
@@ -2336,6 +2410,7 @@ function validateAIBankEditorItems(targetId, items) {
   if (bankId === 'values-vote') return validateAIValues(items);
   if (bankId === 'wordle') return validateAIWordleWords(items);
   if (bankId === 'word-chain') return validateAIWordChainPuzzles(items);
+  if (bankId === 'team-jeopardy') return validateAITeamJeopardyBoard(items);
   if (bankId === 'spin-wheel') return validateAISpinWheelOptions(items);
   return [];
 }
@@ -2368,6 +2443,10 @@ function applyAIBankEditorItems(targetId, items) {
   }
   if (bankId === 'word-chain') {
     replaceArrayContents(WORD_CHAIN_PUZZLES, items);
+    return;
+  }
+  if (bankId === 'team-jeopardy') {
+    replaceArrayContents(TEAM_JEOPARDY_BOARD, items);
     return;
   }
   if (bankId === 'spin-wheel') {
@@ -3097,10 +3176,18 @@ async function restartTicTacToeBlitz() {
 
 // Lightning Trivia Functions
 async function submitAnswer(optionIndex) {
+  if (!APP.roomCode || APP.room?.currentActivity !== 'lightning-trivia' || APP.room?.activityState?.revealed) return;
   const startTime = APP.room.activityState.startTime || Date.now();
   const timeElapsed = (Date.now() - startTime) / 1000;
-  
-  const room = await RoomManager.loadRoom(APP.roomCode);
+
+  if (!APP.room.activityState.answers) APP.room.activityState.answers = {};
+  if (!APP.room.activityState.answerTimes) APP.room.activityState.answerTimes = {};
+  APP.room.activityState.answers[APP.player.name] = optionIndex;
+  APP.room.activityState.answerTimes[APP.player.name] = Math.min(timeElapsed, 20);
+  render();
+
+  const room = safeParseJson(JSON.stringify(APP.room));
+  if (!room || room.currentActivity !== 'lightning-trivia' || room.activityState?.revealed) return;
   if (!room.activityState.answers) room.activityState.answers = {};
   if (!room.activityState.answerTimes) room.activityState.answerTimes = {};
   
@@ -3108,24 +3195,35 @@ async function submitAnswer(optionIndex) {
   room.activityState.answerTimes[APP.player.name] = Math.min(timeElapsed, 20);
   
   await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
 }
 
 async function sendLightningReaction(emoji) {
   if (!emoji || APP.room?.currentActivity !== 'lightning-trivia') return;
-  const room = await RoomManager.loadRoom(APP.roomCode);
-  if (!room || room.currentActivity !== 'lightning-trivia') return;
-
-  if (!room.activityState.reactions) room.activityState.reactions = [];
-  room.activityState.reactions.push({
+  const reaction = {
     emoji,
     player: APP.player.name,
     left: 18 + Math.round(Math.random() * 64),
     drift: Math.round((Math.random() * 36) - 18),
     ts: Date.now()
-  });
+  };
+
+  if (APP.room?.activityState) {
+    APP.room.activityState.reactions = Array.isArray(APP.room.activityState.reactions)
+      ? [...APP.room.activityState.reactions, reaction].slice(-25)
+      : [reaction];
+    render();
+  }
+
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'lightning-trivia') return;
+
+  if (!room.activityState.reactions) room.activityState.reactions = [];
+  room.activityState.reactions.push(reaction);
   room.activityState.reactions = room.activityState.reactions.slice(-25);
 
   await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
 }
 
 async function revealAnswer() {
@@ -3901,7 +3999,7 @@ function renderDashboard() {
       <button class="btn-secondary" data-action="open-admin-console" style="margin-left:10px;" aria-keyshortcuts="Alt+A">🛠️ Admin Console</button>
     </div>
     <div style="text-align:center;margin-top:14px;color:var(--text-dim);font-size:0.85rem;">
-      Keyboard: <strong>Alt+N</strong> host, <strong>Alt+J</strong> join, <strong>?</strong> shortcuts
+      Keyboard: <strong>${escapeHtml(formatModifierShortcut('N'))}</strong> host, <strong>${escapeHtml(formatModifierShortcut('J'))}</strong> join, <strong>?</strong> shortcuts
     </div>
   `;
 }
@@ -4344,7 +4442,7 @@ function renderLobby() {
       </div>
     </div>
     <div style="text-align:center;margin:-10px 0 22px;color:var(--text-dim);font-size:0.84rem;">
-      Keyboard: <strong>Alt+L</strong> lobby, <strong>Alt+P</strong> presentation, <strong>Alt+S</strong> host settings, <strong>?</strong> shortcuts
+      Keyboard: <strong>${escapeHtml(formatModifierShortcut('L'))}</strong> lobby, <strong>${escapeHtml(formatModifierShortcut('P'))}</strong> presentation, <strong>${escapeHtml(formatModifierShortcut('S'))}</strong> host settings, <strong>?</strong> shortcuts
     </div>
 
     ${ENABLE_PRESENTATION_SHARE ? `
@@ -4690,7 +4788,7 @@ function renderHostSettingsModal() {
                 ${APP.aiGenerating ? 'Generating...' : 'Generate & Add Content'}
               </button>
               <div style="margin-top:8px;font-size:0.85rem;color:var(--text-dim);">
-                Uses server-side AI key from <code>CHAT_GPT_MINI_KEY</code> when configured. Supported targets: Lightning Trivia, Emoji Charades, Trivia Battle, Icebreaker, Team Pulse, Values Vote, Team Wordle, Word Chain, Brainstorm Canvas, Spin Wheel.
+                Uses server-side AI key from <code>CHAT_GPT_MINI_KEY</code> when configured. Supported targets: Lightning Trivia, Emoji Charades, Trivia Battle, Icebreaker, Team Pulse, Values Vote, Team Wordle, Word Chain, Team Jeopardy, Brainstorm Canvas, Spin Wheel.
               </div>
               ${APP.aiStatus ? `<div role="status" aria-live="polite" style="margin-top:10px;color:var(--text-mid);font-size:0.9rem;">${escapeHtml(APP.aiStatus)}</div>` : ''}
             </div>
@@ -5536,27 +5634,41 @@ function isEditableTarget(target) {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 }
 
+function isMacPlatform() {
+  const platform = String(navigator.platform || '');
+  const userAgent = String(navigator.userAgent || '');
+  return /Mac|iPhone|iPad|iPod/i.test(platform) || /Mac OS|iPhone|iPad|iPod/i.test(userAgent);
+}
+
+function getModifierLabel() {
+  return isMacPlatform() ? 'Option' : 'Alt';
+}
+
+function formatModifierShortcut(key) {
+  return `${getModifierLabel()}+${key}`;
+}
+
 function getShortcutHelpItems() {
   const items = [
     { keys: '?', label: 'Open keyboard shortcuts' },
     { keys: 'Esc', label: 'Close dialog or go back' }
   ];
   if (!APP.player) return items;
-  items.push({ keys: 'Alt+H', label: 'Go to dashboard' });
-  items.push({ keys: 'Alt+N', label: 'Host session' });
-  items.push({ keys: 'Alt+J', label: 'Join session' });
+  items.push({ keys: formatModifierShortcut('H'), label: 'Go to dashboard' });
+  items.push({ keys: formatModifierShortcut('N'), label: 'Host session' });
+  items.push({ keys: formatModifierShortcut('J'), label: 'Join session' });
   if (APP.preferences.enableFeedbackHub !== false) {
-    items.push({ keys: 'Alt+F', label: 'Open Feedback Hub' });
+    items.push({ keys: formatModifierShortcut('F'), label: 'Open Feedback Hub' });
   }
-  items.push({ keys: 'Alt+A', label: 'Open Admin Console' });
+  items.push({ keys: formatModifierShortcut('A'), label: 'Open Admin Console' });
   if (APP.roomCode) {
-    items.push({ keys: 'Alt+L', label: 'Go to lobby' });
-    items.push({ keys: 'Alt+P', label: 'Toggle presentation mode' });
+    items.push({ keys: formatModifierShortcut('L'), label: 'Go to lobby' });
+    items.push({ keys: formatModifierShortcut('P'), label: 'Toggle presentation mode' });
     if (APP.preferences.enableActivityQueue !== false && APP.room?.host === APP.player?.name) {
-      items.push({ keys: 'Alt+Q', label: 'Open Activity Queue' });
+      items.push({ keys: formatModifierShortcut('Q'), label: 'Open Activity Queue' });
     }
     if (APP.room?.host === APP.player?.name) {
-      items.push({ keys: 'Alt+S', label: 'Open Host Settings' });
+      items.push({ keys: formatModifierShortcut('S'), label: 'Open Host Settings' });
     }
   }
   return items;
@@ -5630,48 +5742,48 @@ async function handleGlobalKeyboardShortcuts(event) {
 
   if (isEditing || event.ctrlKey || event.metaKey || !event.altKey) return;
 
-  const key = String(event.key || '').toLowerCase();
-  if (key === 'h' && APP.player) {
+  const code = String(event.code || '');
+  if (code === 'KeyH' && APP.player) {
     event.preventDefault();
     goToScreen('dashboard');
     return;
   }
-  if (key === 'n' && APP.player) {
+  if (code === 'KeyN' && APP.player) {
     event.preventDefault();
     goToScreen('create-room');
     return;
   }
-  if (key === 'j' && APP.player) {
+  if (code === 'KeyJ' && APP.player) {
     event.preventDefault();
     goToScreen('join-room');
     return;
   }
-  if (key === 'f' && APP.player && APP.preferences.enableFeedbackHub !== false) {
+  if (code === 'KeyF' && APP.player && APP.preferences.enableFeedbackHub !== false) {
     event.preventDefault();
     await openFeedbackHub();
     return;
   }
-  if (key === 'a' && APP.player) {
+  if (code === 'KeyA' && APP.player) {
     event.preventDefault();
     openAdminConsole();
     return;
   }
-  if (key === 'l' && APP.player && APP.roomCode) {
+  if (code === 'KeyL' && APP.player && APP.roomCode) {
     event.preventDefault();
     goToScreen('lobby');
     return;
   }
-  if (key === 'q' && APP.player && APP.roomCode && APP.room?.host === APP.player?.name && APP.preferences.enableActivityQueue !== false) {
+  if (code === 'KeyQ' && APP.player && APP.roomCode && APP.room?.host === APP.player?.name && APP.preferences.enableActivityQueue !== false) {
     event.preventDefault();
     goToScreen('activity-queue');
     return;
   }
-  if (key === 's' && APP.room?.host === APP.player?.name) {
+  if (code === 'KeyS' && APP.room?.host === APP.player?.name) {
     event.preventDefault();
     openHostSettings();
     return;
   }
-  if (key === 'p' && APP.roomCode) {
+  if (code === 'KeyP' && APP.roomCode) {
     event.preventDefault();
     togglePresentation();
   }
@@ -5811,6 +5923,15 @@ Rules:
 - Adjacent words should form a common two-word phrase or compound expression.
 Return only valid JSON as an array. Each item must be:
 {"title":"Chain name","words":["WORD1","WORD2","WORD3","WORD4","WORD5","WORD6","WORD7","WORD8"]}`;
+    case 'team-jeopardy':
+      return `Generate a Team Jeopardy board about "${targetTopic}" at ${difficulty} difficulty.
+Rules:
+- Return ${Math.max(3, Math.min(6, count))} categories.
+- Each category must include exactly 5 clues with values 100, 200, 300, 400, and 500.
+- Each clue must be multiple choice with exactly 4 options.
+- ans must be the zero-based index of the correct option.
+Return only valid JSON as an array. Each item must be:
+{"category":"Category name","clues":[{"value":100,"q":"question text","opts":["A","B","C","D"],"ans":0},{"value":200,"q":"question text","opts":["A","B","C","D"],"ans":1},{"value":300,"q":"question text","opts":["A","B","C","D"],"ans":2},{"value":400,"q":"question text","opts":["A","B","C","D"],"ans":3},{"value":500,"q":"question text","opts":["A","B","C","D"],"ans":0}]}`;
     case 'spin-wheel':
       return `Generate ${Math.max(4, Math.min(12, count))} short spin wheel options themed around "${targetTopic}".
 Rules:
@@ -5886,6 +6007,7 @@ function validateGeneratedContentForActivity(activityId, parsed) {
   if (activityId === 'values-vote') return validateAIValues(parsed);
   if (activityId === 'wordle') return validateAIWordleWords(parsed);
   if (activityId === 'word-chain') return validateAIWordChainPuzzles(parsed);
+  if (activityId === 'team-jeopardy') return validateAITeamJeopardyBoard(parsed);
   if (activityId === 'spin-wheel') return validateAISpinWheelOptions(parsed);
   if (activityId === 'brainstorm-canvas') return validateAIBrainstormNotes(parsed);
   return [];
@@ -5945,6 +6067,15 @@ async function applyAIGeneratedContent(activityId, parsed, topic) {
     if (!validated.length) throw new Error('AI returned invalid Word Chain puzzle format.');
     WORD_CHAIN_PUZZLES.push(...validated);
     APP.aiStatus = `Added ${validated.length} Word Chain puzzle${validated.length === 1 ? '' : 's'}.`;
+    return;
+  }
+
+  if (activityId === 'team-jeopardy') {
+    const validated = validateAITeamJeopardyBoard(parsed);
+    if (!validated.length) throw new Error('AI returned invalid Team Jeopardy board format.');
+    replaceArrayContents(TEAM_JEOPARDY_BOARD, validated);
+    const clueCount = validated.reduce((sum, category) => sum + (Array.isArray(category?.clues) ? category.clues.length : 0), 0);
+    APP.aiStatus = `Updated Team Jeopardy with ${validated.length} categor${validated.length === 1 ? 'y' : 'ies'} and ${clueCount} clue${clueCount === 1 ? '' : 's'}.`;
     return;
   }
 
@@ -7878,6 +8009,7 @@ function generateBrainstormNoteId() {
 
 async function brainstormAddNote() {
   if (!APP.roomCode || APP.room?.currentActivity !== 'brainstorm-canvas') return;
+  if (APP.brainstormAddingNote) return;
   const text = String(document.getElementById('brainNoteText')?.value || '').trim().slice(0, 200);
   const lane = String(document.getElementById('brainNoteLane')?.value || 'start');
   if (!text) {
@@ -7889,31 +8021,40 @@ async function brainstormAddNote() {
     return;
   }
 
-  const room = await RoomManager.loadRoom(APP.roomCode);
-  if (!room || room.currentActivity !== 'brainstorm-canvas') return;
-  const state = room.activityState || {};
-  if (state.sessionStatus === 'locked') {
-    showError('Canvas is locked by host.');
-    return;
+  APP.brainstormAddingNote = true;
+  render();
+
+  try {
+    const room = await RoomManager.loadRoom(APP.roomCode);
+    if (!room || room.currentActivity !== 'brainstorm-canvas') return;
+    const state = room.activityState || {};
+    if (state.sessionStatus === 'locked') {
+      showError('Canvas is locked by host.');
+      return;
+    }
+    state.notes = Array.isArray(state.notes) ? state.notes : [];
+    const noteId = generateBrainstormNoteId();
+    state.notes.unshift({
+      id: noteId,
+      text,
+      author: APP.player.name,
+      lane,
+      votes: 0,
+      voters: [],
+      color: BRAINSTORM_NOTE_COLORS[Math.floor(Math.random() * BRAINSTORM_NOTE_COLORS.length)],
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+    await awardParticipationInput(room, `brainstorm_note:${noteId}:${APP.player.name}`, 5);
+    room.activityState = state;
+    room.brainstormData = safeParseJson(JSON.stringify(state)) || state;
+    room.brainstormLastUpdatedAt = Date.now();
+    await RoomManager.updateRoom(APP.roomCode, room);
+    APP.room = room;
+  } finally {
+    APP.brainstormAddingNote = false;
+    render();
   }
-  state.notes = Array.isArray(state.notes) ? state.notes : [];
-  const noteId = generateBrainstormNoteId();
-  state.notes.unshift({
-    id: noteId,
-    text,
-    author: APP.player.name,
-    lane,
-    votes: 0,
-    voters: [],
-    color: BRAINSTORM_NOTE_COLORS[Math.floor(Math.random() * BRAINSTORM_NOTE_COLORS.length)],
-    createdAt: Date.now(),
-    updatedAt: Date.now()
-  });
-  await awardParticipationInput(room, `brainstorm_note:${noteId}:${APP.player.name}`, 5);
-  room.activityState = state;
-  room.brainstormData = safeParseJson(JSON.stringify(state)) || state;
-  room.brainstormLastUpdatedAt = Date.now();
-  await RoomManager.updateRoom(APP.roomCode, room);
 }
 
 async function brainstormToggleVote(noteId) {
@@ -8181,6 +8322,7 @@ function renderBrainstormCanvas() {
   const state = APP.room.activityState || {};
   const notes = Array.isArray(state.notes) ? state.notes : [];
   const sessionLocked = state.sessionStatus === 'locked';
+  const addDisabled = sessionLocked || APP.brainstormAddingNote;
 
   const notesByLane = Object.fromEntries(BRAINSTORM_LANES.map(lane => [lane.id, []]));
   notes.forEach(note => {
@@ -8245,11 +8387,11 @@ function renderBrainstormCanvas() {
 
       <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px;">
         <div style="display:grid;grid-template-columns:1.5fr 1fr auto;gap:8px;">
-          <input id="brainNoteText" class="form-input" maxlength="200" placeholder="Add a sticky note idea..." ${sessionLocked ? 'disabled' : ''}>
-          <select id="brainNoteLane" class="form-input" ${sessionLocked ? 'disabled' : ''}>
+          <input id="brainNoteText" class="form-input" maxlength="200" placeholder="Add a sticky note idea..." ${addDisabled ? 'disabled' : ''}>
+          <select id="brainNoteLane" class="form-input" ${addDisabled ? 'disabled' : ''}>
             ${BRAINSTORM_LANES.map(lane => `<option value="${lane.id}">${escapeHtml(lane.label)}</option>`).join('')}
           </select>
-          <button class="btn-primary" data-action="brainstorm-add-note" ${sessionLocked ? 'disabled' : ''} style="width:auto;padding:10px 16px;">Add</button>
+          <button class="btn-primary" data-action="brainstorm-add-note" ${addDisabled ? 'disabled' : ''} style="width:auto;padding:10px 16px;">${APP.brainstormAddingNote ? 'Adding...' : 'Add'}</button>
         </div>
       </div>
     </div>
@@ -9115,10 +9257,10 @@ function renderLightningTrivia() {
 
     const revealStyle = revealed
       ? (isCorrect
-        ? 'box-shadow:0 0 0 4px rgba(0,210,106,0.55),0 0 28px rgba(0,210,106,0.35);transform:scale(1.03);'
+        ? 'box-shadow:0 0 0 4px rgba(255,255,255,0.22),0 0 0 9px rgba(0,210,106,0.4),0 0 42px rgba(0,210,106,0.45);transform:scale(1.06);filter:brightness(1.08) saturate(1.18);z-index:2;'
         : (isWrongUserAnswer
           ? 'box-shadow:0 0 0 3px rgba(255,64,96,0.45),0 0 18px rgba(255,64,96,0.22);'
-          : 'opacity:0.45;'))
+          : 'box-shadow:inset 0 0 0 1px rgba(255,255,255,0.16);filter:brightness(0.98);'))
       : '';
 
     answerButtons += `
@@ -9163,12 +9305,11 @@ function renderLightningTrivia() {
   `).join('');
 
   const reactionStream = reactions.map(r => {
-    const player = APP.room.participants.find(p => p.name === r.player);
-    const avatar = player?.avatar || '👤';
     const left = Math.max(10, Math.min(90, Number(r.left) || 50));
     const drift = Math.max(-24, Math.min(24, Number(r.drift) || 0));
-    return `<span class="reaction-pill" title="${escapeHtml(r.player)}" style="--reaction-left:${left}%;--reaction-drift:${drift}px;">
-      <span class="reaction-pill-emoji">${escapeHtml(avatar)} ${escapeHtml(r.emoji)}</span>
+    const ageMs = Math.max(0, Math.min(3000, Date.now() - (Number(r.ts) || 0)));
+    return `<span class="reaction-pill" title="${escapeHtml(r.player)}" style="--reaction-left:${left}%;--reaction-drift:${drift}px;animation-delay:-${ageMs}ms;">
+      <span class="reaction-pill-emoji">${escapeHtml(r.emoji)}</span>
       <span class="reaction-pill-name">${escapeHtml(r.player)}</span>
     </span>`;
   }).join('');
