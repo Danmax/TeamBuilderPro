@@ -66,6 +66,37 @@
     min-height: 100vh;
   }
 
+  .app-footer {
+    margin-top: 32px;
+    padding: 18px 20px 28px;
+    border-top: 1px solid rgba(255,255,255,0.09);
+    text-align: center;
+  }
+
+  .app-footer-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--warning);
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .app-footer-quote {
+    max-width: 760px;
+    margin: 0 auto;
+    color: var(--text-mid);
+    font-size: 0.98rem;
+    line-height: 1.6;
+  }
+
   @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
   @keyframes shimmer { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
   @keyframes pulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.05); } }
@@ -986,6 +1017,267 @@
     35% { transform: scale(1.07); opacity: 1; }
     100% { transform: scale(1); opacity: 1; }
   }
+  @keyframes funSignFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+  }
+
+  .wheel-of-fun-shell {
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at top, rgba(255, 227, 146, 0.14), transparent 36%),
+      linear-gradient(180deg, rgba(116, 28, 10, 0.82), rgba(28, 12, 7, 0.94));
+    border: 1px solid rgba(255, 202, 107, 0.34);
+    box-shadow: 0 18px 46px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+
+  .wheel-of-fun-sign {
+    position: relative;
+    margin: 0 auto 16px;
+    max-width: 620px;
+    padding: 22px 26px 18px;
+    border-radius: 26px;
+    border: 3px solid #7a4a10;
+    background:
+      linear-gradient(180deg, rgba(151, 43, 19, 0.96), rgba(106, 31, 13, 0.96) 56%, rgba(21, 74, 153, 0.96) 56%, rgba(12, 53, 118, 0.98));
+    box-shadow:
+      0 18px 34px rgba(0,0,0,0.32),
+      inset 0 0 0 2px rgba(255,225,153,0.2),
+      inset 0 -10px 18px rgba(0,0,0,0.15);
+    animation: funSignFloat 4.8s ease-in-out infinite;
+  }
+
+  .wheel-of-fun-sign::before {
+    content: '';
+    position: absolute;
+    inset: 10px;
+    border-radius: 20px;
+    border: 2px solid rgba(255, 221, 134, 0.28);
+    pointer-events: none;
+  }
+
+  .wheel-of-fun-kicker {
+    font-size: 0.78rem;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: rgba(255, 232, 180, 0.88);
+    text-align: center;
+    margin-bottom: 8px;
+  }
+
+  .wheel-of-fun-title {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(2rem, 5vw, 3.55rem);
+    line-height: 0.95;
+    text-align: center;
+    color: #fff2d1;
+    text-shadow: 0 3px 0 rgba(92, 39, 0, 0.6), 0 10px 24px rgba(0,0,0,0.26);
+  }
+
+  .wheel-of-fun-title strong {
+    display: block;
+    color: #ffd24a;
+    margin-top: 6px;
+  }
+
+  .wheel-of-fun-slash {
+    position: relative;
+    display: inline-block;
+    margin: 0 0.15em;
+    color: #fff2d1;
+  }
+
+  .wheel-of-fun-slash::after {
+    content: '';
+    position: absolute;
+    left: -6%;
+    right: -6%;
+    top: 53%;
+    height: 0.18em;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #ff6b53, #d91e18 55%, #8d0f10);
+    transform: rotate(-7deg);
+    box-shadow: 0 0 10px rgba(255, 77, 64, 0.35);
+  }
+
+  .wheel-of-fun-subtitle {
+    margin-top: 10px;
+    text-align: center;
+    color: rgba(255, 236, 200, 0.88);
+    font-weight: 600;
+  }
+
+  .wheel-of-fun-prompt-card {
+    background:
+      linear-gradient(135deg, rgba(255, 239, 196, 0.96), rgba(255, 213, 95, 0.94));
+    border: 2px solid rgba(133, 75, 8, 0.5);
+    box-shadow: 0 14px 28px rgba(0,0,0,0.24);
+    color: #5d2404;
+  }
+
+  .wheel-of-fun-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+  }
+
+  .wheel-of-fun-mini {
+    background: rgba(255, 243, 210, 0.08);
+    border: 1px solid rgba(255, 205, 102, 0.2);
+    border-radius: 12px;
+    padding: 10px 12px;
+  }
+
+  .wheel-of-fun-mini strong {
+    display: block;
+    color: #ffe09a;
+    margin-bottom: 4px;
+    font-size: 0.86rem;
+  }
+
+  .wheel-of-fun-mini span {
+    color: rgba(255,255,255,0.78);
+    font-size: 0.8rem;
+    line-height: 1.35;
+  }
+
+  .wheel-of-fun-settings {
+    background: linear-gradient(180deg, rgba(116, 37, 12, 0.3), rgba(16, 22, 45, 0.48));
+    border: 1px solid rgba(255, 199, 95, 0.22);
+  }
+
+  .spin-wheel-shell {
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 14% 12%, rgba(0, 210, 211, 0.16), transparent 28%),
+      radial-gradient(circle at 88% 18%, rgba(197, 108, 240, 0.16), transparent 26%),
+      radial-gradient(circle at 48% -10%, rgba(254, 202, 87, 0.16), transparent 32%),
+      linear-gradient(160deg, rgba(12, 18, 42, 0.94), rgba(18, 27, 58, 0.96) 48%, rgba(14, 12, 34, 0.98));
+    border: 1px solid rgba(125, 206, 255, 0.2);
+    box-shadow: 0 20px 48px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+
+  .spin-wheel-shell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(90deg, transparent, rgba(255,255,255,0.035), transparent),
+      radial-gradient(circle at center, transparent 56%, rgba(255,255,255,0.02) 57%, transparent 58%);
+    pointer-events: none;
+  }
+
+  .spin-wheel-hero {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .spin-wheel-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(141, 232, 255, 0.18);
+    color: rgba(244, 249, 255, 0.9);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    backdrop-filter: blur(10px);
+  }
+
+  .spin-wheel-stage {
+    position: relative;
+    padding: 18px 18px 14px;
+    border-radius: 24px;
+    background:
+      radial-gradient(circle at top, rgba(255,255,255,0.12), transparent 38%),
+      linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+
+  .spin-wheel-pointer {
+    filter: drop-shadow(0 3px 8px rgba(255, 177, 66, 0.35));
+  }
+
+  .spin-wheel-spin-btn {
+    background: radial-gradient(circle at 32% 30%, #fff4c1, #ffd86a 44%, #ff9f43 74%, #9a4d02 100%);
+    color: #4a1900;
+    border: 2px solid rgba(130, 62, 6, 0.46);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3), inset 0 2px 10px rgba(255,255,255,0.24);
+  }
+
+  .spin-wheel-status {
+    display: inline-block;
+    margin-top: 14px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(141, 232, 255, 0.16);
+    color: rgba(242, 248, 255, 0.84);
+    font-size: 0.84rem;
+    font-weight: 600;
+  }
+
+  .spin-wheel-result-card {
+    border: 2px solid rgba(255, 203, 104, 0.46);
+    background: linear-gradient(135deg, rgba(255,246,208,0.96), rgba(255,189,103,0.96));
+    box-shadow: 0 12px 24px rgba(0,0,0,0.24);
+    color: #5f2400;
+  }
+
+  .spin-wheel-picks {
+    margin: 14px auto 0;
+    max-width: 680px;
+    padding: 14px;
+    border-radius: 18px;
+    background: rgba(8, 13, 30, 0.36);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .spin-wheel-pick-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px;
+  }
+
+  .spin-wheel-pick-btn {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 14px;
+    transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  }
+
+  .spin-wheel-pick-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  .spin-wheel-winners {
+    margin: 14px auto 0;
+    max-width: 540px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 12px 14px;
+  }
+
+  .spin-wheel-settings {
+    background:
+      radial-gradient(circle at top right, rgba(0, 210, 211, 0.09), transparent 24%),
+      linear-gradient(180deg, rgba(17, 27, 55, 0.92), rgba(10, 14, 31, 0.98));
+    border: 1px solid rgba(125, 206, 255, 0.18);
+    box-shadow: 0 14px 32px rgba(0,0,0,0.18);
+  }
 
   @media (max-width: 768px) {
     .grid-2 {
@@ -1017,6 +1309,20 @@
     .kahoot-answer {
       padding: 18px;
       font-size: 1rem;
+    }
+
+    .wheel-of-fun-sign {
+      padding: 20px 18px 16px;
+      border-radius: 20px;
+    }
+
+    .wheel-of-fun-title {
+      font-size: clamp(1.7rem, 9vw, 2.7rem);
+    }
+
+    .spin-wheel-stage {
+      padding: 14px 12px 12px;
+      border-radius: 18px;
     }
   }
 </style>
@@ -1577,6 +1883,7 @@ function getDefaultRoomHostSettings() {
     dynamicScoring: true,
     enableAIGenerator: true,
     spinWheelAllowPlayerPicks: true,
+    spinWheelFunMode: false,
     emojiCharadesAllowCloseAnswers: true
   };
 }
@@ -2013,6 +2320,8 @@ const APP = {
   showHostSettings: false,
   showShortcutHelp: false,
   brainstormAddingNote: false,
+  hostSettingsSaving: false,
+  footerQuoteIndex: 0,
   hostSettingsTab: 'game',
   aiBankEditorTarget: AI_BANK_EDITOR_TARGETS[0]?.id || 'trivia-bank',
   aiBankEditorStatus: null,
@@ -2035,11 +2344,25 @@ const APP = {
     loading: false,
     collections: [],
     configDatabaseConnected: false,
+    savingConfig: false,
     generatingContent: false,
     generationStatus: null
   }
 };
 const APP_VERSION = '1.1.2';
+const TEAM_BUILDING_QUOTES = [
+  'Great teams do not just work side by side. They build trust out loud.',
+  'Momentum grows when everyone feels safe enough to contribute one honest idea.',
+  'Strong collaboration is usually a series of small helpful moves, repeated often.',
+  'The best team wins are shared before they are celebrated.',
+  'Progress gets faster when the room is curious, clear, and kind.',
+  'A team becomes resilient when people solve problems with each other, not around each other.',
+  'Good energy is contagious when everyone has a chance to bring something to the table.',
+  'Alignment is a competitive advantage when the whole team can see the same goal.',
+  'Better meetings start when every voice feels invited into the work.',
+  'Teams get stronger each time they turn participation into momentum.'
+];
+let footerQuoteTimer = null;
 
 const TRIVIA_BANK = [
   { q: "What is the capital of France?", opts: ["London", "Paris", "Berlin", "Rome"], ans: 1 },
@@ -2117,6 +2440,19 @@ const SPIN_WHEEL_DEFAULT_OPTIONS = [
   'Bonus Round'
 ];
 const SPIN_WHEEL_DEFAULT_TITLE = 'Spin Wheel';
+const SPIN_WHEEL_FUN_TITLE = 'The Wheel of Doom... I mean Fun!';
+const SPIN_WHEEL_FUN_PROMPTS = [
+  { label: 'Truth: Theme Song', prompt: 'What song would play when you join a meeting?' },
+  { label: 'Dare: Pep Talk', prompt: 'Give the team a 10-second hype speech.' },
+  { label: 'Truth: Work Quirk', prompt: 'Share a harmless habit you always do while working.' },
+  { label: 'Dare: Product Pitch', prompt: 'Pitch your favorite snack or drink like a luxury brand.' },
+  { label: 'Truth: Hidden Talent', prompt: 'Tell the group one skill or talent teammates may not know about.' },
+  { label: 'Dare: Emoji Recap', prompt: 'Summarize your week using only three spoken emoji names.' },
+  { label: 'Truth: Desk MVP', prompt: 'What item on your desk or in your bag saves your day most often?' },
+  { label: 'Dare: Movie Trailer', prompt: 'Describe your job like a dramatic movie trailer voice-over.' }
+];
+const SPIN_WHEEL_FUN_OPTIONS = SPIN_WHEEL_FUN_PROMPTS.map(item => item.label);
+const SPIN_WHEEL_FUN_PROMPT_MAP = Object.fromEntries(SPIN_WHEEL_FUN_PROMPTS.map(item => [item.label, item.prompt]));
 const ADMIN_GENERATED_COLLECTION_ID = 'admin-generated-content';
 const ADMIN_GENERATED_COLLECTION_NAME = 'Admin Generated Content';
 const ADMIN_GENERATION_TARGETS = [
@@ -2619,6 +2955,62 @@ function normalizeSpinWheelTitle(value) {
     .slice(0, 48);
 }
 
+function resetSpinWheelProgress(state) {
+  if (!state || typeof state !== 'object') return state;
+  state.pendingSelectedIndex = null;
+  state.selectedIndex = null;
+  state.playerSelections = {};
+  state.spinWinners = [];
+  state.winnerXpClaimed = {};
+  state.currentResult = '';
+  state.lastResult = '';
+  state.prevWheelRotation = Number(state.wheelRotation) || 0;
+  state.wheelRotation = Number(state.wheelRotation) || 0;
+  state.lastSpinAt = 0;
+  state.spinSettledAt = 0;
+  state.isSpinning = false;
+  return state;
+}
+
+function isSpinWheelFunMode(roomOrSettings) {
+  const settings = roomOrSettings?.hostSettings ? getRoomHostSettings(roomOrSettings) : { ...getDefaultRoomHostSettings(), ...(roomOrSettings || {}) };
+  return settings.spinWheelFunMode === true;
+}
+
+function applySpinWheelFunModeState(state, preserveCustom = true) {
+  const nextState = state && typeof state === 'object' ? state : createInitialActivityState('spin-wheel');
+  if (preserveCustom) {
+    const currentTitle = normalizeSpinWheelTitle(nextState.title || '');
+    const currentOptions = normalizeSpinWheelOptions(nextState.options || []);
+    if (currentTitle && currentTitle !== SPIN_WHEEL_FUN_TITLE) {
+      nextState.customTitleBeforeFun = currentTitle;
+    } else if (!normalizeSpinWheelTitle(nextState.customTitleBeforeFun || '')) {
+      nextState.customTitleBeforeFun = SPIN_WHEEL_DEFAULT_TITLE;
+    }
+    if (currentOptions.length && currentOptions.join('|') !== SPIN_WHEEL_FUN_OPTIONS.join('|')) {
+      nextState.customOptionsBeforeFun = [...currentOptions];
+    } else if (!Array.isArray(nextState.customOptionsBeforeFun) || normalizeSpinWheelOptions(nextState.customOptionsBeforeFun).length < 2) {
+      nextState.customOptionsBeforeFun = [...SPIN_WHEEL_DEFAULT_OPTIONS];
+    }
+  }
+  nextState.title = SPIN_WHEEL_FUN_TITLE;
+  nextState.options = [...SPIN_WHEEL_FUN_OPTIONS];
+  return resetSpinWheelProgress(nextState);
+}
+
+function restoreSpinWheelFromFunMode(state) {
+  const nextState = state && typeof state === 'object' ? state : createInitialActivityState('spin-wheel');
+  const restoredTitle = normalizeSpinWheelTitle(nextState.customTitleBeforeFun || '') || SPIN_WHEEL_DEFAULT_TITLE;
+  const restoredOptions = normalizeSpinWheelOptions(nextState.customOptionsBeforeFun || []);
+  nextState.title = restoredTitle;
+  nextState.options = restoredOptions.length >= 2 ? restoredOptions : [...SPIN_WHEEL_DEFAULT_OPTIONS];
+  return resetSpinWheelProgress(nextState);
+}
+
+function getSpinWheelFunPrompt(label) {
+  return SPIN_WHEEL_FUN_PROMPT_MAP[String(label || '').trim()] || '';
+}
+
 function buildSpinWheelSegments(options) {
   const baseOptions = normalizeSpinWheelOptions(options);
   const fallback = baseOptions.length ? baseOptions : [...SPIN_WHEEL_DEFAULT_OPTIONS];
@@ -2807,6 +3199,8 @@ function createInitialActivityState(activityId) {
     return {
       title: SPIN_WHEEL_DEFAULT_TITLE,
       options: [...SPIN_WHEEL_DEFAULT_OPTIONS],
+      customTitleBeforeFun: SPIN_WHEEL_DEFAULT_TITLE,
+      customOptionsBeforeFun: [...SPIN_WHEEL_DEFAULT_OPTIONS],
       spinnerTurnPlayer: null,
       selectedIndex: null,
       pendingSelectedIndex: null,
@@ -3075,6 +3469,9 @@ function getInitialActivityState(room, activityId) {
     if (resumed && typeof resumed === 'object') {
       initialState = resumed;
     }
+  }
+  if (activityId === 'spin-wheel' && isSpinWheelFunMode(room)) {
+    initialState = applySpinWheelFunModeState(initialState, true);
   }
   return initialState;
 }
@@ -3582,6 +3979,10 @@ async function saveSpinWheelOptions() {
   const room = await RoomManager.loadRoom(APP.roomCode);
   if (!room || room.currentActivity !== 'spin-wheel') return;
   if (room.host !== APP.player?.name) return;
+  if (isSpinWheelFunMode(room)) {
+    showError('Wheel of Fun mode is active. Turn it off in Host Settings to edit custom wheel options.');
+    return;
+  }
   const titleInput = document.getElementById('spinWheelTitleInput');
   const input = document.getElementById('spinWheelOptionsInput');
   const title = normalizeSpinWheelTitle(titleInput?.value || '') || SPIN_WHEEL_DEFAULT_TITLE;
@@ -3599,18 +4000,10 @@ async function saveSpinWheelOptions() {
 
   state.title = title;
   state.options = options;
+  state.customTitleBeforeFun = title;
+  state.customOptionsBeforeFun = [...options];
   if (optionsChanged) {
-    state.pendingSelectedIndex = null;
-    state.selectedIndex = null;
-    state.spinWinners = [];
-    state.winnerXpClaimed = {};
-    state.currentResult = '';
-    state.lastResult = '';
-    state.prevWheelRotation = Number(state.wheelRotation) || 0;
-    state.wheelRotation = Number(state.wheelRotation) || 0;
-    state.lastSpinAt = 0;
-    state.spinSettledAt = 0;
-    state.isSpinning = false;
+    resetSpinWheelProgress(state);
   }
   room.activityState = state;
   await RoomManager.updateRoom(APP.roomCode, room);
@@ -3949,6 +4342,33 @@ function autoFocusWordChainActiveCell() {
   wordChainLastAutoFocusKey = focusKey;
 }
 
+function getNextFooterQuoteIndex() {
+  if (TEAM_BUILDING_QUOTES.length <= 1) return 0;
+  let nextIndex = Math.floor(Math.random() * TEAM_BUILDING_QUOTES.length);
+  while (nextIndex === APP.footerQuoteIndex) {
+    nextIndex = Math.floor(Math.random() * TEAM_BUILDING_QUOTES.length);
+  }
+  return nextIndex;
+}
+
+function startFooterQuoteRotation() {
+  if (footerQuoteTimer || TEAM_BUILDING_QUOTES.length <= 1) return;
+  footerQuoteTimer = window.setInterval(() => {
+    APP.footerQuoteIndex = getNextFooterQuoteIndex();
+    render();
+  }, 90000);
+}
+
+function renderFooter() {
+  const quote = TEAM_BUILDING_QUOTES[APP.footerQuoteIndex] || TEAM_BUILDING_QUOTES[0] || '';
+  return `
+    <footer class="app-footer">
+      <div class="app-footer-kicker">Team Spark</div>
+      <p class="app-footer-quote">${escapeHtml(quote)}</p>
+    </footer>
+  `;
+}
+
 function render() {
   const app = document.getElementById('app');
   let html = '';
@@ -3983,6 +4403,8 @@ function render() {
       </div>
     ` + html;
   }
+
+  html += renderFooter();
   
   app.innerHTML = html;
   autoFocusWordChainActiveCell();
@@ -4422,7 +4844,9 @@ function renderAdminConsole() {
         ` : '<div style="margin-top:10px;color:var(--text-dim);font-size:0.9rem;">No side-loaded collections yet.</div>'}
       </div>
 
-      <button class="btn-primary" data-action="save-admin-config">Save Branding & Preferences</button>
+      <button class="btn-primary" data-action="save-admin-config" ${admin.savingConfig ? 'disabled aria-busy="true"' : ''}>
+        ${admin.savingConfig ? 'Saving...' : 'Save Branding & Preferences'}
+      </button>
     </div>
 
     <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:20px;">
@@ -4793,6 +5217,13 @@ function renderHostSettingsModal() {
             Spin Wheel: allow players to select a section
           </label>
           <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <input type="checkbox" id="hsSpinWheelFunMode" ${roomSettings.spinWheelFunMode === true ? 'checked' : ''}>
+            Spin Wheel: enable Wheel of Doom... I mean Fun! mode
+          </label>
+          <div style="font-size:0.82rem;color:var(--text-dim);margin:-2px 0 10px 28px;">
+            Uses a work-safe truth-or-dare style preset with a carnival look inspired by your Wheel of Fun graphic.
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
             <input type="checkbox" id="hsEmojiCharadesAllowCloseAnswers" ${roomSettings.emojiCharadesAllowCloseAnswers !== false ? 'checked' : ''}>
             Emoji Charades: host can accept close answers
           </label>
@@ -4894,7 +5325,9 @@ function renderHostSettingsModal() {
           `}
         </div>
 
-        <button class="btn-primary" data-action="save-host-settings">Save Host Settings</button>
+        <button class="btn-primary" data-action="save-host-settings" ${APP.hostSettingsSaving ? 'disabled aria-busy="true"' : ''}>
+          ${APP.hostSettingsSaving ? 'Saving...' : 'Save Host Settings'}
+        </button>
       </div>
     </div>
   `;
@@ -4942,6 +5375,17 @@ function togglePresentation() {
   }
   
   render();
+}
+
+function setAsyncButtonState(button, isBusy, idleLabel, busyLabel) {
+  if (!button) return;
+  button.disabled = isBusy;
+  button.textContent = isBusy ? busyLabel : idleLabel;
+  if (isBusy) {
+    button.setAttribute('aria-busy', 'true');
+  } else {
+    button.removeAttribute('aria-busy');
+  }
 }
 
 async function createPlayer() {
@@ -5507,6 +5951,7 @@ function adminLogout() {
   APP.admin.authenticated = false;
   APP.admin.feedback = [];
   APP.admin.loading = false;
+  APP.admin.savingConfig = false;
   APP.admin.generatingContent = false;
   APP.admin.generationStatus = null;
   localStorage.removeItem('admin-token');
@@ -5656,7 +6101,7 @@ async function generateAdminActivityContent(activityIds) {
 }
 
 async function saveAdminConfig() {
-  if (!APP.admin.authenticated) return;
+  if (!APP.admin.authenticated || APP.admin.savingConfig) return;
   const appName = String(document.getElementById('adminBrandAppName')?.value || '').trim();
   const tagline = String(document.getElementById('adminBrandTagline')?.value || '').trim();
   const accent = String(document.getElementById('adminBrandAccent')?.value || '').trim();
@@ -5669,6 +6114,9 @@ async function saveAdminConfig() {
   const enabledActivities = Object.fromEntries(
     ACTIVITY_QUEUE_ITEMS.map(item => [item.id, Boolean(document.getElementById(`adminActivityEnabled-${item.id}`)?.checked)])
   );
+  const saveButton = document.querySelector('[data-action="save-admin-config"]');
+  APP.admin.savingConfig = true;
+  setAsyncButtonState(saveButton, true, 'Save Branding & Preferences', 'Saving...');
 
   try {
     const data = await apiRequest('/api/admin/config', {
@@ -5688,9 +6136,12 @@ async function saveAdminConfig() {
         collections: normalizeClientCollections(APP.admin.collections || [])
       }
     });
+    APP.admin.savingConfig = false;
     applyConfigPayload(data);
     render();
   } catch (e) {
+    APP.admin.savingConfig = false;
+    setAsyncButtonState(saveButton, false, 'Save Branding & Preferences', 'Saving...');
     showError(e.message);
   }
 }
@@ -5905,13 +6356,15 @@ function switchHostSettingsTab(tabId) {
 }
 
 async function saveHostSettings() {
-  if (!APP.room || APP.room.host !== APP.player?.name) return;
+  if (!APP.room || APP.room.host !== APP.player?.name || APP.hostSettingsSaving) return;
+  const saveButton = document.querySelector('[data-action="save-host-settings"]');
 
   const roomSettings = {
     autoRevealLightning: Boolean(document.getElementById('hsAutoRevealLightning')?.checked),
     allowAnswerChanges: Boolean(document.getElementById('hsAllowAnswerChanges')?.checked),
     dynamicScoring: Boolean(document.getElementById('hsDynamicScoring')?.checked),
     spinWheelAllowPlayerPicks: Boolean(document.getElementById('hsSpinWheelAllowPlayerPicks')?.checked),
+    spinWheelFunMode: Boolean(document.getElementById('hsSpinWheelFunMode')?.checked),
     emojiCharadesAllowCloseAnswers: Boolean(document.getElementById('hsEmojiCharadesAllowCloseAnswers')?.checked),
     enableAIGenerator: APP.preferences.enableAIGenerator !== false
       && Boolean(document.getElementById('hsEnableAIGenerator')?.checked)
@@ -5930,17 +6383,39 @@ async function saveHostSettings() {
   };
   localStorage.setItem('ai-question-api-key', HOST_LOCAL_CONFIG.aiApiKey || '');
   saveHostLocalConfig(HOST_LOCAL_CONFIG);
+  APP.hostSettingsSaving = true;
+  setAsyncButtonState(saveButton, true, 'Save Host Settings', 'Saving...');
 
-  const room = await RoomManager.loadRoom(APP.roomCode);
-  if (!room) {
-    showError('Room no longer available.');
-    return;
+  try {
+    const room = await RoomManager.loadRoom(APP.roomCode);
+    if (!room) {
+      APP.hostSettingsSaving = false;
+      setAsyncButtonState(saveButton, false, 'Save Host Settings', 'Saving...');
+      showError('Room no longer available.');
+      return;
+    }
+    const previousRoomSettings = getRoomHostSettings(room);
+    room.hostSettings = roomSettings;
+    if (room.currentActivity === 'spin-wheel') {
+      const state = room.activityState && typeof room.activityState === 'object'
+        ? room.activityState
+        : createInitialActivityState('spin-wheel');
+      if (!previousRoomSettings.spinWheelFunMode && roomSettings.spinWheelFunMode) {
+        room.activityState = applySpinWheelFunModeState(state, true);
+      } else if (previousRoomSettings.spinWheelFunMode && !roomSettings.spinWheelFunMode) {
+        room.activityState = restoreSpinWheelFromFunMode(state);
+      }
+    }
+    await RoomManager.updateRoom(APP.roomCode, room);
+    APP.hostSettingsSaving = false;
+    APP.room = room;
+    APP.showHostSettings = false;
+    render();
+  } catch (e) {
+    APP.hostSettingsSaving = false;
+    setAsyncButtonState(saveButton, false, 'Save Host Settings', 'Saving...');
+    showError(e.message);
   }
-  room.hostSettings = roomSettings;
-  await RoomManager.updateRoom(APP.roomCode, room);
-  APP.room = room;
-  APP.showHostSettings = false;
-  render();
 }
 
 async function saveAIBankEditorCollection() {
@@ -8870,6 +9345,7 @@ function renderSpinWheel() {
   const wheelTitle = normalizeSpinWheelTitle(state.title || '') || SPIN_WHEEL_DEFAULT_TITLE;
   const safeRoomCode = escapeHtml(APP.roomCode);
   const roomSettings = getRoomHostSettings(APP.room);
+  const funMode = roomSettings.spinWheelFunMode === true;
   const allowPlayerPicks = roomSettings.spinWheelAllowPlayerPicks !== false;
   const participantList = Array.isArray(APP.room.participants) ? APP.room.participants : [];
   const nonHostParticipants = participantList.filter(participant => participant?.name && participant.name !== hostName);
@@ -8898,7 +9374,9 @@ function renderSpinWheel() {
   const spinDurationMs = Math.max(1500, Number(state.spinDurationMs) || 4800);
   const isAnimating = spinning && state.lastSpinAt && (now - Number(state.lastSpinAt) < spinDurationMs + 250);
   const isCelebrating = Boolean(currentResult) && state.spinSettledAt && (now - Number(state.spinSettledAt) < 1800);
-  const segmentColors = ['#00d2d3', '#feca57', '#ff6b6b', '#6c5ce7', '#00d26a', '#ff9f43', '#54a0ff', '#ff7fbb', '#10ac84', '#a29bfe', '#f368e0', '#2e86de'];
+  const segmentColors = funMode
+    ? ['#ef4335', '#f7d13a', '#19984b', '#1b61b9', '#ff9252', '#d6452c', '#f0d94f', '#0f8f58', '#2b73d2', '#ffb347', '#da5534', '#1976c8']
+    : ['#00d2d3', '#feca57', '#ff6b6b', '#6c5ce7', '#00d26a', '#ff9f43', '#54a0ff', '#ff7fbb', '#10ac84', '#a29bfe', '#f368e0', '#2e86de'];
   const gradientParts = segments.map((segment, idx) => {
     const start = segment.start.toFixed(3);
     const end = segment.end.toFixed(3);
@@ -8925,8 +9403,8 @@ function renderSpinWheel() {
     position:absolute;
     inset:0;
     border-radius:50%;
-    border:6px solid rgba(255,255,255,0.85);
-    box-shadow:0 18px 50px rgba(0,0,0,0.25), inset 0 0 0 3px rgba(0,0,0,0.1);
+    border:6px solid ${funMode ? 'rgba(255,223,145,0.92)' : 'rgba(255,255,255,0.85)'};
+    box-shadow:${funMode ? '0 20px 50px rgba(0,0,0,0.32), inset 0 0 0 3px rgba(90,47,5,0.25), 0 0 0 10px rgba(255,209,102,0.08)' : '0 18px 50px rgba(0,0,0,0.25), inset 0 0 0 3px rgba(0,0,0,0.1)'};
     background:conic-gradient(from -90deg, ${gradientParts || '#00d2d3 0deg 360deg'});
   `;
   // Place labels near each sector centroid and scale for option count/text length.
@@ -8999,20 +9477,50 @@ function renderSpinWheel() {
     : '';
   const confetti = isCelebrating ? buildCelebrationConfettiPieces(20) : '';
   const optionsEditorValue = formatSpinWheelOptionsForEditor(displayOptions);
+  const funPrompt = funMode ? getSpinWheelFunPrompt(currentResult) : '';
+  const funSign = funMode ? `
+    <div class="wheel-of-fun-sign">
+      <div class="wheel-of-fun-kicker">Special Mode Enabled</div>
+      <div class="wheel-of-fun-title">
+        The Wheel of <span class="wheel-of-fun-slash">Doom</span> <strong>I mean Fun!</strong>
+      </div>
+      <div class="wheel-of-fun-subtitle">Friendly truth-or-dare style prompts for team laughs without the cringe.</div>
+    </div>
+  ` : '';
+  const standardHero = !funMode ? `
+    <div class="spin-wheel-hero">
+      <span class="spin-wheel-chip">🎯 Quick decider</span>
+      <span class="spin-wheel-chip">✨ Crowd favorite</span>
+      <span class="spin-wheel-chip">⚡ Instant tie-breaker</span>
+    </div>
+  ` : '';
+  const shellClass = funMode ? 'wheel-of-fun-shell' : 'spin-wheel-shell';
+  const resultCardClass = funMode ? 'wheel-of-fun-prompt-card' : 'spin-wheel-result-card';
+  const settingsCardClass = funMode ? 'wheel-of-fun-settings' : 'spin-wheel-settings';
+  const stageClass = funMode ? '' : 'spin-wheel-stage';
+  const pointerClass = funMode ? '' : 'spin-wheel-pointer';
+  const spinButtonClass = funMode ? '' : 'spin-wheel-spin-btn';
+  const statusClass = funMode ? '' : 'spin-wheel-status';
+  const picksWrapClass = funMode ? '' : 'spin-wheel-picks';
+  const picksGridClass = funMode ? '' : 'spin-wheel-pick-grid';
+  const pickButtonClass = funMode ? '' : 'spin-wheel-pick-btn';
+  const winnersClass = funMode ? '' : 'spin-wheel-winners';
 
   return `
     <div class="header">
-      <h1 style="font-size:2rem;font-weight:700;">🎡 ${escapeHtml(wheelTitle)}</h1>
-      <p class="tagline">Spin to decide what happens next • Room: ${safeRoomCode}</p>
+      <h1 style="font-size:2rem;font-weight:700;">${funMode ? '🎪' : '🎡'} ${escapeHtml(wheelTitle)}</h1>
+      <p class="tagline">${funMode ? 'Spin for a work-safe truth or dare challenge' : 'Spin to decide what happens next'} • Room: ${safeRoomCode}</p>
     </div>
 
     ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
 
     <div style="display:grid;grid-template-columns:1fr;gap:16px;max-width:920px;margin:18px auto 0;">
-      <div style="position:relative;overflow:hidden;background:var(--surface-solid);border:1px solid var(--border);border-radius:16px;padding:18px;">
+      <div class="${shellClass}" style="position:relative;overflow:hidden;${funMode ? 'background:transparent;border:1px solid rgba(255, 199, 95, 0.22);' : ''}border-radius:16px;padding:18px;">
         ${isCelebrating ? `<div class="trivia-confetti" aria-hidden="true">${confetti}</div>` : ''}
-        <div style="position:relative;max-width:420px;margin:0 auto;">
-          <div style="position:absolute;left:50%;top:-14px;transform:translateX(-50%);width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:24px solid #ffd166;filter:drop-shadow(0 2px 2px rgba(0,0,0,0.3));z-index:3;"></div>
+        ${funSign}
+        ${standardHero}
+        <div class="${stageClass}" style="position:relative;max-width:460px;margin:0 auto;">
+          <div class="${pointerClass}" style="position:absolute;left:50%;top:-14px;transform:translateX(-50%);width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:24px solid #ffd166;filter:drop-shadow(0 2px 2px rgba(0,0,0,0.3));z-index:3;"></div>
           ${(!isAnimating && selectedIndex !== null) ? '<div style="position:absolute;left:50%;top:-20px;transform:translateX(-50%);width:26px;height:26px;border-radius:50%;background:rgba(255,209,102,0.35);filter:blur(6px);z-index:2;"></div>' : ''}
           <div style="${wheelStyle}">
             <div style="${wheelFaceStyle}"></div>
@@ -9023,30 +9531,31 @@ function renderSpinWheel() {
             </div>
             ${winnerOutlineSvg}
           </div>
-          <button type="button" ${mySpinTurn ? 'data-action="spin-wheel-spin"' : 'disabled'} style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:78px;height:78px;border-radius:50%;background:#111827;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;letter-spacing:0.5px;box-shadow:0 4px 14px rgba(0,0,0,0.35);z-index:4;border:none;cursor:${mySpinTurn && !isAnimating ? 'pointer' : 'default'};opacity:${isAnimating ? '0.8' : mySpinTurn ? '1' : '0.5'};" ${isAnimating ? 'disabled' : ''}>
+          <button type="button" class="${spinButtonClass}" ${mySpinTurn ? 'data-action="spin-wheel-spin"' : 'disabled'} style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:78px;height:78px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;letter-spacing:0.5px;z-index:4;cursor:${mySpinTurn && !isAnimating ? 'pointer' : 'default'};opacity:${isAnimating ? '0.8' : mySpinTurn ? '1' : '0.5'};${funMode ? 'background:radial-gradient(circle at 35% 30%, #ffe8a0, #f2b431 62%, #8a4c06 100%);color:#5b2400;box-shadow:0 5px 16px rgba(0,0,0,0.36), inset 0 2px 8px rgba(255,255,255,0.22);border:2px solid rgba(126,69,8,0.55);' : ''}" ${isAnimating ? 'disabled' : ''}>
             ${isAnimating
               ? '<span style="width:18px;height:18px;border:2px solid rgba(255,255,255,0.35);border-top-color:#ffffff;border-radius:50%;animation:spin 0.8s linear infinite;display:inline-block;" aria-label="Spinning"></span>'
               : 'SPIN'
             }
           </button>
         </div>
-        <div style="text-align:center;margin-top:14px;color:var(--text-mid);">${isAnimating ? 'Spinning...' : ''}</div>
+        <div class="${statusClass}" style="text-align:center;margin-top:14px;color:var(--text-mid);">${isAnimating ? 'Spinning...' : ''}</div>
         ${currentResult ? `
           <div style="
             margin:10px auto 0;
             width:min(420px,92%);
             text-align:center;
             border-radius:12px;
-            border:2px solid rgba(116, 193, 255, 0.7);
-            background:linear-gradient(135deg, rgba(155,228,255,0.93), rgba(124,189,255,0.93));
+            border:2px solid ${funMode ? 'rgba(133, 75, 8, 0.45)' : 'rgba(116, 193, 255, 0.7)'};
+            background:${funMode ? 'linear-gradient(135deg, rgba(255,239,196,0.94), rgba(255,213,95,0.94))' : 'linear-gradient(135deg, rgba(155,228,255,0.93), rgba(124,189,255,0.93))'};
             box-shadow:0 8px 20px rgba(0,0,0,0.28);
-            color:#073a66;
+            color:${funMode ? '#5d2404' : '#073a66'};
             font-weight:800;
             padding:10px 14px;
             letter-spacing:0.2px;
             animation:${isCelebrating ? 'wheelWinnerBounce 700ms ease-out 1' : 'none'};
-          ">
+          " class="${resultCardClass}">
             ${`Landed on: ${escapeHtml(currentResult)}`}
+            ${funPrompt ? `<div style="margin-top:6px;font-size:0.94rem;font-weight:700;line-height:1.35;">${escapeHtml(funPrompt)}</div>` : ''}
           </div>
         ` : ''}
         <div style="text-align:center;margin-top:10px;color:var(--text-dim);">${isAnimating ? 'Wheel is in motion.' : escapeHtml(turnLabel)}</div>
@@ -9056,15 +9565,15 @@ function renderSpinWheel() {
           </div>
         ` : ''}
         ${allowPlayerPicks ? `
-          <div style="margin:14px auto 0;max-width:640px;">
+          <div class="${picksWrapClass}" style="margin:14px auto 0;max-width:640px;">
             <div style="font-size:0.84rem;color:var(--text-dim);text-align:center;margin-bottom:8px;">Pick a section before the spin</div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;">
+            <div class="${picksGridClass}" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;">
               ${segments.map((segment, idx) => {
                 const pickedCount = Object.values(playerSelections).filter(value => Number(value) === idx).length;
                 const pickedByMe = selectedByMe === idx;
                 const winner = !isAnimating && selectedIndex === idx;
                 return `
-                  <button type="button" class="btn-secondary" data-action="spin-wheel-pick-section" data-index="${idx}"
+                  <button type="button" class="btn-secondary ${pickButtonClass}" data-action="spin-wheel-pick-section" data-index="${idx}"
                     style="margin:0;padding:8px 10px;border:${winner ? '2px solid #8de8ff' : pickedByMe ? '2px solid var(--accent)' : '1px solid var(--border)'};background:${winner ? 'rgba(141,232,255,0.16)' : pickedByMe ? 'rgba(0,210,211,0.12)' : 'var(--surface-2)'};">
                     <div style="font-weight:700;font-size:0.9rem;">${escapeHtml(segment.label)}</div>
                     <div style="font-size:0.75rem;color:var(--text-dim);">Section ${idx + 1}${pickedCount ? ` • ${pickedCount} pick${pickedCount === 1 ? '' : 's'}` : ''}</div>
@@ -9075,7 +9584,7 @@ function renderSpinWheel() {
           </div>
         ` : ''}
         ${currentResult ? `
-          <div style="margin:14px auto 0;max-width:520px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;">
+          <div class="${winnersClass}" style="margin:14px auto 0;max-width:520px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;">
             <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:6px;">Winners</div>
             <div style="display:flex;flex-wrap:wrap;gap:8px;">
               ${spinWinners.length
@@ -9090,9 +9599,9 @@ function renderSpinWheel() {
         ` : ''}
       </div>
 
-      <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:16px;padding:16px;">
+      <div class="${settingsCardClass}" style="${funMode ? 'background:var(--surface-solid);border:1px solid var(--border);' : ''}border-radius:16px;padding:16px;">
         <h3 style="margin-bottom:8px;">Wheel Settings</h3>
-        <div style="font-size:0.86rem;color:var(--text-dim);margin-bottom:10px;">Set a wheel title and one option per line (2 to 12). Wheel auto-duplicates options to spread sections evenly.</div>
+        <div style="font-size:0.86rem;color:var(--text-dim);margin-bottom:10px;">${funMode ? 'Wheel of Fun uses a preset list of work-safe truth or dare prompts. Turn the mode off in Host Settings to return to your custom wheel.' : 'Set a wheel title and one option per line (2 to 12). Wheel auto-duplicates options to spread sections evenly.'}</div>
         ${isHost ? `
           <div style="margin-bottom:12px;padding:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;">
             <div style="font-size:0.86rem;font-weight:700;margin-bottom:8px;">Spin Turn</div>
@@ -9107,14 +9616,28 @@ function renderSpinWheel() {
             </div>
             ${nonHostParticipants.length === 0 ? '<div style="margin-top:8px;font-size:0.8rem;color:var(--text-dim);">Add participants to hand off the spin.</div>' : ''}
           </div>
-          <label class="form-label" for="spinWheelTitleInput">Wheel Title</label>
-          <input id="spinWheelTitleInput" class="form-input" maxlength="48" value="${escapeHtml(wheelTitle)}" placeholder="Spin Wheel">
-          <div style="height:8px;"></div>
-          <label class="form-label" for="spinWheelOptionsInput">Wheel Options</label>
-          <textarea id="spinWheelOptionsInput" class="form-input" rows="8" placeholder="Lightning Round&#10;Trivia Challenge&#10;Team Shoutout">${escapeHtml(optionsEditorValue)}</textarea>
-          <div style="display:flex;gap:10px;margin-top:10px;">
-            <button class="btn-secondary" data-action="spin-wheel-save-options" style="flex:1;">Save Wheel Settings</button>
-          </div>
+          ${funMode ? `
+            <div style="margin-bottom:12px;padding:12px;background:rgba(255,239,196,0.08);border:1px solid rgba(255,205,102,0.2);border-radius:12px;">
+              <div style="font-size:0.86rem;font-weight:700;margin-bottom:8px;color:#ffe09a;">Wheel of Fun Prompt Set</div>
+              <div class="wheel-of-fun-grid">
+                ${SPIN_WHEEL_FUN_PROMPTS.map(item => `
+                  <div class="wheel-of-fun-mini">
+                    <strong>${escapeHtml(item.label)}</strong>
+                    <span>${escapeHtml(item.prompt)}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          ` : `
+            <label class="form-label" for="spinWheelTitleInput">Wheel Title</label>
+            <input id="spinWheelTitleInput" class="form-input" maxlength="48" value="${escapeHtml(wheelTitle)}" placeholder="Spin Wheel">
+            <div style="height:8px;"></div>
+            <label class="form-label" for="spinWheelOptionsInput">Wheel Options</label>
+            <textarea id="spinWheelOptionsInput" class="form-input" rows="8" placeholder="Lightning Round&#10;Trivia Challenge&#10;Team Shoutout">${escapeHtml(optionsEditorValue)}</textarea>
+            <div style="display:flex;gap:10px;margin-top:10px;">
+              <button class="btn-secondary" data-action="spin-wheel-save-options" style="flex:1;">Save Wheel Settings</button>
+            </div>
+          `}
           <div style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">
             ${optionSummary.map(item => `
               <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:0.85rem;">
@@ -9554,6 +10077,7 @@ function renderTriviaResults() {
 
 // Initialize
 async function init() {
+  APP.footerQuoteIndex = Math.floor(Math.random() * TEAM_BUILDING_QUOTES.length);
   const params = new URLSearchParams(window.location.search);
   const deepJoinCode = normalizeRoomCode(params.get('join') || params.get('room') || params.get('code') || '');
   const deepJoinToken = normalizeRoomAccessToken(params.get('token') || params.get('roomToken') || '');
@@ -9573,6 +10097,7 @@ async function init() {
     APP.player = profile;
     APP.screen = APP.pendingJoinCode ? 'join-room' : 'dashboard';
   }
+  startFooterQuoteRotation();
   render();
 }
 
