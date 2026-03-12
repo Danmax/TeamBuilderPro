@@ -56,7 +56,8 @@ const FEATURE_FLAG_IDS = [
   'enableScheduleMeeting',
   'enableLoadSession',
   'enableAIGenerator',
-  'enableSampleQuestions'
+  'enableSampleQuestions',
+  'enableFooterQuotes'
 ];
 let persistTimer = null;
 let feedbackPersistTimer = null;
@@ -80,6 +81,7 @@ function getDefaultPreferences() {
     enableLoadSession: true,
     enableAIGenerator: true,
     enableSampleQuestions: true,
+    enableFooterQuotes: false,
     enabledActivities: Object.fromEntries(ALL_ACTIVITY_IDS.map(activityId => [activityId, enabledByDefault.has(activityId)]))
   };
 }

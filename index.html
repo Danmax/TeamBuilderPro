@@ -1728,6 +1728,7 @@ function getDefaultAppPreferences() {
     enableLoadSession: true,
     enableAIGenerator: true,
     enableSampleQuestions: true,
+    enableFooterQuotes: false,
     enabledActivities: Object.fromEntries((ALL_ACTIVITY_IDS || []).map(activityId => [activityId, enabledByDefault.has(activityId)]))
   };
 }
@@ -1752,6 +1753,7 @@ function normalizeAppPreferences(raw) {
     enableLoadSession: Boolean(source.enableLoadSession ?? defaults.enableLoadSession),
     enableAIGenerator: Boolean(source.enableAIGenerator ?? defaults.enableAIGenerator),
     enableSampleQuestions: Boolean(source.enableSampleQuestions ?? defaults.enableSampleQuestions),
+    enableFooterQuotes: Boolean(source.enableFooterQuotes ?? defaults.enableFooterQuotes),
     enabledActivities: normalizeEnabledActivities(source.enabledActivities)
   };
 }
@@ -1775,6 +1777,7 @@ function applyBranding(config) {
     ...preferences
   };
   document.documentElement.style.setProperty('--accent', APP.branding.accent);
+  syncFooterQuoteRotation();
 }
 
 function isActivityEnabled(activityId) {
@@ -4351,8 +4354,16 @@ function getNextFooterQuoteIndex() {
   return nextIndex;
 }
 
-function startFooterQuoteRotation() {
-  if (footerQuoteTimer || TEAM_BUILDING_QUOTES.length <= 1) return;
+function syncFooterQuoteRotation() {
+  const footerQuotesEnabled = APP.preferences.enableFooterQuotes === true;
+  if (!footerQuotesEnabled || TEAM_BUILDING_QUOTES.length <= 1) {
+    if (footerQuoteTimer) {
+      window.clearInterval(footerQuoteTimer);
+      footerQuoteTimer = null;
+    }
+    return;
+  }
+  if (footerQuoteTimer) return;
   footerQuoteTimer = window.setInterval(() => {
     APP.footerQuoteIndex = getNextFooterQuoteIndex();
     render();
@@ -4360,6 +4371,7 @@ function startFooterQuoteRotation() {
 }
 
 function renderFooter() {
+  if (APP.preferences.enableFooterQuotes !== true) return '';
   const quote = TEAM_BUILDING_QUOTES[APP.footerQuoteIndex] || TEAM_BUILDING_QUOTES[0] || '';
   return `
     <footer class="app-footer">
@@ -4777,6 +4789,10 @@ function renderAdminConsole() {
       <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
         <input id="adminEnableSampleQuestions" type="checkbox" ${preferences.enableSampleQuestions !== false ? 'checked' : ''}>
         Include built-in sample question sets
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <input id="adminEnableFooterQuotes" type="checkbox" ${preferences.enableFooterQuotes === true ? 'checked' : ''}>
+        Enable inspiring team quote footer
       </label>
 
       <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
@@ -6111,6 +6127,7 @@ async function saveAdminConfig() {
   const enableLoadSession = Boolean(document.getElementById('adminEnableLoadSession')?.checked);
   const enableAIGenerator = Boolean(document.getElementById('adminEnableAIGenerator')?.checked);
   const enableSampleQuestions = Boolean(document.getElementById('adminEnableSampleQuestions')?.checked);
+  const enableFooterQuotes = Boolean(document.getElementById('adminEnableFooterQuotes')?.checked);
   const enabledActivities = Object.fromEntries(
     ACTIVITY_QUEUE_ITEMS.map(item => [item.id, Boolean(document.getElementById(`adminActivityEnabled-${item.id}`)?.checked)])
   );
@@ -6131,6 +6148,7 @@ async function saveAdminConfig() {
           enableLoadSession,
           enableAIGenerator,
           enableSampleQuestions,
+          enableFooterQuotes,
           enabledActivities
         },
         collections: normalizeClientCollections(APP.admin.collections || [])
@@ -10097,7 +10115,7 @@ async function init() {
     APP.player = profile;
     APP.screen = APP.pendingJoinCode ? 'join-room' : 'dashboard';
   }
-  startFooterQuoteRotation();
+  syncFooterQuoteRotation();
   render();
 }
 
