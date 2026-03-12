@@ -31,10 +31,12 @@ const DATA_FILE = path.join(DATA_DIR, 'shared-state.json');
 const FEEDBACK_FILE = path.join(DATA_DIR, 'feedback-state.json');
 const ROOM_META_FILE = path.join(DATA_DIR, 'room-meta.json');
 const ADMIN_TOKEN = String(process.env.ADMIN_TOKEN || '').trim();
+const ADMIN_TEMP_PASSWORD = String(process.env.ADMIN_TEMP_PASSWORD || '').trim();
 const CHAT_GPT_MINI_KEY = String(process.env.CHAT_GPT_MINI_KEY || '').trim();
 const AI_QUESTION_ENDPOINT = String(process.env.AI_QUESTION_ENDPOINT || 'https://api.openai.com/v1/chat/completions').trim();
 const AI_QUESTION_MODEL = String(process.env.AI_QUESTION_MODEL || 'gpt-4o-mini').trim();
 const DATABASE_URL = String(process.env.DATABASE_URL || '').trim();
+const IS_PRODUCTION = String(process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
 const GLOBAL_CONFIG_DB_KEY = 'global_config';
 const ALL_ACTIVITY_IDS = [
   'lightning-trivia',
@@ -45,6 +47,7 @@ const ALL_ACTIVITY_IDS = [
   'wordle',
   'word-chain',
   'brainstorm-canvas',
+  'uno',
   'regular-trivia',
   'tic-tac-toe-blitz',
   'team-jeopardy',
@@ -248,10 +251,13 @@ function loadRoomMetaFromDisk() {
     if (!parsed || typeof parsed !== 'object') return;
     Object.entries(parsed).forEach(([key, meta]) => {
       const token = String(meta?.token || '').trim();
-      if (!isRoomKey(key) || !isValidRoomToken(token)) return;
+      const privateSession = meta?.privateSession === undefined ? Boolean(token) : Boolean(meta?.privateSession);
+      if (!isRoomKey(key)) return;
+      if (token && !isValidRoomToken(token)) return;
       roomSecrets.set(key, {
         token,
-        createdAt: Number(meta?.createdAt) || Date.now()
+        createdAt: Number(meta?.createdAt) || Date.now(),
+        privateSession
       });
     });
   } catch (error) {
@@ -298,7 +304,8 @@ function persistRoomMetaToDisk() {
       key,
       {
         token: meta.token,
-        createdAt: meta.createdAt
+        createdAt: meta.createdAt,
+        privateSession: meta.privateSession === true
       }
     ]));
     const tempFile = `${ROOM_META_FILE}.tmp`;
@@ -426,13 +433,35 @@ function isValidHexColor(value) {
   return /^#[0-9a-fA-F]{6}$/.test(String(value || '').trim());
 }
 
+function isLocalDevRequest(req) {
+  const rawHost = String(req.hostname || req.header('host') || '').trim().toLowerCase();
+  const host = rawHost.replace(/:\d+$/, '');
+  const forwardedFor = String(req.header('x-forwarded-for') || '').split(',')[0].trim();
+  const remoteAddress = String(forwardedFor || req.ip || req.socket?.remoteAddress || '').trim().replace(/^::ffff:/, '');
+  const isLoopbackHost = host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
+  const isLoopbackIp = remoteAddress === '127.0.0.1' || remoteAddress === '::1';
+  return !IS_PRODUCTION && (isLoopbackHost || isLoopbackIp);
+}
+
+function isValidAdminToken(token, req) {
+  const normalizedToken = String(token || '').trim();
+  if (!normalizedToken) return false;
+  if (ADMIN_TOKEN && normalizedToken === ADMIN_TOKEN) return true;
+  if (ADMIN_TEMP_PASSWORD && normalizedToken === ADMIN_TEMP_PASSWORD && isLocalDevRequest(req)) return true;
+  return false;
+}
+
+function hasAdminAccessConfigured(req) {
+  return Boolean(ADMIN_TOKEN || (ADMIN_TEMP_PASSWORD && isLocalDevRequest(req)));
+}
+
 function requireAdmin(req, res, next) {
-  if (!ADMIN_TOKEN) {
+  if (!hasAdminAccessConfigured(req)) {
     res.status(503).json({ ok: false, error: 'Admin access is not configured on this server.' });
     return;
   }
   const token = String(req.header('x-admin-token') || '').trim();
-  if (!token || token !== ADMIN_TOKEN) {
+  if (!isValidAdminToken(token, req)) {
     res.status(401).json({ ok: false, error: 'Unauthorized' });
     return;
   }
@@ -443,8 +472,39 @@ function getRequestRoomToken(source) {
   return String(source?.authToken || source?.roomToken || source?.['x-room-token'] || '').trim();
 }
 
+function safeParseJsonObject(value) {
+  try {
+    const parsed = JSON.parse(String(value || ''));
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function extractRoomPrivacyFromValue(value) {
+  const room = safeParseJsonObject(value);
+  if (!room) return false;
+  return room?.access?.privateSession === true || room?.hostSettings?.privateSession === true;
+}
+
+function getRoomAccessMeta(key) {
+  if (!isRoomKey(key)) return null;
+  const existing = roomSecrets.get(key);
+  if (existing) return existing;
+  const room = safeParseJsonObject(state.get(key));
+  if (!room) return null;
+  const inferred = {
+    token: '',
+    createdAt: Number(room?.created) || Date.now(),
+    privateSession: room?.access?.privateSession === true || room?.hostSettings?.privateSession === true
+  };
+  roomSecrets.set(key, inferred);
+  scheduleRoomMetaPersist();
+  return inferred;
+}
+
 function hasValidRoomAccess(key, authToken) {
-  const expected = roomSecrets.get(key)?.token;
+  const expected = getRoomAccessMeta(key)?.token;
   if (!expected || !authToken) return false;
   const expectedBuffer = Buffer.from(expected);
   const providedBuffer = Buffer.from(authToken);
@@ -452,21 +512,48 @@ function hasValidRoomAccess(key, authToken) {
   return crypto.timingSafeEqual(expectedBuffer, providedBuffer);
 }
 
-function ensureRoomAccess(key, authToken) {
-  if (!isRoomKey(key) || !isValidRoomToken(authToken)) return false;
-  if (!roomSecrets.has(key)) {
+function ensureRoomAccess(key, authToken, desiredPrivateSession = false) {
+  if (!isRoomKey(key)) return false;
+  const normalizedPrivateSession = desiredPrivateSession === true;
+  const normalizedToken = isValidRoomToken(authToken) ? authToken : '';
+  const existing = getRoomAccessMeta(key);
+
+  if (!existing) {
+    if (normalizedPrivateSession && !normalizedToken) return false;
     roomSecrets.set(key, {
-      token: authToken,
-      createdAt: Date.now()
+      token: normalizedToken,
+      createdAt: Date.now(),
+      privateSession: normalizedPrivateSession
     });
     scheduleRoomMetaPersist();
     return true;
   }
-  return hasValidRoomAccess(key, authToken);
+
+  if (existing.privateSession || normalizedPrivateSession) {
+    const expectedToken = existing.token || normalizedToken;
+    if (!expectedToken || !normalizedToken) return false;
+    const tokenMatches = existing.token ? hasValidRoomAccess(key, normalizedToken) : true;
+    if (!tokenMatches) return false;
+    existing.token = expectedToken;
+    existing.privateSession = normalizedPrivateSession;
+    scheduleRoomMetaPersist();
+    return true;
+  }
+
+  if (normalizedToken && !existing.token) {
+    existing.token = normalizedToken;
+    scheduleRoomMetaPersist();
+  }
+  existing.privateSession = false;
+  return true;
 }
 
 function isAuthorizedForRoom(key, authToken) {
-  if (!isRoomKey(key) || !isValidRoomToken(authToken)) return false;
+  if (!isRoomKey(key)) return false;
+  const meta = getRoomAccessMeta(key);
+  if (!meta) return false;
+  if (!meta.privateSession) return true;
+  if (!isValidRoomToken(authToken)) return false;
   return hasValidRoomAccess(key, authToken);
 }
 
@@ -495,7 +582,7 @@ app.post('/api/ai/generate', async (req, res) => {
   const roomKey = isRoomKey(`room:${roomCode}`) ? `room:${roomCode}` : '';
   const adminToken = String(req.header('x-admin-token') || '').trim();
   const roomToken = String(req.header('x-room-token') || '').trim();
-  const isAdminRequest = Boolean(ADMIN_TOKEN && adminToken && adminToken === ADMIN_TOKEN);
+  const isAdminRequest = isValidAdminToken(adminToken, req);
   const isRoomAuthorized = roomKey ? isAuthorizedForRoom(roomKey, roomToken) : false;
   if (!isAdminRequest && !isRoomAuthorized) {
     res.status(401).json({ ok: false, error: 'Unauthorized AI request.' });
@@ -708,15 +795,15 @@ io.on('connection', socket => {
       ack?.({ ok: false, error: 'Invalid room key' });
       return;
     }
-    if (!ensureRoomAccess(key, authToken)) {
-      ack?.({ ok: false, error: 'Unauthorized room write' });
-      return;
-    }
-
-    // Security: Input validation to prevent large payloads (DoS)
     const strValue = String(value ?? '');
     if (strValue.length > 20000) {
       ack?.({ ok: false, error: 'Payload too large' });
+      return;
+    }
+
+    const desiredPrivateSession = extractRoomPrivacyFromValue(strValue);
+    if (!ensureRoomAccess(key, authToken, desiredPrivateSession)) {
+      ack?.({ ok: false, error: 'Unauthorized room write' });
       return;
     }
 

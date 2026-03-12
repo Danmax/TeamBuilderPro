@@ -1279,6 +1279,262 @@
     box-shadow: 0 14px 32px rgba(0,0,0,0.18);
   }
 
+  .uno-shell {
+    display: grid;
+    gap: 18px;
+    max-width: 1100px;
+    margin: 20px auto 0;
+  }
+
+  .uno-board {
+    background:
+      radial-gradient(circle at top left, rgba(245, 214, 99, 0.12), transparent 24%),
+      radial-gradient(circle at bottom right, rgba(0, 210, 211, 0.12), transparent 26%),
+      linear-gradient(180deg, rgba(17, 27, 55, 0.94), rgba(8, 12, 29, 0.98));
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 24px;
+    padding: 20px;
+    box-shadow: 0 18px 44px rgba(0,0,0,0.22);
+  }
+
+  .uno-table {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 18px;
+    align-items: start;
+  }
+
+  .uno-pile-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(120px, 180px));
+    gap: 18px;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+
+  .uno-pile-card {
+    position: relative;
+    min-height: 176px;
+    border-radius: 20px;
+    border: 3px solid rgba(255,255,255,0.12);
+    box-shadow: 0 16px 30px rgba(0,0,0,0.22);
+    overflow: hidden;
+  }
+
+  .uno-pile-card.back {
+    background:
+      radial-gradient(circle at 30% 28%, rgba(255,255,255,0.08), transparent 28%),
+      repeating-linear-gradient(135deg, rgba(8,12,30,0.95) 0 12px, rgba(16,26,58,0.95) 12px 24px),
+      linear-gradient(135deg, #ff5a5f, #ffbd4a, #1dd47c, #2d8cff);
+  }
+
+  .uno-pile-card.back::after {
+    content: 'UNO';
+    position: absolute;
+    inset: 50% auto auto 50%;
+    transform: translate(-50%, -50%) rotate(-18deg);
+    font-family: 'Fraunces', serif;
+    font-size: 2.3rem;
+    letter-spacing: 0.04em;
+    color: rgba(255,255,255,0.92);
+    text-shadow: 0 6px 16px rgba(0,0,0,0.28);
+  }
+
+  .uno-pile-meta {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.84rem;
+    margin-top: 8px;
+  }
+
+  .uno-card {
+    position: relative;
+    width: 100%;
+    min-height: 168px;
+    border-radius: 20px;
+    border: 3px solid var(--uno-card-border, rgba(255,255,255,0.18));
+    background: var(--uno-card-bg, linear-gradient(135deg, #1f2937, #111827));
+    color: var(--uno-card-ink, #ffffff);
+    padding: 14px;
+    box-shadow: 0 14px 28px rgba(0,0,0,0.24);
+    overflow: hidden;
+    text-align: left;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+  }
+
+  button.uno-card {
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+  }
+
+  button.uno-card:hover:not(:disabled) {
+    transform: translateY(-3px);
+    box-shadow: 0 18px 34px rgba(0,0,0,0.26);
+  }
+
+  button.uno-card:disabled {
+    cursor: default;
+    opacity: 0.6;
+  }
+
+  .uno-card::before {
+    content: '';
+    position: absolute;
+    inset: 10px;
+    border-radius: 14px;
+    border: 2px solid rgba(255,255,255,0.12);
+  }
+
+  .uno-card-corner {
+    position: relative;
+    z-index: 1;
+    font-weight: 800;
+    font-size: 1.1rem;
+    letter-spacing: 0.03em;
+  }
+
+  .uno-card-corner.bottom {
+    position: absolute;
+    right: 14px;
+    bottom: 12px;
+    transform: rotate(180deg);
+  }
+
+  .uno-card-center {
+    position: absolute;
+    inset: 50% auto auto 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+    font-family: 'Fraunces', serif;
+    font-size: clamp(2.1rem, 4vw, 3rem);
+    font-weight: 800;
+    line-height: 1;
+    text-align: center;
+    text-shadow: 0 8px 18px rgba(0,0,0,0.22);
+  }
+
+  .uno-card-sub {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.86rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .uno-hand-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+  }
+
+  .uno-hand-grid .uno-card {
+    min-height: 158px;
+  }
+
+  .uno-side-panel {
+    display: grid;
+    gap: 14px;
+  }
+
+  .uno-panel-card {
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 16px;
+  }
+
+  .uno-status-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .uno-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    font-size: 0.82rem;
+    color: var(--text-mid);
+    font-weight: 700;
+  }
+
+  .uno-player-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .uno-player-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+    padding: 12px 14px;
+  }
+
+  .uno-player-row.active {
+    border-color: rgba(255, 210, 80, 0.55);
+    background: rgba(255, 210, 80, 0.1);
+  }
+
+  .uno-player-row.pending {
+    border-color: rgba(255, 101, 132, 0.45);
+    background: rgba(255, 101, 132, 0.08);
+  }
+
+  .uno-color-picker {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .uno-color-btn {
+    border: none;
+    border-radius: 12px;
+    min-height: 44px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    color: #fff;
+    cursor: pointer;
+  }
+
+  .uno-message {
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.07);
+    color: var(--text-mid);
+    line-height: 1.45;
+  }
+
+  .uno-message.alert {
+    border-color: rgba(255, 115, 115, 0.3);
+    background: rgba(255, 93, 115, 0.1);
+    color: #ffd6da;
+  }
+
+  .uno-action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  @media (max-width: 960px) {
+    .uno-table {
+      grid-template-columns: 1fr;
+    }
+  }
+
   @media (max-width: 768px) {
     .grid-2 {
       grid-template-columns: 1fr;
@@ -1323,6 +1579,26 @@
     .spin-wheel-stage {
       padding: 14px 12px 12px;
       border-radius: 18px;
+    }
+
+    .uno-pile-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .uno-hand-panel {
+      order: 0;
+    }
+
+    .uno-color-panel {
+      order: 1;
+    }
+
+    .uno-board {
+      order: 2;
+    }
+
+    .uno-hand-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 </style>
@@ -1606,6 +1882,8 @@ function validateAITeamJeopardyBoard(items) {
     .slice(0, 6);
 }
 
+
+
 const AI_BANK_EDITOR_TARGETS = [
   { id: 'trivia-bank', label: 'Trivia Bank (Lightning + Trivia Battle)' },
   { id: 'emoji-charades', label: 'Emoji Charades' },
@@ -1694,12 +1972,16 @@ function getRoomAccessTokenForKey(key, overrideToken = '') {
   return getStoredRoomAccessToken(match[1]);
 }
 
-function buildJoinUrl(code, accessToken = '') {
+function isRoomPrivateSession(room) {
+  return room?.access?.privateSession === true || room?.hostSettings?.privateSession === true;
+}
+
+function buildJoinUrl(code, accessToken = '', privateSession = false) {
   const params = new URLSearchParams();
   const normalizedCode = normalizeRoomCode(code || '');
   if (normalizedCode) params.set('join', normalizedCode);
   const normalizedToken = normalizeRoomAccessToken(accessToken);
-  if (normalizedToken) params.set('token', normalizedToken);
+  if (privateSession && normalizedToken) params.set('token', normalizedToken);
   return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
 }
 
@@ -1884,6 +2166,7 @@ function getDefaultRoomHostSettings() {
     autoRevealLightning: true,
     allowAnswerChanges: true,
     dynamicScoring: true,
+    privateSession: false,
     enableAIGenerator: true,
     spinWheelAllowPlayerPicks: true,
     spinWheelFunMode: false,
@@ -2030,10 +2313,8 @@ async function getSocketClient() {
       if (APP.roomCode) {
         socketRoomKey = `room:${APP.roomCode}`;
         const authToken = getRoomAccessTokenForKey(socketRoomKey, APP.roomAccessToken || '');
-        if (authToken) {
-          socketClient.emit('room:subscribe', { key: socketRoomKey, authToken });
-          roomRealtimeEnabled = true;
-        }
+        socketClient.emit('room:subscribe', authToken ? { key: socketRoomKey, authToken } : { key: socketRoomKey });
+        roomRealtimeEnabled = true;
       }
     });
     socketClient.on('disconnect', () => {
@@ -2073,10 +2354,9 @@ const Storage = {
       if (shared) {
         if (!isValidSharedKey(key)) return null;
         const authToken = getRoomAccessTokenForKey(key, accessToken);
-        if (!authToken) return null;
         const socket = await getSocketClient();
         if (socket && (socket.connected || await waitForSocketConnection())) {
-          const response = await socketEmitAck('shared:get', { key, authToken });
+          const response = await socketEmitAck('shared:get', authToken ? { key, authToken } : { key });
           return response.value === null || response.value === undefined ? null : { value: response.value };
         }
         const client = await getSupabaseClient();
@@ -2105,10 +2385,9 @@ const Storage = {
       if (shared) {
         if (!isValidSharedKey(key)) return null;
         const authToken = getRoomAccessTokenForKey(key, accessToken);
-        if (!authToken) throw new Error('Missing room access token');
         const socket = await getSocketClient();
         if (socket && (socket.connected || await waitForSocketConnection())) {
-          await socketEmitAck('shared:set', { key, value, authToken });
+          await socketEmitAck('shared:set', authToken ? { key, value, authToken } : { key, value });
           return { key, value };
         }
         const client = await getSupabaseClient();
@@ -2246,6 +2525,9 @@ const RoomManager = {
       activityQueue: [],
       queueIndex: 0,
       queueActive: false,
+      access: {
+        privateSession: false
+      },
       hostSettings: getDefaultRoomHostSettings(),
       created: Date.now(),
       lastUpdate: Date.now()
@@ -2302,6 +2584,7 @@ const ALL_ACTIVITY_IDS = [
   'wordle',
   'word-chain',
   'brainstorm-canvas',
+  'uno',
   'regular-trivia',
   'tic-tac-toe-blitz',
   'team-jeopardy',
@@ -2434,15 +2717,24 @@ const TEAM_JEOPARDY_BOARD = [
 ];
 
 const SPIN_WHEEL_DEFAULT_OPTIONS = [
-  'Lightning Round',
-  'Trivia Challenge',
-  'Team Shoutout',
-  'Icebreaker',
-  'Mini Break',
-  'Wildcard',
-  'Bonus Round'
+  { label: 'Mini Lightning Trivia', action: { type: 'activity', activityId: 'lightning-trivia' } },
+  { label: 'Mini Trivia Battle', action: { type: 'activity', activityId: 'regular-trivia' } },
+  { label: 'Mini Emoji Charades', action: { type: 'activity', activityId: 'emoji-charades' } },
+  { label: 'Mini Icebreaker', action: { type: 'activity', activityId: 'icebreaker' } },
+  { label: 'Mini Team Wordle', action: { type: 'activity', activityId: 'wordle' } },
+  { label: 'Mini Word Chain', action: { type: 'activity', activityId: 'word-chain' } },
+  { label: 'Mini Brainstorm', action: { type: 'activity', activityId: 'brainstorm-canvas' } },
+  { label: 'Mini Team Jeopardy', action: { type: 'activity', activityId: 'team-jeopardy' } },
+  { label: 'Bonus 50 Points', action: { type: 'points', points: 50 } },
+  { label: 'Bonus 100 Points', action: { type: 'points', points: 100 } },
+  { label: 'Jackpot 150 Points', action: { type: 'points', points: 150 } },
+  { label: 'Team Shoutout', prompt: 'Give a teammate a 10-second shoutout before the next spin.' },
+  { label: 'Mini Break', prompt: 'Everybody take a 20-second stretch break and reset.' },
+  { label: 'Wildcard Prompt', prompt: 'The spinner chooses any teammate to answer a fun one-line question.' }
 ];
 const SPIN_WHEEL_DEFAULT_TITLE = 'Spin Wheel';
+const SPIN_WHEEL_SESSION_OPTION_LIMIT = 8;
+const SPIN_WHEEL_FAVORITES_KEY = 'spin-wheel-favorites';
 const SPIN_WHEEL_FUN_TITLE = 'The Wheel of Doom... I mean Fun!';
 const SPIN_WHEEL_FUN_PROMPTS = [
   { label: 'Truth: Theme Song', prompt: 'What song would play when you join a meeting?' },
@@ -2679,6 +2971,7 @@ const ACTIVITY_QUEUE_ITEMS = [
   { id: 'wordle', icon: '🎯', label: 'Team Wordle' },
   { id: 'word-chain', icon: '🔗', label: 'Word Chain' },
   { id: 'brainstorm-canvas', icon: '🧩', label: 'Brainstorm Canvas' },
+  { id: 'uno', icon: '🃏', label: 'UNO Showdown' },
   { id: 'regular-trivia', icon: '🧠', label: 'Trivia Battle' },
   { id: 'tic-tac-toe-blitz', icon: '❌', label: 'Tic-Tac-Toe Blitz Arena' },
   { id: 'team-jeopardy', icon: '🏆', label: 'Team Jeopardy' },
@@ -2690,6 +2983,7 @@ const GAME_ACTIVITY_IDS = new Set([
   'regular-trivia',
   'wordle',
   'word-chain',
+  'uno',
   'emoji-charades',
   'tic-tac-toe-blitz',
   'team-jeopardy',
@@ -2802,7 +3096,7 @@ function getAIBankEditorTargetHelp(targetId) {
     case 'team-jeopardy':
       return 'Format: [{"category":"Science","clues":[{"value":100,"q":"question","opts":["A","B","C","D"],"ans":0}]}]';
     case 'spin-wheel':
-      return 'Format: ["Coffee Chat","Show and Tell"]';
+      return 'Format: ["Coffee Chat","Bonus 100 | points:100","Lightning Jump | activity:lightning-trivia"]';
     default:
       return 'Format: JSON array';
   }
@@ -2919,36 +3213,355 @@ const TTT_WIN_LINES = [
   [2, 4, 6]
 ];
 let ticTacToeFinalizePending = false;
+const UNO_COLORS = ['red', 'yellow', 'green', 'blue'];
+const UNO_COLOR_META = {
+  red: { label: 'Red', bg: 'linear-gradient(135deg, #ff6767, #c92f43)', border: '#6c1020', text: '#fff7f7' },
+  yellow: { label: 'Yellow', bg: 'linear-gradient(135deg, #ffe27a, #f0b429)', border: '#8c5b00', text: '#452600' },
+  green: { label: 'Green', bg: 'linear-gradient(135deg, #39d98a, #0e9f6e)', border: '#075a41', text: '#f3fff9' },
+  blue: { label: 'Blue', bg: 'linear-gradient(135deg, #4da3ff, #2563eb)', border: '#173c9d', text: '#f4f9ff' },
+  wild: { label: 'Wild', bg: 'linear-gradient(135deg, #ff6767 0 25%, #ffe27a 25% 50%, #39d98a 50% 75%, #4da3ff 75% 100%)', border: '#f3e6c9', text: '#ffffff' }
+};
+const UNO_DRAW_LIMIT = 1;
 
 // Activity Start Functions (must be before render functions)
 function buildTeamJeopardyBoard() {
   return safeParseJson(JSON.stringify(TEAM_JEOPARDY_BOARD)) || [];
 }
 
+function getUnoParticipants(participants) {
+  return Array.isArray(participants)
+    ? participants.filter(participant => participant?.name)
+    : [];
+}
+
+function shuffleCards(cards) {
+  const copy = Array.isArray(cards) ? [...cards] : [];
+  for (let idx = copy.length - 1; idx > 0; idx--) {
+    const swapIdx = Math.floor(Math.random() * (idx + 1));
+    [copy[idx], copy[swapIdx]] = [copy[swapIdx], copy[idx]];
+  }
+  return copy;
+}
+
+function buildUnoDeck() {
+  const cards = [];
+  let sequence = 0;
+  const pushCard = (color, value) => {
+    cards.push({ id: `uno_${sequence++}`, color, value });
+  };
+  UNO_COLORS.forEach(color => {
+    pushCard(color, '0');
+    ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'skip', 'reverse', 'draw2'].forEach(value => {
+      pushCard(color, value);
+      pushCard(color, value);
+    });
+  });
+  for (let idx = 0; idx < 4; idx++) {
+    pushCard('wild', 'wild');
+    pushCard('wild', 'wild4');
+  }
+  return shuffleCards(cards);
+}
+
+function isUnoNumberCard(card) {
+  return /^\d+$/.test(String(card?.value || ''));
+}
+
+function getUnoCardPoints(card) {
+  if (!card) return 0;
+  if (isUnoNumberCard(card)) return Number.parseInt(card.value, 10) || 0;
+  if (card.value === 'wild' || card.value === 'wild4') return 50;
+  return 20;
+}
+
+function getUnoCardSymbol(card) {
+  switch (String(card?.value || '')) {
+    case 'skip':
+      return '⦸';
+    case 'reverse':
+      return '↺';
+    case 'draw2':
+      return '+2';
+    case 'wild':
+      return '★';
+    case 'wild4':
+      return '+4';
+    default:
+      return String(card?.value || '?');
+  }
+}
+
+function getUnoCardLabel(card) {
+  if (!card) return 'Card';
+  const colorLabel = UNO_COLOR_META[card.color]?.label || 'Wild';
+  if (isUnoNumberCard(card)) return `${colorLabel} ${card.value}`;
+  if (card.value === 'skip') return `${colorLabel} Skip`;
+  if (card.value === 'reverse') return `${colorLabel} Reverse`;
+  if (card.value === 'draw2') return `${colorLabel} Draw Two`;
+  if (card.value === 'wild') return 'Wild';
+  if (card.value === 'wild4') return 'Wild Draw Four';
+  return `${colorLabel} ${card.value}`;
+}
+
+function getUnoCardSubLabel(card) {
+  if (!card) return '';
+  if (isUnoNumberCard(card)) return UNO_COLOR_META[card.color]?.label || '';
+  if (card.value === 'draw2') return 'Draw Two';
+  if (card.value === 'wild4') return 'Draw Four';
+  return String(card.value || '').replace(/\d+/g, '').replace(/^./, ch => ch.toUpperCase());
+}
+
+function getUnoCardTheme(color) {
+  return UNO_COLOR_META[color] || UNO_COLOR_META.wild;
+}
+
+function createUnoGameState(participants, previousState = null) {
+  const players = getUnoParticipants(participants);
+  const playerOrder = players.map(player => player.name);
+  const drawPile = buildUnoDeck();
+  const hands = {};
+  playerOrder.forEach(name => {
+    hands[name] = drawPile.splice(0, 7);
+  });
+  let discard = drawPile.shift() || null;
+  while (discard && discard.color === 'wild') {
+    drawPile.push(discard);
+    discard = drawPile.shift() || null;
+  }
+  const safeDiscard = discard || { id: 'uno_fallback', color: 'red', value: '0' };
+  const previousScores = previousState?.scores && typeof previousState.scores === 'object'
+    ? { ...previousState.scores }
+    : {};
+  playerOrder.forEach(name => {
+    if (!Number.isFinite(previousScores[name])) previousScores[name] = 0;
+  });
+  const turnIndex = playerOrder.length > 1 ? Math.floor(Math.random() * playerOrder.length) : 0;
+  return {
+    playerOrder,
+    hands,
+    drawPile,
+    discardPile: [safeDiscard],
+    currentColor: safeDiscard.color,
+    direction: 1,
+    turnIndex,
+    pendingDrawCount: 0,
+    hasDrawnThisTurn: false,
+    lastDrawnCardId: '',
+    pendingColorChoice: null,
+    unoPendingPlayer: '',
+    unoSafePlayers: {},
+    roundOver: false,
+    winner: '',
+    scores: previousScores,
+    roundPoints: 0,
+    roundNumber: previousState && Number.isFinite(previousState.roundNumber) ? previousState.roundNumber + 1 : 1,
+    lastAction: playerOrder.length ? `${playerOrder[turnIndex]} leads the first turn.` : 'Waiting for players to join.',
+    startedAt: Date.now()
+  };
+}
+
+function getUnoCurrentPlayerName(state) {
+  const order = Array.isArray(state?.playerOrder) ? state.playerOrder : [];
+  if (!order.length) return '';
+  const safeIndex = Number.isInteger(state?.turnIndex) ? state.turnIndex : 0;
+  return order[((safeIndex % order.length) + order.length) % order.length] || '';
+}
+
+function getUnoTopDiscard(state) {
+  const pile = Array.isArray(state?.discardPile) ? state.discardPile : [];
+  return pile.length ? pile[pile.length - 1] : null;
+}
+
+function refillUnoDrawPile(state) {
+  if (!state || !Array.isArray(state.drawPile)) return;
+  if (state.drawPile.length) return;
+  const discardPile = Array.isArray(state.discardPile) ? state.discardPile : [];
+  if (discardPile.length <= 1) return;
+  const topCard = discardPile[discardPile.length - 1];
+  state.drawPile = shuffleCards(discardPile.slice(0, -1));
+  state.discardPile = [topCard];
+}
+
+function drawUnoCards(state, count) {
+  const drawn = [];
+  const safeCount = Math.max(0, Number(count) || 0);
+  for (let idx = 0; idx < safeCount; idx++) {
+    refillUnoDrawPile(state);
+    if (!state.drawPile.length) break;
+    const nextCard = state.drawPile.shift();
+    if (nextCard) drawn.push(nextCard);
+  }
+  return drawn;
+}
+
+function isUnoCardPlayable(card, state) {
+  if (!card || !state || state.roundOver) return false;
+  if ((Number(state.pendingDrawCount) || 0) > 0) return false;
+  const topCard = getUnoTopDiscard(state);
+  const activeColor = String(state.currentColor || topCard?.color || '').trim();
+  if (card.color === 'wild') return true;
+  if (card.color === activeColor) return true;
+  if (topCard && card.value === topCard.value) return true;
+  return false;
+}
+
+function advanceUnoTurn(state, steps = 1) {
+  const order = Array.isArray(state?.playerOrder) ? state.playerOrder : [];
+  if (!order.length) {
+    state.turnIndex = 0;
+    return;
+  }
+  const direction = state.direction === -1 ? -1 : 1;
+  const offset = Math.max(1, Number.parseInt(steps, 10) || 1);
+  const nextIndex = (((Number(state.turnIndex) || 0) + (direction * offset)) % order.length + order.length) % order.length;
+  state.turnIndex = nextIndex;
+  state.hasDrawnThisTurn = false;
+  state.lastDrawnCardId = '';
+  state.pendingColorChoice = null;
+}
+
+function getUnoPenaltyMessage(count) {
+  return count > 0 ? `Draw ${count} card${count === 1 ? '' : 's'}` : '';
+}
+
+function computeUnoRoundPoints(state, winnerName) {
+  return Object.entries(state.hands || {}).reduce((sum, [name, cards]) => {
+    if (name === winnerName) return sum;
+    return sum + (Array.isArray(cards) ? cards.reduce((total, card) => total + getUnoCardPoints(card), 0) : 0);
+  }, 0);
+}
+
+function remapUnoPlayerReferences(state, oldName, newName) {
+  remapActivityStateKey(state, 'hands', oldName, newName);
+  remapActivityStateKey(state, 'unoSafePlayers', oldName, newName);
+  if (Array.isArray(state.playerOrder)) {
+    state.playerOrder = state.playerOrder.map(name => (name === oldName ? newName : name));
+  }
+  if (state.winner === oldName) state.winner = newName;
+  if (state.unoPendingPlayer === oldName) state.unoPendingPlayer = newName;
+  if (state.pendingColorChoice?.player === oldName) {
+    state.pendingColorChoice.player = newName;
+  }
+}
+
 function normalizeSpinWheelOptions(rawOptions) {
+  return normalizeSpinWheelEntries(rawOptions).map(entry => entry.label);
+}
+
+function normalizeSpinWheelActionMeta(actionSource = {}, metaParts = []) {
+  const source = actionSource && typeof actionSource === 'object' ? actionSource : {};
+  let actionType = String(source.type || source.kind || '').trim().toLowerCase();
+  let points = Number.parseInt(source.points ?? source.value ?? '', 10);
+  let activityId = String(source.activityId || source.activity || '').trim();
+  let prompt = String(source.prompt || source.desc || source.description || '').trim();
+
+  metaParts.forEach(part => {
+    const [rawKey, ...rest] = String(part || '').split(':');
+    const key = String(rawKey || '').trim().toLowerCase();
+    const value = rest.join(':').trim();
+    if (!key || !value) return;
+    if (key === 'points') {
+      actionType = 'points';
+      points = Number.parseInt(value, 10);
+    } else if (key === 'activity' || key === 'game') {
+      actionType = 'activity';
+      activityId = value;
+    } else if (key === 'prompt' || key === 'desc' || key === 'description') {
+      prompt = value;
+    }
+  });
+
+  if (actionType === 'points' && Number.isFinite(points)) {
+    return {
+      type: 'points',
+      points: Math.max(10, Math.min(500, points))
+    };
+  }
+  if (actionType === 'activity' && ACTIVITY_QUEUE_ITEM_MAP[activityId]) {
+    return {
+      type: 'activity',
+      activityId
+    };
+  }
+  if (prompt) {
+    return {
+      type: 'prompt',
+      prompt: prompt.slice(0, 160)
+    };
+  }
+  return null;
+}
+
+function normalizeSpinWheelEntries(rawOptions) {
   const lines = Array.isArray(rawOptions) ? rawOptions : [];
   const unique = new Set();
   const normalized = [];
   lines.forEach(raw => {
+    let label = '';
+    let action = null;
+    let prompt = '';
     if (raw && typeof raw === 'object') {
-      const label = String(raw.label || raw.option || '').replace(/\s+/g, ' ').trim().slice(0, 40);
-      if (!label) return;
-      const key = label.toLowerCase();
-      if (unique.has(key)) return;
-      unique.add(key);
-      normalized.push(label);
-      return;
+      label = String(raw.label || raw.option || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+      action = normalizeSpinWheelActionMeta(raw.action || raw, []);
+      prompt = String(raw.prompt || raw.desc || raw.description || '').trim().slice(0, 160);
+    } else {
+      const text = String(raw || '').replace(/\s+/g, ' ').trim();
+      if (!text) return;
+      const parts = text.split('|').map(part => part.trim()).filter(Boolean);
+      label = String(parts.shift() || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+      action = normalizeSpinWheelActionMeta({}, parts);
     }
-    const text = String(raw || '').replace(/\s+/g, ' ').trim();
-    if (!text) return;
-    const label = String(text.split('|')[0] || text).replace(/\s+/g, ' ').trim().slice(0, 40);
     if (!label) return;
     const key = label.toLowerCase();
     if (unique.has(key)) return;
     unique.add(key);
-    normalized.push(label);
+    normalized.push({
+      label,
+      action,
+      prompt: prompt || action?.prompt || ''
+    });
   });
-  return normalized.slice(0, 12);
+  return normalized.slice(0, 24);
+}
+
+function sampleSpinWheelEntries(rawEntries, count = SPIN_WHEEL_SESSION_OPTION_LIMIT) {
+  const entries = normalizeSpinWheelEntries(rawEntries);
+  if (entries.length <= count) return entries;
+  return shuffleCards(entries).slice(0, count);
+}
+
+function getSpinWheelSessionEntries(state) {
+  const sessionEntries = normalizeSpinWheelEntries(state?.optionEntries || state?.options || []);
+  if (sessionEntries.length >= 2) return sessionEntries;
+  const poolEntries = normalizeSpinWheelEntries(state?.optionPool || SPIN_WHEEL_DEFAULT_OPTIONS);
+  if (poolEntries.length >= 2) return sampleSpinWheelEntries(poolEntries);
+  return sampleSpinWheelEntries(SPIN_WHEEL_DEFAULT_OPTIONS);
+}
+
+function formatSpinWheelActionForEditor(entry) {
+  if (!entry?.action) {
+    return entry?.prompt ? ` | prompt:${entry.prompt}` : '';
+  }
+  if (entry.action.type === 'points') return ` | points:${entry.action.points}`;
+  if (entry.action.type === 'activity') return ` | activity:${entry.action.activityId}`;
+  if (entry.action.type === 'prompt' && entry.action.prompt) return ` | prompt:${entry.action.prompt}`;
+  return '';
+}
+
+function getSpinWheelEntryActionSummary(entry) {
+  if (!entry?.action) {
+    return entry?.prompt ? entry.prompt : '';
+  }
+  if (entry.action.type === 'points') {
+    return `Award ${entry.action.points} spin points to the spinner`;
+  }
+  if (entry.action.type === 'activity') {
+    return `Launch ${ACTIVITY_QUEUE_ITEM_MAP[entry.action.activityId]?.label || entry.action.activityId} mini session`;
+  }
+  if (entry.action.type === 'prompt') {
+    return entry.action.prompt || '';
+  }
+  return '';
 }
 
 function normalizeSpinWheelTitle(value) {
@@ -2972,6 +3585,20 @@ function resetSpinWheelProgress(state) {
   state.lastSpinAt = 0;
   state.spinSettledAt = 0;
   state.isSpinning = false;
+  state.currentResultAction = null;
+  state.currentResultPrompt = '';
+  state.lastSpinner = '';
+  return state;
+}
+
+function applySpinWheelPoolToState(state, rawEntries) {
+  if (!state || typeof state !== 'object') return state;
+  const poolEntries = normalizeSpinWheelEntries(rawEntries);
+  const fallbackPool = poolEntries.length >= 2 ? poolEntries : normalizeSpinWheelEntries(SPIN_WHEEL_DEFAULT_OPTIONS);
+  const sessionEntries = sampleSpinWheelEntries(fallbackPool, SPIN_WHEEL_SESSION_OPTION_LIMIT);
+  state.optionPool = fallbackPool;
+  state.optionEntries = sessionEntries;
+  state.options = sessionEntries.map(entry => entry.label);
   return state;
 }
 
@@ -2984,29 +3611,32 @@ function applySpinWheelFunModeState(state, preserveCustom = true) {
   const nextState = state && typeof state === 'object' ? state : createInitialActivityState('spin-wheel');
   if (preserveCustom) {
     const currentTitle = normalizeSpinWheelTitle(nextState.title || '');
-    const currentOptions = normalizeSpinWheelOptions(nextState.options || []);
+    const currentOptions = normalizeSpinWheelEntries(nextState.optionPool || nextState.options || []);
     if (currentTitle && currentTitle !== SPIN_WHEEL_FUN_TITLE) {
       nextState.customTitleBeforeFun = currentTitle;
     } else if (!normalizeSpinWheelTitle(nextState.customTitleBeforeFun || '')) {
       nextState.customTitleBeforeFun = SPIN_WHEEL_DEFAULT_TITLE;
     }
-    if (currentOptions.length && currentOptions.join('|') !== SPIN_WHEEL_FUN_OPTIONS.join('|')) {
+    if (currentOptions.length && currentOptions.map(item => item.label).join('|') !== SPIN_WHEEL_FUN_OPTIONS.join('|')) {
       nextState.customOptionsBeforeFun = [...currentOptions];
-    } else if (!Array.isArray(nextState.customOptionsBeforeFun) || normalizeSpinWheelOptions(nextState.customOptionsBeforeFun).length < 2) {
+    } else if (!Array.isArray(nextState.customOptionsBeforeFun) || normalizeSpinWheelEntries(nextState.customOptionsBeforeFun).length < 2) {
       nextState.customOptionsBeforeFun = [...SPIN_WHEEL_DEFAULT_OPTIONS];
     }
   }
   nextState.title = SPIN_WHEEL_FUN_TITLE;
-  nextState.options = [...SPIN_WHEEL_FUN_OPTIONS];
+  applySpinWheelPoolToState(nextState, SPIN_WHEEL_FUN_PROMPTS.map(item => ({
+    label: item.label,
+    prompt: item.prompt
+  })));
   return resetSpinWheelProgress(nextState);
 }
 
 function restoreSpinWheelFromFunMode(state) {
   const nextState = state && typeof state === 'object' ? state : createInitialActivityState('spin-wheel');
   const restoredTitle = normalizeSpinWheelTitle(nextState.customTitleBeforeFun || '') || SPIN_WHEEL_DEFAULT_TITLE;
-  const restoredOptions = normalizeSpinWheelOptions(nextState.customOptionsBeforeFun || []);
+  const restoredOptions = normalizeSpinWheelEntries(nextState.customOptionsBeforeFun || []);
   nextState.title = restoredTitle;
-  nextState.options = restoredOptions.length >= 2 ? restoredOptions : [...SPIN_WHEEL_DEFAULT_OPTIONS];
+  applySpinWheelPoolToState(nextState, restoredOptions.length >= 2 ? restoredOptions : SPIN_WHEEL_DEFAULT_OPTIONS);
   return resetSpinWheelProgress(nextState);
 }
 
@@ -3015,20 +3645,21 @@ function getSpinWheelFunPrompt(label) {
 }
 
 function buildSpinWheelSegments(options) {
-  const baseOptions = normalizeSpinWheelOptions(options);
-  const fallback = baseOptions.length ? baseOptions : [...SPIN_WHEEL_DEFAULT_OPTIONS];
+  const baseEntries = normalizeSpinWheelEntries(options);
+  const fallback = baseEntries.length ? baseEntries : sampleSpinWheelEntries(SPIN_WHEEL_DEFAULT_OPTIONS);
   const duplicateFactor = fallback.length <= 6 ? 2 : 1;
   const expanded = Array.from({ length: fallback.length * duplicateFactor }, (_, idx) => fallback[idx % fallback.length]);
   const sectionAngle = 360 / expanded.length;
   let cursor = 0;
-  return expanded.map((label, idx) => {
+  return expanded.map((entry, idx) => {
     const angle = sectionAngle;
     const start = cursor;
     const end = cursor + angle;
     cursor = end;
     return {
-      id: `${idx}:${label}`,
-      label,
+      id: `${idx}:${entry.label}`,
+      label: entry.label,
+      entry,
       start,
       end,
       center: start + (angle / 2),
@@ -3038,8 +3669,10 @@ function buildSpinWheelSegments(options) {
 }
 
 function formatSpinWheelOptionsForEditor(options) {
-  const normalized = normalizeSpinWheelOptions(options);
-  return normalized.join('\n');
+  const normalized = normalizeSpinWheelEntries(options);
+  return normalized
+    .map(entry => `${entry.label}${formatSpinWheelActionForEditor(entry)}`)
+    .join('\n');
 }
 
 function findSpinWheelLandedIndex(segments, wheelRotation) {
@@ -3199,9 +3832,12 @@ function createInitialActivityState(activityId) {
     };
   }
   if (activityId === 'spin-wheel') {
+    const optionEntries = sampleSpinWheelEntries(SPIN_WHEEL_DEFAULT_OPTIONS, SPIN_WHEEL_SESSION_OPTION_LIMIT);
     return {
       title: SPIN_WHEEL_DEFAULT_TITLE,
-      options: [...SPIN_WHEEL_DEFAULT_OPTIONS],
+      optionPool: normalizeSpinWheelEntries(SPIN_WHEEL_DEFAULT_OPTIONS),
+      optionEntries,
+      options: optionEntries.map(entry => entry.label),
       customTitleBeforeFun: SPIN_WHEEL_DEFAULT_TITLE,
       customOptionsBeforeFun: [...SPIN_WHEEL_DEFAULT_OPTIONS],
       spinnerTurnPlayer: null,
@@ -3209,9 +3845,13 @@ function createInitialActivityState(activityId) {
       pendingSelectedIndex: null,
       playerSelections: {},
       spinWinners: [],
+      spinPoints: {},
       winnerXpClaimed: {},
       currentResult: '',
+      currentResultAction: null,
+      currentResultPrompt: '',
       lastResult: '',
+      lastSpinner: '',
       prevWheelRotation: 0,
       wheelRotation: 0,
       lastSpinAt: 0,
@@ -3466,6 +4106,9 @@ function getInitialActivityState(room, activityId) {
   if (activityId === 'tic-tac-toe-blitz') {
     return createTicTacToeBlitzState(room?.participants || []);
   }
+  if (activityId === 'uno') {
+    return createUnoGameState(room?.participants || []);
+  }
   let initialState = createInitialActivityState(activityId);
   if (activityId === 'brainstorm-canvas' && room?.brainstormData && typeof room.brainstormData === 'object') {
     const resumed = safeParseJson(JSON.stringify(room.brainstormData));
@@ -3479,8 +4122,19 @@ function getInitialActivityState(room, activityId) {
   return initialState;
 }
 
+function activityMeetsRoomRequirements(room, activityId) {
+  if (activityId === 'uno') {
+    return (room?.participants || []).length >= 2;
+  }
+  return true;
+}
+
 async function startActivityById(activityId) {
   if (!APP.roomCode || !APP.room) return false;
+  if (!activityMeetsRoomRequirements(APP.room, activityId)) {
+    showError('UNO needs at least 2 players.');
+    return false;
+  }
   if (!isActivityEnabled(activityId)) {
     showError('This activity is disabled by admin.');
     return false;
@@ -3525,6 +4179,7 @@ async function runNextQueuedActivity(roomOverride = null) {
       !ACTIVITY_QUEUE_ITEM_MAP[queue[queueIndex]]
       || !isActivityEnabled(queue[queueIndex])
       || !activityHasPlayableContent(queue[queueIndex])
+      || !activityMeetsRoomRequirements(room, queue[queueIndex])
     )
   ) {
     queueIndex++;
@@ -3568,6 +4223,7 @@ async function startValuesVote() { await startActivityById('values-vote'); }
 async function startWordle() { await startActivityById('wordle'); }
 async function startWordChain() { await startActivityById('word-chain'); }
 async function startBrainstormCanvas() { await startActivityById('brainstorm-canvas'); }
+async function startUno() { await startActivityById('uno'); }
 async function startRegularTrivia() { await startActivityById('regular-trivia'); }
 async function startTicTacToeBlitz() { await startActivityById('tic-tac-toe-blitz'); }
 async function startTeamJeopardy() { await startActivityById('team-jeopardy'); }
@@ -3638,6 +4294,231 @@ async function restartTicTacToeBlitz() {
   const room = await RoomManager.loadRoom(APP.roomCode);
   if (!room || room.currentActivity !== 'tic-tac-toe-blitz') return;
   room.activityState = createTicTacToeBlitzState(room.participants || []);
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
+
+function getUnoPlayerHand(state, playerName) {
+  const hands = state?.hands && typeof state.hands === 'object' ? state.hands : {};
+  return Array.isArray(hands[playerName]) ? hands[playerName] : [];
+}
+
+function clearUnoSafetyForPlayer(state, playerName) {
+  if (!state?.unoSafePlayers || typeof state.unoSafePlayers !== 'object') return;
+  delete state.unoSafePlayers[playerName];
+}
+
+function setUnoPendingPlayer(state, playerName) {
+  const hand = getUnoPlayerHand(state, playerName);
+  if (hand.length !== 1) {
+    if (state.unoPendingPlayer === playerName) state.unoPendingPlayer = '';
+    clearUnoSafetyForPlayer(state, playerName);
+    return;
+  }
+  if (state.unoSafePlayers?.[playerName] === true) {
+    if (state.unoPendingPlayer === playerName) state.unoPendingPlayer = '';
+    return;
+  }
+  state.unoPendingPlayer = playerName;
+}
+
+function applyUnoPostPlayEffects(state, card) {
+  const order = Array.isArray(state.playerOrder) ? state.playerOrder : [];
+  let stepCount = 1;
+  if (card.value === 'reverse') {
+    if (order.length <= 2) {
+      stepCount = 2;
+    } else {
+      state.direction = state.direction === -1 ? 1 : -1;
+    }
+  } else if (card.value === 'skip') {
+    stepCount = 2;
+  } else if (card.value === 'draw2') {
+    state.pendingDrawCount = (Number(state.pendingDrawCount) || 0) + 2;
+  } else if (card.value === 'wild4') {
+    state.pendingDrawCount = (Number(state.pendingDrawCount) || 0) + 4;
+  }
+  advanceUnoTurn(state, stepCount);
+}
+
+async function openUnoColorChoice(cardId) {
+  if (!APP.roomCode || !cardId) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'uno') return;
+  const state = room.activityState || {};
+  const currentPlayer = getUnoCurrentPlayerName(state);
+  if (currentPlayer !== APP.player?.name || state.roundOver) return;
+  const hand = getUnoPlayerHand(state, APP.player.name);
+  const card = hand.find(entry => entry?.id === cardId);
+  if (!card || card.color !== 'wild' || !isUnoCardPlayable(card, state)) return;
+  state.pendingColorChoice = { player: APP.player.name, cardId };
+  room.activityState = state;
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
+
+async function unoPlayCard(cardId, chosenColor = '') {
+  if (!APP.roomCode || !cardId) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'uno') return;
+  const state = room.activityState || {};
+  if (state.roundOver) return;
+  const playerName = APP.player?.name;
+  const currentPlayer = getUnoCurrentPlayerName(state);
+  if (!playerName || currentPlayer !== playerName) return;
+  if ((Number(state.pendingDrawCount) || 0) > 0) {
+    showError(`You must ${getUnoPenaltyMessage(Number(state.pendingDrawCount) || 0).toLowerCase()} first.`);
+    return;
+  }
+
+  const hand = getUnoPlayerHand(state, playerName);
+  const cardIndex = hand.findIndex(entry => entry?.id === cardId);
+  if (cardIndex < 0) return;
+  const card = hand[cardIndex];
+  const normalizedColor = UNO_COLORS.includes(chosenColor) ? chosenColor : '';
+  if (!isUnoCardPlayable(card, state)) return;
+  if (card.color === 'wild' && !normalizedColor) {
+    state.pendingColorChoice = { player: playerName, cardId };
+    room.activityState = state;
+    await RoomManager.updateRoom(APP.roomCode, room);
+    APP.room = room;
+    render();
+    return;
+  }
+
+  hand.splice(cardIndex, 1);
+  state.discardPile = Array.isArray(state.discardPile) ? state.discardPile : [];
+  state.discardPile.push(card);
+  state.currentColor = card.color === 'wild' ? normalizedColor : card.color;
+  state.pendingColorChoice = null;
+  state.hasDrawnThisTurn = false;
+  state.lastDrawnCardId = '';
+
+  if (hand.length === 0) {
+    state.roundOver = true;
+    state.winner = playerName;
+    state.pendingDrawCount = 0;
+    state.roundPoints = computeUnoRoundPoints(state, playerName);
+    state.scores = state.scores && typeof state.scores === 'object' ? state.scores : {};
+    state.scores[playerName] = (Number(state.scores[playerName]) || 0) + state.roundPoints;
+    state.unoPendingPlayer = '';
+    clearUnoSafetyForPlayer(state, playerName);
+    state.lastAction = `${playerName} went out with ${getUnoCardLabel(card)} and won ${state.roundPoints} points.`;
+  } else {
+    setUnoPendingPlayer(state, playerName);
+    state.lastAction = `${playerName} played ${getUnoCardLabel(card)}${card.color === 'wild' ? ` and chose ${UNO_COLOR_META[normalizedColor]?.label || normalizedColor}` : ''}.`;
+    applyUnoPostPlayEffects(state, card);
+  }
+
+  room.activityState = state;
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
+
+async function unoDrawCard() {
+  if (!APP.roomCode) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'uno') return;
+  const state = room.activityState || {};
+  if (state.roundOver) return;
+  const playerName = APP.player?.name;
+  if (!playerName || getUnoCurrentPlayerName(state) !== playerName) return;
+
+  const hand = getUnoPlayerHand(state, playerName);
+  if ((Number(state.pendingDrawCount) || 0) > 0) {
+    const penalty = Number(state.pendingDrawCount) || 0;
+    const drawnCards = drawUnoCards(state, penalty);
+    hand.push(...drawnCards);
+    state.pendingDrawCount = 0;
+    state.lastAction = `${playerName} drew ${drawnCards.length} penalty card${drawnCards.length === 1 ? '' : 's'}.`;
+    clearUnoSafetyForPlayer(state, playerName);
+    if (state.unoPendingPlayer === playerName) state.unoPendingPlayer = '';
+    advanceUnoTurn(state, 1);
+  } else if (state.hasDrawnThisTurn) {
+    return;
+  } else {
+    const drawnCards = drawUnoCards(state, UNO_DRAW_LIMIT);
+    if (!drawnCards.length) {
+      showError('No more cards available to draw.');
+      return;
+    }
+    hand.push(...drawnCards);
+    state.hasDrawnThisTurn = true;
+    state.lastDrawnCardId = drawnCards[0]?.id || '';
+    clearUnoSafetyForPlayer(state, playerName);
+    state.lastAction = `${playerName} drew a card.`;
+  }
+
+  room.activityState = state;
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
+
+async function unoEndTurn() {
+  if (!APP.roomCode) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'uno') return;
+  const state = room.activityState || {};
+  if (state.roundOver || !state.hasDrawnThisTurn) return;
+  const playerName = APP.player?.name;
+  if (!playerName || getUnoCurrentPlayerName(state) !== playerName) return;
+  state.lastAction = `${playerName} ended the turn after drawing.`;
+  setUnoPendingPlayer(state, playerName);
+  advanceUnoTurn(state, 1);
+  room.activityState = state;
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
+
+async function unoCallUno() {
+  if (!APP.roomCode) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'uno') return;
+  const state = room.activityState || {};
+  const playerName = APP.player?.name;
+  if (!playerName || state.roundOver) return;
+  const hand = getUnoPlayerHand(state, playerName);
+  if (hand.length !== 1) return;
+  state.unoSafePlayers = state.unoSafePlayers && typeof state.unoSafePlayers === 'object' ? state.unoSafePlayers : {};
+  state.unoSafePlayers[playerName] = true;
+  if (state.unoPendingPlayer === playerName) state.unoPendingPlayer = '';
+  state.lastAction = `${playerName} called UNO in time.`;
+  room.activityState = state;
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
+
+async function unoCallOutUno() {
+  if (!APP.roomCode) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'uno') return;
+  const state = room.activityState || {};
+  const caller = APP.player?.name;
+  const pendingPlayer = String(state.unoPendingPlayer || '').trim();
+  if (!caller || !pendingPlayer || pendingPlayer === caller || state.roundOver) return;
+  const hand = getUnoPlayerHand(state, pendingPlayer);
+  const penaltyCards = drawUnoCards(state, 2);
+  hand.push(...penaltyCards);
+  state.unoPendingPlayer = '';
+  clearUnoSafetyForPlayer(state, pendingPlayer);
+  state.lastAction = `${caller} called out ${pendingPlayer} for missing UNO. ${pendingPlayer} drew ${penaltyCards.length} cards.`;
+  room.activityState = state;
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
+
+async function restartUnoRound() {
+  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'uno') return;
+  room.activityState = createUnoGameState(room.participants || [], room.activityState || {});
   await RoomManager.updateRoom(APP.roomCode, room);
   APP.room = room;
   render();
@@ -3782,6 +4663,10 @@ async function endActivity() {
     const userNotes = notes.filter(note => note.author === APP.player.name).length;
     const userVotes = notes.filter(note => Array.isArray(note.voters) && note.voters.includes(APP.player.name)).length;
     xpEarned = Math.max(30, (userNotes * 15) + (userVotes * 5));
+  } else if (activity === 'uno') {
+    const score = room.activityState?.scores?.[APP.player.name] || 0;
+    const won = room.activityState?.winner === APP.player.name;
+    xpEarned = won ? Math.max(80, Math.round(score / 2)) : Math.max(30, Math.round(score / 4));
   }
   
   if (xpEarned > 0) {
@@ -3990,21 +4875,25 @@ async function saveSpinWheelOptions() {
   const input = document.getElementById('spinWheelOptionsInput');
   const title = normalizeSpinWheelTitle(titleInput?.value || '') || SPIN_WHEEL_DEFAULT_TITLE;
   const rawLines = String(input?.value || '').split('\n');
-  const options = normalizeSpinWheelOptions(rawLines);
-  if (options.length < 2) {
+  const optionPool = normalizeSpinWheelEntries(rawLines);
+  if (optionPool.length < 2) {
     showError('Add at least 2 unique options (one per line).');
     return;
   }
 
   const state = room.activityState || {};
-  const previousOptions = normalizeSpinWheelOptions(state.options || SPIN_WHEEL_DEFAULT_OPTIONS);
-  const optionsChanged = previousOptions.length !== options.length
-    || previousOptions.some((value, idx) => value !== options[idx]);
+  const previousOptions = normalizeSpinWheelEntries(state.optionPool || state.options || SPIN_WHEEL_DEFAULT_OPTIONS);
+  const optionsChanged = previousOptions.length !== optionPool.length
+    || previousOptions.some((value, idx) => (
+      value.label !== optionPool[idx]?.label
+      || JSON.stringify(value.action || null) !== JSON.stringify(optionPool[idx]?.action || null)
+      || String(value.prompt || '') !== String(optionPool[idx]?.prompt || '')
+    ));
 
   state.title = title;
-  state.options = options;
+  applySpinWheelPoolToState(state, optionPool);
   state.customTitleBeforeFun = title;
-  state.customOptionsBeforeFun = [...options];
+  state.customOptionsBeforeFun = [...optionPool];
   if (optionsChanged) {
     resetSpinWheelProgress(state);
   }
@@ -4050,8 +4939,8 @@ async function spinWheelNow() {
     : assignedSpinner === APP.player?.name;
   if (!canCurrentPlayerSpin) return;
   if (state.isSpinning) return;
-  const baseOptions = normalizeSpinWheelOptions(state.options || SPIN_WHEEL_DEFAULT_OPTIONS);
-  const segments = buildSpinWheelSegments(baseOptions);
+  const activeEntries = getSpinWheelSessionEntries(state);
+  const segments = buildSpinWheelSegments(activeEntries);
   if (segments.length < 2) {
     showError('Wheel needs at least 2 options.');
     return;
@@ -4067,14 +4956,18 @@ async function spinWheelNow() {
   const spinDurationMs = 4800;
   const spinToken = (Number(state.spinToken) || 0) + 1;
 
-  state.options = baseOptions;
+  state.optionEntries = activeEntries;
+  state.options = activeEntries.map(entry => entry.label);
   state.spinnerTurnPlayer = null;
   state.pendingSelectedIndex = selectedIndex;
   state.selectedIndex = null;
   state.spinWinners = [];
   state.winnerXpClaimed = {};
   state.currentResult = '';
+  state.currentResultAction = null;
+  state.currentResultPrompt = '';
   state.lastResult = '';
+  state.lastSpinner = assignedSpinner || room.host || APP.player?.name || '';
   state.spinCount = (Number(state.spinCount) || 0) + 1;
   state.spinDurationMs = spinDurationMs;
   state.lastSpinAt = Date.now();
@@ -4092,18 +4985,33 @@ async function spinWheelNow() {
     const latestState = latestRoom.activityState || {};
     if ((Number(latestState.spinToken) || 0) !== spinToken) return;
     const pendingIndex = Number.isInteger(latestState.pendingSelectedIndex) ? latestState.pendingSelectedIndex : null;
-    const latestSegments = buildSpinWheelSegments(latestState.options || SPIN_WHEEL_DEFAULT_OPTIONS);
+    const latestEntries = getSpinWheelSessionEntries(latestState);
+    const latestSegments = buildSpinWheelSegments(latestEntries);
     if (pendingIndex === null || !latestSegments[pendingIndex]) return;
     const landedIndex = findSpinWheelLandedIndex(latestSegments, Number(latestState.wheelRotation) || nextRotation);
-    const landedLabel = latestSegments[landedIndex]?.label || latestSegments[pendingIndex].label;
+    const landedEntry = latestSegments[landedIndex]?.entry || latestSegments[pendingIndex].entry || null;
+    const landedLabel = landedEntry?.label || latestSegments[landedIndex]?.label || latestSegments[pendingIndex].label;
     const selections = latestState.playerSelections && typeof latestState.playerSelections === 'object'
       ? latestState.playerSelections
       : {};
     const winners = Object.entries(selections)
       .filter(([, idx]) => Number(idx) === landedIndex)
       .map(([playerName]) => playerName);
+    const spinnerName = String(latestState.lastSpinner || latestRoom.host || '').trim();
+    if (!latestState.spinPoints || typeof latestState.spinPoints !== 'object') latestState.spinPoints = {};
+    let actionPrompt = landedEntry?.prompt || '';
+    if (landedEntry?.action?.type === 'points' && spinnerName) {
+      latestState.spinPoints[spinnerName] = (Number(latestState.spinPoints[spinnerName]) || 0) + (Number(landedEntry.action.points) || 0);
+      actionPrompt = `${spinnerName} banks ${Number(landedEntry.action.points) || 0} spin points.`;
+    } else if (landedEntry?.action?.type === 'activity') {
+      actionPrompt = `Host can launch ${ACTIVITY_QUEUE_ITEM_MAP[landedEntry.action.activityId]?.label || landedEntry.action.activityId} as a mini session.`;
+    } else if (landedEntry?.action?.type === 'prompt') {
+      actionPrompt = landedEntry.action.prompt || actionPrompt;
+    }
     latestState.selectedIndex = landedIndex;
     latestState.currentResult = landedLabel;
+    latestState.currentResultAction = landedEntry?.action || null;
+    latestState.currentResultPrompt = actionPrompt;
     latestState.lastResult = landedLabel;
     latestState.spinWinners = winners;
     latestState.pendingSelectedIndex = null;
@@ -4122,7 +5030,7 @@ async function selectSpinWheelSection(sectionIndex) {
   if (roomSettings.spinWheelAllowPlayerPicks === false) return;
   const state = room.activityState || {};
   if (state.isSpinning) return;
-  const segments = buildSpinWheelSegments(state.options || SPIN_WHEEL_DEFAULT_OPTIONS);
+  const segments = buildSpinWheelSegments(getSpinWheelSessionEntries(state));
   if (sectionIndex < 0 || sectionIndex >= segments.length) return;
   if (!state.playerSelections || typeof state.playerSelections !== 'object') state.playerSelections = {};
   state.playerSelections[APP.player.name] = sectionIndex;
@@ -4166,6 +5074,84 @@ async function maybeClaimSpinWheelWinnerXp() {
   } finally {
     spinWheelXpClaimPending = false;
   }
+}
+
+function getSpinWheelFavoritesStorageKey() {
+  return `${SPIN_WHEEL_FAVORITES_KEY}:${APP.player?.id || APP.player?.name || 'guest'}`;
+}
+
+function getSpinWheelFavorites() {
+  try {
+    const parsed = safeParseJson(localStorage.getItem(getSpinWheelFavoritesStorageKey()) || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_error) {
+    return [];
+  }
+}
+
+function saveSpinWheelFavorites(items) {
+  localStorage.setItem(getSpinWheelFavoritesStorageKey(), JSON.stringify(items.slice(0, 20)));
+}
+
+async function saveCurrentSpinWheelFavorite() {
+  const state = APP.room?.activityState || {};
+  if (APP.room?.currentActivity !== 'spin-wheel' || !state.currentResult) return;
+  const favorites = getSpinWheelFavorites();
+  const favorite = {
+    label: state.currentResult,
+    prompt: state.currentResultPrompt || '',
+    action: state.currentResultAction || null,
+    savedAt: Date.now()
+  };
+  const deduped = favorites.filter(item => {
+    return !(item?.label === favorite.label && JSON.stringify(item?.action || null) === JSON.stringify(favorite.action || null));
+  });
+  deduped.unshift(favorite);
+  saveSpinWheelFavorites(deduped);
+  showError('Saved to favorites.');
+  render();
+}
+
+async function shareSpinWheelFavorites() {
+  const favorites = getSpinWheelFavorites();
+  if (!favorites.length) {
+    showError('No saved favorites yet.');
+    return;
+  }
+  const text = favorites
+    .slice(0, 10)
+    .map((item, idx) => `${idx + 1}. ${item.label}${getSpinWheelEntryActionSummary(item) ? ` - ${getSpinWheelEntryActionSummary(item)}` : ''}`)
+    .join('\n');
+  const shareText = `My favorite Team Builder Pro spin wheel results:\n${text}`;
+  try {
+    if (navigator.share) {
+      await navigator.share({
+        title: 'Spin Wheel Favorites',
+        text: shareText
+      });
+    } else if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(shareText);
+      showError('Favorites copied to clipboard.');
+      return;
+    } else {
+      showError('Sharing is not available on this device.');
+      return;
+    }
+  } catch (_error) {
+    return;
+  }
+  showError('Favorites shared.');
+}
+
+async function startSpinWheelMiniSession() {
+  const state = APP.room?.activityState || {};
+  const action = state.currentResultAction || null;
+  if (!action || action.type !== 'activity') return;
+  if (APP.room?.host !== APP.player?.name) {
+    showError('Only the host can launch the mini session.');
+    return;
+  }
+  await startActivityById(action.activityId);
 }
 
 // Emoji Charades Functions
@@ -4637,10 +5623,10 @@ function renderJoinRoom() {
           maxlength="6" value="${prefillCode}" placeholder="ABC123" autocapitalize="characters" inputmode="text">
       </div>
       <div class="form-group">
-        <label class="form-label" for="joinToken">Invite Token</label>
-        <input type="password" id="joinToken" class="form-input" value="${prefillToken}" placeholder="Paste invite token or use the full invite link" autocomplete="off" spellcheck="false">
+        <label class="form-label" for="joinToken">Private Access Token (Optional)</label>
+        <input type="password" id="joinToken" class="form-input" value="${prefillToken}" placeholder="Only needed for private sessions or full invite links" autocomplete="off" spellcheck="false">
       </div>
-      ${prefillCode ? `<div style="color:var(--text-dim);font-size:0.9rem;margin-bottom:10px;">Invite link detected. Tap <strong>Join Room</strong>.</div>` : '<div style="color:var(--text-dim);font-size:0.9rem;margin-bottom:10px;">Use the full invite link or ask the host for the current token.</div>'}
+      ${prefillCode ? `<div style="color:var(--text-dim);font-size:0.9rem;margin-bottom:10px;">Invite link detected. Tap <strong>Join Room</strong>.</div>` : '<div style="color:var(--text-dim);font-size:0.9rem;margin-bottom:10px;">Public sessions only need the room code. Private sessions also require the token.</div>'}
       
       <button class="btn-primary" data-action="join-room">Join Room</button>
     </div>
@@ -4899,7 +5885,8 @@ function renderLobby() {
   const isHost = APP.room.host === APP.player.name;
   const showFeedback = APP.preferences.enableFeedbackHub !== false;
   const safeRoomCode = escapeHtml(APP.roomCode);
-  const joinUrl = buildJoinUrl(APP.roomCode || '', APP.roomAccessToken || '');
+  const privateSession = isRoomPrivateSession(APP.room);
+  const joinUrl = buildJoinUrl(APP.roomCode || '', APP.roomAccessToken || '', privateSession);
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(joinUrl)}`;
   const safeJoinUrl = escapeHtml(joinUrl);
   const sharedPresentation = ENABLE_PRESENTATION_SHARE ? (APP.room.sharedPresentation || null) : null;
@@ -4942,6 +5929,9 @@ function renderLobby() {
           ${isHost ? `
             <div style="margin-top:10px;color:var(--text-dim);font-size:0.82rem;word-break:break-all;">
               ${safeJoinUrl}
+            </div>
+            <div style="margin-top:8px;color:var(--text-dim);font-size:0.82rem;">
+              Access: <strong>${privateSession ? 'Private session (token required)' : 'Open session (room code only)'}</strong>
             </div>
             <button class="btn-secondary" data-action="copy-join-link" style="margin-top:10px;">Copy Join Link</button>
           ` : ''}
@@ -5066,6 +6056,12 @@ function renderLobby() {
           <div class="card-icon">🧩</div>
           <h3 class="card-title">Brainstorm Canvas</h3>
           <p class="card-desc">Add sticky notes and vote in Start / Stop / Improve / Create</p>
+        </button>
+
+        <button type="button" class="card" data-action="start-uno" aria-label="Start UNO Showdown" style="${enabledActivities.uno === false ? 'display:none;' : ''}">
+          <div class="card-icon">🃏</div>
+          <h3 class="card-title">UNO Showdown</h3>
+          <p class="card-desc">Match colors and numbers, play action cards, and race to clear your hand</p>
         </button>
 
         <!-- Activity Queue button removed from Choose Activity menu -->
@@ -5228,6 +6224,13 @@ function renderHostSettingsModal() {
             <input type="checkbox" id="hsDynamicScoring" ${roomSettings.dynamicScoring ? 'checked' : ''}>
             Dynamic time-based scoring
           </label>
+          <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <input type="checkbox" id="hsPrivateSession" ${roomSettings.privateSession === true ? 'checked' : ''}>
+            Private session: require invite token in addition to room code
+          </label>
+          <div style="font-size:0.82rem;color:var(--text-dim);margin:-2px 0 10px 28px;">
+            When off, anyone with the 6-character room code can join. When on, the copied invite link includes the private token.
+          </div>
           <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
             <input type="checkbox" id="hsSpinWheelAllowPlayerPicks" ${roomSettings.spinWheelAllowPlayerPicks !== false ? 'checked' : ''}>
             Spin Wheel: allow players to select a section
@@ -5419,7 +6422,7 @@ async function createPlayer() {
 
 async function copyJoinLink() {
   if (!APP.roomCode) return;
-  const joinUrl = buildJoinUrl(APP.roomCode, APP.roomAccessToken || '');
+  const joinUrl = buildJoinUrl(APP.roomCode, APP.roomAccessToken || '', isRoomPrivateSession(APP.room));
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(joinUrl);
@@ -5472,14 +6475,15 @@ function goToScreen(screen) {
 
 async function startRoomRealtime() {
   roomRealtimeEnabled = false;
-  if (!APP.roomCode || !APP.roomAccessToken) return false;
+  if (!APP.roomCode) return false;
 
   const sharedKey = `room:${APP.roomCode}`;
 
   const socket = await getSocketClient();
   if (socket && socket.connected) {
     socketRoomKey = sharedKey;
-    socket.emit('room:subscribe', { key: sharedKey, authToken: APP.roomAccessToken });
+    const authToken = getRoomAccessTokenForKey(sharedKey, APP.roomAccessToken || '');
+    socket.emit('room:subscribe', authToken ? { key: sharedKey, authToken } : { key: sharedKey });
     roomRealtimeEnabled = true;
     return true;
   }
@@ -5565,20 +6569,16 @@ async function joinRoom() {
     showError('Please enter a valid 6-digit room code');
     return;
   }
-  if (!accessToken) {
-    showError('Invite token is required. Use the full invite link or ask the host for the current token.');
-    return;
-  }
   
   const room = await RoomManager.joinRoom(code, APP.player.name, APP.player.avatar, accessToken);
   if (!room) {
-    showError('Room not found or invite token is invalid.');
+    showError('Room not found, or this private session requires a valid access token.');
     return;
   }
   
   APP.room = room;
   APP.roomCode = code;
-  APP.roomAccessToken = accessToken;
+  APP.roomAccessToken = isRoomPrivateSession(room) ? accessToken : '';
   APP.pendingJoinCode = '';
   APP.pendingJoinToken = '';
   APP.screen = 'lobby';
@@ -6381,6 +7381,7 @@ async function saveHostSettings() {
     autoRevealLightning: Boolean(document.getElementById('hsAutoRevealLightning')?.checked),
     allowAnswerChanges: Boolean(document.getElementById('hsAllowAnswerChanges')?.checked),
     dynamicScoring: Boolean(document.getElementById('hsDynamicScoring')?.checked),
+    privateSession: Boolean(document.getElementById('hsPrivateSession')?.checked),
     spinWheelAllowPlayerPicks: Boolean(document.getElementById('hsSpinWheelAllowPlayerPicks')?.checked),
     spinWheelFunMode: Boolean(document.getElementById('hsSpinWheelFunMode')?.checked),
     emojiCharadesAllowCloseAnswers: Boolean(document.getElementById('hsEmojiCharadesAllowCloseAnswers')?.checked),
@@ -6414,6 +7415,10 @@ async function saveHostSettings() {
     }
     const previousRoomSettings = getRoomHostSettings(room);
     room.hostSettings = roomSettings;
+    room.access = {
+      ...(room.access && typeof room.access === 'object' ? room.access : {}),
+      privateSession: roomSettings.privateSession === true
+    };
     if (room.currentActivity === 'spin-wheel') {
       const state = room.activityState && typeof room.activityState === 'object'
         ? room.activityState
@@ -6821,8 +7826,10 @@ function applyProfileUpdateToRoom(room, oldName, newName, newAvatar) {
   remapActivityStateKey(state, 'matchByPlayer', oldName, newName);
   remapActivityStateKey(state, 'opponents', oldName, newName);
   remapActivityStateKey(state, 'playerSelections', oldName, newName);
+  remapActivityStateKey(state, 'spinPoints', oldName, newName);
   remapActivityStateKey(state, 'winnerXpClaimed', oldName, newName);
   remapActivityStateKey(state, 'closeAccepted', oldName, newName);
+  remapUnoPlayerReferences(state, oldName, newName);
   if (Array.isArray(state.byePlayers)) {
     state.byePlayers = state.byePlayers.map(name => (name === oldName ? newName : name));
   }
@@ -7085,7 +8092,7 @@ document.addEventListener('click', async (event) => {
   const target = event.target.closest('[data-action]');
   if (!target) return;
 
-  const { action, avatar, screen, key, index, feedbackId, activity, queueIndex, noteId, lane, direction, tab, word, cat, clue, player, accepted } = target.dataset;
+  const { action, avatar, screen, key, index, feedbackId, activity, queueIndex, noteId, lane, direction, tab, word, cat, clue, player, accepted, cardId, color } = target.dataset;
   const parsedIndex = Number.parseInt(index ?? '', 10);
   const parsedQueueIndex = Number.parseInt(queueIndex ?? '', 10);
   const parsedCategoryIndex = Number.parseInt(cat ?? '', 10);
@@ -7237,6 +8244,9 @@ document.addEventListener('click', async (event) => {
     case 'start-brainstorm-canvas':
       await startBrainstormCanvas();
       break;
+    case 'start-uno':
+      await startUno();
+      break;
     case 'start-regular-trivia':
       await startRegularTrivia();
       break;
@@ -7377,6 +8387,39 @@ document.addEventListener('click', async (event) => {
     case 'spin-wheel-pick-section':
       if (Number.isInteger(parsedIndex)) await selectSpinWheelSection(parsedIndex);
       break;
+    case 'spin-wheel-save-favorite':
+      await saveCurrentSpinWheelFavorite();
+      break;
+    case 'spin-wheel-share-favorites':
+      await shareSpinWheelFavorites();
+      break;
+    case 'spin-wheel-start-mini-session':
+      await startSpinWheelMiniSession();
+      break;
+    case 'uno-draw-card':
+      await unoDrawCard();
+      break;
+    case 'uno-end-turn':
+      await unoEndTurn();
+      break;
+    case 'uno-call-uno':
+      await unoCallUno();
+      break;
+    case 'uno-callout-uno':
+      await unoCallOutUno();
+      break;
+    case 'uno-open-color-choice':
+      if (cardId) await openUnoColorChoice(cardId);
+      break;
+    case 'uno-play-card':
+      if (cardId) await unoPlayCard(cardId);
+      break;
+    case 'uno-play-wild':
+      if (cardId && color) await unoPlayCard(cardId, color);
+      break;
+    case 'uno-restart-round':
+      await restartUnoRound();
+      break;
     case 'submit-answer':
       if (Number.isInteger(parsedIndex)) await submitAnswer(parsedIndex);
       break;
@@ -7447,6 +8490,7 @@ function renderActivity() {
   else if (activity === 'wordle') content = renderWordle();
   else if (activity === 'word-chain') content = renderWordChain();
   else if (activity === 'brainstorm-canvas') content = renderBrainstormCanvas();
+  else if (activity === 'uno') content = renderUno();
   else if (activity === 'regular-trivia') content = renderRegularTrivia();
   else if (activity === 'tic-tac-toe-blitz') content = renderTicTacToeBlitz();
   else if (activity === 'team-jeopardy') content = renderTeamJeopardy();
@@ -9356,6 +10400,220 @@ function renderTeamJeopardy() {
   `;
 }
 
+function renderUnoCardElement(card, options = {}) {
+  const palette = getUnoCardTheme(card?.color);
+  const symbol = escapeHtml(getUnoCardSymbol(card));
+  const subLabel = escapeHtml(getUnoCardSubLabel(card));
+  const title = escapeHtml(getUnoCardLabel(card));
+  const action = options.action ? `data-action="${escapeHtml(options.action)}"` : '';
+  const cardIdAttr = options.cardId ? `data-card-id="${escapeHtml(options.cardId)}"` : '';
+  const colorAttr = options.color ? `data-color="${escapeHtml(options.color)}"` : '';
+  const disabledAttr = options.disabled ? 'disabled' : '';
+  const extraClass = options.className ? ` ${escapeHtml(options.className)}` : '';
+  const tag = options.button === false ? 'div' : 'button';
+  const style = `
+    --uno-card-bg:${palette.bg};
+    --uno-card-border:${palette.border};
+    --uno-card-ink:${palette.text};
+    ${options.style || ''}
+  `;
+  return `
+    <${tag}
+      class="uno-card${extraClass}"
+      style="${style}"
+      aria-label="${title}"
+      title="${title}"
+      ${action}
+      ${cardIdAttr}
+      ${colorAttr}
+      ${disabledAttr}
+    >
+      <div class="uno-card-corner">${symbol}</div>
+      <div class="uno-card-center">${symbol}<span class="uno-card-sub">${subLabel}</span></div>
+      <div class="uno-card-corner bottom">${symbol}</div>
+    </${tag}>
+  `;
+}
+
+function renderUno() {
+  const state = APP.room.activityState || {};
+  const isHost = APP.room.host === APP.player.name;
+  const safeRoomCode = escapeHtml(APP.roomCode);
+  const playerOrder = Array.isArray(state.playerOrder) && state.playerOrder.length
+    ? state.playerOrder
+    : (APP.room.participants || []).map(player => player.name);
+  const participantsByName = Object.fromEntries((APP.room.participants || []).map(player => [player.name, player]));
+  const myHand = getUnoPlayerHand(state, APP.player.name);
+  const currentPlayer = getUnoCurrentPlayerName(state);
+  const topCard = getUnoTopDiscard(state);
+  const currentColor = UNO_COLOR_META[state.currentColor]?.label || 'Wild';
+  const pendingDrawCount = Number(state.pendingDrawCount) || 0;
+  const isMyTurn = currentPlayer === APP.player.name;
+  const pendingColorChoice = state.pendingColorChoice?.player === APP.player.name ? state.pendingColorChoice : null;
+  const canDraw = isMyTurn && !state.roundOver && !pendingColorChoice && (pendingDrawCount > 0 || !state.hasDrawnThisTurn);
+  const canEndTurn = isMyTurn && !state.roundOver && !pendingColorChoice && pendingDrawCount === 0 && Boolean(state.hasDrawnThisTurn);
+  const canCallUno = !state.roundOver && myHand.length === 1;
+  const canCallOut = !state.roundOver && state.unoPendingPlayer && state.unoPendingPlayer !== APP.player.name;
+  const drawLabel = pendingDrawCount > 0 ? getUnoPenaltyMessage(pendingDrawCount) : 'Draw Card';
+  const handPlayableCount = myHand.filter(card => isUnoCardPlayable(card, state)).length;
+  const standings = playerOrder
+    .map(name => ({
+      name,
+      avatar: participantsByName[name]?.avatar || '👤',
+      score: Number(state.scores?.[name]) || 0,
+      handCount: getUnoPlayerHand(state, name).length
+    }))
+    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+  const handMarkup = myHand.length
+    ? myHand.map(card => {
+      const playable = isMyTurn && isUnoCardPlayable(card, state);
+      const isWild = card.color === 'wild';
+      const isPendingWild = pendingColorChoice?.cardId === card.id;
+      const action = playable
+        ? (isWild ? 'uno-open-color-choice' : 'uno-play-card')
+        : '';
+      return renderUnoCardElement(card, {
+        action,
+        cardId: card.id,
+        disabled: !playable,
+        className: playable ? 'playable' : '',
+        style: `${playable ? 'outline:2px solid rgba(255,255,255,0.26);' : ''}${isPendingWild ? 'box-shadow:0 0 0 4px rgba(255,255,255,0.14);' : ''}`
+      });
+    }).join('')
+    : '<div class="uno-message">Your hand is empty.</div>';
+  const colorChooser = pendingColorChoice ? `
+    <div class="uno-panel-card uno-color-panel">
+      <div style="font-weight:700;margin-bottom:6px;">Choose a color for your wild card</div>
+      <div style="color:var(--text-dim);font-size:0.9rem;">Pick the next active color before the card is played.</div>
+      <div class="uno-color-picker">
+        ${UNO_COLORS.map(color => `
+          <button class="uno-color-btn" data-action="uno-play-wild" data-card-id="${escapeHtml(pendingColorChoice.cardId)}" data-color="${escapeHtml(color)}" style="background:${getUnoCardTheme(color).bg};">
+            ${escapeHtml(UNO_COLOR_META[color].label)}
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  ` : '';
+  const lastAction = String(state.lastAction || '').trim();
+  const winner = String(state.winner || '').trim();
+
+  return `
+    <div class="header">
+      <h1 style="font-size:2rem;font-weight:700;">🃏 UNO Showdown</h1>
+      <p class="tagline">Match color or value, time your action cards, and be first to empty your hand • Room: ${safeRoomCode}</p>
+    </div>
+
+    ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
+
+    <div class="uno-shell">
+      <div class="uno-board">
+        <div class="uno-status-badges">
+          <span class="uno-badge">🎯 Turn: ${escapeHtml(currentPlayer || 'Waiting')}</span>
+          <span class="uno-badge">🎨 Color: ${escapeHtml(currentColor)}</span>
+          <span class="uno-badge">${state.direction === -1 ? '↺ Reverse' : '↻ Forward'}</span>
+          <span class="uno-badge">🂠 Draw pile: ${Array.isArray(state.drawPile) ? state.drawPile.length : 0}</span>
+          <span class="uno-badge">✋ Your hand: ${myHand.length}</span>
+        </div>
+
+        <div class="uno-table">
+          <div>
+            <div class="uno-pile-row">
+              <div>
+                <div class="uno-pile-card back"></div>
+                <div class="uno-pile-meta">${drawLabel}</div>
+              </div>
+              <div>
+                ${topCard ? renderUnoCardElement(topCard, { button: false, style: 'min-height:176px;' }) : '<div class="uno-pile-card"></div>'}
+                <div class="uno-pile-meta">Discard top</div>
+              </div>
+            </div>
+
+            <div class="uno-message${state.unoPendingPlayer ? ' alert' : ''}">
+              ${
+                state.roundOver && winner
+                  ? `${escapeHtml(winner)} won the round and banked ${Number(state.roundPoints) || 0} points.`
+                  : state.unoPendingPlayer
+                    ? `${escapeHtml(state.unoPendingPlayer)} is at UNO and can still be called out if they did not declare it.`
+                    : pendingDrawCount > 0
+                      ? `${escapeHtml(currentPlayer)} must ${escapeHtml(getUnoPenaltyMessage(pendingDrawCount).toLowerCase())}.`
+                      : isMyTurn
+                        ? (handPlayableCount ? `Your turn. You have ${handPlayableCount} playable card${handPlayableCount === 1 ? '' : 's'}.` : 'Your turn. Draw a card or play a wild.')
+                        : `Waiting for ${escapeHtml(currentPlayer || 'the active player')} to make a move.`
+              }
+            </div>
+
+            ${lastAction ? `<div class="uno-message" style="margin-top:12px;">${escapeHtml(lastAction)}</div>` : ''}
+
+            <div class="uno-action-row">
+              <button class="btn-primary" data-action="uno-draw-card" ${canDraw ? '' : 'disabled'} style="width:auto;padding:12px 18px;">${escapeHtml(drawLabel)}</button>
+              <button class="btn-secondary" data-action="uno-end-turn" ${canEndTurn ? '' : 'disabled'}>End Turn</button>
+              <button class="btn-secondary" data-action="uno-call-uno" ${canCallUno ? '' : 'disabled'}>Call UNO</button>
+              <button class="btn-secondary" data-action="uno-callout-uno" ${canCallOut ? '' : 'disabled'}>Call Out</button>
+              ${isHost && state.roundOver ? '<button class="btn-primary" data-action="uno-restart-round" style="width:auto;padding:12px 18px;">Start Next Round</button>' : ''}
+            </div>
+          </div>
+
+          <div class="uno-side-panel">
+            <div class="uno-panel-card">
+              <div style="font-family:'Fraunces',serif;font-size:1.25rem;margin-bottom:10px;">Table</div>
+              <div class="uno-player-list">
+                ${playerOrder.map(name => {
+                  const participant = participantsByName[name] || {};
+                  const handCount = getUnoPlayerHand(state, name).length;
+                  const isActive = name === currentPlayer;
+                  const isPending = name === state.unoPendingPlayer;
+                  return `
+                    <div class="uno-player-row${isActive ? ' active' : ''}${isPending ? ' pending' : ''}">
+                      <div>
+                        <div style="font-weight:700;">${escapeHtml(participant.avatar || '👤')} ${escapeHtml(name)}</div>
+                        <div style="font-size:0.82rem;color:var(--text-dim);">${isActive ? 'Playing now' : isPending ? 'UNO risk' : 'Waiting'}</div>
+                      </div>
+                      <div style="text-align:right;">
+                        <div style="font-weight:800;">${handCount} card${handCount === 1 ? '' : 's'}</div>
+                        <div style="font-size:0.82rem;color:var(--text-dim);">${Number(state.scores?.[name]) || 0} pts</div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+
+            <div class="uno-panel-card">
+              <div style="font-family:'Fraunces',serif;font-size:1.15rem;margin-bottom:10px;">Leaderboard</div>
+              <div class="uno-player-list">
+                ${standings.map((entry, idx) => `
+                  <div class="uno-player-row">
+                    <div style="font-weight:700;">#${idx + 1} ${escapeHtml(entry.avatar)} ${escapeHtml(entry.name)}</div>
+                    <div style="text-align:right;">
+                      <div style="font-weight:800;">${entry.score} pts</div>
+                      <div style="font-size:0.82rem;color:var(--text-dim);">${entry.handCount} in hand</div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      ${colorChooser}
+
+      <div class="uno-panel-card uno-hand-panel">
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-end;margin-bottom:12px;">
+          <div>
+            <div style="font-family:'Fraunces',serif;font-size:1.35rem;">Your Hand</div>
+            <div style="color:var(--text-dim);font-size:0.9rem;">Play a matching color, same value, or any wild. Wild Draw Four is unrestricted in this first version.</div>
+          </div>
+          <div style="color:var(--text-dim);font-size:0.84rem;">Round ${Number(state.roundNumber) || 1}</div>
+        </div>
+        <div class="uno-hand-grid">
+          ${handMarkup}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function renderSpinWheel() {
   const state = APP.room.activityState || {};
   const isHost = APP.room.host === APP.player.name;
@@ -9371,14 +10629,16 @@ function renderSpinWheel() {
   const assignedSpinner = nonHostParticipants.some(participant => participant.name === assignedSpinnerRaw) ? assignedSpinnerRaw : '';
   const mySpinTurn = isHost ? !assignedSpinner : assignedSpinner === APP.player.name;
   const turnLabel = assignedSpinner ? `${assignedSpinner} spins next.` : 'Host controls the spin.';
-  const baseOptions = normalizeSpinWheelOptions(state.options || SPIN_WHEEL_DEFAULT_OPTIONS);
-  const displayOptions = baseOptions.length ? baseOptions : [...SPIN_WHEEL_DEFAULT_OPTIONS];
-  const segments = buildSpinWheelSegments(displayOptions);
+  const optionPoolEntries = normalizeSpinWheelEntries(state.optionPool || SPIN_WHEEL_DEFAULT_OPTIONS);
+  const displayEntries = getSpinWheelSessionEntries(state);
+  const displayOptions = displayEntries.map(entry => entry.label);
+  const segments = buildSpinWheelSegments(displayEntries);
   const optionCount = Math.max(1, segments.length);
-  const optionSummary = displayOptions.map(label => {
-    const sectionCount = segments.filter(segment => segment.label === label).length;
+  const optionSummary = displayEntries.map(entry => {
+    const sectionCount = segments.filter(segment => segment.label === entry.label).length;
     return {
-      label,
+      label: entry.label,
+      actionSummary: getSpinWheelEntryActionSummary(entry),
       sectionCount,
       percent: (sectionCount / Math.max(1, segments.length)) * 100
     };
@@ -9406,6 +10666,10 @@ function renderSpinWheel() {
   const playerSelections = state.playerSelections && typeof state.playerSelections === 'object' ? state.playerSelections : {};
   const selectedByMe = Number.isInteger(playerSelections[APP.player.name]) ? playerSelections[APP.player.name] : null;
   const spinWinners = Array.isArray(state.spinWinners) ? state.spinWinners : [];
+  const spinPoints = state.spinPoints && typeof state.spinPoints === 'object' ? state.spinPoints : {};
+  const currentResultAction = state.currentResultAction && typeof state.currentResultAction === 'object' ? state.currentResultAction : null;
+  const currentResultPrompt = String(state.currentResultPrompt || '').trim();
+  const favorites = getSpinWheelFavorites();
   const wheelStyle = `
     position:relative;
     width:100%;
@@ -9494,15 +10758,16 @@ function renderSpinWheel() {
     })()
     : '';
   const confetti = isCelebrating ? buildCelebrationConfettiPieces(20) : '';
-  const optionsEditorValue = formatSpinWheelOptionsForEditor(displayOptions);
+  const optionsEditorValue = formatSpinWheelOptionsForEditor(optionPoolEntries);
   const funPrompt = funMode ? getSpinWheelFunPrompt(currentResult) : '';
+  const resultDetail = funMode ? funPrompt : currentResultPrompt;
   const funSign = funMode ? `
     <div class="wheel-of-fun-sign">
-      <div class="wheel-of-fun-kicker">Special Mode Enabled</div>
+      <div class="wheel-of-fun-kicker">Spin the Wheel</div>
       <div class="wheel-of-fun-title">
         The Wheel of <span class="wheel-of-fun-slash">Doom</span> <strong>I mean Fun!</strong>
       </div>
-      <div class="wheel-of-fun-subtitle">Friendly truth-or-dare style prompts for team laughs without the cringe.</div>
+      <div class="wheel-of-fun-subtitle">Spin the wheel to find out what the future holds. </div>
     </div>
   ` : '';
   const standardHero = !funMode ? `
@@ -9573,7 +10838,15 @@ function renderSpinWheel() {
             animation:${isCelebrating ? 'wheelWinnerBounce 700ms ease-out 1' : 'none'};
           " class="${resultCardClass}">
             ${`Landed on: ${escapeHtml(currentResult)}`}
-            ${funPrompt ? `<div style="margin-top:6px;font-size:0.94rem;font-weight:700;line-height:1.35;">${escapeHtml(funPrompt)}</div>` : ''}
+            ${resultDetail ? `<div style="margin-top:6px;font-size:0.94rem;font-weight:700;line-height:1.35;">${escapeHtml(resultDetail)}</div>` : ''}
+            ${!funMode && currentResultAction?.type === 'points' ? `<div style="margin-top:6px;font-size:0.82rem;font-weight:700;letter-spacing:0.03em;text-transform:uppercase;">${escapeHtml(String(currentResultAction.points || 0))} spin points</div>` : ''}
+            ${!funMode && currentResultAction?.type === 'activity' && isHost ? `<div style="margin-top:10px;"><button class="btn-secondary" data-action="spin-wheel-start-mini-session" style="width:auto;padding:8px 14px;">Launch Mini Session</button></div>` : ''}
+            ${!funMode ? `
+              <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:10px;">
+                <button class="btn-secondary" data-action="spin-wheel-save-favorite" style="width:auto;padding:8px 14px;">Save Favorite</button>
+                <button class="btn-secondary" data-action="spin-wheel-share-favorites" style="width:auto;padding:8px 14px;">Share Favorites</button>
+              </div>
+            ` : ''}
           </div>
         ` : ''}
         <div style="text-align:center;margin-top:10px;color:var(--text-dim);">${isAnimating ? 'Wheel is in motion.' : escapeHtml(turnLabel)}</div>
@@ -9615,11 +10888,24 @@ function renderSpinWheel() {
             </div>
           </div>
         ` : ''}
+        ${!funMode && Object.keys(spinPoints).length ? `
+          <div style="margin:14px auto 0;max-width:520px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;">
+            <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:6px;">Spin Points</div>
+            <div style="display:grid;gap:8px;">
+              ${Object.entries(spinPoints)
+                .sort((a, b) => (b[1] || 0) - (a[1] || 0))
+                .map(([name, points]) => {
+                  const avatar = APP.room?.participants?.find(p => p.name === name)?.avatar || '🏅';
+                  return `<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.04);border-radius:10px;padding:8px 10px;"><span>${escapeHtml(avatar)} <strong>${escapeHtml(name)}</strong></span><span style="font-weight:800;color:var(--warning);">${Number(points) || 0}</span></div>`;
+                }).join('')}
+            </div>
+          </div>
+        ` : ''}
       </div>
 
       <div class="${settingsCardClass}" style="${funMode ? 'background:var(--surface-solid);border:1px solid var(--border);' : ''}border-radius:16px;padding:16px;">
         <h3 style="margin-bottom:8px;">Wheel Settings</h3>
-        <div style="font-size:0.86rem;color:var(--text-dim);margin-bottom:10px;">${funMode ? 'Wheel of Fun uses a preset list of work-safe truth or dare prompts. Turn the mode off in Host Settings to return to your custom wheel.' : 'Set a wheel title and one option per line (2 to 12). Wheel auto-duplicates options to spread sections evenly.'}</div>
+        <div style="font-size:0.86rem;color:var(--text-dim);margin-bottom:10px;">${funMode ? 'Wheel of Fun uses a preset list of work-safe truth or dare prompts. Turn the mode off in Host Settings to return to your custom wheel.' : `Each session spins from 8 options sampled from your pool of ${optionPoolEntries.length}. Add plain labels or actions like "Bonus 100 | points:100" or "Lightning Jump | activity:lightning-trivia".`}</div>
         ${isHost ? `
           <div style="margin-bottom:12px;padding:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;">
             <div style="font-size:0.86rem;font-weight:700;margin-bottom:8px;">Spin Turn</div>
@@ -9651,7 +10937,7 @@ function renderSpinWheel() {
             <input id="spinWheelTitleInput" class="form-input" maxlength="48" value="${escapeHtml(wheelTitle)}" placeholder="Spin Wheel">
             <div style="height:8px;"></div>
             <label class="form-label" for="spinWheelOptionsInput">Wheel Options</label>
-            <textarea id="spinWheelOptionsInput" class="form-input" rows="8" placeholder="Lightning Round&#10;Trivia Challenge&#10;Team Shoutout">${escapeHtml(optionsEditorValue)}</textarea>
+            <textarea id="spinWheelOptionsInput" class="form-input" rows="8" placeholder="Team Shoutout&#10;Bonus 100 | points:100&#10;Lightning Jump | activity:lightning-trivia">${escapeHtml(optionsEditorValue)}</textarea>
             <div style="display:flex;gap:10px;margin-top:10px;">
               <button class="btn-secondary" data-action="spin-wheel-save-options" style="flex:1;">Save Wheel Settings</button>
             </div>
@@ -9661,6 +10947,7 @@ function renderSpinWheel() {
               <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:0.85rem;">
                 <strong>${escapeHtml(item.label)}</strong>
                 <div style="color:var(--text-dim);">${item.sectionCount} section${item.sectionCount === 1 ? '' : 's'} • ${item.percent.toFixed(1)}%</div>
+                ${item.actionSummary ? `<div style="color:var(--text-dim);margin-top:4px;font-size:0.78rem;line-height:1.35;">${escapeHtml(item.actionSummary)}</div>` : ''}
               </div>
             `).join('')}
           </div>
@@ -9669,10 +10956,26 @@ function renderSpinWheel() {
             ${optionSummary.map(item => `
               <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
                 ${escapeHtml(item.label)} <span style="color:var(--text-dim);">(${item.sectionCount} sections • ${item.percent.toFixed(1)}%)</span>
+                ${item.actionSummary ? `<div style="color:var(--text-dim);margin-top:4px;font-size:0.78rem;line-height:1.35;">${escapeHtml(item.actionSummary)}</div>` : ''}
               </div>
             `).join('')}
           </div>
         `}
+        ${!funMode ? `
+          <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+            <div style="font-size:0.86rem;font-weight:700;margin-bottom:8px;">Your Favorites</div>
+            ${favorites.length ? `
+              <div style="display:grid;gap:8px;">
+                ${favorites.slice(0, 5).map(item => `
+                  <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:9px 10px;">
+                    <strong>${escapeHtml(item.label || '')}</strong>
+                    ${getSpinWheelEntryActionSummary(item) ? `<div style="color:var(--text-dim);margin-top:4px;font-size:0.78rem;line-height:1.35;">${escapeHtml(getSpinWheelEntryActionSummary(item))}</div>` : ''}
+                  </div>
+                `).join('')}
+              </div>
+            ` : '<div style="color:var(--text-dim);font-size:0.84rem;">Save results you like, then share them from the result card.</div>'}
+          </div>
+        ` : ''}
       </div>
     </div>
   `;

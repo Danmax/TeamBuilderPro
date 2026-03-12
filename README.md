@@ -95,6 +95,8 @@ Fresh default preferences enable:
   - Backend port for `server.js`.
 - `ADMIN_TOKEN`:
   - Required for Admin Console access. Admin login is disabled if unset.
+- `ADMIN_TEMP_PASSWORD`:
+  - Optional local-dev-only fallback admin password accepted only from loopback requests (`localhost`, `127.0.0.1`, `::1`) when not running in production.
 - `CHAT_GPT_MINI_KEY`:
   - Server-side AI key for `/api/ai/generate`.
 - `AI_QUESTION_ENDPOINT`:
@@ -122,8 +124,10 @@ Open:
 Recommended for local admin testing:
 
 ```bash
-ADMIN_TOKEN=your-local-admin-token npm start
+ADMIN_TEMP_PASSWORD=your-local-test-password npm start
 ```
+
+You can still use `ADMIN_TOKEN=your-local-admin-token npm start` for production-style local testing. Enter the same value in the Admin Console login field.
 
 ## Deployment Notes
 
