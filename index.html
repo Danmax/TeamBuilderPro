@@ -2733,6 +2733,7 @@ const SPIN_WHEEL_DEFAULT_OPTIONS = [
   { label: 'Wildcard Prompt', prompt: 'The spinner chooses any teammate to answer a fun one-line question.' }
 ];
 const SPIN_WHEEL_DEFAULT_TITLE = 'Spin Wheel';
+const BRAINSTORM_DEFAULT_TITLE = 'Brainstorm Canvas';
 const SPIN_WHEEL_SESSION_OPTION_LIMIT = 8;
 const SPIN_WHEEL_FAVORITES_KEY = 'spin-wheel-favorites';
 const SPIN_WHEEL_FUN_TITLE = 'The Wheel of Doom... I mean Fun!';
@@ -3571,6 +3572,13 @@ function normalizeSpinWheelTitle(value) {
     .slice(0, 48);
 }
 
+function normalizeBrainstormTitle(value) {
+  return String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 80);
+}
+
 function resetSpinWheelProgress(state) {
   if (!state || typeof state !== 'object') return state;
   state.pendingSelectedIndex = null;
@@ -3800,6 +3808,7 @@ function createInitialActivityState(activityId) {
   }
   if (activityId === 'brainstorm-canvas') {
     return {
+      title: BRAINSTORM_DEFAULT_TITLE,
       boardType: 'start-stop-improve-create',
       notes: [],
       sessionStatus: 'open',
@@ -8340,6 +8349,9 @@ document.addEventListener('click', async (event) => {
     case 'brainstorm-toggle-lock':
       await brainstormToggleLock();
       break;
+    case 'brainstorm-save-title':
+      await saveBrainstormTitle();
+      break;
     case 'brainstorm-export-json':
       await exportBrainstormData('json');
       break;
@@ -9752,6 +9764,20 @@ async function brainstormToggleLock() {
   await RoomManager.updateRoom(APP.roomCode, room);
 }
 
+async function saveBrainstormTitle() {
+  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name || APP.room.currentActivity !== 'brainstorm-canvas') return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'brainstorm-canvas' || room.host !== APP.player?.name) return;
+  const titleInput = document.getElementById('brainstormTitleInput');
+  const title = normalizeBrainstormTitle(titleInput?.value || '') || BRAINSTORM_DEFAULT_TITLE;
+  const state = room.activityState || {};
+  state.title = title;
+  room.activityState = state;
+  room.brainstormData = safeParseJson(JSON.stringify(state)) || state;
+  room.brainstormLastUpdatedAt = Date.now();
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
 function triggerTextFileDownload(filename, mimeType, content) {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
@@ -9947,6 +9973,7 @@ function renderBrainstormCanvas() {
   const isHost = APP.room.host === APP.player.name;
   const safeRoomCode = escapeHtml(APP.roomCode);
   const state = APP.room.activityState || {};
+  const brainstormTitle = normalizeBrainstormTitle(state.title || '') || BRAINSTORM_DEFAULT_TITLE;
   const notes = Array.isArray(state.notes) ? state.notes : [];
   const sessionLocked = state.sessionStatus === 'locked';
   const addDisabled = sessionLocked || APP.brainstormAddingNote;
@@ -9960,7 +9987,7 @@ function renderBrainstormCanvas() {
 
   return `
     <div class="header">
-      <h1 style="font-size:2rem;font-weight:700;">🧩 Brainstorm Canvas</h1>
+      <h1 style="font-size:2rem;font-weight:700;">🧩 ${escapeHtml(brainstormTitle)}</h1>
       <p class="tagline">Start • Stop • Improve • Create • Room: ${safeRoomCode}</p>
     </div>
 
@@ -9977,6 +10004,13 @@ function renderBrainstormCanvas() {
           <button class="btn-secondary" data-action="brainstorm-export-csv">Export CSV</button>
         </div>
       </div>
+
+      ${isHost ? `
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:12px;">
+          <input id="brainstormTitleInput" class="form-input" maxlength="80" value="${escapeHtml(brainstormTitle)}" placeholder="${escapeHtml(BRAINSTORM_DEFAULT_TITLE)}">
+          <button class="btn-secondary" data-action="brainstorm-save-title" style="width:auto;padding:10px 16px;">Save Title</button>
+        </div>
+      ` : ''}
 
       <div class="brain-board">
         ${BRAINSTORM_LANES.map(lane => `
