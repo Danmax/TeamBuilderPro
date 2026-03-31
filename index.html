@@ -2635,6 +2635,7 @@ const APP = {
   showShortcutHelp: false,
   showSpotifyPlaylistModal: false,
   showSpotifyPlaylistDocked: false,
+  showLobbyPlaylistSection: false,
   brainstormAddingNote: false,
   hostSettingsSaving: false,
   footerQuoteIndex: 0,
@@ -5527,7 +5528,7 @@ function ensureSpotifyPlaylistPlayerRoot() {
         data-action="open-shared-spotify-playlist"
         data-spotify-docked-tab
         aria-label="Open Spotify player">
-        Open Player
+        ♪
       </button>
       <div data-spotify-modal-shell>
         <div data-spotify-header>
@@ -5537,7 +5538,6 @@ function ensureSpotifyPlaylistPlayerRoot() {
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
             <button class="btn-secondary" data-action="dock-shared-spotify-playlist">Hide to Side</button>
-            <button class="btn-secondary" data-action="close-shared-spotify-playlist" aria-keyshortcuts="Escape">Keep Playing</button>
           </div>
         </div>
         <iframe
@@ -5549,9 +5549,8 @@ function ensureSpotifyPlaylistPlayerRoot() {
           style="width:100%;border:1px solid var(--border);border-radius:14px;background:#121212;">
         </iframe>
         <div data-spotify-footer style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:14px;">
-          <button class="btn-secondary" data-action="dock-shared-spotify-playlist">Hide to Side</button>
           <button class="btn-secondary" data-action="open-spotify-playlist-external">Open in Spotify</button>
-          <button class="btn-primary" data-action="close-shared-spotify-playlist" style="width:auto;padding:12px 18px;">Keep Playing</button>
+          <button class="btn-primary" data-action="dock-shared-spotify-playlist" style="width:auto;padding:12px 18px;">Hide to Side</button>
         </div>
       </div>
     </div>
@@ -5585,19 +5584,19 @@ function syncSpotifyPlaylistPlayer() {
     ? 'position:absolute;inset:0;background:rgba(0,0,0,0);opacity:0;pointer-events:none;transition:opacity 0.22s ease;'
     : 'position:absolute;inset:0;background:rgba(0,0,0,0.72);opacity:1;pointer-events:auto;transition:opacity 0.22s ease;';
   panel.style.cssText = isDocked
-    ? 'position:absolute;top:50%;right:0;left:auto;width:360px;max-width:calc(100vw - 12px);height:360px;transform:translate(calc(100% - 108px), -50%);transition:transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);border-radius:18px 0 0 18px;background:var(--surface-solid);border:1px solid var(--border);box-shadow:0 18px 50px rgba(0,0,0,0.35);padding:16px;overflow:hidden;pointer-events:auto;'
+    ? 'position:absolute;top:88px;right:0;left:auto;width:360px;max-width:calc(100vw - 12px);height:280px;transform:translateX(calc(100% - 60px));transition:transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);border-radius:18px 0 0 18px;background:var(--surface-solid);border:1px solid var(--border);box-shadow:0 18px 50px rgba(0,0,0,0.35);padding:16px;overflow:hidden;pointer-events:auto;'
     : 'position:absolute;top:50%;left:50%;right:auto;width:min(720px, calc(100vw - 32px));max-height:90vh;transform:translate(-50%, -50%);transition:transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), width 0.22s ease; border-radius:18px;background:var(--surface-solid);border:1px solid var(--border);box-shadow:0 18px 50px rgba(0,0,0,0.35);padding:22px;overflow:auto;pointer-events:auto;';
-  modalShell.style.cssText = isDocked ? 'margin-left:76px;' : '';
+  modalShell.style.cssText = isDocked ? 'margin-left:52px;' : '';
   dockedTab.style.cssText = isDocked
-    ? 'position:absolute;top:12px;left:12px;bottom:12px;width:64px;padding:12px 8px;border:none;border-radius:18px 0 0 18px;background:linear-gradient(180deg,var(--accent),rgba(0,210,211,0.68));color:var(--bg);font-size:0.78rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;writing-mode:vertical-rl;transform:rotate(180deg);display:flex;align-items:center;justify-content:center;pointer-events:auto;'
+    ? 'position:absolute;top:12px;left:12px;bottom:12px;width:40px;padding:0;border:none;border-radius:18px 0 0 18px;background:linear-gradient(180deg,var(--accent),rgba(0,210,211,0.68));color:var(--bg);font-size:1.2rem;font-weight:800;display:flex;align-items:center;justify-content:center;pointer-events:auto;'
     : 'display:none;';
   title.textContent = playlist.title || 'Session Playlist';
   url.textContent = playlist.url || '';
   if (iframe.getAttribute('src') !== playlist.embedUrl) {
     iframe.setAttribute('src', playlist.embedUrl);
   }
-  iframe.style.height = isDocked ? '328px' : 'min(56vh,420px)';
-  iframe.style.minHeight = isDocked ? '328px' : '320px';
+  iframe.style.height = isDocked ? '248px' : 'min(56vh,420px)';
+  iframe.style.minHeight = isDocked ? '248px' : '320px';
   iframe.style.marginLeft = isDocked ? '0' : '0';
   const header = root.querySelector('[data-spotify-header]');
   header.style.cssText = isDocked ? 'display:none;' : 'display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;';
@@ -6137,6 +6136,7 @@ function renderLobby() {
   const safeSpotifyUrl = escapeHtml(sharedSpotifyPlaylist?.url || '');
   const safeSpotifySharedBy = escapeHtml(sharedSpotifyPlaylist?.sharedBy || '');
   const spotifySharedAtLabel = sharedSpotifyPlaylist?.updatedAt ? new Date(sharedSpotifyPlaylist.updatedAt).toLocaleString() : '';
+  const showLobbyPlaylistSection = APP.showLobbyPlaylistSection === true;
   const enabledActivities = APP.preferences?.enabledActivities || {};
   
   if (APP.room.currentActivity) {
@@ -6225,45 +6225,61 @@ function renderLobby() {
     </div>
     ` : ''}
 
-    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:24px;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;">
-        <div>
-          <div style="font-weight:700;margin-bottom:4px;">🎵 Session Playlist</div>
+    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:24px;">
+      <button
+        type="button"
+        data-action="toggle-lobby-playlist-section"
+        aria-expanded="${showLobbyPlaylistSection ? 'true' : 'false'}"
+        style="width:100%;display:flex;justify-content:space-between;align-items:center;gap:14px;background:transparent;border:none;color:inherit;padding:0;text-align:left;cursor:pointer;">
+        <div style="min-width:0;">
+          <div style="font-weight:700;">🎵 Session Playlist</div>
+          <div style="font-size:0.84rem;color:var(--text-dim);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            ${sharedSpotifyPlaylist ? `${safeSpotifyTitle}${safeSpotifySharedBy ? ` • shared by ${safeSpotifySharedBy}` : ''}` : (isHost ? 'Add a playlist for the room' : 'No Spotify playlist added yet')}
+          </div>
+        </div>
+        <div style="font-size:0.9rem;color:var(--text-dim);flex-shrink:0;">
+          ${showLobbyPlaylistSection ? 'Hide ▲' : 'Open ▼'}
+        </div>
+      </button>
+
+      ${showLobbyPlaylistSection ? `
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
           ${sharedSpotifyPlaylist ? `
-            <div style="font-size:0.96rem;font-weight:600;margin-bottom:4px;">${safeSpotifyTitle}</div>
-            <div style="font-size:0.84rem;color:var(--text-mid);word-break:break-all;">${safeSpotifyUrl}</div>
-            <div style="font-size:0.78rem;color:var(--text-dim);margin-top:6px;">
-              Shared by ${safeSpotifySharedBy || 'host'}${spotifySharedAtLabel ? ` • ${escapeHtml(spotifySharedAtLabel)}` : ''}
+            <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;">
+              <div style="font-size:0.96rem;font-weight:600;margin-bottom:4px;">${safeSpotifyTitle}</div>
+              <div style="font-size:0.84rem;color:var(--text-mid);word-break:break-all;">${safeSpotifyUrl}</div>
+              <div style="font-size:0.78rem;color:var(--text-dim);margin-top:6px;">
+                Shared by ${safeSpotifySharedBy || 'host'}${spotifySharedAtLabel ? ` • ${escapeHtml(spotifySharedAtLabel)}` : ''}
+              </div>
             </div>
           ` : `
-            <div style="font-size:0.84rem;color:var(--text-dim);">No Spotify playlist added yet.</div>
+            <div style="font-size:0.84rem;color:var(--text-dim);margin-bottom:10px;">No Spotify playlist added yet.</div>
           `}
-        </div>
-        ${sharedSpotifyPlaylist ? `
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn-primary" data-action="open-shared-spotify-playlist" style="width:auto;padding:10px 16px;">Open Player</button>
-            <button class="btn-secondary" data-action="open-spotify-playlist-external" style="width:auto;padding:10px 16px;">Open in Spotify</button>
-            ${isHost ? '<button class="btn-secondary" data-action="clear-shared-spotify-playlist" style="width:auto;padding:10px 16px;">Remove</button>' : ''}
-          </div>
-        ` : ''}
-      </div>
 
-      ${isHost ? `
-        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-          <div style="display:grid;grid-template-columns:1fr 1.4fr auto;gap:10px;align-items:end;">
-            <div class="form-group" style="margin:0;">
-              <label class="form-label" for="spotifyPlaylistTitle">Title (optional)</label>
-              <input id="spotifyPlaylistTitle" class="form-input" maxlength="120" value="${escapeHtml(sharedSpotifyPlaylist?.title || '')}" placeholder="Warm-up Mix">
+          ${sharedSpotifyPlaylist ? `
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:${isHost ? '12px' : '0'};">
+              <button class="btn-primary" data-action="open-shared-spotify-playlist" style="width:auto;padding:10px 16px;">Open Player</button>
+              <button class="btn-secondary" data-action="open-spotify-playlist-external" style="width:auto;padding:10px 16px;">Open in Spotify</button>
+              ${isHost ? '<button class="btn-secondary" data-action="clear-shared-spotify-playlist" style="width:auto;padding:10px 16px;">Remove</button>' : ''}
             </div>
-            <div class="form-group" style="margin:0;">
-              <label class="form-label" for="spotifyPlaylistUrl">Spotify playlist URL</label>
-              <input id="spotifyPlaylistUrl" class="form-input" maxlength="1000" value="${escapeHtml(sharedSpotifyPlaylist?.url || '')}" placeholder="https://open.spotify.com/playlist/...">
+          ` : ''}
+
+          ${isHost ? `
+            <div style="display:grid;grid-template-columns:1fr 1.4fr auto;gap:10px;align-items:end;">
+              <div class="form-group" style="margin:0;">
+                <label class="form-label" for="spotifyPlaylistTitle">Title (optional)</label>
+                <input id="spotifyPlaylistTitle" class="form-input" maxlength="120" value="${escapeHtml(sharedSpotifyPlaylist?.title || '')}" placeholder="Warm-up Mix">
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label class="form-label" for="spotifyPlaylistUrl">Spotify playlist URL</label>
+                <input id="spotifyPlaylistUrl" class="form-input" maxlength="1000" value="${escapeHtml(sharedSpotifyPlaylist?.url || '')}" placeholder="https://open.spotify.com/playlist/...">
+              </div>
+              <button class="btn-secondary" data-action="save-shared-spotify-playlist" style="width:auto;padding:10px 16px;">${sharedSpotifyPlaylist ? 'Update Playlist' : 'Add Playlist'}</button>
             </div>
-            <button class="btn-secondary" data-action="save-shared-spotify-playlist" style="width:auto;padding:10px 16px;">${sharedSpotifyPlaylist ? 'Update Playlist' : 'Add Playlist'}</button>
-          </div>
-          <div style="font-size:0.78rem;color:var(--text-dim);margin-top:8px;">
-            Quick lobby controls for the host. Full playlist management is also available in Host Settings.
-          </div>
+            <div style="font-size:0.78rem;color:var(--text-dim);margin-top:8px;">
+              Quick lobby controls for the host. Full playlist management is also available in Host Settings.
+            </div>
+          ` : ''}
         </div>
       ` : ''}
     </div>
@@ -7240,6 +7256,7 @@ async function saveSharedSpotifyPlaylist() {
   };
   await RoomManager.updateRoom(APP.roomCode, room);
   APP.room = room;
+  APP.showLobbyPlaylistSection = true;
   render();
 }
 
@@ -7255,6 +7272,7 @@ async function clearSharedSpotifyPlaylist() {
   APP.room = room;
   APP.showSpotifyPlaylistModal = false;
   APP.showSpotifyPlaylistDocked = false;
+  APP.showLobbyPlaylistSection = false;
   render();
 }
 
@@ -7276,6 +7294,11 @@ function openSharedSpotifyPlaylistExternal() {
     return;
   }
   window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+function toggleLobbyPlaylistSection(forceOpen = null) {
+  APP.showLobbyPlaylistSection = typeof forceOpen === 'boolean' ? forceOpen : !APP.showLobbyPlaylistSection;
+  render();
 }
 
 async function queueAddActivity(activityId) {
@@ -8874,6 +8897,9 @@ document.addEventListener('click', async (event) => {
       break;
     case 'clear-shared-spotify-playlist':
       await clearSharedSpotifyPlaylist();
+      break;
+    case 'toggle-lobby-playlist-section':
+      toggleLobbyPlaylistSection();
       break;
     case 'open-shared-spotify-playlist':
       openSharedSpotifyPlaylist();
