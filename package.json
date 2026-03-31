@@ -4,6 +4,9 @@
   "private": true,
   "description": "Realtime backend for Player Hub using Socket.IO",
   "main": "server.js",
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
     "start": "node server.js"
   },
