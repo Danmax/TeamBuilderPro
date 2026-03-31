@@ -1663,6 +1663,8 @@ function getRandomAvatar() {
 }
 
 function safeParseJson(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string' && !value.trim()) return null;
   try {
     return JSON.parse(value);
   } catch (e) {
@@ -1994,6 +1996,31 @@ function getFeedbackUserToken() {
   return token;
 }
 
+function loadActiveSessionSnapshot() {
+  const stored = safeParseJson(localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY) || '');
+  if (!stored || typeof stored !== 'object') return null;
+  const roomCode = normalizeRoomCode(stored.roomCode || '');
+  const accessToken = normalizeRoomAccessToken(stored.accessToken || '');
+  const playerId = String(stored.playerId || '').trim();
+  const playerName = normalizeName(stored.playerName || '');
+  if (!roomCode || !playerId || !playerName) return null;
+  return { roomCode, accessToken, playerId, playerName };
+}
+
+function persistActiveSessionSnapshot() {
+  if (!APP.player?.id || !APP.player?.name || !APP.roomCode) return;
+  localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, JSON.stringify({
+    roomCode: APP.roomCode,
+    accessToken: APP.roomAccessToken || '',
+    playerId: APP.player.id,
+    playerName: APP.player.name
+  }));
+}
+
+function clearActiveSessionSnapshot() {
+  localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
+}
+
 function getDefaultAppPreferences() {
   const enabledByDefault = new Set([
     'lightning-trivia',
@@ -2244,6 +2271,7 @@ let socketRealtimeBound = false;
 let socketRoomKey = null;
 const FEEDBACK_USER_TOKEN_KEY = 'feedback-user-token';
 const ROOM_ACCESS_TOKEN_KEY_PREFIX = 'room-access-token:';
+const ACTIVE_SESSION_STORAGE_KEY = 'active-session';
 
 // Configure these for cross-device realtime sync via Supabase.
 // You can also set window.SUPABASE_URL / window.SUPABASE_ANON_KEY before this script loads.
@@ -2606,7 +2634,7 @@ const APP = {
   showHostSettings: false,
   showShortcutHelp: false,
   showSpotifyPlaylistModal: false,
-  spotifyPlaylistPlayerActive: false,
+  showSpotifyPlaylistDocked: false,
   brainstormAddingNote: false,
   hostSettingsSaving: false,
   footerQuoteIndex: 0,
@@ -5485,6 +5513,97 @@ function renderFooter() {
   `;
 }
 
+function ensureSpotifyPlaylistPlayerRoot() {
+  let root = document.getElementById('spotifyPlaylistFloatingPlayer');
+  if (root) return root;
+
+  root = document.createElement('div');
+  root.id = 'spotifyPlaylistFloatingPlayer';
+  root.innerHTML = `
+    <div data-spotify-backdrop></div>
+    <div data-spotify-panel>
+      <button
+        class="btn-secondary"
+        data-action="open-shared-spotify-playlist"
+        data-spotify-docked-tab
+        aria-label="Open Spotify player">
+        Open Player
+      </button>
+      <div data-spotify-modal-shell>
+        <div data-spotify-header>
+          <div>
+            <h3 id="spotifyPlaylistModalTitle" data-spotify-title style="font-family:'Fraunces',serif;font-size:1.4rem;margin-bottom:4px;"></h3>
+            <div data-spotify-url style="font-size:0.84rem;color:var(--text-dim);word-break:break-all;"></div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+            <button class="btn-secondary" data-action="dock-shared-spotify-playlist">Hide to Side</button>
+            <button class="btn-secondary" data-action="close-shared-spotify-playlist" aria-keyshortcuts="Escape">Keep Playing</button>
+          </div>
+        </div>
+        <iframe
+          data-spotify-iframe
+          title="Spotify playlist player"
+          frameborder="0"
+          loading="lazy"
+          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture"
+          style="width:100%;border:1px solid var(--border);border-radius:14px;background:#121212;">
+        </iframe>
+        <div data-spotify-footer style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:14px;">
+          <button class="btn-secondary" data-action="dock-shared-spotify-playlist">Hide to Side</button>
+          <button class="btn-secondary" data-action="open-spotify-playlist-external">Open in Spotify</button>
+          <button class="btn-primary" data-action="close-shared-spotify-playlist" style="width:auto;padding:12px 18px;">Keep Playing</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(root);
+  return root;
+}
+
+function syncSpotifyPlaylistPlayer() {
+  const playlist = APP.room?.sharedSpotifyPlaylist || null;
+  const shouldShow = Boolean(playlist?.embedUrl && (APP.showSpotifyPlaylistModal || APP.showSpotifyPlaylistDocked));
+  const existingRoot = document.getElementById('spotifyPlaylistFloatingPlayer');
+  if (!shouldShow) {
+    existingRoot?.remove();
+    return;
+  }
+
+  const root = ensureSpotifyPlaylistPlayerRoot();
+  const backdrop = root.querySelector('[data-spotify-backdrop]');
+  const panel = root.querySelector('[data-spotify-panel]');
+  const modalShell = root.querySelector('[data-spotify-modal-shell]');
+  const dockedTab = root.querySelector('[data-spotify-docked-tab]');
+  const title = root.querySelector('[data-spotify-title]');
+  const url = root.querySelector('[data-spotify-url]');
+  const iframe = root.querySelector('[data-spotify-iframe]');
+  const footer = root.querySelector('[data-spotify-footer]');
+  const isDocked = APP.showSpotifyPlaylistDocked && !APP.showSpotifyPlaylistModal;
+
+  root.style.cssText = 'position:fixed;inset:0;z-index:10040;pointer-events:none;';
+  backdrop.style.cssText = isDocked
+    ? 'position:absolute;inset:0;background:rgba(0,0,0,0);opacity:0;pointer-events:none;transition:opacity 0.22s ease;'
+    : 'position:absolute;inset:0;background:rgba(0,0,0,0.72);opacity:1;pointer-events:auto;transition:opacity 0.22s ease;';
+  panel.style.cssText = isDocked
+    ? 'position:absolute;top:50%;right:0;left:auto;width:360px;max-width:calc(100vw - 12px);height:360px;transform:translate(calc(100% - 108px), -50%);transition:transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);border-radius:18px 0 0 18px;background:var(--surface-solid);border:1px solid var(--border);box-shadow:0 18px 50px rgba(0,0,0,0.35);padding:16px;overflow:hidden;pointer-events:auto;'
+    : 'position:absolute;top:50%;left:50%;right:auto;width:min(720px, calc(100vw - 32px));max-height:90vh;transform:translate(-50%, -50%);transition:transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), width 0.22s ease; border-radius:18px;background:var(--surface-solid);border:1px solid var(--border);box-shadow:0 18px 50px rgba(0,0,0,0.35);padding:22px;overflow:auto;pointer-events:auto;';
+  modalShell.style.cssText = isDocked ? 'margin-left:76px;' : '';
+  dockedTab.style.cssText = isDocked
+    ? 'position:absolute;top:12px;left:12px;bottom:12px;width:64px;padding:12px 8px;border:none;border-radius:18px 0 0 18px;background:linear-gradient(180deg,var(--accent),rgba(0,210,211,0.68));color:var(--bg);font-size:0.78rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;writing-mode:vertical-rl;transform:rotate(180deg);display:flex;align-items:center;justify-content:center;pointer-events:auto;'
+    : 'display:none;';
+  title.textContent = playlist.title || 'Session Playlist';
+  url.textContent = playlist.url || '';
+  if (iframe.getAttribute('src') !== playlist.embedUrl) {
+    iframe.setAttribute('src', playlist.embedUrl);
+  }
+  iframe.style.height = isDocked ? '328px' : 'min(56vh,420px)';
+  iframe.style.minHeight = isDocked ? '328px' : '320px';
+  iframe.style.marginLeft = isDocked ? '0' : '0';
+  const header = root.querySelector('[data-spotify-header]');
+  header.style.cssText = isDocked ? 'display:none;' : 'display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;';
+  footer.style.display = isDocked ? 'none' : 'flex';
+}
+
 function render() {
   const app = document.getElementById('app');
   let html = '';
@@ -6510,7 +6629,8 @@ function renderHostSettingsModal() {
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
               <button class="btn-secondary" data-action="save-shared-spotify-playlist">${spotifyPlaylist ? 'Update Playlist' : 'Add Playlist'}</button>
-              ${spotifyPlaylist ? '<button class="btn-secondary" data-action="open-shared-spotify-playlist">Open Playlist Modal</button>' : ''}
+              ${spotifyPlaylist ? '<button class="btn-secondary" data-action="open-shared-spotify-playlist">Open Player</button>' : ''}
+              ${spotifyPlaylist ? '<button class="btn-secondary" data-action="open-spotify-playlist-external">Open in Spotify</button>' : ''}
               ${spotifyPlaylist ? '<button class="btn-secondary" data-action="clear-shared-spotify-playlist">Remove Playlist</button>' : ''}
             </div>
           </div>
@@ -6808,6 +6928,38 @@ function stopRoomSync() {
   stopRoomRealtime();
 }
 
+async function restoreActiveSession() {
+  const snapshot = loadActiveSessionSnapshot();
+  if (!snapshot || !APP.player?.id || !APP.player?.name) return false;
+  if (snapshot.playerId !== APP.player.id || snapshot.playerName !== APP.player.name) {
+    clearActiveSessionSnapshot();
+    return false;
+  }
+
+  const accessToken = snapshot.accessToken || getStoredRoomAccessToken(snapshot.roomCode);
+  const room = await RoomManager.loadRoom(snapshot.roomCode, accessToken);
+  if (!room) {
+    clearActiveSessionSnapshot();
+    return false;
+  }
+
+  const participantMatch = Array.isArray(room.participants)
+    && room.participants.some(player => player?.name === APP.player.name);
+  const hostMatch = room.host === APP.player.name;
+  if (!participantMatch && !hostMatch) {
+    clearActiveSessionSnapshot();
+    return false;
+  }
+
+  APP.room = room;
+  APP.roomCode = snapshot.roomCode;
+  APP.roomAccessToken = isRoomPrivateSession(room) ? accessToken : '';
+  APP.screen = 'lobby';
+  persistActiveSessionSnapshot();
+  startRoomSync();
+  return true;
+}
+
 async function createRoomAndNavigate() {
   render();
   
@@ -6816,6 +6968,7 @@ async function createRoomAndNavigate() {
   APP.roomCode = room.code;
   APP.roomAccessToken = accessToken;
   APP.screen = 'lobby';
+  persistActiveSessionSnapshot();
   
   startRoomSync();
   render();
@@ -6845,6 +6998,7 @@ async function joinRoom() {
   APP.pendingJoinCode = '';
   APP.pendingJoinToken = '';
   APP.screen = 'lobby';
+  persistActiveSessionSnapshot();
   
   startRoomSync();
   render();
@@ -6855,6 +7009,7 @@ async function leaveSession() {
     APP.room = null;
     APP.roomCode = null;
     APP.roomAccessToken = null;
+    clearActiveSessionSnapshot();
     APP.showHostSettings = false;
     APP.screen = 'dashboard';
     stopRoomSync();
@@ -6890,6 +7045,7 @@ async function leaveSession() {
   APP.room = null;
   APP.roomCode = null;
   APP.roomAccessToken = null;
+  clearActiveSessionSnapshot();
   APP.showHostSettings = false;
   APP.screen = 'dashboard';
   resetWordChainFocusState();
@@ -7098,7 +7254,7 @@ async function clearSharedSpotifyPlaylist() {
   await RoomManager.updateRoom(APP.roomCode, room);
   APP.room = room;
   APP.showSpotifyPlaylistModal = false;
-  APP.spotifyPlaylistPlayerActive = false;
+  APP.showSpotifyPlaylistDocked = false;
   render();
 }
 
@@ -7108,8 +7264,8 @@ function openSharedSpotifyPlaylist() {
     showError('No Spotify playlist is available.');
     return;
   }
-  APP.spotifyPlaylistPlayerActive = true;
   APP.showSpotifyPlaylistModal = true;
+  APP.showSpotifyPlaylistDocked = false;
   render();
 }
 
@@ -7564,6 +7720,7 @@ function openHostSettings() {
   APP.aiBankEditorTarget = getAIBankEditorTargetOrDefault(APP.aiBankEditorTarget);
   APP.aiBankEditorStatus = null;
   APP.showSpotifyPlaylistModal = false;
+  APP.showSpotifyPlaylistDocked = false;
   APP.showShortcutHelp = false;
   APP.showHostSettings = true;
   render();
@@ -7571,18 +7728,22 @@ function openHostSettings() {
 
 function closeHostSettings() {
   APP.showHostSettings = false;
-  APP.showSpotifyPlaylistModal = false;
   render();
 }
 
 function closeSpotifyPlaylistModal() {
+  if (APP.room?.sharedSpotifyPlaylist?.embedUrl) {
+    dockSpotifyPlaylistModal();
+    return;
+  }
   APP.showSpotifyPlaylistModal = false;
+  APP.showSpotifyPlaylistDocked = false;
   render();
 }
 
-function stopSpotifyPlaylistPlayer() {
+function dockSpotifyPlaylistModal() {
   APP.showSpotifyPlaylistModal = false;
-  APP.spotifyPlaylistPlayerActive = false;
+  APP.showSpotifyPlaylistDocked = true;
   render();
 }
 
@@ -7663,157 +7824,66 @@ function renderShortcutHelpModal() {
   `;
 }
 
-function syncSpotifyPlaylistPlayer() {
-  const existingRoot = document.getElementById('spotifyPlaylistFloatingPlayer');
+function renderSpotifyPlaylistModal() {
   const playlist = APP.room?.sharedSpotifyPlaylist || null;
-  const shouldMount = Boolean(playlist?.embedUrl) && (APP.spotifyPlaylistPlayerActive || APP.showSpotifyPlaylistModal);
-
-  if (!shouldMount) {
-    existingRoot?.remove();
-    return;
+  if (!playlist?.embedUrl) return '';
+  const isDocked = APP.showSpotifyPlaylistDocked && !APP.showSpotifyPlaylistModal;
+  if (isDocked) {
+    return `
+      <div style="position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:10040;width:108px;height:360px;pointer-events:none;">
+        <div style="position:absolute;top:0;right:0;width:360px;max-width:calc(100vw - 12px);height:360px;border-radius:18px 0 0 18px;background:var(--surface-solid);border:1px solid var(--border);box-shadow:0 18px 50px rgba(0,0,0,0.35);padding:16px;transform:translateX(calc(100% - 108px));transition:transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);overflow:hidden;pointer-events:auto;">
+          <button
+            class="btn-secondary"
+            data-action="open-shared-spotify-playlist"
+            style="position:absolute;top:12px;left:12px;bottom:12px;width:64px;padding:12px 8px;border:none;border-radius:18px 0 0 18px;background:linear-gradient(180deg,var(--accent),rgba(0,210,211,0.68));color:var(--bg);font-size:0.78rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;writing-mode:vertical-rl;transform:rotate(180deg);display:flex;align-items:center;justify-content:center;">
+            Open Player
+          </button>
+          <iframe
+            src="${escapeHtml(playlist.embedUrl)}"
+            title="Spotify playlist player"
+            frameborder="0"
+            loading="lazy"
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            style="margin-left:76px;width:calc(100% - 76px);height:100%;border:1px solid var(--border);border-radius:12px;background:#121212;">
+          </iframe>
+        </div>
+      </div>
+    `;
   }
-
-  let root = existingRoot;
-  let panel;
-  let title;
-  let meta;
-  let primaryButton;
-  let externalButton;
-  let stopButton;
-  let iframe;
-
-  if (!root) {
-    root = document.createElement('div');
-    root.id = 'spotifyPlaylistFloatingPlayer';
-    root.style.position = 'fixed';
-    root.style.zIndex = '10040';
-
-    panel = document.createElement('div');
-    panel.style.background = 'var(--surface-solid)';
-    panel.style.border = '1px solid var(--border)';
-    panel.style.boxShadow = '0 18px 50px rgba(0,0,0,0.35)';
-    root.appendChild(panel);
-
-    const header = document.createElement('div');
-    header.style.display = 'flex';
-    header.style.justifyContent = 'space-between';
-    header.style.alignItems = 'center';
-    header.style.gap = '12px';
-    header.style.marginBottom = '14px';
-    panel.appendChild(header);
-
-    const headerText = document.createElement('div');
-    header.appendChild(headerText);
-
-    title = document.createElement('h3');
-    title.id = 'spotifyPlaylistTitleModal';
-    title.style.fontFamily = "'Fraunces',serif";
-    title.style.fontSize = '1.4rem';
-    title.style.marginBottom = '4px';
-    headerText.appendChild(title);
-
-    meta = document.createElement('div');
-    meta.style.fontSize = '0.84rem';
-    meta.style.color = 'var(--text-dim)';
-    meta.style.wordBreak = 'break-all';
-    headerText.appendChild(meta);
-
-    primaryButton = document.createElement('button');
-    primaryButton.id = 'spotifyPlaylistPrimaryButton';
-    primaryButton.className = 'btn-secondary';
-    header.appendChild(primaryButton);
-
-    iframe = document.createElement('iframe');
-    iframe.id = 'spotifyPlaylistIframe';
-    iframe.setAttribute('frameborder', '0');
-    iframe.setAttribute('allowfullscreen', '');
-    iframe.setAttribute('loading', 'lazy');
-    iframe.setAttribute('allow', 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture');
-    iframe.title = 'Spotify playlist player';
-    iframe.style.border = '1px solid var(--border)';
-    iframe.style.background = '#121212';
-    panel.appendChild(iframe);
-
-    const footer = document.createElement('div');
-    footer.style.display = 'flex';
-    footer.style.justifyContent = 'flex-end';
-    footer.style.gap = '8px';
-    footer.style.flexWrap = 'wrap';
-    footer.style.marginTop = '14px';
-    panel.appendChild(footer);
-
-    externalButton = document.createElement('button');
-    externalButton.id = 'spotifyPlaylistExternalButton';
-    externalButton.className = 'btn-secondary';
-    externalButton.textContent = 'Open in Spotify';
-    externalButton.addEventListener('click', openSharedSpotifyPlaylistExternal);
-    footer.appendChild(externalButton);
-
-    stopButton = document.createElement('button');
-    stopButton.id = 'spotifyPlaylistStopButton';
-    stopButton.className = 'btn-primary';
-    stopButton.addEventListener('click', stopSpotifyPlaylistPlayer);
-    footer.appendChild(stopButton);
-
-    document.body.appendChild(root);
-  } else {
-    panel = root.firstElementChild;
-    title = root.querySelector('#spotifyPlaylistTitleModal');
-    meta = title?.nextElementSibling || null;
-    primaryButton = root.querySelector('#spotifyPlaylistPrimaryButton');
-    iframe = root.querySelector('#spotifyPlaylistIframe');
-    externalButton = root.querySelector('#spotifyPlaylistExternalButton');
-    stopButton = root.querySelector('#spotifyPlaylistStopButton');
-  }
-
-  if (!panel || !title || !meta || !primaryButton || !iframe || !externalButton || !stopButton) return;
-
-  title.textContent = playlist.title || 'Session Playlist';
-  meta.textContent = playlist.url || '';
-  if (iframe.getAttribute('src') !== playlist.embedUrl) {
-    iframe.setAttribute('src', playlist.embedUrl);
-  }
-
-  primaryButton.replaceWith(primaryButton.cloneNode(true));
-  primaryButton = panel.querySelector('#spotifyPlaylistPrimaryButton');
-
-  if (APP.showSpotifyPlaylistModal) {
-    root.style.inset = '0';
-    root.style.display = 'grid';
-    root.style.placeItems = 'center';
-    root.style.padding = '16px';
-    root.style.background = 'rgba(0,0,0,0.72)';
-    panel.style.width = 'min(720px,100%)';
-    panel.style.borderRadius = '18px';
-    panel.style.padding = '22px';
-    primaryButton.textContent = 'Keep Playing in Background';
-    primaryButton.setAttribute('aria-keyshortcuts', 'Escape');
-    primaryButton.addEventListener('click', closeSpotifyPlaylistModal);
-    iframe.style.width = '100%';
-    iframe.style.height = '420px';
-    iframe.style.borderRadius = '12px';
-    stopButton.textContent = 'Stop Player';
-  } else {
-    root.style.inset = 'auto 16px 16px auto';
-    root.style.display = 'block';
-    root.style.padding = '0';
-    root.style.background = 'transparent';
-    panel.style.width = 'min(360px, calc(100vw - 32px))';
-    panel.style.borderRadius = '16px';
-    panel.style.padding = '16px';
-    primaryButton.textContent = 'Expand Player';
-    primaryButton.removeAttribute('aria-keyshortcuts');
-    primaryButton.addEventListener('click', openSharedSpotifyPlaylist);
-    iframe.style.width = '100%';
-    iframe.style.height = '152px';
-    iframe.style.borderRadius = '10px';
-    stopButton.textContent = 'Stop';
-  }
+  return `
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:10040;display:grid;place-items:center;padding:16px;">
+      <div role="dialog" aria-modal="true" aria-labelledby="spotifyPlaylistModalTitle" style="width:min(720px,100%);max-height:90vh;overflow:auto;background:var(--surface-solid);border:1px solid var(--border);border-radius:18px;padding:22px;box-shadow:0 18px 50px rgba(0,0,0,0.35);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;">
+          <div>
+            <h3 id="spotifyPlaylistModalTitle" style="font-family:'Fraunces',serif;font-size:1.4rem;margin-bottom:4px;">${escapeHtml(playlist.title || 'Session Playlist')}</h3>
+            <div style="font-size:0.84rem;color:var(--text-dim);word-break:break-all;">${escapeHtml(playlist.url || '')}</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+            <button class="btn-secondary" data-action="dock-shared-spotify-playlist">Hide to Side</button>
+            <button class="btn-secondary" data-action="close-shared-spotify-playlist" aria-keyshortcuts="Escape">Keep Playing</button>
+          </div>
+        </div>
+        <iframe
+          src="${escapeHtml(playlist.embedUrl)}"
+          title="Spotify playlist player"
+          frameborder="0"
+          loading="lazy"
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+          style="width:100%;height:min(56vh,420px);min-height:320px;border:1px solid var(--border);border-radius:14px;background:#121212;">
+        </iframe>
+        <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:14px;">
+          <button class="btn-secondary" data-action="dock-shared-spotify-playlist">Hide to Side</button>
+          <button class="btn-secondary" data-action="open-spotify-playlist-external">Open in Spotify</button>
+          <button class="btn-primary" data-action="close-shared-spotify-playlist" style="width:auto;padding:12px 18px;">Keep Playing</button>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 function handleEscapeNavigation() {
   if (APP.showSpotifyPlaylistModal) {
-    closeSpotifyPlaylistModal();
+    dockSpotifyPlaylistModal();
     return true;
   }
   if (APP.showShortcutHelp) {
@@ -8506,6 +8576,9 @@ async function saveProfile() {
   APP.player.name = updatedName;
   APP.player.avatar = updatedAvatar;
   await PlayerManager.updateProfile(APP.player);
+  if (APP.roomCode) {
+    persistActiveSessionSnapshot();
+  }
 
   selectedAvatar = updatedAvatar;
 
@@ -8808,11 +8881,11 @@ document.addEventListener('click', async (event) => {
     case 'open-spotify-playlist-external':
       openSharedSpotifyPlaylistExternal();
       break;
+    case 'dock-shared-spotify-playlist':
+      dockSpotifyPlaylistModal();
+      break;
     case 'close-shared-spotify-playlist':
       closeSpotifyPlaylistModal();
-      break;
-    case 'stop-shared-spotify-playlist':
-      stopSpotifyPlaylistPlayer();
       break;
     case 'edit-profile':
       editProfile();
@@ -12075,7 +12148,12 @@ async function init() {
   const profile = await PlayerManager.loadProfile();
   if (profile) {
     APP.player = profile;
-    APP.screen = APP.pendingJoinCode ? 'join-room' : 'dashboard';
+    if (APP.pendingJoinCode) {
+      APP.screen = 'join-room';
+    } else {
+      const restored = await restoreActiveSession();
+      APP.screen = restored ? 'lobby' : 'dashboard';
+    }
   }
   syncFooterQuoteRotation();
   render();
