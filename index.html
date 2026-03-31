@@ -2605,6 +2605,8 @@ const APP = {
   editingProfile: false,
   showHostSettings: false,
   showShortcutHelp: false,
+  showSpotifyPlaylistModal: false,
+  spotifyPlaylistPlayerActive: false,
   brainstormAddingNote: false,
   hostSettingsSaving: false,
   footerQuoteIndex: 0,
@@ -3004,6 +3006,19 @@ const AI_GENERATION_TARGETS = [
   { id: 'spin-wheel', label: 'Spin Wheel' }
 ];
 const AI_GENERATION_TARGET_LABELS = Object.fromEntries(AI_GENERATION_TARGETS.map(item => [item.id, item.label]));
+const ACTIVITY_QUEUE_THEME_OPTIONS = [
+  'Marvel',
+  'ServiceNow',
+  'General Knowledge',
+  'Disney',
+  'Pop Culture',
+  'History',
+  'Science',
+  'Movies',
+  'Music',
+  'Did you Know?',
+  'Random'
+];
 
 function getAIGenerationTargetCount(activityId) {
   if (activityId === 'lightning-trivia' || activityId === 'regular-trivia') return TRIVIA_BANK.length;
@@ -3180,6 +3195,100 @@ function getAdminGenerationSelectedActivityIds() {
   return ADMIN_GENERATION_TARGETS
     .map(item => item.id)
     .filter(activityId => document.getElementById(`adminGenerateActivity-${activityId}`)?.checked);
+}
+
+function getQueueEligibleAIActivityIds(activityQueue = []) {
+  const eligible = new Set(AI_GENERATION_TARGETS.map(item => item.id));
+  const unique = [];
+  (Array.isArray(activityQueue) ? activityQueue : []).forEach(activityId => {
+    if (!eligible.has(activityId) || unique.includes(activityId)) return;
+    unique.push(activityId);
+  });
+  return unique;
+}
+
+function getQueueGenerationSelectedActivityIds(activityQueue = []) {
+  return getQueueEligibleAIActivityIds(activityQueue)
+    .filter(activityId => document.getElementById(`queueGenerateActivity-${activityId}`)?.checked);
+}
+
+function getQueueThemeTopic() {
+  const selectedTheme = String(document.getElementById('queueThemeSelect')?.value || 'General Knowledge').trim();
+  const customTheme = normalizeTopic(document.getElementById('queueThemeCustom')?.value || '');
+  if (selectedTheme === 'Random') return customTheme || 'random trivia, fun facts, and mixed team-building topics';
+  if (customTheme) return `${selectedTheme} with ${customTheme}`;
+  return selectedTheme || 'General Knowledge';
+}
+
+function buildQueueCollectionTemplate(activityIds = []) {
+  const selectedIds = Array.isArray(activityIds) ? activityIds : [];
+  const activities = {};
+  selectedIds.forEach(activityId => {
+    if (activityId === 'lightning-trivia' || activityId === 'regular-trivia') {
+      activities[activityId] = [{ q: 'Sample question', opts: ['Option A', 'Option B', 'Option C', 'Option D'], ans: 1 }];
+    } else if (activityId === 'emoji-charades') {
+      activities[activityId] = [{ emojis: '🦸‍♂️🛡️', answer: 'Superhero shield' }];
+    } else if (activityId === 'icebreaker') {
+      activities[activityId] = ['What is your favorite team tradition?'];
+    } else if (activityId === 'pulse-check') {
+      activities[activityId] = [{ q: 'How energized do you feel today?', opts: ['Very', 'Somewhat', 'Not much', 'Need coffee'] }];
+    } else if (activityId === 'values-vote') {
+      activities[activityId] = [{ name: 'Curiosity', icon: '🧠' }];
+    } else if (activityId === 'wordle') {
+      activities[activityId] = ['POWER'];
+    } else if (activityId === 'word-chain') {
+      activities[activityId] = [{ title: 'Compound Chain', words: ['RAIN', 'BOW', 'TIE', 'BREAK', 'DOWN', 'LOAD', 'STAR', 'FISH'] }];
+    } else if (activityId === 'team-jeopardy') {
+      activities[activityId] = [{
+        category: 'Sample Category',
+        clues: [
+          { value: 100, q: 'Sample question 100', opts: ['A', 'B', 'C', 'D'], ans: 0 },
+          { value: 200, q: 'Sample question 200', opts: ['A', 'B', 'C', 'D'], ans: 1 },
+          { value: 300, q: 'Sample question 300', opts: ['A', 'B', 'C', 'D'], ans: 2 },
+          { value: 400, q: 'Sample question 400', opts: ['A', 'B', 'C', 'D'], ans: 3 },
+          { value: 500, q: 'Sample question 500', opts: ['A', 'B', 'C', 'D'], ans: 0 }
+        ]
+      }];
+    } else if (activityId === 'spin-wheel') {
+      activities[activityId] = ['Coffee Chat', 'Bonus 100 | points:100', 'Lightning Jump | activity:lightning-trivia'];
+    } else if (activityId === 'brainstorm-canvas') {
+      activities[activityId] = [{ text: 'Celebrate a recent team win', lane: 'start' }];
+    }
+  });
+  return {
+    name: 'Queue Theme Pack',
+    description: 'Side-loaded content pack for queued activities.',
+    activities
+  };
+}
+
+function downloadQueueCollectionTemplate(activityQueue = []) {
+  const selectedIds = getQueueGenerationSelectedActivityIds(activityQueue);
+  const fallbackIds = selectedIds.length ? selectedIds : getQueueEligibleAIActivityIds(activityQueue);
+  const payload = buildQueueCollectionTemplate(fallbackIds);
+  triggerTextFileDownload('activity-queue-collection-template.json', 'application/json', `${JSON.stringify(payload, null, 2)}\n`);
+}
+
+function downloadQueuePromptTemplate(activityQueue = []) {
+  const selectedIds = getQueueGenerationSelectedActivityIds(activityQueue);
+  const fallbackIds = selectedIds.length ? selectedIds : getQueueEligibleAIActivityIds(activityQueue);
+  if (!fallbackIds.length) {
+    showError('Add at least one AI-supported activity to the queue first.');
+    return;
+  }
+  const topic = getQueueThemeTopic();
+  const difficulty = String(document.getElementById('queueDifficulty')?.value || HOST_LOCAL_CONFIG.aiDefaultDifficulty || 'mixed');
+  const count = Math.max(3, Math.min(20, Number.parseInt(document.getElementById('queueCount')?.value || String(HOST_LOCAL_CONFIG.aiDefaultCount || 8), 10) || 8));
+  const sections = fallbackIds.map(activityId => `# ${AI_GENERATION_TARGET_LABELS[activityId] || activityId}\n${buildAIPromptForActivity(activityId, topic, difficulty, count)}`);
+  const content = [
+    'Activity Queue AI Prompt Template',
+    `Theme: ${topic}`,
+    `Difficulty: ${difficulty}`,
+    `Count: ${count}`,
+    '',
+    ...sections
+  ].join('\n');
+  triggerTextFileDownload('activity-queue-ai-prompt-template.txt', 'text/plain', content);
 }
 
 const BRAINSTORM_LANES = [
@@ -5414,6 +5523,7 @@ function render() {
   html += renderFooter();
   
   app.innerHTML = html;
+  syncSpotifyPlaylistPlayer();
   autoFocusWordChainActiveCell();
 }
 
@@ -5903,6 +6013,11 @@ function renderLobby() {
   const safePresentationUrl = escapeHtml(sharedPresentation?.url || '');
   const safeSharedBy = escapeHtml(sharedPresentation?.sharedBy || '');
   const sharedAtLabel = sharedPresentation?.updatedAt ? new Date(sharedPresentation.updatedAt).toLocaleString() : '';
+  const sharedSpotifyPlaylist = APP.room.sharedSpotifyPlaylist || null;
+  const safeSpotifyTitle = escapeHtml(sharedSpotifyPlaylist?.title || 'Session Playlist');
+  const safeSpotifyUrl = escapeHtml(sharedSpotifyPlaylist?.url || '');
+  const safeSpotifySharedBy = escapeHtml(sharedSpotifyPlaylist?.sharedBy || '');
+  const spotifySharedAtLabel = sharedSpotifyPlaylist?.updatedAt ? new Date(sharedSpotifyPlaylist.updatedAt).toLocaleString() : '';
   const enabledActivities = APP.preferences?.enabledActivities || {};
   
   if (APP.room.currentActivity) {
@@ -5990,6 +6105,49 @@ function renderLobby() {
       ` : ''}
     </div>
     ` : ''}
+
+    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:24px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+        <div>
+          <div style="font-weight:700;margin-bottom:4px;">🎵 Session Playlist</div>
+          ${sharedSpotifyPlaylist ? `
+            <div style="font-size:0.96rem;font-weight:600;margin-bottom:4px;">${safeSpotifyTitle}</div>
+            <div style="font-size:0.84rem;color:var(--text-mid);word-break:break-all;">${safeSpotifyUrl}</div>
+            <div style="font-size:0.78rem;color:var(--text-dim);margin-top:6px;">
+              Shared by ${safeSpotifySharedBy || 'host'}${spotifySharedAtLabel ? ` • ${escapeHtml(spotifySharedAtLabel)}` : ''}
+            </div>
+          ` : `
+            <div style="font-size:0.84rem;color:var(--text-dim);">No Spotify playlist added yet.</div>
+          `}
+        </div>
+        ${sharedSpotifyPlaylist ? `
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn-primary" data-action="open-shared-spotify-playlist" style="width:auto;padding:10px 16px;">Open Player</button>
+            <button class="btn-secondary" data-action="open-spotify-playlist-external" style="width:auto;padding:10px 16px;">Open in Spotify</button>
+            ${isHost ? '<button class="btn-secondary" data-action="clear-shared-spotify-playlist" style="width:auto;padding:10px 16px;">Remove</button>' : ''}
+          </div>
+        ` : ''}
+      </div>
+
+      ${isHost ? `
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+          <div style="display:grid;grid-template-columns:1fr 1.4fr auto;gap:10px;align-items:end;">
+            <div class="form-group" style="margin:0;">
+              <label class="form-label" for="spotifyPlaylistTitle">Title (optional)</label>
+              <input id="spotifyPlaylistTitle" class="form-input" maxlength="120" value="${escapeHtml(sharedSpotifyPlaylist?.title || '')}" placeholder="Warm-up Mix">
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label class="form-label" for="spotifyPlaylistUrl">Spotify playlist URL</label>
+              <input id="spotifyPlaylistUrl" class="form-input" maxlength="1000" value="${escapeHtml(sharedSpotifyPlaylist?.url || '')}" placeholder="https://open.spotify.com/playlist/...">
+            </div>
+            <button class="btn-secondary" data-action="save-shared-spotify-playlist" style="width:auto;padding:10px 16px;">${sharedSpotifyPlaylist ? 'Update Playlist' : 'Add Playlist'}</button>
+          </div>
+          <div style="font-size:0.78rem;color:var(--text-dim);margin-top:8px;">
+            Quick lobby controls for the host. Full playlist management is also available in Host Settings.
+          </div>
+        </div>
+      ` : ''}
+    </div>
     
     <div style="background:var(--surface-solid);border:1px solid var(--border);
       border-radius:var(--radius);padding:24px;margin-bottom:30px;">
@@ -6115,6 +6273,8 @@ function renderActivityQueue() {
   const queueFeatureEnabled = APP.preferences.enableActivityQueue !== false;
   const availableQueueItems = getEnabledActivityItems();
   const activityQueue = Array.isArray(APP.room.activityQueue) ? APP.room.activityQueue : [];
+  const queueAiActivities = getQueueEligibleAIActivityIds(activityQueue);
+  const localCollections = normalizeClientCollections(APP.admin.collections || []);
   const queueIndex = Number.isInteger(APP.room.queueIndex) ? APP.room.queueIndex : 0;
   const queueActive = Boolean(APP.room.queueActive);
   const queueRemaining = activityQueue.slice(queueIndex);
@@ -6188,6 +6348,76 @@ function renderActivityQueue() {
         </div>
       ` : ''}
     </div>
+
+    ${isHost ? `
+      <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:16px;">
+        <h3 style="font-weight:700;margin-bottom:10px;">AI Queue Builder</h3>
+        <div style="font-size:0.84rem;color:var(--text-dim);margin-bottom:12px;">
+          Generate themed content for queued activities, side-load a collection JSON, or download templates for prompt-driven prep.
+        </div>
+        <div style="font-size:0.78rem;color:var(--text-dim);margin:-4px 0 12px;">
+          Uses the server AI key when configured, or the fallback API key you already saved in Host Settings.
+        </div>
+
+        ${queueAiActivities.length ? `
+          <div style="display:grid;grid-template-columns:1.2fr 1fr 0.8fr 0.8fr;gap:10px;margin-bottom:12px;">
+            <select id="queueThemeSelect" class="form-input">
+              ${ACTIVITY_QUEUE_THEME_OPTIONS.map(theme => `<option value="${escapeHtml(theme)}" ${theme === 'General Knowledge' ? 'selected' : ''}>${escapeHtml(theme)}</option>`).join('')}
+            </select>
+            <input id="queueThemeCustom" class="form-input" maxlength="120" placeholder="Optional sub-theme or audience">
+            <select id="queueDifficulty" class="form-input">
+              <option value="easy">Easy</option>
+              <option value="mixed" selected>Mixed</option>
+              <option value="hard">Hard</option>
+            </select>
+            <input id="queueCount" class="form-input" type="number" min="3" max="20" value="${Math.max(3, Math.min(20, Number(HOST_LOCAL_CONFIG.aiDefaultCount) || 8))}">
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px;">
+            ${queueAiActivities.map(activityId => `
+              <label style="display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
+                <input id="queueGenerateActivity-${activityId}" type="checkbox" checked>
+                <span>${escapeHtml(ACTIVITY_QUEUE_ITEM_MAP[activityId]?.icon || '✨')} ${escapeHtml(AI_GENERATION_TARGET_LABELS[activityId] || activityId)}</span>
+              </label>
+            `).join('')}
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+            <button class="btn-primary" data-action="queue-generate-selected-content" ${APP.aiGenerating ? 'disabled' : ''}>
+              ${APP.aiGenerating ? 'Generating...' : 'Generate for Selected Activities'}
+            </button>
+            <button class="btn-secondary" data-action="queue-download-prompt-template">Download Template Prompt</button>
+            <button class="btn-secondary" data-action="queue-download-collection-template">Download JSON Template</button>
+          </div>
+        ` : `
+          <div style="font-size:0.84rem;color:var(--text-dim);margin-bottom:12px;">Add AI-supported activities like Trivia, Icebreaker, Team Jeopardy, Spin Wheel, or Word Chain to unlock queue generation.</div>
+        `}
+
+        <div style="margin-top:10px;padding-top:14px;border-top:1px solid var(--border);">
+          <div style="font-weight:700;margin-bottom:8px;">Side-Load Options (JSON)</div>
+          <textarea id="queueCollectionJson" class="form-input" rows="6" placeholder='{"name":"Marvel Queue Pack","activities":{"lightning-trivia":[{"q":"...","opts":["A","B","C","D"],"ans":1}]}}'></textarea>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+            <button class="btn-secondary" data-action="queue-add-collection">Add Collection to This Browser</button>
+          </div>
+          <div style="font-size:0.78rem;color:var(--text-dim);margin-top:8px;">
+            Side-loaded collections update the host browser’s activity banks immediately and can be used by queued activities in this session. Removing them here only affects this browser session.
+          </div>
+          ${localCollections.length ? `
+            <div style="margin-top:12px;display:grid;gap:8px;">
+              ${localCollections.map(col => `
+                <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px;display:flex;justify-content:space-between;gap:10px;align-items:center;">
+                  <div>
+                    <div style="font-weight:700;">${escapeHtml(col.name || col.id)}</div>
+                    <div style="font-size:0.8rem;color:var(--text-dim);">${escapeHtml(col.id || '')}</div>
+                  </div>
+                  <button class="btn-secondary" data-action="queue-remove-collection" data-key="${escapeHtml(col.id || '')}" style="padding:6px 10px;">Remove</button>
+                </div>
+              `).join('')}
+            </div>
+          ` : '<div style="margin-top:10px;color:var(--text-dim);font-size:0.9rem;">No side-loaded collections in this browser yet.</div>'}
+        </div>
+
+        ${APP.aiStatus ? `<div role="status" aria-live="polite" style="margin-top:12px;color:var(--text-mid);font-size:0.9rem;">${escapeHtml(APP.aiStatus)}</div>` : ''}
+      </div>
+    ` : ''}
   `;
 }
 
@@ -6199,6 +6429,7 @@ function renderHostSettingsModal() {
   const aiBankEditorItems = getAIBankEditorItems(aiBankEditorTarget);
   const aiBankEditorJson = JSON.stringify(aiBankEditorItems, null, 2);
   const aiBankEditorHelp = getAIBankEditorTargetHelp(aiBankEditorTarget);
+  const spotifyPlaylist = APP.room?.sharedSpotifyPlaylist || null;
   return `
     <div style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10020;display:grid;place-items:center;padding:16px;">
       <div style="width:min(760px,100%);max-height:90vh;overflow:auto;background:var(--surface-solid);
@@ -6260,6 +6491,29 @@ function renderHostSettingsModal() {
             Enable AI Content Generator
           </label>
           ${globalAiEnabled ? '' : '<div style="font-size:0.84rem;color:var(--text-dim);margin-top:6px;">AI is disabled globally by admin.</div>'}
+
+          <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+            <h4 style="margin-bottom:10px;">Spotify Playlist</h4>
+            ${spotifyPlaylist ? `
+              <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;">
+                <div style="font-weight:700;margin-bottom:4px;">${escapeHtml(spotifyPlaylist.title || 'Session Playlist')}</div>
+                <div style="font-size:0.82rem;color:var(--text-mid);word-break:break-all;">${escapeHtml(spotifyPlaylist.url || '')}</div>
+              </div>
+            ` : '<div style="font-size:0.84rem;color:var(--text-dim);margin-bottom:10px;">No Spotify playlist added yet.</div>'}
+            <div class="form-group" style="margin-bottom:10px;">
+              <label class="form-label" for="spotifyPlaylistTitle">Title (optional)</label>
+              <input id="spotifyPlaylistTitle" class="form-input" maxlength="120" value="${escapeHtml(spotifyPlaylist?.title || '')}" placeholder="Warm-up Mix">
+            </div>
+            <div class="form-group" style="margin-bottom:10px;">
+              <label class="form-label" for="spotifyPlaylistUrl">Spotify playlist URL</label>
+              <input id="spotifyPlaylistUrl" class="form-input" maxlength="1000" value="${escapeHtml(spotifyPlaylist?.url || '')}" placeholder="https://open.spotify.com/playlist/...">
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn-secondary" data-action="save-shared-spotify-playlist">${spotifyPlaylist ? 'Update Playlist' : 'Add Playlist'}</button>
+              ${spotifyPlaylist ? '<button class="btn-secondary" data-action="open-shared-spotify-playlist">Open Playlist Modal</button>' : ''}
+              ${spotifyPlaylist ? '<button class="btn-secondary" data-action="clear-shared-spotify-playlist">Remove Playlist</button>' : ''}
+            </div>
+          </div>
         </div>
 
         <div data-tab-panel="ai" class="host-tab-panel" ${activeTab !== 'ai' ? 'hidden' : ''} style="margin-bottom:18px;${globalAiEnabled ? '' : 'display:none;'}">
@@ -6725,6 +6979,40 @@ function normalizePresentationUrl(value) {
   }
 }
 
+function normalizeSpotifyPlaylist(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+
+  let playlistId = '';
+  if (/^spotify:playlist:/i.test(raw)) {
+    const segments = raw.split(':');
+    playlistId = String(segments[2] || '').trim();
+  } else {
+    try {
+      const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+      const parsed = new URL(withProtocol);
+      if (!['http:', 'https:'].includes(parsed.protocol)) return null;
+      const host = parsed.hostname.toLowerCase();
+      if (host !== 'open.spotify.com' && host !== 'play.spotify.com' && host !== 'www.open.spotify.com') return null;
+      const parts = parsed.pathname.split('/').filter(Boolean);
+      if (parts[0] === 'playlist') {
+        playlistId = String(parts[1] || '').trim();
+      } else if (parts[0] === 'embed' && parts[1] === 'playlist') {
+        playlistId = String(parts[2] || '').trim();
+      }
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  if (!/^[A-Za-z0-9]{10,64}$/.test(playlistId)) return null;
+  return {
+    playlistId,
+    url: `https://open.spotify.com/playlist/${playlistId}`,
+    embedUrl: `https://open.spotify.com/embed/playlist/${playlistId}?utm_source=generator`
+  };
+}
+
 async function saveSharedPresentation() {
   if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
   const title = String(document.getElementById('presentationTitle')?.value || '').trim().slice(0, 120);
@@ -6767,6 +7055,68 @@ function openSharedPresentation() {
   const url = APP.room?.sharedPresentation?.url;
   if (!url) {
     showError('No shared presentation link is available.');
+    return;
+  }
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+async function saveSharedSpotifyPlaylist() {
+  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
+  const title = String(document.getElementById('spotifyPlaylistTitle')?.value || '').trim().slice(0, 120);
+  const playlist = normalizeSpotifyPlaylist(document.getElementById('spotifyPlaylistUrl')?.value || '');
+  if (!playlist) {
+    showError('Enter a valid Spotify playlist link.');
+    return;
+  }
+
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room) {
+    showError('Room no longer available.');
+    return;
+  }
+  room.sharedSpotifyPlaylist = {
+    title: title || 'Session Playlist',
+    playlistId: playlist.playlistId,
+    url: playlist.url,
+    embedUrl: playlist.embedUrl,
+    sharedBy: APP.player.name,
+    updatedAt: Date.now()
+  };
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+}
+
+async function clearSharedSpotifyPlaylist() {
+  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room) {
+    showError('Room no longer available.');
+    return;
+  }
+  delete room.sharedSpotifyPlaylist;
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  APP.showSpotifyPlaylistModal = false;
+  APP.spotifyPlaylistPlayerActive = false;
+  render();
+}
+
+function openSharedSpotifyPlaylist() {
+  const embedUrl = APP.room?.sharedSpotifyPlaylist?.embedUrl;
+  if (!embedUrl) {
+    showError('No Spotify playlist is available.');
+    return;
+  }
+  APP.spotifyPlaylistPlayerActive = true;
+  APP.showSpotifyPlaylistModal = true;
+  render();
+}
+
+function openSharedSpotifyPlaylistExternal() {
+  const url = APP.room?.sharedSpotifyPlaylist?.url;
+  if (!url) {
+    showError('No Spotify playlist is available.');
     return;
   }
   window.open(url, '_blank', 'noopener,noreferrer');
@@ -7052,6 +7402,41 @@ function adminAddCollectionFromInput() {
   render();
 }
 
+function queueAddCollectionFromInput() {
+  const input = document.getElementById('queueCollectionJson');
+  const raw = String(input?.value || '').trim();
+  if (!raw) {
+    showError('Paste collection JSON first.');
+    return;
+  }
+  const parsed = safeParseJson(raw);
+  if (!parsed) {
+    showError('Invalid JSON payload.');
+    return;
+  }
+  const additions = normalizeClientCollections(Array.isArray(parsed) ? parsed : [parsed]);
+  if (!additions.length) {
+    showError('No valid collection payload was found.');
+    return;
+  }
+  const existing = normalizeClientCollections(APP.admin.collections || []);
+  const merged = new Map(existing.map(item => [item.id, item]));
+  additions.forEach(item => merged.set(item.id, item));
+  APP.admin.collections = Array.from(merged.values());
+  if (input) input.value = '';
+  rehydrateActivityBanksFromConfig(APP.admin.collections);
+  APP.aiStatus = `Added ${additions.length} side-loaded collection${additions.length === 1 ? '' : 's'} for this browser.`;
+  render();
+}
+
+function queueRemoveCollection(collectionId) {
+  if (!collectionId) return;
+  APP.admin.collections = normalizeClientCollections(APP.admin.collections || []).filter(item => item.id !== collectionId);
+  rehydrateActivityBanksFromConfig(APP.admin.collections);
+  APP.aiStatus = 'Removed side-loaded collection.';
+  render();
+}
+
 function adminRemoveCollection(collectionId) {
   if (!collectionId) return;
   APP.admin.collections = normalizeClientCollections(APP.admin.collections || []).filter(item => item.id !== collectionId);
@@ -7178,6 +7563,7 @@ function openHostSettings() {
   APP.hostSettingsTab = 'game';
   APP.aiBankEditorTarget = getAIBankEditorTargetOrDefault(APP.aiBankEditorTarget);
   APP.aiBankEditorStatus = null;
+  APP.showSpotifyPlaylistModal = false;
   APP.showShortcutHelp = false;
   APP.showHostSettings = true;
   render();
@@ -7185,6 +7571,18 @@ function openHostSettings() {
 
 function closeHostSettings() {
   APP.showHostSettings = false;
+  APP.showSpotifyPlaylistModal = false;
+  render();
+}
+
+function closeSpotifyPlaylistModal() {
+  APP.showSpotifyPlaylistModal = false;
+  render();
+}
+
+function stopSpotifyPlaylistPlayer() {
+  APP.showSpotifyPlaylistModal = false;
+  APP.spotifyPlaylistPlayerActive = false;
   render();
 }
 
@@ -7265,7 +7663,159 @@ function renderShortcutHelpModal() {
   `;
 }
 
+function syncSpotifyPlaylistPlayer() {
+  const existingRoot = document.getElementById('spotifyPlaylistFloatingPlayer');
+  const playlist = APP.room?.sharedSpotifyPlaylist || null;
+  const shouldMount = Boolean(playlist?.embedUrl) && (APP.spotifyPlaylistPlayerActive || APP.showSpotifyPlaylistModal);
+
+  if (!shouldMount) {
+    existingRoot?.remove();
+    return;
+  }
+
+  let root = existingRoot;
+  let panel;
+  let title;
+  let meta;
+  let primaryButton;
+  let externalButton;
+  let stopButton;
+  let iframe;
+
+  if (!root) {
+    root = document.createElement('div');
+    root.id = 'spotifyPlaylistFloatingPlayer';
+    root.style.position = 'fixed';
+    root.style.zIndex = '10040';
+
+    panel = document.createElement('div');
+    panel.style.background = 'var(--surface-solid)';
+    panel.style.border = '1px solid var(--border)';
+    panel.style.boxShadow = '0 18px 50px rgba(0,0,0,0.35)';
+    root.appendChild(panel);
+
+    const header = document.createElement('div');
+    header.style.display = 'flex';
+    header.style.justifyContent = 'space-between';
+    header.style.alignItems = 'center';
+    header.style.gap = '12px';
+    header.style.marginBottom = '14px';
+    panel.appendChild(header);
+
+    const headerText = document.createElement('div');
+    header.appendChild(headerText);
+
+    title = document.createElement('h3');
+    title.id = 'spotifyPlaylistTitleModal';
+    title.style.fontFamily = "'Fraunces',serif";
+    title.style.fontSize = '1.4rem';
+    title.style.marginBottom = '4px';
+    headerText.appendChild(title);
+
+    meta = document.createElement('div');
+    meta.style.fontSize = '0.84rem';
+    meta.style.color = 'var(--text-dim)';
+    meta.style.wordBreak = 'break-all';
+    headerText.appendChild(meta);
+
+    primaryButton = document.createElement('button');
+    primaryButton.id = 'spotifyPlaylistPrimaryButton';
+    primaryButton.className = 'btn-secondary';
+    header.appendChild(primaryButton);
+
+    iframe = document.createElement('iframe');
+    iframe.id = 'spotifyPlaylistIframe';
+    iframe.setAttribute('frameborder', '0');
+    iframe.setAttribute('allowfullscreen', '');
+    iframe.setAttribute('loading', 'lazy');
+    iframe.setAttribute('allow', 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture');
+    iframe.title = 'Spotify playlist player';
+    iframe.style.border = '1px solid var(--border)';
+    iframe.style.background = '#121212';
+    panel.appendChild(iframe);
+
+    const footer = document.createElement('div');
+    footer.style.display = 'flex';
+    footer.style.justifyContent = 'flex-end';
+    footer.style.gap = '8px';
+    footer.style.flexWrap = 'wrap';
+    footer.style.marginTop = '14px';
+    panel.appendChild(footer);
+
+    externalButton = document.createElement('button');
+    externalButton.id = 'spotifyPlaylistExternalButton';
+    externalButton.className = 'btn-secondary';
+    externalButton.textContent = 'Open in Spotify';
+    externalButton.addEventListener('click', openSharedSpotifyPlaylistExternal);
+    footer.appendChild(externalButton);
+
+    stopButton = document.createElement('button');
+    stopButton.id = 'spotifyPlaylistStopButton';
+    stopButton.className = 'btn-primary';
+    stopButton.addEventListener('click', stopSpotifyPlaylistPlayer);
+    footer.appendChild(stopButton);
+
+    document.body.appendChild(root);
+  } else {
+    panel = root.firstElementChild;
+    title = root.querySelector('#spotifyPlaylistTitleModal');
+    meta = title?.nextElementSibling || null;
+    primaryButton = root.querySelector('#spotifyPlaylistPrimaryButton');
+    iframe = root.querySelector('#spotifyPlaylistIframe');
+    externalButton = root.querySelector('#spotifyPlaylistExternalButton');
+    stopButton = root.querySelector('#spotifyPlaylistStopButton');
+  }
+
+  if (!panel || !title || !meta || !primaryButton || !iframe || !externalButton || !stopButton) return;
+
+  title.textContent = playlist.title || 'Session Playlist';
+  meta.textContent = playlist.url || '';
+  if (iframe.getAttribute('src') !== playlist.embedUrl) {
+    iframe.setAttribute('src', playlist.embedUrl);
+  }
+
+  primaryButton.replaceWith(primaryButton.cloneNode(true));
+  primaryButton = panel.querySelector('#spotifyPlaylistPrimaryButton');
+
+  if (APP.showSpotifyPlaylistModal) {
+    root.style.inset = '0';
+    root.style.display = 'grid';
+    root.style.placeItems = 'center';
+    root.style.padding = '16px';
+    root.style.background = 'rgba(0,0,0,0.72)';
+    panel.style.width = 'min(720px,100%)';
+    panel.style.borderRadius = '18px';
+    panel.style.padding = '22px';
+    primaryButton.textContent = 'Keep Playing in Background';
+    primaryButton.setAttribute('aria-keyshortcuts', 'Escape');
+    primaryButton.addEventListener('click', closeSpotifyPlaylistModal);
+    iframe.style.width = '100%';
+    iframe.style.height = '420px';
+    iframe.style.borderRadius = '12px';
+    stopButton.textContent = 'Stop Player';
+  } else {
+    root.style.inset = 'auto 16px 16px auto';
+    root.style.display = 'block';
+    root.style.padding = '0';
+    root.style.background = 'transparent';
+    panel.style.width = 'min(360px, calc(100vw - 32px))';
+    panel.style.borderRadius = '16px';
+    panel.style.padding = '16px';
+    primaryButton.textContent = 'Expand Player';
+    primaryButton.removeAttribute('aria-keyshortcuts');
+    primaryButton.addEventListener('click', openSharedSpotifyPlaylist);
+    iframe.style.width = '100%';
+    iframe.style.height = '152px';
+    iframe.style.borderRadius = '10px';
+    stopButton.textContent = 'Stop';
+  }
+}
+
 function handleEscapeNavigation() {
+  if (APP.showSpotifyPlaylistModal) {
+    closeSpotifyPlaylistModal();
+    return true;
+  }
   if (APP.showShortcutHelp) {
     toggleShortcutHelp(false);
     return true;
@@ -7767,6 +8317,48 @@ async function generateAIQuestions() {
   }
 }
 
+async function generateQueueActivityContent() {
+  if (!APP.room || APP.room.host !== APP.player?.name) return;
+  if (APP.preferences.enableAIGenerator === false) {
+    showError('AI generator is disabled by admin.');
+    return;
+  }
+  const activityQueue = Array.isArray(APP.room.activityQueue) ? APP.room.activityQueue : [];
+  const selectedIds = getQueueGenerationSelectedActivityIds(activityQueue);
+  if (!selectedIds.length) {
+    showError('Select at least one queued activity to generate.');
+    return;
+  }
+
+  const topic = getQueueThemeTopic();
+  const difficulty = String(document.getElementById('queueDifficulty')?.value || HOST_LOCAL_CONFIG.aiDefaultDifficulty || 'mixed');
+  const count = Math.max(3, Math.min(20, Number.parseInt(document.getElementById('queueCount')?.value || String(HOST_LOCAL_CONFIG.aiDefaultCount || 8), 10) || 8));
+  const apiKey = HOST_LOCAL_CONFIG.aiApiKey || localStorage.getItem('ai-question-api-key') || '';
+
+  APP.aiGenerating = true;
+  APP.aiStatus = `Generating ${selectedIds.length} activit${selectedIds.length === 1 ? 'y' : 'ies'} for ${topic}...`;
+  render();
+
+  try {
+    const completed = [];
+    for (const activityId of selectedIds) {
+      APP.aiStatus = `Generating ${AI_GENERATION_TARGET_LABELS[activityId] || activityId} for ${topic}...`;
+      render();
+      const prompt = buildAIPromptForActivity(activityId, topic, difficulty, count);
+      if (!prompt) throw new Error(`Unsupported activity selected: ${activityId}`);
+      const items = await requestAIGeneratedArray(prompt, apiKey);
+      await applyAIGeneratedContent(activityId, items, topic);
+      completed.push(AI_GENERATION_TARGET_LABELS[activityId] || activityId);
+    }
+    APP.aiStatus = `Generated queue content for ${completed.join(', ')} using ${topic}.`;
+  } catch (e) {
+    APP.aiStatus = `Queue generation failed: ${e.message}`;
+  } finally {
+    APP.aiGenerating = false;
+    render();
+  }
+}
+
 function showLevelUp(level) {
   APP.error = `Level up! You reached Level ${level}`;
   render();
@@ -8180,6 +8772,21 @@ document.addEventListener('click', async (event) => {
     case 'queue-next':
       await queueNextActivity();
       break;
+    case 'queue-generate-selected-content':
+      await generateQueueActivityContent();
+      break;
+    case 'queue-add-collection':
+      queueAddCollectionFromInput();
+      break;
+    case 'queue-remove-collection':
+      if (target.dataset.key) queueRemoveCollection(target.dataset.key);
+      break;
+    case 'queue-download-prompt-template':
+      downloadQueuePromptTemplate(Array.isArray(APP.room?.activityQueue) ? APP.room.activityQueue : []);
+      break;
+    case 'queue-download-collection-template':
+      downloadQueueCollectionTemplate(Array.isArray(APP.room?.activityQueue) ? APP.room.activityQueue : []);
+      break;
     case 'save-shared-presentation':
       await saveSharedPresentation();
       break;
@@ -8188,6 +8795,24 @@ document.addEventListener('click', async (event) => {
       break;
     case 'open-shared-presentation':
       openSharedPresentation();
+      break;
+    case 'save-shared-spotify-playlist':
+      await saveSharedSpotifyPlaylist();
+      break;
+    case 'clear-shared-spotify-playlist':
+      await clearSharedSpotifyPlaylist();
+      break;
+    case 'open-shared-spotify-playlist':
+      openSharedSpotifyPlaylist();
+      break;
+    case 'open-spotify-playlist-external':
+      openSharedSpotifyPlaylistExternal();
+      break;
+    case 'close-shared-spotify-playlist':
+      closeSpotifyPlaylistModal();
+      break;
+    case 'stop-shared-spotify-playlist':
+      stopSpotifyPlaylistPlayer();
       break;
     case 'edit-profile':
       editProfile();
