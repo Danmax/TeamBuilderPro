@@ -30,16 +30,11 @@ const DATA_DIR = path.join(__dirname, '.runtime-data');
 const DATA_FILE = path.join(DATA_DIR, 'shared-state.json');
 const FEEDBACK_FILE = path.join(DATA_DIR, 'feedback-state.json');
 const ROOM_META_FILE = path.join(DATA_DIR, 'room-meta.json');
-const ADMIN_TOKEN = String(process.env.ADMIN_TOKEN || '').trim();
-const ADMIN_TEMP_PASSWORD = String(process.env.ADMIN_TEMP_PASSWORD || '').trim();
 const CHAT_GPT_MINI_KEY = String(process.env.CHAT_GPT_MINI_KEY || '').trim();
 const AI_QUESTION_ENDPOINT = String(process.env.AI_QUESTION_ENDPOINT || 'https://api.openai.com/v1/chat/completions').trim();
 const AI_QUESTION_MODEL = String(process.env.AI_QUESTION_MODEL || 'gpt-4o-mini').trim();
 const DATABASE_URL = String(process.env.DATABASE_URL || '').trim();
 const IS_PRODUCTION = String(process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
-const DEV_ADMIN_PASSWORD = !IS_PRODUCTION
-  ? String(process.env.DEV_ADMIN_PASSWORD || ADMIN_TEMP_PASSWORD || 'TAS2026!').trim()
-  : '';
 const GLOBAL_CONFIG_DB_KEY = 'global_config';
 const ALL_ACTIVITY_IDS = [
   'lightning-trivia',
@@ -79,6 +74,26 @@ let roomMetaPersistTimer = null;
 let configDb = null;
 const roomSecrets = new Map();
 const voiceRooms = new Map();
+
+function getAdminToken() {
+  return String(process.env.ADMIN_TOKEN || '').trim();
+}
+
+function getAdminTempPassword() {
+  return String(process.env.ADMIN_TEMP_PASSWORD || '').trim();
+}
+
+function getDevAdminPassword() {
+  if (IS_PRODUCTION) return '';
+  return String(process.env.DEV_ADMIN_PASSWORD || getAdminTempPassword() || 'TAS2026!').trim();
+}
+
+function maskConfiguredSecret(secret) {
+  const normalized = String(secret || '').trim();
+  if (!normalized) return 'missing';
+  if (normalized.length <= 4) return `${'*'.repeat(normalized.length)} (len=${normalized.length})`;
+  return `${normalized.slice(0, 2)}${'*'.repeat(Math.max(0, normalized.length - 4))}${normalized.slice(-2)} (len=${normalized.length})`;
+}
 
 function getDefaultPreferences() {
   const enabledByDefault = new Set([
@@ -466,14 +481,16 @@ function isLocalDevRequest(req) {
 
 function isValidAdminToken(token, req) {
   const normalizedToken = String(token || '').trim();
+  const adminToken = getAdminToken();
+  const devAdminPassword = getDevAdminPassword();
   if (!normalizedToken) return false;
-  if (ADMIN_TOKEN && normalizedToken === ADMIN_TOKEN) return true;
-  if (DEV_ADMIN_PASSWORD && normalizedToken === DEV_ADMIN_PASSWORD && !IS_PRODUCTION) return true;
+  if (adminToken && normalizedToken === adminToken) return true;
+  if (devAdminPassword && normalizedToken === devAdminPassword && !IS_PRODUCTION) return true;
   return false;
 }
 
 function hasAdminAccessConfigured(req) {
-  return Boolean(ADMIN_TOKEN || (!IS_PRODUCTION && DEV_ADMIN_PASSWORD));
+  return Boolean(getAdminToken() || (!IS_PRODUCTION && getDevAdminPassword()));
 }
 
 function requireAdmin(req, res, next) {
@@ -1271,6 +1288,8 @@ Promise.resolve()
     server.listen(PORT, () => {
       // eslint-disable-next-line no-console
       console.log(`Team Builder realtime server listening on http://localhost:${PORT}`);
+      // eslint-disable-next-line no-console
+      console.log(`Environment: NODE_ENV=${process.env.NODE_ENV || 'undefined'} ADMIN_TOKEN=${maskConfiguredSecret(getAdminToken())}`);
       if (configDb) {
         // eslint-disable-next-line no-console
         console.log('Global config storage: PostgreSQL');
