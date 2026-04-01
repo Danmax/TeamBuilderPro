@@ -1,0 +1,7 @@
+node_modules
+.runtime-data
+.git
+.gitignore
+Dockerfile
+npm-debug.log
+TeamBuilderPro-App-Overview.pptx
