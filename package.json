@@ -2,7 +2,7 @@
   "name": "team-builder-pro-realtime",
   "version": "1.0.0",
   "private": true,
-  "description": "Realtime backend for Player Hub using Socket.IO",
+  "description": "Realtime backend for Team Builder Pro using Socket.IO",
   "main": "server.js",
   "engines": {
     "node": "22.x"

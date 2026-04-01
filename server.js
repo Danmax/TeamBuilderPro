@@ -37,6 +37,9 @@ const AI_QUESTION_ENDPOINT = String(process.env.AI_QUESTION_ENDPOINT || 'https:/
 const AI_QUESTION_MODEL = String(process.env.AI_QUESTION_MODEL || 'gpt-4o-mini').trim();
 const DATABASE_URL = String(process.env.DATABASE_URL || '').trim();
 const IS_PRODUCTION = String(process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
+const DEV_ADMIN_PASSWORD = !IS_PRODUCTION
+  ? String(process.env.DEV_ADMIN_PASSWORD || ADMIN_TEMP_PASSWORD || 'TAS2026!').trim()
+  : '';
 const GLOBAL_CONFIG_DB_KEY = 'global_config';
 const ALL_ACTIVITY_IDS = [
   'lightning-trivia',
@@ -51,7 +54,12 @@ const ALL_ACTIVITY_IDS = [
   'regular-trivia',
   'tic-tac-toe-blitz',
   'team-jeopardy',
-  'spin-wheel'
+  'spin-wheel',
+  'slides-studio',
+  'battleship',
+  'bingo',
+  'backgammon',
+  'connect-4'
 ];
 const FEATURE_FLAG_IDS = [
   'enableFeedbackHub',
@@ -60,13 +68,17 @@ const FEATURE_FLAG_IDS = [
   'enableLoadSession',
   'enableAIGenerator',
   'enableSampleQuestions',
-  'enableFooterQuotes'
+  'enableFooterQuotes',
+  'autoRevealLightning',
+  'allowAnswerChanges',
+  'dynamicScoring'
 ];
 let persistTimer = null;
 let feedbackPersistTimer = null;
 let roomMetaPersistTimer = null;
 let configDb = null;
 const roomSecrets = new Map();
+const voiceRooms = new Map();
 
 function getDefaultPreferences() {
   const enabledByDefault = new Set([
@@ -75,7 +87,10 @@ function getDefaultPreferences() {
     'pulse-check',
     'wordle',
     'word-chain',
-    'spin-wheel'
+    'spin-wheel',
+    'slides-studio',
+    'battleship',
+    'bingo'
   ]);
   return {
     enableFeedbackHub: true,
@@ -85,6 +100,9 @@ function getDefaultPreferences() {
     enableAIGenerator: true,
     enableSampleQuestions: true,
     enableFooterQuotes: false,
+    autoRevealLightning: true,
+    allowAnswerChanges: true,
+    dynamicScoring: true,
     enabledActivities: Object.fromEntries(ALL_ACTIVITY_IDS.map(activityId => [activityId, enabledByDefault.has(activityId)]))
   };
 }
@@ -152,7 +170,7 @@ function normalizeCollections(rawCollections) {
 function normalizeConfig(rawConfig) {
   const source = rawConfig && typeof rawConfig === 'object' ? rawConfig : {};
   const existingBranding = source.branding && typeof source.branding === 'object' ? source.branding : {};
-  const appName = String(existingBranding.appName || 'Player Hub').trim().slice(0, 64) || 'Player Hub';
+  const appName = String(existingBranding.appName || 'Team Builder').trim().slice(0, 64) || 'Team Builder';
   const tagline = String(existingBranding.tagline || 'Team building, games, and challenges - all in one place').trim().slice(0, 140)
     || 'Team building, games, and challenges - all in one place';
   const accentRaw = String(existingBranding.accent || '#00d2d3').trim();
@@ -251,9 +269,12 @@ function loadRoomMetaFromDisk() {
     if (!parsed || typeof parsed !== 'object') return;
     Object.entries(parsed).forEach(([key, meta]) => {
       const token = String(meta?.token || '').trim();
-      const privateSession = meta?.privateSession === undefined ? Boolean(token) : Boolean(meta?.privateSession);
       if (!isRoomKey(key)) return;
       if (token && !isValidRoomToken(token)) return;
+      const roomPrivacy = getRoomPrivacyFromState(key);
+      const privateSession = roomPrivacy === null
+        ? (meta?.privateSession === undefined ? Boolean(token) : Boolean(meta?.privateSession))
+        : roomPrivacy;
       roomSecrets.set(key, {
         token,
         createdAt: Number(meta?.createdAt) || Date.now(),
@@ -447,12 +468,12 @@ function isValidAdminToken(token, req) {
   const normalizedToken = String(token || '').trim();
   if (!normalizedToken) return false;
   if (ADMIN_TOKEN && normalizedToken === ADMIN_TOKEN) return true;
-  if (ADMIN_TEMP_PASSWORD && normalizedToken === ADMIN_TEMP_PASSWORD && isLocalDevRequest(req)) return true;
+  if (DEV_ADMIN_PASSWORD && normalizedToken === DEV_ADMIN_PASSWORD && !IS_PRODUCTION) return true;
   return false;
 }
 
 function hasAdminAccessConfigured(req) {
-  return Boolean(ADMIN_TOKEN || (ADMIN_TEMP_PASSWORD && isLocalDevRequest(req)));
+  return Boolean(ADMIN_TOKEN || (!IS_PRODUCTION && DEV_ADMIN_PASSWORD));
 }
 
 function requireAdmin(req, res, next) {
@@ -487,10 +508,23 @@ function extractRoomPrivacyFromValue(value) {
   return room?.access?.privateSession === true || room?.hostSettings?.privateSession === true;
 }
 
+function getRoomPrivacyFromState(key) {
+  if (!isRoomKey(key)) return null;
+  if (!state.has(key)) return null;
+  return extractRoomPrivacyFromValue(state.get(key));
+}
+
 function getRoomAccessMeta(key) {
   if (!isRoomKey(key)) return null;
   const existing = roomSecrets.get(key);
-  if (existing) return existing;
+  const roomPrivacy = getRoomPrivacyFromState(key);
+  if (existing) {
+    if (roomPrivacy !== null && existing.privateSession !== roomPrivacy) {
+      existing.privateSession = roomPrivacy;
+      scheduleRoomMetaPersist();
+    }
+    return existing;
+  }
   const room = safeParseJsonObject(state.get(key));
   if (!room) return null;
   const inferred = {
@@ -555,6 +589,216 @@ function isAuthorizedForRoom(key, authToken) {
   if (!meta.privateSession) return true;
   if (!isValidRoomToken(authToken)) return false;
   return hasValidRoomAccess(key, authToken);
+}
+
+function getDefaultVoiceSettings() {
+  return {
+    enabled: false,
+    participantMicPolicy: 'approved',
+    hideBlockedMicControls: true
+  };
+}
+
+function normalizeVoiceMicPolicy(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return ['host_only', 'approved', 'open'].includes(normalized) ? normalized : 'approved';
+}
+
+function getRoomSnapshot(key) {
+  return safeParseJsonObject(state.get(key));
+}
+
+function getRoomVoiceSettings(room) {
+  const merged = {
+    ...getDefaultVoiceSettings(),
+    ...(room?.hostSettings?.voice || {})
+  };
+  merged.participantMicPolicy = normalizeVoiceMicPolicy(merged.participantMicPolicy);
+  merged.hideBlockedMicControls = merged.hideBlockedMicControls !== false;
+  return merged;
+}
+
+function getParticipantStableId(participant) {
+  const explicitId = String(participant?.id || '').trim();
+  if (explicitId) return explicitId;
+  const fallbackName = String(participant?.name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 32);
+  return fallbackName ? `legacy-${fallbackName}` : '';
+}
+
+function getOrCreateVoiceRoomState(key) {
+  const existing = voiceRooms.get(key);
+  if (existing) return existing;
+  const created = {
+    sockets: new Map(),
+    approvedSpeakerIds: new Set(),
+    raisedHands: new Set(),
+    activeSpeakerId: '',
+    activeSpeakerName: ''
+  };
+  voiceRooms.set(key, created);
+  return created;
+}
+
+function getRoomParticipant(room, playerId = '', playerName = '') {
+  if (!room || !Array.isArray(room.participants)) return null;
+  return room.participants.find(participant => {
+    if (!participant || typeof participant !== 'object') return false;
+    if (playerId && getParticipantStableId(participant) === playerId) return true;
+    return Boolean(playerName) && participant.name === playerName;
+  }) || null;
+}
+
+function isRoomHostParticipant(room, playerId = '', playerName = '') {
+  const participant = getRoomParticipant(room, playerId, playerName);
+  if (!participant) return false;
+  return participant.name === room?.host;
+}
+
+function isVoiceParticipantAllowed(room, voiceState, playerId = '', playerName = '') {
+  if (!room) return false;
+  const voiceSettings = getRoomVoiceSettings(room);
+  if (voiceSettings.enabled !== true) return false;
+  if (isRoomHostParticipant(room, playerId, playerName)) return true;
+  const participant = getRoomParticipant(room, playerId, playerName);
+  if (!participant?.id) return false;
+  if (voiceSettings.participantMicPolicy === 'open') return true;
+  if (voiceSettings.participantMicPolicy === 'host_only') return false;
+  return voiceState.approvedSpeakerIds.has(participant.id);
+}
+
+function listVoiceMembers(voiceState, room = null) {
+  const participantsById = new Map(
+    Array.isArray(room?.participants)
+      ? room.participants
+        .map(participant => [getParticipantStableId(participant), participant])
+        .filter(([participantId]) => participantId)
+      : []
+  );
+  const byPlayerId = new Map();
+  voiceState.sockets.forEach(member => {
+    if (!member?.playerId) return;
+    const participant = participantsById.get(member.playerId) || null;
+    if (!byPlayerId.has(member.playerId)) {
+      byPlayerId.set(member.playerId, {
+        playerId: member.playerId,
+        playerName: participant?.name || member.playerName || '',
+        avatar: participant?.avatar || member.avatar || '',
+        socketCount: 1
+      });
+      return;
+    }
+    const existing = byPlayerId.get(member.playerId);
+    existing.socketCount += 1;
+    if (!existing.playerName && (participant?.name || member.playerName)) existing.playerName = participant?.name || member.playerName;
+    if (!existing.avatar && (participant?.avatar || member.avatar)) existing.avatar = participant?.avatar || member.avatar;
+  });
+  return Array.from(byPlayerId.values()).sort((a, b) => a.playerName.localeCompare(b.playerName));
+}
+
+function pruneVoiceRoomState(key, room = null) {
+  const voiceState = voiceRooms.get(key);
+  if (!voiceState) return null;
+  const roomSnapshot = room || getRoomSnapshot(key);
+  const voiceSettings = getRoomVoiceSettings(roomSnapshot);
+  const participantIds = new Set(
+    Array.isArray(roomSnapshot?.participants)
+      ? roomSnapshot.participants
+        .map(participant => getParticipantStableId(participant))
+        .filter(Boolean)
+      : []
+  );
+
+  voiceState.sockets.forEach((member, socketId) => {
+    if (!member?.playerId || participantIds.has(member.playerId)) return;
+    voiceState.sockets.delete(socketId);
+  });
+  voiceState.approvedSpeakerIds.forEach(playerId => {
+    if (!participantIds.has(playerId)) {
+      voiceState.approvedSpeakerIds.delete(playerId);
+    }
+  });
+  voiceState.raisedHands.forEach(playerId => {
+    if (!participantIds.has(playerId)) {
+      voiceState.raisedHands.delete(playerId);
+    }
+  });
+
+  if (voiceSettings.enabled !== true) {
+    voiceState.activeSpeakerId = '';
+    voiceState.activeSpeakerName = '';
+    voiceState.raisedHands.clear();
+  } else if (
+    voiceState.activeSpeakerId
+    && !isVoiceParticipantAllowed(roomSnapshot, voiceState, voiceState.activeSpeakerId, voiceState.activeSpeakerName)
+  ) {
+    voiceState.activeSpeakerId = '';
+    voiceState.activeSpeakerName = '';
+  }
+
+  if (!voiceState.sockets.size && !voiceState.approvedSpeakerIds.size && !voiceState.raisedHands.size && !voiceState.activeSpeakerId) {
+    voiceRooms.delete(key);
+    return null;
+  }
+  return voiceState;
+}
+
+function buildVoiceStatePayload(key, room = null) {
+  if (!isRoomKey(key)) return null;
+  const roomSnapshot = room || getRoomSnapshot(key);
+  const voiceState = pruneVoiceRoomState(key, roomSnapshot) || getOrCreateVoiceRoomState(key);
+  const voiceSettings = getRoomVoiceSettings(roomSnapshot);
+  const activeParticipant = getRoomParticipant(roomSnapshot, voiceState.activeSpeakerId, voiceState.activeSpeakerName);
+  return {
+    key,
+    enabled: voiceSettings.enabled === true,
+    participantMicPolicy: normalizeVoiceMicPolicy(voiceSettings.participantMicPolicy),
+    hideBlockedMicControls: voiceSettings.hideBlockedMicControls !== false,
+    approvedSpeakerIds: Array.from(voiceState.approvedSpeakerIds),
+    raisedHands: Array.from(voiceState.raisedHands),
+    activeSpeakerId: voiceState.activeSpeakerId || '',
+    activeSpeakerName: activeParticipant?.name || voiceState.activeSpeakerName || '',
+    members: listVoiceMembers(voiceState, roomSnapshot),
+    updatedAt: Date.now()
+  };
+}
+
+function emitVoiceState(key, room = null) {
+  const payload = buildVoiceStatePayload(key, room);
+  if (!payload) return;
+  io.to(key).emit('voice:state', payload);
+}
+
+function getVoiceMemberForSocket(socket) {
+  const key = socket?.data?.voiceKey;
+  if (!key) return null;
+  const voiceState = voiceRooms.get(key);
+  return voiceState?.sockets.get(socket.id) || null;
+}
+
+function removeSocketFromVoiceRoom(socket, emitUpdate = true) {
+  const key = socket?.data?.voiceKey;
+  if (!isRoomKey(key)) return;
+  const voiceState = voiceRooms.get(key);
+  if (!voiceState) {
+    socket.data.voiceKey = null;
+    return;
+  }
+  const member = voiceState.sockets.get(socket.id);
+  voiceState.sockets.delete(socket.id);
+  if (member?.playerId && voiceState.activeSpeakerId === member.playerId) {
+    voiceState.activeSpeakerId = '';
+    voiceState.activeSpeakerName = '';
+  }
+  socket.data.voiceKey = null;
+  const pruned = pruneVoiceRoomState(key);
+  if (emitUpdate && pruned) {
+    emitVoiceState(key);
+  }
 }
 
 app.get('/api/config', (_req, res) => {
@@ -769,6 +1013,9 @@ io.on('connection', socket => {
   socket.on('room:unsubscribe', payload => {
     const key = typeof payload === 'string' ? payload : payload?.key;
     if (!isRoomKey(key)) return;
+    if (socket.data.voiceKey === key) {
+      removeSocketFromVoiceRoom(socket);
+    }
     socket.leave(key);
   });
 
@@ -810,7 +1057,207 @@ io.on('connection', socket => {
     state.set(key, strValue);
     schedulePersist();
     io.to(key).emit('shared:update', { key, value: state.get(key) });
+    emitVoiceState(key, safeParseJsonObject(strValue));
     ack?.({ ok: true });
+  });
+
+  socket.on('voice:join', (payload, ack) => {
+    const key = payload?.key;
+    const authToken = getRequestRoomToken(payload);
+    const playerId = String(payload?.playerId || '').trim();
+    const playerName = String(payload?.playerName || '').trim();
+    const avatar = String(payload?.avatar || '').trim();
+    if (!isRoomKey(key)) {
+      ack?.({ ok: false, error: 'Invalid room key' });
+      return;
+    }
+    if (!isAuthorizedForRoom(key, authToken)) {
+      ack?.({ ok: false, error: 'Unauthorized room access' });
+      return;
+    }
+    const room = getRoomSnapshot(key);
+    const participant = getRoomParticipant(room, playerId, playerName);
+    const participantId = getParticipantStableId(participant);
+    if (!participantId) {
+      ack?.({ ok: false, error: 'Player is not in this room' });
+      return;
+    }
+
+    if (socket.data.voiceKey && socket.data.voiceKey !== key) {
+      removeSocketFromVoiceRoom(socket);
+    }
+    socket.join(key);
+    socket.data.voiceKey = key;
+    const voiceState = getOrCreateVoiceRoomState(key);
+    voiceState.sockets.set(socket.id, {
+      playerId: participantId,
+      playerName: participant.name || playerName,
+      avatar: participant.avatar || avatar
+    });
+    pruneVoiceRoomState(key, room);
+    emitVoiceState(key, room);
+    ack?.({ ok: true, state: buildVoiceStatePayload(key, room) });
+  });
+
+  socket.on('voice:leave', (_payload, ack) => {
+    removeSocketFromVoiceRoom(socket);
+    ack?.({ ok: true });
+  });
+
+  socket.on('voice:request-talk', (_payload, ack) => {
+    const key = socket.data.voiceKey;
+    const member = getVoiceMemberForSocket(socket);
+    const room = getRoomSnapshot(key);
+    if (!isRoomKey(key) || !member?.playerId || !room) {
+      ack?.({ ok: false, error: 'Voice session unavailable' });
+      return;
+    }
+    const voiceState = getOrCreateVoiceRoomState(key);
+    if (!isVoiceParticipantAllowed(room, voiceState, member.playerId, member.playerName)) {
+      voiceState.raisedHands.add(member.playerId);
+    }
+    emitVoiceState(key, room);
+    ack?.({ ok: true });
+  });
+
+  socket.on('voice:grant-talk', (payload, ack) => {
+    const key = socket.data.voiceKey;
+    const member = getVoiceMemberForSocket(socket);
+    const room = getRoomSnapshot(key);
+    const targetPlayerId = String(payload?.targetPlayerId || '').trim();
+    if (!isRoomKey(key) || !member?.playerId || !room || !targetPlayerId) {
+      ack?.({ ok: false, error: 'Voice session unavailable' });
+      return;
+    }
+    if (!isRoomHostParticipant(room, member.playerId, member.playerName)) {
+      ack?.({ ok: false, error: 'Only host can grant talk access' });
+      return;
+    }
+    const targetParticipant = getRoomParticipant(room, targetPlayerId, '');
+    const targetParticipantId = getParticipantStableId(targetParticipant);
+    if (!targetParticipantId) {
+      ack?.({ ok: false, error: 'Participant not found' });
+      return;
+    }
+    const voiceState = getOrCreateVoiceRoomState(key);
+    voiceState.approvedSpeakerIds.add(targetParticipantId);
+    voiceState.raisedHands.delete(targetParticipantId);
+    emitVoiceState(key, room);
+    ack?.({ ok: true });
+  });
+
+  socket.on('voice:revoke-talk', (payload, ack) => {
+    const key = socket.data.voiceKey;
+    const member = getVoiceMemberForSocket(socket);
+    const room = getRoomSnapshot(key);
+    const targetPlayerId = String(payload?.targetPlayerId || '').trim();
+    if (!isRoomKey(key) || !member?.playerId || !room || !targetPlayerId) {
+      ack?.({ ok: false, error: 'Voice session unavailable' });
+      return;
+    }
+    if (!isRoomHostParticipant(room, member.playerId, member.playerName)) {
+      ack?.({ ok: false, error: 'Only host can revoke talk access' });
+      return;
+    }
+    const voiceState = getOrCreateVoiceRoomState(key);
+    voiceState.approvedSpeakerIds.delete(targetPlayerId);
+    voiceState.raisedHands.delete(targetPlayerId);
+    if (voiceState.activeSpeakerId === targetPlayerId) {
+      voiceState.activeSpeakerId = '';
+      voiceState.activeSpeakerName = '';
+    }
+    emitVoiceState(key, room);
+    ack?.({ ok: true });
+  });
+
+  socket.on('voice:force-stop', (payload, ack) => {
+    const key = socket.data.voiceKey;
+    const member = getVoiceMemberForSocket(socket);
+    const room = getRoomSnapshot(key);
+    const targetPlayerId = String(payload?.targetPlayerId || '').trim();
+    if (!isRoomKey(key) || !member?.playerId || !room || !targetPlayerId) {
+      ack?.({ ok: false, error: 'Voice session unavailable' });
+      return;
+    }
+    if (!isRoomHostParticipant(room, member.playerId, member.playerName)) {
+      ack?.({ ok: false, error: 'Only host can stop the speaker' });
+      return;
+    }
+    const voiceState = getOrCreateVoiceRoomState(key);
+    if (voiceState.activeSpeakerId === targetPlayerId) {
+      voiceState.activeSpeakerId = '';
+      voiceState.activeSpeakerName = '';
+      emitVoiceState(key, room);
+    }
+    ack?.({ ok: true });
+  });
+
+  socket.on('voice:ptt:start', (_payload, ack) => {
+    const key = socket.data.voiceKey;
+    const member = getVoiceMemberForSocket(socket);
+    const room = getRoomSnapshot(key);
+    if (!isRoomKey(key) || !member?.playerId || !room) {
+      ack?.({ ok: false, error: 'Voice session unavailable' });
+      return;
+    }
+    const voiceState = getOrCreateVoiceRoomState(key);
+    if (!isVoiceParticipantAllowed(room, voiceState, member.playerId, member.playerName)) {
+      ack?.({ ok: false, error: 'Host has not allowed you to speak' });
+      return;
+    }
+    if (voiceState.activeSpeakerId && voiceState.activeSpeakerId !== member.playerId) {
+      ack?.({ ok: false, error: 'Another speaker is live' });
+      return;
+    }
+    voiceState.activeSpeakerId = member.playerId;
+    voiceState.activeSpeakerName = member.playerName || '';
+    voiceState.raisedHands.delete(member.playerId);
+    emitVoiceState(key, room);
+    ack?.({ ok: true });
+  });
+
+  socket.on('voice:ptt:stop', (_payload, ack) => {
+    const key = socket.data.voiceKey;
+    const member = getVoiceMemberForSocket(socket);
+    if (!isRoomKey(key) || !member?.playerId) {
+      ack?.({ ok: false, error: 'Voice session unavailable' });
+      return;
+    }
+    const voiceState = getOrCreateVoiceRoomState(key);
+    if (voiceState.activeSpeakerId === member.playerId) {
+      voiceState.activeSpeakerId = '';
+      voiceState.activeSpeakerName = '';
+      emitVoiceState(key);
+    }
+    ack?.({ ok: true });
+  });
+
+  socket.on('voice:signal', (payload, ack) => {
+    const key = socket.data.voiceKey;
+    const member = getVoiceMemberForSocket(socket);
+    const targetPlayerId = String(payload?.targetPlayerId || '').trim();
+    const signal = payload?.signal;
+    if (!isRoomKey(key) || !member?.playerId || !targetPlayerId || !signal || typeof signal !== 'object') {
+      ack?.({ ok: false, error: 'Invalid voice signal payload' });
+      return;
+    }
+    const voiceState = getOrCreateVoiceRoomState(key);
+    let delivered = 0;
+    voiceState.sockets.forEach((targetMember, targetSocketId) => {
+      if (targetMember?.playerId !== targetPlayerId) return;
+      io.to(targetSocketId).emit('voice:signal', {
+        key,
+        fromPlayerId: member.playerId,
+        fromPlayerName: member.playerName || '',
+        signal
+      });
+      delivered += 1;
+    });
+    ack?.({ ok: delivered > 0, error: delivered > 0 ? undefined : 'Target is offline' });
+  });
+
+  socket.on('disconnect', () => {
+    removeSocketFromVoiceRoom(socket);
   });
 });
 
@@ -823,7 +1270,7 @@ Promise.resolve()
   .finally(() => {
     server.listen(PORT, () => {
       // eslint-disable-next-line no-console
-      console.log(`Player Hub realtime server listening on http://localhost:${PORT}`);
+      console.log(`Team Builder realtime server listening on http://localhost:${PORT}`);
       if (configDb) {
         // eslint-disable-next-line no-console
         console.log('Global config storage: PostgreSQL');
