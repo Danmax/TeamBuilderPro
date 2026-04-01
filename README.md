@@ -114,16 +114,6 @@ Open:
 
 - `http://localhost:3000`
 
-For local admin access you can use the configured dev password fallback:
-
-- `TAS2026!`
-
-Or override it:
-
-```bash
-DEV_ADMIN_PASSWORD=your-password npm start
-```
-
 ## Repository Structure
 
 - `index.html` - main frontend application
