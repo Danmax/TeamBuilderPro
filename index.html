@@ -3878,6 +3878,13 @@ function getDefaultBackgammonUiState() {
   };
 }
 
+function getDefaultSlidesStudioUiState() {
+  return {
+    aiPrompt: '',
+    aiCount: 5
+  };
+}
+
 function getDefaultVoiceDockState() {
   return {
     mobileCollapsed: true,
@@ -3938,6 +3945,7 @@ const APP = {
   battleshipUi: getDefaultBattleshipUiState(),
   bingoUi: getDefaultBingoUiState(),
   backgammonUi: getDefaultBackgammonUiState(),
+  slidesStudioUi: getDefaultSlidesStudioUiState(),
   voiceDock: loadVoiceDockState(),
   feedback: [],
   feedbackLoading: false,
@@ -6704,6 +6712,8 @@ async function generateSlidesStudioFromPrompt() {
   if (APP.room.host !== APP.player?.name) return;
   const promptText = String(document.getElementById('slidesStudioAIPrompt')?.value || '').trim();
   const requestedCount = Math.max(3, Math.min(10, Number.parseInt(document.getElementById('slidesStudioAICount')?.value || '5', 10) || 5));
+  APP.slidesStudioUi.aiPrompt = promptText;
+  APP.slidesStudioUi.aiCount = requestedCount;
   const apiKeyInput = String(document.getElementById('slidesStudioAIApiKey')?.value || '').trim();
   const apiKey = apiKeyInput || HOST_LOCAL_CONFIG.aiApiKey || localStorage.getItem('ai-question-api-key') || '';
   if (!promptText) {
@@ -12273,6 +12283,10 @@ window.addEventListener('resize', () => {
 document.addEventListener('input', event => {
   const target = event.target;
   if (!(target instanceof HTMLInputElement)) return;
+  if (target.id === 'slidesStudioAICount') {
+    APP.slidesStudioUi.aiCount = Math.max(3, Math.min(10, Number.parseInt(target.value || '5', 10) || 5));
+    return;
+  }
   if (target.classList.contains('host-wordle-cell-input')) {
     target.value = normalizeWord(target.value).slice(0, 1);
     captureHostWordleDraft();
@@ -12294,6 +12308,14 @@ document.addEventListener('input', event => {
   if (target.value) {
     const next = document.querySelector(`.word-chain-letter-input[data-row="${row}"][data-pos="${pos + 1}"]`);
     if (next instanceof HTMLInputElement) next.focus();
+  }
+});
+
+document.addEventListener('input', event => {
+  const target = event.target;
+  if (!(target instanceof HTMLTextAreaElement)) return;
+  if (target.id === 'slidesStudioAIPrompt') {
+    APP.slidesStudioUi.aiPrompt = target.value;
   }
 });
 
@@ -14059,7 +14081,8 @@ function renderSlidesStudio() {
   const safeSourceUrl = escapeHtml(activeSlide?.sourceUrl || '');
   const backgroundMode = activeSlide?.backgroundMode === 'solid' ? 'solid' : 'gradient';
   const imageStyle = activeSlide?.imageStyle === 'card' ? 'card' : 'background';
-  const aiDefaultCount = Math.max(3, Math.min(10, Number(HOST_LOCAL_CONFIG.aiDefaultCount) || 5));
+  const aiDraftPrompt = escapeHtml(APP.slidesStudioUi.aiPrompt || '');
+  const aiDefaultCount = Math.max(3, Math.min(10, Number(APP.slidesStudioUi.aiCount) || Number(HOST_LOCAL_CONFIG.aiDefaultCount) || 5));
 
   const hostSidebar = `
     <div class="slides-studio-sidebar">
@@ -14103,7 +14126,7 @@ function renderSlidesStudio() {
       <div class="slides-studio-editor-grid">
         <div class="form-group form-group-full">
           <label class="form-label" for="slidesStudioAIPrompt">Prompt</label>
-          <textarea id="slidesStudioAIPrompt" style="width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:14px 16px;border-radius:12px;font-size:0.96rem;font-family:'Outfit',sans-serif;outline:none;resize:vertical;min-height:110px;" placeholder="Create a 5-slide presentation for a team kickoff about Q2 priorities, wins, risks, and next steps."></textarea>
+          <textarea id="slidesStudioAIPrompt" style="width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:14px 16px;border-radius:12px;font-size:0.96rem;font-family:'Outfit',sans-serif;outline:none;resize:vertical;min-height:110px;" placeholder="Create a 5-slide presentation for a team kickoff about Q2 priorities, wins, risks, and next steps.">${aiDraftPrompt}</textarea>
         </div>
         <div class="form-group">
           <label class="form-label" for="slidesStudioAICount">Slide count</label>
