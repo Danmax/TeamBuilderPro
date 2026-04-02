@@ -2666,6 +2666,31 @@ function normalizeContentBrief(raw) {
   };
 }
 
+function normalizeQueueDurationMinutes(value) {
+  return Math.max(1, Math.min(180, Number.parseInt(value || `${DEFAULT_QUEUE_ACTIVITY_DURATION_MINUTES}`, 10) || DEFAULT_QUEUE_ACTIVITY_DURATION_MINUTES));
+}
+
+function normalizeQueueSchedule(rawSchedule, fallbackActivities = []) {
+  if (Array.isArray(rawSchedule) && rawSchedule.length) {
+    return rawSchedule
+      .map(entry => {
+        const activityId = String(entry?.activityId || entry?.id || '').trim();
+        if (!ALL_ACTIVITY_IDS.includes(activityId)) return null;
+        return {
+          activityId,
+          durationMinutes: normalizeQueueDurationMinutes(entry?.durationMinutes)
+        };
+      })
+      .filter(Boolean);
+  }
+  return (Array.isArray(fallbackActivities) ? fallbackActivities : [])
+    .filter(activityId => ALL_ACTIVITY_IDS.includes(activityId))
+    .map(activityId => ({
+      activityId,
+      durationMinutes: DEFAULT_QUEUE_ACTIVITY_DURATION_MINUTES
+    }));
+}
+
 function normalizeSessionPlan(raw, idx = 0) {
   if (!raw || typeof raw !== 'object') return null;
   const title = normalizeTopic(raw.title || raw.name || '');
@@ -2677,6 +2702,7 @@ function normalizeSessionPlan(raw, idx = 0) {
   const queue = Array.isArray(raw.activityQueue)
     ? raw.activityQueue.filter(activityId => ALL_ACTIVITY_IDS.includes(activityId))
     : [];
+  const queueSchedule = normalizeQueueSchedule(raw.queueSchedule, queue);
   return {
     id: idBase || `session-plan-${Date.now()}-${idx}`,
     title: title || `Session Plan ${idx + 1}`,
@@ -2684,7 +2710,9 @@ function normalizeSessionPlan(raw, idx = 0) {
     time: String(raw.time || '').trim().slice(0, 32),
     zoomLink: normalizeSlidesStudioUrl(raw.zoomLink || raw.link || ''),
     details: String(raw.details || raw.description || '').replace(/\r/g, '').trim().slice(0, 2000),
-    activityQueue: queue,
+    activityQueue: queueSchedule.map(item => item.activityId),
+    queueSchedule,
+    timedSessionEnabled: raw.timedSessionEnabled === true,
     contentBrief: normalizeContentBrief(raw.contentBrief),
     contentCollections: normalizeClientCollections(raw.contentCollections),
     createdAt: String(raw.createdAt || new Date().toISOString()),
@@ -2753,9 +2781,16 @@ function applySessionPlanToRoom(room, plan) {
   };
   room.contentBrief = normalizedPlan.contentBrief;
   room.contentCollections = normalizeClientCollections(normalizedPlan.contentCollections || []);
-  room.activityQueue = [...normalizedPlan.activityQueue];
+  room.queueSchedule = normalizeQueueSchedule(normalizedPlan.queueSchedule, normalizedPlan.activityQueue);
+  room.activityQueue = room.queueSchedule.map(item => item.activityId);
   room.queueIndex = 0;
   room.queueActive = false;
+  room.queueTiming = {
+    enabled: normalizedPlan.timedSessionEnabled === true,
+    currentQueuePointer: -1,
+    currentStartedAt: 0,
+    currentEndsAt: 0
+  };
   room.lastUpdate = Date.now();
   return room;
 }
@@ -2965,7 +3000,7 @@ function getRoomCollections(room = APP.room) {
 
 function shouldUseRoomScopedCollections() {
   if (APP.showHostSettings) return true;
-  const globalOnlyScreens = new Set(['welcome', 'dashboard', 'about', 'join-room', 'feedback', 'admin', 'schedule-meeting', 'load-session']);
+  const globalOnlyScreens = new Set(['welcome', 'dashboard', 'about', 'join-room', 'feedback', 'admin', 'schedule-meeting', 'load-session', 'community']);
   return !globalOnlyScreens.has(APP.screen);
 }
 
@@ -3113,11 +3148,26 @@ function normalizeRoom(room) {
   const hostSettings = getRoomHostSettings({
     hostSettings: room.hostSettings || {}
   });
+  const queueSchedule = normalizeQueueSchedule(room.queueSchedule, room.activityQueue || []);
+  const queueTimingRaw = room.queueTiming && typeof room.queueTiming === 'object' ? room.queueTiming : {};
+  const roomType = String(room.roomType || '').trim().toLowerCase() === 'community' ? 'community' : 'private';
   return {
     ...room,
+    roomType,
+    communityTitle: String(room.communityTitle || '').replace(/\s+/g, ' ').trim().slice(0, 80),
+    communityDescription: String(room.communityDescription || '').replace(/\s+/g, ' ').trim().slice(0, 220),
+    maxParticipants: Math.max(2, Number(room.maxParticipants) || 24),
     host: normalizedHost || room.host || '',
     participants,
     hostSettings,
+    activityQueue: queueSchedule.map(item => item.activityId),
+    queueSchedule,
+    queueTiming: {
+      enabled: queueTimingRaw.enabled === true,
+      currentQueuePointer: Number.isInteger(queueTimingRaw.currentQueuePointer) ? queueTimingRaw.currentQueuePointer : -1,
+      currentStartedAt: Number(queueTimingRaw.currentStartedAt) || 0,
+      currentEndsAt: Number(queueTimingRaw.currentEndsAt) || 0
+    },
     access: {
       ...(room.access && typeof room.access === 'object' ? room.access : {}),
       privateSession: hostSettings.privateSession === true || room?.access?.privateSession === true
@@ -3355,8 +3405,10 @@ let voicePttPointerActive = false;
 // You can also set window.SUPABASE_URL / window.SUPABASE_ANON_KEY before this script loads.
 const SUPABASE_URL = window.SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || '';
+const DEFAULT_QUEUE_ACTIVITY_DURATION_MINUTES = 10;
 
 let supabaseClient = null;
+let timedQueueAdvancePending = false;
 
 function isSupabaseConfigured() {
   return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase?.createClient);
@@ -4398,19 +4450,38 @@ const RoomManager = {
     return randomAlphaNum(24);
   },
   
-  async createRoom(hostId, hostName, hostAvatar) {
+  async createRoom(hostId, hostName, hostAvatar, options = {}) {
     const code = this.generateCode();
     const accessToken = this.generateAccessToken();
     const createdAt = Date.now();
+    const roomType = String(options.roomType || '').trim().toLowerCase() === 'community' ? 'community' : 'private';
+    const communityTitle = roomType === 'community'
+      ? String(options.communityTitle || `${normalizeName(hostName || 'Host') || 'Host'}'s Community Lobby`).replace(/\s+/g, ' ').trim().slice(0, 80)
+      : '';
+    const communityDescription = roomType === 'community'
+      ? String(options.communityDescription || 'Open lobby for drop-in games and social play.').replace(/\s+/g, ' ').trim().slice(0, 220)
+      : '';
+    const maxParticipants = Math.max(2, Number(options.maxParticipants) || 24);
     const room = normalizeRoom({
       code: code,
+      roomType,
+      communityTitle,
+      communityDescription,
+      maxParticipants,
       host: hostName,
       participants: [createRoomParticipant(hostId, hostName, hostAvatar, true)],
       currentActivity: null,
       activityState: {},
       activityQueue: [],
+      queueSchedule: [],
       queueIndex: 0,
       queueActive: false,
+      queueTiming: {
+        enabled: false,
+        currentQueuePointer: -1,
+        currentStartedAt: 0,
+        currentEndsAt: 0
+      },
       access: {
         privateSession: false
       },
@@ -4529,7 +4600,11 @@ function getDefaultBattleshipUiState() {
 function getDefaultBingoUiState() {
   return {
     lastAnimatedDrawStamp: null,
-    selectedMarker: 'dauber-red'
+    selectedMarker: 'classic-cover',
+    voiceEnabled: true,
+    lastObservedRoundStamp: null,
+    lastAnnouncedCallStamp: null,
+    lastAnnouncedWinStamp: null
   };
 }
 
@@ -4591,6 +4666,12 @@ const APP = {
   showSpotifyPlaylistDocked: false,
   showLobbyPlaylistSection: false,
   brainstormAddingNote: false,
+  brainstormModal: {
+    open: false,
+    lane: 'start',
+    mode: 'add',
+    noteId: ''
+  },
   hostSettingsSaving: false,
   footerQuoteIndex: 0,
   hostSettingsTab: 'game',
@@ -4612,6 +4693,10 @@ const APP = {
   backgammonUi: getDefaultBackgammonUiState(),
   slidesStudioUi: getDefaultSlidesStudioUiState(),
   voiceDock: loadVoiceDockState(),
+  community: {
+    rooms: [],
+    loading: false
+  },
   feedback: [],
   feedbackLoading: false,
   admin: {
@@ -5043,9 +5128,13 @@ const BINGO_PATTERN_OPTIONS = [
   { id: 'full_card', label: 'Full Card', description: 'Mark every space on the card' }
 ];
 const BINGO_MARKER_OPTIONS = [
-  { id: 'dauber-red', label: 'Red Dauber', icon: '●', kind: 'dauber', accent: '#ef4444', fill: 'rgba(239,68,68,0.34)', border: 'rgba(185,28,28,0.55)', glow: 'rgba(239,68,68,0.28)' },
-  { id: 'dauber-blue', label: 'Blue Dauber', icon: '●', kind: 'dauber', accent: '#2563eb', fill: 'rgba(37,99,235,0.3)', border: 'rgba(30,64,175,0.5)', glow: 'rgba(37,99,235,0.24)' },
-  { id: 'chip-gold', label: 'Gold Chip', icon: '◉', kind: 'chip', accent: '#f59e0b', fill: 'rgba(245,158,11,0.18)', border: 'rgba(180,83,9,0.48)', glow: 'rgba(245,158,11,0.22)' },
+  { id: 'classic-cover', label: 'Classic Gold', icon: '▣', kind: 'cover', accent: '#7c2d12', fill: 'rgba(253,224,71,0.84)', border: 'rgba(217,119,6,0.82)', glow: 'rgba(251,191,36,0.34)' },
+  { id: 'classic-cover-blue', label: 'Classic Blue', icon: '▣', kind: 'cover', accent: '#1d4ed8', fill: 'rgba(96,165,250,0.74)', border: 'rgba(29,78,216,0.78)', glow: 'rgba(59,130,246,0.3)' },
+  { id: 'classic-cover-green', label: 'Classic Green', icon: '▣', kind: 'cover', accent: '#166534', fill: 'rgba(110,231,183,0.7)', border: 'rgba(22,101,52,0.74)', glow: 'rgba(16,185,129,0.28)' },
+  { id: 'classic-cover-rose', label: 'Classic Rose', icon: '▣', kind: 'cover', accent: '#9f1239', fill: 'rgba(251,113,133,0.68)', border: 'rgba(190,24,93,0.74)', glow: 'rgba(244,63,94,0.28)' },
+  { id: 'dauber-red', label: 'Red Dauber', icon: '●', kind: 'dauber', accent: '#ef4444', fill: 'rgba(239,68,68,0.54)', border: 'rgba(185,28,28,0.68)', glow: 'rgba(239,68,68,0.32)' },
+  { id: 'dauber-blue', label: 'Blue Dauber', icon: '●', kind: 'dauber', accent: '#2563eb', fill: 'rgba(37,99,235,0.5)', border: 'rgba(30,64,175,0.64)', glow: 'rgba(37,99,235,0.28)' },
+  { id: 'chip-gold', label: 'Gold Chip', icon: '◉', kind: 'chip', accent: '#f59e0b', fill: 'rgba(245,158,11,0.28)', border: 'rgba(180,83,9,0.58)', glow: 'rgba(245,158,11,0.26)' },
   { id: 'star-violet', label: 'Lucky Star', icon: '★', kind: 'icon', accent: '#a855f7', fill: 'rgba(168,85,247,0.14)', border: 'rgba(126,34,206,0.38)', glow: 'rgba(168,85,247,0.26)' },
   { id: 'heart-pink', label: 'Heart Charm', icon: '♥', kind: 'icon', accent: '#ec4899', fill: 'rgba(236,72,153,0.14)', border: 'rgba(190,24,93,0.38)', glow: 'rgba(236,72,153,0.24)' }
 ];
@@ -7549,6 +7638,86 @@ function formatBingoCall(value) {
   return `${col}-${num}`;
 }
 
+function formatBingoVoiceCall(value) {
+  const label = formatBingoCall(value);
+  return label ? label.replace('-', ' ') : '';
+}
+
+function speakBingoAnnouncement(text) {
+  if (!text || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+  try {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    window.speechSynthesis.speak(utterance);
+  } catch (error) {
+    console.warn('Bingo speech unavailable', error);
+  }
+}
+
+function triggerBingoCelebration(winners) {
+  if (typeof document === 'undefined' || !document.body) return;
+  const prior = document.getElementById('bingo-celebration-overlay');
+  if (prior) prior.remove();
+  const winnerNames = Array.isArray(winners)
+    ? winners.map(name => String(name || '').trim()).filter(Boolean)
+    : [];
+  const overlay = document.createElement('div');
+  overlay.id = 'bingo-celebration-overlay';
+  overlay.setAttribute('aria-hidden', 'true');
+  overlay.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:2400;overflow:hidden;';
+  overlay.innerHTML = `
+    <div style="position:absolute;top:18px;left:50%;transform:translateX(-50%);padding:14px 20px;border-radius:999px;border:1px solid rgba(255,255,255,0.3);background:linear-gradient(135deg,rgba(239,35,60,0.94),rgba(249,115,22,0.9));box-shadow:0 22px 48px rgba(15,23,42,0.34);color:#ffffff;font-weight:900;letter-spacing:0.06em;text-transform:uppercase;backdrop-filter:blur(8px);">
+      Bingo Confirmed${winnerNames.length ? ` • ${escapeHtml(winnerNames.join(', '))}` : ''}!
+    </div>
+    <div class="trivia-confetti" style="position:absolute;inset:0;z-index:0;">${buildCelebrationConfettiPieces(34)}</div>
+  `;
+  document.body.appendChild(overlay);
+  window.setTimeout(() => {
+    if (overlay.isConnected) overlay.remove();
+  }, 2200);
+}
+
+function maybeHandleBingoAnnouncements(state, winners, drawStamp, winStamp) {
+  APP.bingoUi = APP.bingoUi && typeof APP.bingoUi === 'object' ? APP.bingoUi : getDefaultBingoUiState();
+  const ui = APP.bingoUi;
+  if (typeof ui.voiceEnabled !== 'boolean') ui.voiceEnabled = true;
+  const roundStamp = Number(state?.startedAt) || 0;
+  if (ui.lastObservedRoundStamp !== roundStamp) {
+    ui.lastObservedRoundStamp = roundStamp;
+    ui.lastAnnouncedCallStamp = drawStamp;
+    ui.lastAnnouncedWinStamp = winStamp;
+    return;
+  }
+  if (drawStamp && ui.lastAnnouncedCallStamp !== drawStamp) {
+    ui.lastAnnouncedCallStamp = drawStamp;
+    if (ui.voiceEnabled) {
+      speakBingoAnnouncement(formatBingoVoiceCall(state?.lastCalled));
+    }
+  }
+  if (!drawStamp) ui.lastAnnouncedCallStamp = null;
+  if (winStamp && ui.lastAnnouncedWinStamp !== winStamp) {
+    ui.lastAnnouncedWinStamp = winStamp;
+    triggerBingoCelebration(winners);
+    if (ui.voiceEnabled) {
+      const winnerNames = Array.isArray(winners) ? winners.filter(Boolean).join(', ') : '';
+      speakBingoAnnouncement(winnerNames ? `Bingo confirmed. Winner ${winnerNames}.` : 'Bingo confirmed.');
+    }
+  }
+  if (!winStamp) ui.lastAnnouncedWinStamp = null;
+}
+
+function toggleBingoVoiceEnabled() {
+  APP.bingoUi = APP.bingoUi && typeof APP.bingoUi === 'object' ? APP.bingoUi : getDefaultBingoUiState();
+  APP.bingoUi.voiceEnabled = APP.bingoUi.voiceEnabled === false;
+  if (!APP.bingoUi.voiceEnabled && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+  render();
+}
+
 function getBingoBallMeta(value) {
   const num = Number(value);
   if (!Number.isInteger(num) || num < 1 || num > 75) return null;
@@ -8204,6 +8373,8 @@ async function runNextQueuedActivity(roomOverride = null) {
   const room = roomOverride ? { ...roomOverride } : await RoomManager.loadRoom(APP.roomCode);
   if (!room) return false;
   const queue = Array.isArray(room.activityQueue) ? room.activityQueue : [];
+  const queueSchedule = normalizeQueueSchedule(room.queueSchedule, queue);
+  room.queueSchedule = queueSchedule;
   let queueIndex = Number.isInteger(room.queueIndex) ? room.queueIndex : 0;
   if (!room.queueActive || queue.length === 0) return false;
 
@@ -8224,6 +8395,12 @@ async function runNextQueuedActivity(roomOverride = null) {
     room.queueIndex = 0;
     room.currentActivity = null;
     room.activityState = {};
+    room.queueTiming = {
+      ...(room.queueTiming && typeof room.queueTiming === 'object' ? room.queueTiming : {}),
+      currentQueuePointer: -1,
+      currentStartedAt: 0,
+      currentEndsAt: 0
+    };
     await RoomManager.updateRoom(APP.roomCode, room);
     APP.room = room;
     render();
@@ -8231,10 +8408,18 @@ async function runNextQueuedActivity(roomOverride = null) {
   }
 
   const activityId = queue[queueIndex];
+  const scheduleEntry = queueSchedule[queueIndex] || { activityId, durationMinutes: DEFAULT_QUEUE_ACTIVITY_DURATION_MINUTES };
+  const now = Date.now();
   ticTacToeFinalizePending = false;
   room.queueIndex = queueIndex + 1;
   room.currentActivity = activityId;
   room.activityState = getInitialActivityState(room, activityId) || {};
+  room.queueTiming = {
+    ...(room.queueTiming && typeof room.queueTiming === 'object' ? room.queueTiming : {}),
+    currentQueuePointer: queueIndex,
+    currentStartedAt: now,
+    currentEndsAt: room.queueTiming?.enabled ? now + (normalizeQueueDurationMinutes(scheduleEntry.durationMinutes) * 60 * 1000) : 0
+  };
   await RoomManager.updateRoom(APP.roomCode, room);
   APP.room = room;
   APP.screen = 'lobby';
@@ -8250,6 +8435,41 @@ async function runNextQueuedActivity(roomOverride = null) {
   }
   render();
   return true;
+}
+
+function getCurrentQueuedScheduleEntry(room = APP.room) {
+  const safeRoom = room && typeof room === 'object' ? room : null;
+  if (!safeRoom) return null;
+  const queueSchedule = normalizeQueueSchedule(safeRoom.queueSchedule, safeRoom.activityQueue || []);
+  const pointer = Number.isInteger(safeRoom.queueTiming?.currentQueuePointer) ? safeRoom.queueTiming.currentQueuePointer : -1;
+  if (pointer < 0 || pointer >= queueSchedule.length) return null;
+  return {
+    ...queueSchedule[pointer],
+    queueIndex: pointer
+  };
+}
+
+function getTimedQueueRemainingMs(room = APP.room) {
+  const endsAt = Number(room?.queueTiming?.currentEndsAt) || 0;
+  if (!endsAt) return 0;
+  return Math.max(0, endsAt - Date.now());
+}
+
+async function maybeAdvanceTimedQueue() {
+  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
+  if (!APP.room.queueActive || APP.room.queueTiming?.enabled !== true) return;
+  const endsAt = Number(APP.room.queueTiming?.currentEndsAt) || 0;
+  if (!endsAt || Date.now() < endsAt || timedQueueAdvancePending) return;
+  timedQueueAdvancePending = true;
+  try {
+    const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
+    if (!room || room.host !== APP.player?.name || room.queueActive !== true || room.queueTiming?.enabled !== true) return;
+    const currentEndsAt = Number(room.queueTiming?.currentEndsAt) || 0;
+    if (!currentEndsAt || Date.now() < currentEndsAt) return;
+    await runNextQueuedActivity(room);
+  } finally {
+    timedQueueAdvancePending = false;
+  }
 }
 
 async function startLightningTrivia() { await startActivityById('lightning-trivia'); }
@@ -8463,6 +8683,36 @@ function getCurrentBattleshipPlayerBoard() {
   return normalizeBattleshipBoard(getBattleshipBoard(state, me));
 }
 
+function getNextBattleshipSelectableShip(board, currentShipId = '') {
+  const safeBoard = normalizeBattleshipBoard(board);
+  const ships = Array.isArray(safeBoard.ships) ? safeBoard.ships : [];
+  if (!ships.length) return null;
+  const unplacedShips = ships.filter(ship => ship.cells.length !== ship.length);
+  if (unplacedShips.length) {
+    const currentIndex = unplacedShips.findIndex(ship => ship.id === currentShipId);
+    if (currentIndex >= 0) {
+      return unplacedShips[(currentIndex + 1) % unplacedShips.length] || unplacedShips[0] || null;
+    }
+    return unplacedShips[0] || null;
+  }
+  const currentIndex = ships.findIndex(ship => ship.id === currentShipId);
+  if (currentIndex >= 0) {
+    return ships[(currentIndex + 1) % ships.length] || ships[0] || null;
+  }
+  return ships[0] || null;
+}
+
+function getNextUnplacedBattleshipShip(board, currentShipId = '') {
+  const safeBoard = normalizeBattleshipBoard(board);
+  const unplacedShips = (Array.isArray(safeBoard.ships) ? safeBoard.ships : []).filter(ship => ship.cells.length !== ship.length);
+  if (!unplacedShips.length) return null;
+  const currentIndex = unplacedShips.findIndex(ship => ship.id === currentShipId);
+  if (currentIndex >= 0) {
+    return unplacedShips[(currentIndex + 1) % unplacedShips.length] || unplacedShips[0] || null;
+  }
+  return unplacedShips[0] || null;
+}
+
 function selectBattleshipShip(shipId) {
   if (!shipId) return;
   APP.battleshipUi.selectedShipId = shipId;
@@ -8490,6 +8740,24 @@ async function handleBattleshipShipSelection(shipId) {
     return;
   }
   selectBattleshipShip(normalizedShipId);
+}
+
+function selectNextBattleshipShip() {
+  const board = getCurrentBattleshipPlayerBoard();
+  if (!board) return;
+  const nextShip = getNextBattleshipSelectableShip(board, APP.battleshipUi.selectedShipId || '');
+  if (!nextShip?.id) return;
+  selectBattleshipShip(nextShip.id);
+}
+
+function selectNextUnplacedBattleshipShip() {
+  const board = getCurrentBattleshipPlayerBoard();
+  if (!board) return;
+  const nextShip = getNextUnplacedBattleshipShip(board, APP.battleshipUi.selectedShipId || '');
+  if (!nextShip?.id) return;
+  APP.battleshipUi.lastTapShipId = '';
+  APP.battleshipUi.lastTapAt = 0;
+  selectBattleshipShip(nextShip.id);
 }
 
 function setBattleshipPlacementAxis(axis) {
@@ -10182,6 +10450,7 @@ function render() {
   else if (APP.screen === 'admin') html = renderAdminConsole();
   else if (APP.screen === 'schedule-meeting') html = renderScheduleMeeting();
   else if (APP.screen === 'load-session') html = renderLoadSession();
+  else if (APP.screen === 'community') html = renderCommunityDirectory();
 
   if (APP.showHostSettings && APP.room && APP.room.host === APP.player?.name) {
     html += renderHostSettingsModal();
@@ -10208,6 +10477,21 @@ function render() {
   updateVoiceMeterDom();
   syncSpotifyPlaylistPlayer();
   autoFocusWordChainActiveCell();
+}
+
+async function loadCommunityRooms() {
+  APP.community.loading = true;
+  render();
+  try {
+    const data = await apiRequest('/api/community/rooms');
+    APP.community.rooms = Array.isArray(data?.rooms) ? data.rooms : [];
+  } catch (_error) {
+    APP.community.rooms = [];
+    showError('Unable to load community lobbies right now.');
+  } finally {
+    APP.community.loading = false;
+    render();
+  }
 }
 
 function renderWelcome() {
@@ -10252,6 +10536,12 @@ function renderDashboard() {
   const showFeedback = APP.preferences.enableFeedbackHub !== false;
   const scheduleEnabled = APP.preferences.enableScheduleMeeting !== false;
   const loadEnabled = APP.preferences.enableLoadSession !== false;
+  const savedPlans = (APP.sessionManager?.plans?.length ? APP.sessionManager.plans : loadSessionPlans()) || [];
+  const hasSavedPlans = savedPlans.length > 0;
+  const sessionSetupTitle = hasSavedPlans ? 'Plan Session' : 'Session Setup';
+  const sessionSetupDescription = hasSavedPlans
+    ? 'Set up a session ahead of time with title, agenda, link, and activity queue'
+    : 'Create your first session plan with agenda, theme, link, and activity queue';
   return `
     <div class="header">
       <h1 class="logo">${safeAppName}</h1>
@@ -10283,15 +10573,21 @@ function renderDashboard() {
         <p class="card-desc">Enter a room code to join your team</p>
       </button>
 
+      <button type="button" class="card" data-action="go-screen" data-screen="community" aria-label="Community Lobby">
+        <div class="card-icon">🌐</div>
+        <h3 class="card-title">Community Lobby</h3>
+        <p class="card-desc">Browse open public lobbies, join drop-in games, or host a community room</p>
+      </button>
+
       ${scheduleEnabled ? `
         <button type="button" class="card" data-action="go-screen" data-screen="schedule-meeting" aria-label="Plan Session">
           <div class="card-icon">🗓️</div>
-          <h3 class="card-title">Plan Session</h3>
-          <p class="card-desc">Set up a session ahead of time with title, agenda, link, and activity queue</p>
+          <h3 class="card-title">${sessionSetupTitle}</h3>
+          <p class="card-desc">${sessionSetupDescription}</p>
         </button>
       ` : ''}
 
-      ${loadEnabled ? `
+      ${loadEnabled && hasSavedPlans ? `
         <button type="button" class="card" data-action="go-screen" data-screen="load-session" aria-label="Manage Sessions">
           <div class="card-icon">🗂️</div>
           <h3 class="card-title">Manage Sessions</h3>
@@ -10309,6 +10605,73 @@ function renderDashboard() {
     </div>
     <div style="text-align:center;margin-top:14px;color:var(--text-dim);font-size:0.85rem;">
       Keyboard: <strong>${escapeHtml(formatModifierShortcut('N'))}</strong> host, <strong>${escapeHtml(formatModifierShortcut('J'))}</strong> join, <strong>?</strong> shortcuts
+    </div>
+  `;
+}
+
+function renderCommunityDirectory() {
+  const rooms = Array.isArray(APP.community.rooms) ? APP.community.rooms : [];
+  return `
+    <div class="header">
+      <h1 class="logo">Community Lobby</h1>
+      <p class="tagline">Public drop-in rooms built on the same lobby flow as hosted sessions</p>
+    </div>
+
+    <button class="btn-secondary" data-action="go-screen" data-screen="dashboard">← Back</button>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
+      <button class="btn-primary" data-action="create-community-room" style="width:auto;">🌐 Host Community Lobby</button>
+      <button class="btn-secondary" data-action="refresh-community-rooms" style="width:auto;">↻ Refresh</button>
+    </div>
+
+    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:20px;">
+      <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:10px;">How It Works</h3>
+      <div style="display:grid;gap:8px;color:var(--text-mid);line-height:1.5;">
+        <div>• Join an open community lobby and hang out in the shared room.</div>
+        <div>• Hosts can launch full-room games like Bingo, Trivia, Brainstorm, and Spin Wheel.</div>
+        <div>• When a game ends, everyone returns to the same lobby.</div>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;display:grid;gap:14px;">
+      ${APP.community.loading ? `
+        <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:24px;color:var(--text-dim);text-align:center;">
+          Loading public lobbies...
+        </div>
+      ` : rooms.length ? rooms.map(room => {
+        const activityLabel = room.currentActivity
+          ? (ACTIVITY_QUEUE_ITEM_MAP[room.currentActivity]?.label || room.currentActivity)
+          : 'Lobby Open';
+        const presenceLabel = room.presenceStatus === 'full'
+          ? 'Full'
+          : room.presenceStatus === 'in_game'
+            ? 'In Game'
+            : 'Open';
+        return `
+          <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:18px;padding:18px;display:grid;gap:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+              <div>
+                <div style="font-family:'Fraunces',serif;font-size:1.2rem;">${escapeHtml(room.title || `${room.host || 'Host'}'s Community Lobby`)}</div>
+                <div style="font-size:0.84rem;color:var(--text-dim);margin-top:4px;">Host: ${escapeHtml(room.host || 'Unknown')} • Code: ${escapeHtml(room.code || '')}</div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+                <span style="padding:6px 10px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border);font-size:0.76rem;font-weight:800;">${escapeHtml(presenceLabel)}</span>
+                <span style="padding:6px 10px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border);font-size:0.76rem;font-weight:800;">${escapeHtml(activityLabel)}</span>
+                ${room.voiceEnabled ? '<span style="padding:6px 10px;border-radius:999px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.24);font-size:0.76rem;font-weight:800;color:#86efac;">Voice On</span>' : ''}
+              </div>
+            </div>
+            ${room.description ? `<div style="color:var(--text-mid);line-height:1.5;">${escapeHtml(room.description)}</div>` : ''}
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+              <div style="font-size:0.84rem;color:var(--text-dim);">${escapeHtml(String(room.participantCount || 0))}/${escapeHtml(String(room.maxParticipants || 24))} players • ${escapeHtml(String(room.queueLength || 0))} queued activities</div>
+              <button class="btn-primary" data-action="join-community-room" data-room-code="${escapeHtml(room.code || '')}" style="width:auto;" ${room.presenceStatus === 'full' ? 'disabled' : ''}>Join Lobby</button>
+            </div>
+          </div>
+        `;
+      }).join('') : `
+        <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:24px;color:var(--text-dim);text-align:center;">
+          No public community lobbies are open right now. Start one and it will appear here.
+        </div>
+      `}
     </div>
   `;
 }
@@ -10733,6 +11096,10 @@ function renderLobby() {
       ? 'Host only'
       : 'Host-approved participants';
   const voiceModeLabel = voiceSettings.transmissionMode === 'open' ? 'Open mic' : 'Push to talk';
+  const isCommunityRoom = APP.room?.roomType === 'community';
+  const lobbyTitle = isCommunityRoom
+    ? escapeHtml(APP.room.communityTitle || `${APP.room.host || 'Host'}'s Community Lobby`)
+    : 'Session Lobby';
   
   if (APP.room.currentActivity) {
     return renderActivity();
@@ -10749,8 +11116,8 @@ function renderLobby() {
     </div>
 
     <div class="header">
-      <h1 class="logo">Session Lobby</h1>
-      <p class="tagline">Room: ${safeRoomCode}</p>
+      <h1 class="logo">${lobbyTitle}</h1>
+      <p class="tagline">Room: ${safeRoomCode}${isCommunityRoom ? ' • Community Lobby' : ''}</p>
     </div>
 
     ${isHost && voiceSettings.enabled && (raisedHandCount || focusedVoiceParticipant) ? `
@@ -11075,6 +11442,10 @@ function renderActivityQueue() {
   const queueIndex = Number.isInteger(APP.room.queueIndex) ? APP.room.queueIndex : 0;
   const queueActive = Boolean(APP.room.queueActive);
   const queueRemaining = activityQueue.slice(queueIndex);
+  const queueSchedule = normalizeQueueSchedule(APP.room.queueSchedule, activityQueue);
+  const timedQueueEnabled = APP.room.queueTiming?.enabled === true;
+  const timedRemainingMs = getTimedQueueRemainingMs(APP.room);
+  const timedEntry = getCurrentQueuedScheduleEntry(APP.room);
 
   if (!queueFeatureEnabled) {
     return `
@@ -11113,6 +11484,7 @@ function renderActivityQueue() {
                   <span style="font-weight:700;min-width:20px;">${idx + 1}.</span>
                   <span>${item.icon}</span>
                   <span>${escapeHtml(item.label)}</span>
+                  <span style="font-size:0.75rem;color:var(--text-dim);">${queueSchedule[idx]?.durationMinutes || DEFAULT_QUEUE_ACTIVITY_DURATION_MINUTES} min</span>
                   ${isCurrentPointer ? '<span style="font-size:0.75rem;color:var(--accent);font-weight:700;">UP NEXT</span>' : ''}
                   ${isDone ? '<span style="font-size:0.75rem;color:var(--success);font-weight:700;">DONE</span>' : ''}
                 </div>
@@ -11129,6 +11501,13 @@ function renderActivityQueue() {
           ? (queueRemaining.length ? `${queueRemaining.length} remaining in queue` : 'Queue will complete after this activity')
           : 'Queue is paused'}
       </div>
+      ${timedQueueEnabled ? `
+        <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:12px;">
+          ${timedEntry
+            ? `Timed run active: ${escapeHtml(ACTIVITY_QUEUE_ITEM_MAP[timedEntry.activityId]?.label || timedEntry.activityId)} ends in ${escapeHtml(formatClockFromMs(timedRemainingMs))}`
+            : 'Timed run is enabled for this queue.'}
+        </div>
+      ` : ''}
 
       ${isHost ? `
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px;">
@@ -11140,6 +11519,7 @@ function renderActivityQueue() {
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn-primary" data-action="queue-start" style="width:auto;padding:10px 14px;">Start Queue</button>
+          <button class="btn-secondary" data-action="queue-toggle-timed" style="width:auto;padding:10px 14px;">${timedQueueEnabled ? 'Timed Run On' : 'Timed Run Off'}</button>
           <button class="btn-secondary" data-action="queue-next">Next in Queue</button>
           <button class="btn-secondary" data-action="queue-clear">Clear Queue</button>
         </div>
@@ -11501,6 +11881,9 @@ function goToScreen(screen) {
   
   if (screen === 'create-room') {
     createRoomAndNavigate();
+  } else if (screen === 'community') {
+    render();
+    void loadCommunityRooms();
   } else {
     render();
   }
@@ -11612,18 +11995,27 @@ async function restoreActiveSession() {
   return true;
 }
 
-async function createRoomAndNavigate() {
+async function createRoomAndNavigate(options = {}) {
   render();
   
-  const { room, accessToken } = await RoomManager.createRoom(APP.player.id, APP.player.name, APP.player.avatar);
+  const { room, accessToken } = await RoomManager.createRoom(APP.player.id, APP.player.name, APP.player.avatar, options);
   APP.room = room;
   APP.roomCode = room.code;
-  APP.roomAccessToken = accessToken;
+  APP.roomAccessToken = isRoomPrivateSession(room) ? accessToken : '';
   APP.screen = 'lobby';
   persistActiveSessionSnapshot();
   
   startRoomSync();
   render();
+}
+
+async function createCommunityRoomAndNavigate() {
+  await createRoomAndNavigate({
+    roomType: 'community',
+    communityTitle: `${APP.player?.name || 'Host'}'s Community Lobby`,
+    communityDescription: 'Open lobby for drop-in games and social play.',
+    maxParticipants: 24
+  });
 }
 
 async function createRoomFromSessionPlan(planId) {
@@ -11670,6 +12062,13 @@ async function saveSessionPlan() {
   const activityQueue = Array.from(
     document.querySelectorAll('.activity-queue-checkbox:checked')
   ).map(cb => cb.value).filter(activityId => ALL_ACTIVITY_IDS.includes(activityId));
+  const queueSchedule = activityQueue.map(activityId => ({
+    activityId,
+    durationMinutes: normalizeQueueDurationMinutes(
+      document.querySelector(`.activity-queue-duration[data-activity-id="${activityId}"]`)?.value || `${DEFAULT_QUEUE_ACTIVITY_DURATION_MINUTES}`
+    )
+  }));
+  const timedSessionEnabled = Boolean(document.getElementById('meetingTimedSessionEnabled')?.checked);
   if (!title) {
     showError('Please add a session title.');
     return;
@@ -11687,6 +12086,8 @@ async function saveSessionPlan() {
     contentBrief,
     contentCollections: existing?.contentCollections || [],
     activityQueue,
+    queueSchedule,
+    timedSessionEnabled,
     createdAt: existing?.createdAt || nowIso,
     updatedAt: nowIso
   });
@@ -11785,6 +12186,24 @@ async function joinRoom() {
   render();
 }
 
+async function joinRoomByCode(code, accessToken = '') {
+  const normalizedCode = normalizeRoomCode(code);
+  const room = await RoomManager.joinRoom(normalizedCode, APP.player.id, APP.player.name, APP.player.avatar, normalizeRoomAccessToken(accessToken));
+  if (!room) {
+    showError('Unable to join that lobby.');
+    return;
+  }
+  APP.room = room;
+  APP.roomCode = normalizedCode;
+  APP.roomAccessToken = isRoomPrivateSession(room) ? normalizeRoomAccessToken(accessToken) : '';
+  APP.pendingJoinCode = '';
+  APP.pendingJoinToken = '';
+  APP.screen = 'lobby';
+  persistActiveSessionSnapshot();
+  startRoomSync();
+  render();
+}
+
 async function leaveSession() {
   if (!APP.roomCode || !APP.player?.name) {
     APP.room = null;
@@ -11798,9 +12217,6 @@ async function leaveSession() {
     render();
     return;
   }
-
-  const confirmed = window.confirm('Leave this session?');
-  if (!confirmed) return;
 
   const room = await RoomManager.loadRoom(APP.roomCode);
   if (room) {
@@ -11882,6 +12298,11 @@ function startRoomSync() {
           ticTacToeFinalizePending = false;
         }
       }
+      render();
+    }
+
+    if (APP.room?.queueActive && APP.room?.queueTiming?.enabled) {
+      await maybeAdvanceTimedQueue();
       render();
     }
   }, ROOM_SYNC_MS);
@@ -12144,7 +12565,12 @@ async function queueAddActivity(activityId) {
     return;
   }
   room.activityQueue = Array.isArray(room.activityQueue) ? room.activityQueue : [];
+  room.queueSchedule = normalizeQueueSchedule(room.queueSchedule, room.activityQueue);
   room.activityQueue.push(activityId);
+  room.queueSchedule.push({
+    activityId,
+    durationMinutes: DEFAULT_QUEUE_ACTIVITY_DURATION_MINUTES
+  });
   if (!Number.isInteger(room.queueIndex)) room.queueIndex = 0;
   if (typeof room.queueActive !== 'boolean') room.queueActive = false;
   await RoomManager.updateRoom(APP.roomCode, room);
@@ -12162,12 +12588,20 @@ async function queueRemoveActivityAt(index) {
     return;
   }
   room.activityQueue = Array.isArray(room.activityQueue) ? room.activityQueue : [];
+  room.queueSchedule = normalizeQueueSchedule(room.queueSchedule, room.activityQueue);
   if (index >= room.activityQueue.length) return;
   room.activityQueue.splice(index, 1);
+  room.queueSchedule.splice(index, 1);
   room.queueIndex = Math.max(0, Math.min(room.queueIndex || 0, room.activityQueue.length));
   if (!room.activityQueue.length) {
     room.queueActive = false;
     room.queueIndex = 0;
+    room.queueTiming = {
+      ...(room.queueTiming && typeof room.queueTiming === 'object' ? room.queueTiming : {}),
+      currentQueuePointer: -1,
+      currentStartedAt: 0,
+      currentEndsAt: 0
+    };
   }
   await RoomManager.updateRoom(APP.roomCode, room);
   APP.room = room;
@@ -12183,8 +12617,15 @@ async function queueClearAll() {
     return;
   }
   room.activityQueue = [];
+  room.queueSchedule = [];
   room.queueIndex = 0;
   room.queueActive = false;
+  room.queueTiming = {
+    ...(room.queueTiming && typeof room.queueTiming === 'object' ? room.queueTiming : {}),
+    currentQueuePointer: -1,
+    currentStartedAt: 0,
+    currentEndsAt: 0
+  };
   await RoomManager.updateRoom(APP.roomCode, room);
   APP.room = room;
   render();
@@ -12199,12 +12640,19 @@ async function queueStartRun() {
     return;
   }
   room.activityQueue = Array.isArray(room.activityQueue) ? room.activityQueue : [];
+  room.queueSchedule = normalizeQueueSchedule(room.queueSchedule, room.activityQueue);
   if (!room.activityQueue.length) {
     showError('Add at least one activity to the queue.');
     return;
   }
   room.queueActive = true;
   room.queueIndex = 0;
+  room.queueTiming = {
+    ...(room.queueTiming && typeof room.queueTiming === 'object' ? room.queueTiming : {}),
+    currentQueuePointer: -1,
+    currentStartedAt: 0,
+    currentEndsAt: 0
+  };
   await RoomManager.updateRoom(APP.roomCode, room);
   APP.room = room;
   await runNextQueuedActivity(room);
@@ -12219,6 +12667,7 @@ async function queueNextActivity() {
     return;
   }
   room.activityQueue = Array.isArray(room.activityQueue) ? room.activityQueue : [];
+  room.queueSchedule = normalizeQueueSchedule(room.queueSchedule, room.activityQueue);
   if (!room.activityQueue.length) {
     showError('Queue is empty.');
     return;
@@ -12227,6 +12676,40 @@ async function queueNextActivity() {
   await RoomManager.updateRoom(APP.roomCode, room);
   APP.room = room;
   await runNextQueuedActivity(room);
+}
+
+async function queueToggleTimedRun() {
+  if (APP.preferences.enableActivityQueue === false) return;
+  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
+  const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
+  if (!room) {
+    showError('Room no longer available.');
+    return;
+  }
+  room.queueSchedule = normalizeQueueSchedule(room.queueSchedule, room.activityQueue || []);
+  const currentlyEnabled = room.queueTiming?.enabled === true;
+  const currentPointer = room.queueActive
+    ? (Number.isInteger(room.queueTiming?.currentQueuePointer)
+    ? room.queueTiming.currentQueuePointer
+    : Math.max(0, (Number.isInteger(room.queueIndex) ? room.queueIndex : 0) - 1))
+    : -1;
+  const currentEntry = room.queueSchedule[currentPointer] || null;
+  const currentStartedAt = Number(room.queueTiming?.currentStartedAt) || Date.now();
+  room.queueTiming = {
+    ...(room.queueTiming && typeof room.queueTiming === 'object' ? room.queueTiming : {}),
+    enabled: !currentlyEnabled,
+    currentQueuePointer: currentlyEnabled ? -1 : currentPointer,
+    currentStartedAt: currentlyEnabled ? 0 : currentStartedAt,
+    currentEndsAt: currentlyEnabled
+      ? 0
+      : (room.queueActive && currentEntry
+        ? currentStartedAt + (normalizeQueueDurationMinutes(currentEntry.durationMinutes) * 60 * 1000)
+        : 0)
+  };
+  room.lastUpdate = Date.now();
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
 }
 
 function viewStats() {
@@ -13694,6 +14177,16 @@ document.addEventListener('dragstart', event => {
   }
 });
 
+document.addEventListener('pointerdown', event => {
+  const battleshipShip = event.target instanceof HTMLElement ? event.target.closest('[data-battleship-ship-id]') : null;
+  if (!battleshipShip || APP.room?.currentActivity !== 'battleship') return;
+  const shipId = String(battleshipShip.getAttribute('data-battleship-ship-id') || '').trim();
+  if (!shipId || shipId === APP.battleshipUi.selectedShipId) return;
+  APP.battleshipUi.lastTapShipId = '';
+  APP.battleshipUi.lastTapAt = 0;
+  selectBattleshipShip(shipId);
+});
+
 document.addEventListener('dragend', event => {
   const battleshipShip = event.target instanceof HTMLElement ? event.target.closest('[data-battleship-ship-id]') : null;
   if (battleshipShip && APP.room?.currentActivity === 'battleship') {
@@ -13740,7 +14233,7 @@ document.addEventListener('click', async (event) => {
   const target = event.target.closest('[data-action]');
   if (!target) return;
 
-  const { action, avatar, screen, key, index, feedbackId, activity, queueIndex, noteId, lane, direction, tab, word, cat, clue, player, accepted, cardId, color, playerId, shipId, slideId, bsRow, bsCol, axis, readyState, pattern, marker } = target.dataset;
+  const { action, avatar, screen, key, index, feedbackId, activity, queueIndex, noteId, lane, direction, tab, word, cat, clue, player, accepted, cardId, color, playerId, shipId, slideId, bsRow, bsCol, axis, readyState, pattern, marker, roomCode } = target.dataset;
   const parsedIndex = Number.parseInt(index ?? '', 10);
   const parsedQueueIndex = Number.parseInt(queueIndex ?? '', 10);
   const parsedCategoryIndex = Number.parseInt(cat ?? '', 10);
@@ -13760,6 +14253,15 @@ document.addEventListener('click', async (event) => {
       break;
     case 'go-screen':
       if (screen) goToScreen(screen);
+      break;
+    case 'create-community-room':
+      await createCommunityRoomAndNavigate();
+      break;
+    case 'refresh-community-rooms':
+      await loadCommunityRooms();
+      break;
+    case 'join-community-room':
+      if (roomCode) await joinRoomByCode(roomCode);
       break;
     case 'edit-session-plan':
       if (target.dataset.planId) editSessionPlan(target.dataset.planId);
@@ -13860,6 +14362,9 @@ document.addEventListener('click', async (event) => {
       break;
     case 'queue-start':
       await queueStartRun();
+      break;
+    case 'queue-toggle-timed':
+      await queueToggleTimedRun();
       break;
     case 'queue-next':
       await queueNextActivity();
@@ -14114,6 +14619,21 @@ document.addEventListener('click', async (event) => {
     case 'brainstorm-add-note':
       await brainstormAddNote();
       break;
+    case 'brainstorm-open-add':
+      openBrainstormAddModal(lane || 'start');
+      break;
+    case 'brainstorm-edit-note':
+      if (noteId) openBrainstormEditModal(noteId);
+      break;
+    case 'brainstorm-delete-note':
+      if (noteId) await brainstormDeleteNote(noteId);
+      break;
+    case 'brainstorm-close-add-modal':
+      closeBrainstormAddModal();
+      break;
+    case 'brainstorm-submit-add-modal':
+      await brainstormSaveModalNote();
+      break;
     case 'brainstorm-toggle-vote':
       if (noteId) await brainstormToggleVote(noteId);
       break;
@@ -14191,6 +14711,12 @@ document.addEventListener('click', async (event) => {
     case 'battleship-select-ship':
       if (shipId) await handleBattleshipShipSelection(shipId);
       break;
+    case 'battleship-select-next-ship':
+      selectNextBattleshipShip();
+      break;
+    case 'battleship-select-next-unplaced-ship':
+      selectNextUnplacedBattleshipShip();
+      break;
     case 'battleship-toggle-axis':
       if (axis) setBattleshipPlacementAxis(axis);
       else await toggleBattleshipPlacementAxis();
@@ -14227,6 +14753,9 @@ document.addEventListener('click', async (event) => {
       break;
     case 'bingo-select-marker':
       if (marker) selectBingoMarker(marker);
+      break;
+    case 'bingo-toggle-voice':
+      toggleBingoVoiceEnabled();
       break;
     case 'bingo-claim':
       await bingoClaimWin();
@@ -14356,6 +14885,9 @@ document.addEventListener('click', async (event) => {
 function renderActivity() {
   const activity = APP.room.currentActivity;
   let content = '<div>Activity loading...</div>';
+  const timedEntry = getCurrentQueuedScheduleEntry(APP.room);
+  const timedRemainingMs = getTimedQueueRemainingMs(APP.room);
+  const showTimedBanner = APP.room?.queueActive && APP.room?.queueTiming?.enabled && timedEntry && timedRemainingMs >= 0;
 
   if (activity === 'lightning-trivia') content = renderLightningTrivia();
   else if (activity === 'emoji-charades') content = renderEmojiCharades();
@@ -14381,6 +14913,15 @@ function renderActivity() {
     <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:8px;">
       <button class="btn-secondary" data-action="leave-session">🚪 Leave Session</button>
     </div>
+    ${showTimedBanner ? `
+      <div style="margin-bottom:12px;padding:12px 14px;border-radius:16px;background:linear-gradient(135deg,rgba(138,241,255,0.12),rgba(37,99,235,0.08));border:1px solid rgba(138,241,255,0.18);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:0.74rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;">Timed Session</div>
+          <div style="font-weight:800;">${escapeHtml(ACTIVITY_QUEUE_ITEM_MAP[timedEntry.activityId]?.label || timedEntry.activityId)} ends in ${escapeHtml(formatClockFromMs(timedRemainingMs))}</div>
+        </div>
+        <div style="font-size:0.84rem;color:var(--text-dim);">Next queued activity will start automatically.</div>
+      </div>
+    ` : ''}
     ${content}
   `;
 }
@@ -14402,13 +14943,23 @@ function renderBingo() {
   const drawAnimationStamp = Number(state.lastCalledAt) || null;
   APP.bingoUi = APP.bingoUi && typeof APP.bingoUi === 'object' ? APP.bingoUi : getDefaultBingoUiState();
   APP.bingoUi.selectedMarker = normalizeBingoMarkerType(APP.bingoUi.selectedMarker || BINGO_MARKER_OPTIONS[0].id);
+  APP.bingoUi.voiceEnabled = APP.bingoUi.voiceEnabled !== false;
   const shouldAnimateBall = drawAnimationStamp !== null && APP.bingoUi.lastAnimatedDrawStamp !== drawAnimationStamp;
   APP.bingoUi.lastAnimatedDrawStamp = drawAnimationStamp;
+  const winStamp = state.phase === 'finished' && winners.length
+    ? (Number(state.updatedAt) || Number(state.lastCalledAt) || Date.now())
+    : null;
+  maybeHandleBingoAnnouncements(state, winners, drawAnimationStamp, winStamp);
   const calledNumbers = Array.isArray(state.calledNumbers) ? state.calledNumbers : [];
-  const recentCalls = [...calledNumbers].slice(-15).reverse();
+  const priorCalls = state.lastCalled != null ? calledNumbers.slice(0, -1) : calledNumbers;
+  const recentCalls = [...priorCalls].slice(-9).reverse();
+  const fullHistoryCalls = [...calledNumbers].reverse();
   const participantNames = (APP.room.participants || []).map(player => player?.name).filter(Boolean);
   const bingoHeaderColors = ['#ef233c', '#2563eb', '#16a34a', '#facc15', '#f97316'];
   const cardMarkers = card ? normalizeBingoMarkerGrid(card.markers, card.marked) : null;
+  const voiceButtonLabel = APP.bingoUi.voiceEnabled ? '🔊 Bingo Voice On' : '🔇 Bingo Voice Off';
+  const canHostDraw = isHost && state.phase === 'playing' && Array.isArray(state.drawPool) && state.drawPool.length > 0;
+  const numbersRemaining = Array.isArray(state.drawPool) ? state.drawPool.length : 0;
 
   return `
     <div class="header">
@@ -14420,6 +14971,54 @@ function renderBingo() {
 
     <div class="game-mobile-shell game-mobile-main" style="max-width:1220px;margin:24px auto 0;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,0.9fr);gap:18px;align-items:start;">
       <div class="game-mobile-side" style="display:grid;gap:18px;">
+        ${isHost ? `
+          <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:18px;padding:18px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:14px;">
+              <div>
+                <div style="font-family:'Fraunces',serif;font-size:1.35rem;">Last Numbers Called</div>
+                <div style="font-size:0.84rem;color:var(--text-dim);">${calledNumbers.length} of 75 numbers drawn</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
+                <button
+                  type="button"
+                  class="btn-secondary"
+                  data-action="bingo-toggle-voice"
+                  style="width:auto;padding:9px 14px;white-space:nowrap;"
+                  aria-pressed="${APP.bingoUi.voiceEnabled ? 'true' : 'false'}"
+                >${voiceButtonLabel}</button>
+                <div style="font-weight:800;font-size:1.05rem;color:${lastCallLabel ? 'var(--warning)' : 'var(--text-dim)'};">${lastCallLabel || 'Waiting for first draw'}</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;margin-bottom:14px;border-radius:16px;background:linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02));border:1px solid var(--border);">
+              <div>
+                <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;">Live Call Ball Action</div>
+                <div style="font-family:'Fraunces',serif;font-size:1.2rem;">${lastCallLabel || 'Waiting for draw'}</div>
+                <div style="font-size:0.82rem;color:var(--text-dim);margin-top:4px;">Click the live ball to draw the next number.</div>
+              </div>
+              <button
+                type="button"
+                data-action="${canHostDraw ? 'bingo-draw-next' : ''}"
+                class="bingo-call-ball ${lastBallMeta ? '' : 'bingo-call-ball-faint'} ${shouldAnimateBall ? 'bingo-call-ball-animate' : ''}"
+                style="${lastBallMeta ? `--ball-color:${lastBallMeta.color};` : '--ball-color:rgba(255,255,255,0.18);'}flex-shrink:0;cursor:${canHostDraw ? 'pointer' : 'default'};border:none;"
+                aria-label="${escapeHtml(canHostDraw ? `Draw next Bingo number. Current call ${lastCallLabel || 'waiting for first draw'}` : (lastCallLabel || 'Waiting for first draw'))}"
+                title="${escapeHtml(canHostDraw ? `Click to draw next number${lastCallLabel ? ` • Current ${lastCallLabel}` : ''}` : (lastCallLabel || 'Waiting for first draw'))}"
+                ${canHostDraw ? '' : 'disabled'}
+              >
+                <div style="display:grid;place-items:center;line-height:1;">
+                  <div style="font-size:0.86rem;font-weight:900;letter-spacing:0.18em;color:${lastBallMeta?.textColor || '#ffffff'};margin-bottom:3px;">${escapeHtml(lastBallMeta?.letter || 'B')}</div>
+                  <div style="font-size:2rem;font-weight:900;color:${lastBallMeta?.textColor || '#ffffff'};letter-spacing:-0.05em;">${escapeHtml(lastBallMeta ? String(lastBallMeta.number) : '00')}</div>
+                </div>
+              </button>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              ${recentCalls.length ? recentCalls.map(value => `
+                <div style="padding:8px 12px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border);font-weight:800;">
+                  ${escapeHtml(formatBingoCall(value))}
+                </div>
+              `).join('') : '<div style="color:var(--text-dim);">No calls yet.</div>'}
+            </div>
+          </div>
+        ` : ''}
         <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:18px;padding:18px;">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
             <div>
@@ -14430,33 +15029,17 @@ function renderBingo() {
             </div>
             ${state.phase === 'finished' && winners.length ? `<div style="font-weight:800;color:var(--warning);">Winner: ${escapeHtml(winners.join(', '))}</div>` : ''}
           </div>
+          ${state.phase === 'finished' && winners.length ? `
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;padding:12px 14px;border-radius:16px;border:1px solid rgba(255,255,255,0.18);background:linear-gradient(135deg,rgba(239,35,60,0.18),rgba(249,115,22,0.16));box-shadow:0 14px 28px rgba(15,23,42,0.16);">
+              <div>
+                <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.82);margin-bottom:4px;">Bingo Confirmed</div>
+                <div style="font-family:'Fraunces',serif;font-size:1.2rem;">${escapeHtml(winners.join(', '))} locked in the ${escapeHtml(winningPatternMeta.label)} win.</div>
+              </div>
+              <div style="font-size:2rem;line-height:1;">🎉</div>
+            </div>
+          ` : ''}
 
           ${card ? `
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;padding:12px 14px;border-radius:16px;background:var(--surface-2);border:1px solid var(--border);">
-              <div>
-                <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;">Marker Tray</div>
-                <div style="font-size:0.84rem;color:var(--text-dim);">Pick the stamp you want before tapping a called square.</div>
-              </div>
-              <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
-                ${BINGO_MARKER_OPTIONS.map(option => {
-                  const isSelected = APP.bingoUi.selectedMarker === option.id;
-                  const markerLabel = escapeHtml(option.label);
-                  return `
-                    <button
-                      type="button"
-                      data-action="bingo-select-marker"
-                      data-marker="${escapeHtml(option.id)}"
-                      aria-pressed="${isSelected ? 'true' : 'false'}"
-                      title="${markerLabel}"
-                      style="min-width:58px;padding:10px 12px;border-radius:14px;border:1px solid ${isSelected ? option.border : 'var(--border)'};background:${isSelected ? `linear-gradient(135deg,${option.fill},rgba(255,255,255,0.16))` : 'rgba(255,255,255,0.04)'};box-shadow:${isSelected ? `0 10px 20px ${option.glow}` : 'none'};color:${isSelected ? option.accent : 'var(--text)'};font:inherit;cursor:pointer;display:grid;place-items:center;gap:4px;"
-                    >
-                      <span style="font-size:1.3rem;font-weight:900;line-height:1;">${escapeHtml(option.icon)}</span>
-                      <span style="font-size:0.63rem;font-weight:800;letter-spacing:0.04em;white-space:nowrap;">${markerLabel}</span>
-                    </button>
-                  `;
-                }).join('')}
-              </div>
-            </div>
             <div class="game-mobile-scroll">
             <div class="bingo-card-frame bingo-card-grid" style="background:#ffffff;border:8px solid #ef233c;border-radius:24px;padding:12px 12px 14px;box-shadow:0 18px 42px rgba(0,0,0,0.18);margin-bottom:14px;">
               <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;margin-bottom:6px;">
@@ -14498,7 +15081,7 @@ function renderBingo() {
                 const markerOverlayFilter = markerMeta.kind === 'icon'
                   ? `drop-shadow(0 6px 10px ${markerMeta.glow})`
                   : 'none';
-                const markerOverlay = marked ? `
+                const markerOverlay = marked && markerMeta.kind !== 'cover' ? `
                   <span
                     aria-hidden="true"
                     style="position:absolute;inset:8px;border-radius:${markerMeta.kind === 'chip' ? '999px' : '18px'};display:grid;place-items:center;pointer-events:none;color:${markerMeta.accent};background:${markerMeta.kind === 'dauber' ? markerMeta.fill : 'transparent'};box-shadow:${markerOverlayShadow};filter:${markerOverlayFilter};font-size:${markerMeta.kind === 'icon' ? '2.15rem' : '3rem'};font-weight:900;line-height:1;opacity:${markerMeta.kind === 'dauber' ? '0.98' : '1'};"
@@ -14530,14 +15113,74 @@ function renderBingo() {
             </div>
           `}
         </div>
+        ${card ? `
+          <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:18px;padding:18px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+              <div>
+                <div style="font-family:'Fraunces',serif;font-size:1.2rem;">Marker Settings</div>
+                <div style="font-size:0.84rem;color:var(--text-dim);margin-top:4px;">Pick a token type or classic cover color before tapping a called square.</div>
+              </div>
+              <div style="font-size:0.8rem;font-weight:800;color:var(--text);">${escapeHtml(getBingoMarkerMeta(APP.bingoUi.selectedMarker).label)}</div>
+            </div>
+            <div style="margin-top:12px;">
+              <div style="font-size:0.62rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;">Token Type</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                ${BINGO_MARKER_OPTIONS.map(option => {
+                  const isSelected = APP.bingoUi.selectedMarker === option.id;
+                  const markerLabel = escapeHtml(option.label);
+                  return `
+                    <button
+                      type="button"
+                      data-action="bingo-select-marker"
+                      data-marker="${escapeHtml(option.id)}"
+                      aria-pressed="${isSelected ? 'true' : 'false'}"
+                      title="${markerLabel}"
+                      style="width:38px;height:38px;padding:0;border-radius:12px;border:1px solid ${isSelected ? option.border : 'var(--border)'};background:${isSelected ? `linear-gradient(135deg,${option.fill},rgba(255,255,255,0.16))` : 'rgba(255,255,255,0.04)'};box-shadow:${isSelected ? `0 8px 18px ${option.glow}` : 'none'};color:${isSelected ? option.accent : 'var(--text)'};font:inherit;cursor:pointer;display:grid;place-items:center;flex:0 0 auto;"
+                    >
+                      <span style="font-size:${option.kind === 'icon' ? '1.05rem' : '1.2rem'};font-weight:900;line-height:1;color:${option.accent};">${escapeHtml(option.icon)}</span>
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          </div>
+        ` : ''}
+        ${isHost ? `
+          <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:18px;padding:18px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+              <div>
+                <div style="font-family:'Fraunces',serif;font-size:1.2rem;">Full Number History Log</div>
+                <div style="font-size:0.84rem;color:var(--text-dim);">Complete draw history for this round.</div>
+              </div>
+              <div style="font-size:0.8rem;font-weight:800;color:var(--text-dim);">${fullHistoryCalls.length} calls</div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;max-height:220px;overflow:auto;padding-right:4px;">
+              ${fullHistoryCalls.length ? fullHistoryCalls.map(value => `
+                <div style="padding:8px 12px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border);font-weight:800;">
+                  ${escapeHtml(formatBingoCall(value))}
+                </div>
+              `).join('') : '<div style="color:var(--text-dim);">No numbers have been drawn yet.</div>'}
+            </div>
+          </div>
+        ` : ''}
 
+        ${!isHost ? `
         <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:18px;padding:18px;">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
             <div>
               <div style="font-family:'Fraunces',serif;font-size:1.35rem;">Recent Calls</div>
-              <div style="font-size:0.84rem;color:var(--text-dim);">${calledNumbers.length} of 75 numbers drawn</div>
+              <div style="font-size:0.84rem;color:var(--text-dim);">${calledNumbers.length} of 75 numbers drawn • Spoken on this device</div>
             </div>
-            <div style="font-weight:800;font-size:1.15rem;color:${lastCallLabel ? 'var(--warning)' : 'var(--text-dim)'};">${lastCallLabel || 'Waiting for first draw'}</div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">
+              <button
+                type="button"
+                class="btn-secondary"
+                data-action="bingo-toggle-voice"
+                style="width:auto;padding:9px 14px;white-space:nowrap;"
+                aria-pressed="${APP.bingoUi.voiceEnabled ? 'true' : 'false'}"
+              >${voiceButtonLabel}</button>
+              <div style="font-weight:800;font-size:1.15rem;color:${lastCallLabel ? 'var(--warning)' : 'var(--text-dim)'};">${lastCallLabel || 'Waiting for first draw'}</div>
+            </div>
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:8px;">
             ${recentCalls.length ? recentCalls.map(value => `
@@ -14547,30 +15190,28 @@ function renderBingo() {
             `).join('') : '<div style="color:var(--text-dim);">No calls yet.</div>'}
           </div>
         </div>
+        ` : ''}
       </div>
 
       <div class="game-mobile-side" style="display:grid;gap:18px;">
         ${isHost ? `
           <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:18px;padding:18px;">
-            <div style="font-family:'Fraunces',serif;font-size:1.35rem;margin-bottom:12px;">Host Controls</div>
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;margin-bottom:14px;border-radius:16px;background:linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02));border:1px solid var(--border);">
-              <div>
-                <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;">Live call</div>
-                <div style="font-family:'Fraunces',serif;font-size:1.2rem;">${lastCallLabel || 'Waiting for draw'}</div>
-                <div style="font-size:0.82rem;color:var(--text-dim);margin-top:4px;">Each draw rolls in as a Bingo ball for the host.</div>
+            <div style="font-family:'Fraunces',serif;font-size:1.35rem;margin-bottom:12px;">Host Settings</div>
+            <div style="display:grid;gap:12px;">
+              <div style="padding:14px 16px;border-radius:16px;background:linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02));border:1px solid var(--border);">
+                <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;">Host</div>
+                <div style="font-weight:800;">${escapeHtml(APP.room.host || '')}</div>
+                <div style="font-size:0.82rem;color:var(--text-dim);margin-top:4px;">Voice announcements are local to each device. Use the live ball to keep the game moving.</div>
               </div>
-              <div
-                class="bingo-call-ball ${lastBallMeta ? '' : 'bingo-call-ball-faint'} ${shouldAnimateBall ? 'bingo-call-ball-animate' : ''}"
-                style="${lastBallMeta ? `--ball-color:${lastBallMeta.color};` : '--ball-color:rgba(255,255,255,0.18);'}flex-shrink:0;"
-                aria-label="${escapeHtml(lastCallLabel || 'Waiting for first draw')}"
-                title="${escapeHtml(lastCallLabel || 'Waiting for first draw')}"
-              >
-                <div style="display:grid;place-items:center;line-height:1;">
-                  <div style="font-size:0.86rem;font-weight:900;letter-spacing:0.18em;color:${lastBallMeta?.textColor || '#ffffff'};margin-bottom:3px;">${escapeHtml(lastBallMeta?.letter || 'B')}</div>
-                  <div style="font-size:2rem;font-weight:900;color:${lastBallMeta?.textColor || '#ffffff'};letter-spacing:-0.05em;">${escapeHtml(lastBallMeta ? String(lastBallMeta.number) : '00')}</div>
-                </div>
+              <div style="padding:14px 16px;border-radius:16px;background:linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02));border:1px solid var(--border);">
+                <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;">Round Status</div>
+                <div style="font-weight:800;">${state.phase === 'finished' ? 'Round finished' : 'Round live'}</div>
+                <div style="font-size:0.82rem;color:var(--text-dim);margin-top:4px;">${numbersRemaining} numbers remain in the cage.</div>
               </div>
             </div>
+          </div>
+          <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:18px;padding:18px;">
+            <div style="font-family:'Fraunces',serif;font-size:1.35rem;margin-bottom:12px;">Game Settings</div>
             <div style="margin-bottom:14px;">
               <div style="font-size:0.8rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;">Next round game type</div>
               <div style="display:grid;gap:8px;">
@@ -14590,6 +15231,12 @@ function renderBingo() {
                 }).join('')}
               </div>
             </div>
+            <div style="font-size:0.84rem;color:var(--text-dim);">
+              Current card target: ${escapeHtml(winningPatternMeta.shortLabel)}.
+            </div>
+          </div>
+          <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:18px;padding:18px;">
+            <div style="font-family:'Fraunces',serif;font-size:1.35rem;margin-bottom:12px;">Controls</div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
               <button class="btn-primary" data-action="bingo-draw-next" style="width:auto;padding:10px 16px;" ${(state.phase !== 'playing' || !state.drawPool?.length) ? 'disabled' : ''}>Draw Next</button>
               <button class="btn-secondary" data-action="bingo-new-round" style="width:auto;padding:10px 16px;">New ${escapeHtml(nextWinningPatternMeta.label)}</button>
@@ -14597,7 +15244,7 @@ function renderBingo() {
             <div style="font-size:0.84rem;color:var(--text-dim);">
               ${state.phase === 'finished'
                 ? (winners.length ? `${escapeHtml(winners.join(', '))} called Bingo.` : 'Round finished.')
-                : `${state.drawPool?.length || 0} numbers remain in the cage. Current card target: ${escapeHtml(winningPatternMeta.shortLabel)}.`}
+                : `${numbersRemaining} numbers remain in the cage.`}
             </div>
           </div>
         ` : ''}
@@ -14710,6 +15357,10 @@ function renderBattleship() {
     : state.phase === 'battle'
       ? '#8af1ff'
       : '#7af59f';
+  const nextPlacementShip = myBoard ? getNextBattleshipSelectableShip(myBoard, selectedShipId) : null;
+  const nextUnplacedShip = myBoard ? getNextUnplacedBattleshipShip(myBoard, selectedShipId) : null;
+  const canAdvancePlacementShip = state.phase === 'setup' && Boolean(nextPlacementShip?.id) && nextPlacementShip.id !== selectedShipId;
+  const canSelectNextUnplacedShip = state.phase === 'setup' && Boolean(nextUnplacedShip?.id) && nextUnplacedShip.id !== selectedShipId;
   const readyButtonLabel = myBoard?.ready
     ? 'Fleet Ready'
     : myShipsPlaced
@@ -14946,6 +15597,17 @@ function renderBattleship() {
                   ${myBoard?.ready ? 'Ready' : myShipsPlaced ? 'Ready Up' : `${shipsRemainingToPlace} Left`}
                 </div>
               ` : ''}
+              ${state.phase === 'setup' && isBattlePlayer ? `
+                <button
+                  type="button"
+                  class="btn-secondary"
+                  data-action="battleship-select-next-unplaced-ship"
+                  aria-label="${escapeHtml(canSelectNextUnplacedShip ? `Add next vessel: ${nextUnplacedShip?.label || 'next ship'}` : 'All vessels already selected or placed')}"
+                  title="${escapeHtml(canSelectNextUnplacedShip ? `Add next vessel: ${nextUnplacedShip?.label || 'next ship'}` : 'All vessels already selected or placed')}"
+                  style="width:48px;height:48px;padding:0;border-radius:999px;display:grid;place-items:center;font-size:1.2rem;border:${canSelectNextUnplacedShip ? '1px solid rgba(138,241,255,0.36)' : '1px solid rgba(255,255,255,0.1)'};background:${canSelectNextUnplacedShip ? 'linear-gradient(135deg,rgba(138,241,255,0.18),rgba(37,99,235,0.14))' : 'linear-gradient(135deg,rgba(255,255,255,0.07),rgba(255,255,255,0.03))'};color:${canSelectNextUnplacedShip ? '#8af1ff' : 'rgba(236,233,225,0.58)'};box-shadow:${canSelectNextUnplacedShip ? '0 0 18px rgba(138,241,255,0.14)' : 'none'};cursor:${canSelectNextUnplacedShip ? 'pointer' : 'not-allowed'};opacity:${canSelectNextUnplacedShip ? '1' : '0.7'};"
+                  ${canSelectNextUnplacedShip ? '' : 'disabled'}
+                >➕</button>
+              ` : ''}
               ${mapReadyToggleMarkup}
               ${state.phase === 'finished' && isHost ? '<button class="btn-primary" data-action="battleship-restart" style="width:auto;padding:10px 16px;">Restart Match</button>' : ''}
             </div>
@@ -15032,6 +15694,10 @@ function renderBattleship() {
             <div style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:12px;">Fleet Controls</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
               <button class="btn-secondary" data-action="battleship-toggle-axis" style="width:auto;padding:10px 14px;">Rotate: ${placementAxis === 'horizontal' ? 'Horizontal' : 'Vertical'}</button>
+              <button class="btn-secondary" data-action="battleship-select-next-ship" style="width:auto;padding:10px 14px;display:inline-flex;align-items:center;gap:8px;" ${(state.phase !== 'setup' || !canAdvancePlacementShip) ? 'disabled' : ''}>
+                <span aria-hidden="true">⏭</span>
+                <span>Next Vessel</span>
+              </button>
               <button class="btn-secondary" data-action="battleship-randomize" style="width:auto;padding:10px 14px;" ${state.phase !== 'setup' ? 'disabled' : ''}>Randomize</button>
               <button class="btn-secondary" data-action="battleship-clear" style="width:auto;padding:10px 14px;" ${state.phase !== 'setup' ? 'disabled' : ''}>Clear</button>
             </div>
@@ -15049,9 +15715,25 @@ function renderBattleship() {
             </div>
             ${selectedShip ? `
               <div style="margin-bottom:12px;padding:12px 14px;border-radius:16px;background:linear-gradient(135deg, color-mix(in srgb, ${selectedShip.accent || '#8af1ff'} 14%, rgba(255,255,255,0.04) 86%), rgba(255,255,255,0.03));border:1px solid color-mix(in srgb, ${selectedShip.accent || '#8af1ff'} 36%, rgba(255,255,255,0.08));">
-                <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:rgba(236,233,225,0.6);margin-bottom:4px;">Selected ship</div>
-                <div style="font-weight:800;color:${selectedShip.accent || '#8af1ff'};">${escapeHtml(selectedShip.label)}</div>
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+                  <div>
+                    <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:rgba(236,233,225,0.6);margin-bottom:4px;">Selected ship</div>
+                    <div style="font-weight:800;color:${selectedShip.accent || '#8af1ff'};">${escapeHtml(selectedShip.label)}</div>
+                  </div>
+                  ${canAdvancePlacementShip ? `
+                    <button
+                      type="button"
+                      class="btn-secondary"
+                      data-action="battleship-select-next-ship"
+                      title="Select next vessel"
+                      aria-label="Select next vessel"
+                      style="width:42px;height:42px;padding:0;border-radius:999px;display:grid;place-items:center;font-size:1rem;flex:0 0 auto;"
+                    >⏭</button>
+                  ` : ''}
+                </div>
                 <div style="font-size:0.82rem;color:var(--text-dim);margin-top:4px;">${selectedShip.cells.length === selectedShip.length ? 'Highlighted on your board. Drag any glowing segment, or tap a new empty cell to move it.' : 'Tap a board cell to deploy it, or drag from the tray on desktop.'}</div>
+                ${canAdvancePlacementShip ? `<div style="font-size:0.78rem;color:rgba(236,233,225,0.62);margin-top:8px;">Next vessel: ${escapeHtml(nextPlacementShip?.label || '')}</div>` : ''}
+                ${canSelectNextUnplacedShip ? `<div style="font-size:0.78rem;color:rgba(138,241,255,0.78);margin-top:6px;">Map add mode available: use ➕ in the fleet header to arm ${escapeHtml(nextUnplacedShip?.label || 'the next vessel')}.</div>` : ''}
               </div>
             ` : ''}
             ${shipTray}
@@ -17007,11 +17689,69 @@ function generateBrainstormNoteId() {
   return `note_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-async function brainstormAddNote() {
+function openBrainstormAddModal(lane = 'start') {
+  if (!APP.room || APP.room.currentActivity !== 'brainstorm-canvas') return;
+  const state = APP.room.activityState || {};
+  if (state.sessionStatus === 'locked') {
+    showError('Canvas is locked by host.');
+    return;
+  }
+  APP.brainstormModal = {
+    open: true,
+    lane: BRAINSTORM_LANE_INDEX.hasOwnProperty(lane) ? lane : 'start',
+    mode: 'add',
+    noteId: ''
+  };
+  render();
+  setTimeout(() => {
+    const input = document.getElementById('brainModalNoteText');
+    if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) input.focus();
+  }, 0);
+}
+
+function openBrainstormEditModal(noteId) {
+  if (!APP.room || APP.room.currentActivity !== 'brainstorm-canvas') return;
+  const state = APP.room.activityState || {};
+  if (state.sessionStatus === 'locked') {
+    showError('Canvas is locked by host.');
+    return;
+  }
+  const notes = Array.isArray(state.notes) ? state.notes : [];
+  const note = notes.find(item => item.id === noteId);
+  if (!note) return;
+  if (String(note.author || '') !== String(APP.player?.name || '')) {
+    showError('Only the idea creator can edit this note.');
+    return;
+  }
+  APP.brainstormModal = {
+    open: true,
+    lane: BRAINSTORM_LANE_INDEX.hasOwnProperty(note.lane) ? note.lane : 'start',
+    mode: 'edit',
+    noteId: note.id
+  };
+  render();
+  setTimeout(() => {
+    const input = document.getElementById('brainModalNoteText');
+    if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) input.focus();
+  }, 0);
+}
+
+function closeBrainstormAddModal() {
+  APP.brainstormModal = {
+    open: false,
+    lane: 'start',
+    mode: 'add',
+    noteId: ''
+  };
+  render();
+}
+
+async function brainstormAddNote(overrides = null) {
   if (!APP.roomCode || APP.room?.currentActivity !== 'brainstorm-canvas') return;
   if (APP.brainstormAddingNote) return;
-  const text = String(document.getElementById('brainNoteText')?.value || '').trim().slice(0, 200);
-  const lane = String(document.getElementById('brainNoteLane')?.value || 'start');
+  const usingOverrides = overrides && typeof overrides === 'object';
+  const text = String(usingOverrides ? overrides.text : (document.getElementById('brainNoteText')?.value || '')).trim().slice(0, 200);
+  const lane = String(usingOverrides ? overrides.lane : (document.getElementById('brainNoteLane')?.value || 'start'));
   if (!text) {
     showError('Enter an idea before adding a note.');
     return;
@@ -17051,10 +17791,128 @@ async function brainstormAddNote() {
     room.brainstormLastUpdatedAt = Date.now();
     await RoomManager.updateRoom(APP.roomCode, room);
     APP.room = room;
+    if (usingOverrides) {
+      APP.brainstormModal = {
+        open: false,
+        lane,
+        mode: 'add',
+        noteId: ''
+      };
+    } else {
+      const textInput = document.getElementById('brainNoteText');
+      if (textInput instanceof HTMLInputElement) textInput.value = '';
+    }
   } finally {
     APP.brainstormAddingNote = false;
     render();
   }
+}
+
+async function brainstormAddNoteFromModal() {
+  const text = String(document.getElementById('brainModalNoteText')?.value || '').trim().slice(0, 200);
+  const lane = String(document.getElementById('brainModalNoteLane')?.value || APP.brainstormModal?.lane || 'start');
+  await brainstormAddNote({ text, lane });
+}
+
+async function brainstormEditNote(noteId, updates = null) {
+  if (!APP.roomCode || !noteId || APP.room?.currentActivity !== 'brainstorm-canvas') return;
+  if (APP.brainstormAddingNote) return;
+  const usingOverrides = updates && typeof updates === 'object';
+  const text = String(usingOverrides ? updates.text : '').trim().slice(0, 200);
+  const lane = String(usingOverrides ? updates.lane : '');
+  if (!text) {
+    showError('Enter an idea before saving.');
+    return;
+  }
+  if (!BRAINSTORM_LANE_INDEX.hasOwnProperty(lane)) {
+    showError('Choose a valid lane.');
+    return;
+  }
+
+  APP.brainstormAddingNote = true;
+  render();
+
+  try {
+    const room = await RoomManager.loadRoom(APP.roomCode);
+    if (!room || room.currentActivity !== 'brainstorm-canvas') return;
+    const state = room.activityState || {};
+    if (state.sessionStatus === 'locked') {
+      showError('Canvas is locked by host.');
+      return;
+    }
+    const notes = Array.isArray(state.notes) ? state.notes : [];
+    const note = notes.find(item => item.id === noteId);
+    if (!note) return;
+    if (String(note.author || '') !== String(APP.player?.name || '')) {
+      showError('Only the idea creator can edit this note.');
+      return;
+    }
+    note.text = text;
+    note.lane = lane;
+    note.updatedAt = Date.now();
+    room.activityState = state;
+    room.brainstormData = safeParseJson(JSON.stringify(state)) || state;
+    room.brainstormLastUpdatedAt = Date.now();
+    await RoomManager.updateRoom(APP.roomCode, room);
+    APP.room = room;
+    APP.brainstormModal = {
+      open: false,
+      lane,
+      mode: 'add',
+      noteId: ''
+    };
+  } finally {
+    APP.brainstormAddingNote = false;
+    render();
+  }
+}
+
+async function brainstormSaveModalNote() {
+  const modal = APP.brainstormModal && typeof APP.brainstormModal === 'object'
+    ? APP.brainstormModal
+    : { mode: 'add', noteId: '', lane: 'start' };
+  const text = String(document.getElementById('brainModalNoteText')?.value || '').trim().slice(0, 200);
+  const lane = String(document.getElementById('brainModalNoteLane')?.value || modal.lane || 'start');
+  if (modal.mode === 'edit' && modal.noteId) {
+    await brainstormEditNote(modal.noteId, { text, lane });
+    return;
+  }
+  await brainstormAddNote({ text, lane });
+}
+
+async function brainstormDeleteNote(noteId) {
+  if (!APP.roomCode || !noteId || APP.room?.currentActivity !== 'brainstorm-canvas') return;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'brainstorm-canvas') return;
+  const state = room.activityState || {};
+  if (state.sessionStatus === 'locked') {
+    showError('Canvas is locked by host.');
+    return;
+  }
+  const notes = Array.isArray(state.notes) ? state.notes : [];
+  const note = notes.find(item => item.id === noteId);
+  if (!note) return;
+  const isOwner = String(note.author || '') === String(APP.player?.name || '');
+  const isHost = room.host === APP.player?.name;
+  if (!isOwner && !isHost) {
+    showError('Only the idea creator or host can delete this note.');
+    return;
+  }
+  state.notes = notes.filter(item => item.id !== noteId);
+  room.activityState = state;
+  room.brainstormData = safeParseJson(JSON.stringify(state)) || state;
+  room.brainstormLastUpdatedAt = Date.now();
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  if (APP.brainstormModal?.noteId === noteId) {
+    APP.brainstormModal = {
+      open: false,
+      lane: 'start',
+      mode: 'add',
+      noteId: ''
+    };
+  }
+  render();
 }
 
 async function brainstormToggleVote(noteId) {
@@ -17338,6 +18196,19 @@ function renderBrainstormCanvas() {
   const notes = Array.isArray(state.notes) ? state.notes : [];
   const sessionLocked = state.sessionStatus === 'locked';
   const addDisabled = sessionLocked || APP.brainstormAddingNote;
+  const brainstormModal = APP.brainstormModal && typeof APP.brainstormModal === 'object'
+    ? APP.brainstormModal
+    : { open: false, lane: 'start', mode: 'add', noteId: '' };
+  const modalLaneId = BRAINSTORM_LANE_INDEX.hasOwnProperty(brainstormModal.lane) ? brainstormModal.lane : 'start';
+  const modalLane = BRAINSTORM_LANES.find(lane => lane.id === modalLaneId) || BRAINSTORM_LANES[0];
+  const modalNote = brainstormModal.mode === 'edit'
+    ? notes.find(note => note.id === brainstormModal.noteId) || null
+    : null;
+  const modalTitle = modalNote ? 'Edit Brainstorm Note' : 'Add Brainstorm Note';
+  const modalSubtitle = modalNote
+    ? `Update your note in ${modalLane.label}.`
+    : `This note will be added to ${modalLane.label}.`;
+  const modalInitialText = modalNote ? String(modalNote.text || '') : '';
 
   const notesByLane = Object.fromEntries(BRAINSTORM_LANES.map(lane => [lane.id, []]));
   notes.forEach(note => {
@@ -17384,6 +18255,9 @@ function renderBrainstormCanvas() {
               <div class="brain-lane-notes">
                 ${notesByLane[lane.id].map(note => {
                   const voted = Array.isArray(note.voters) && note.voters.includes(APP.player.name);
+                  const isOwner = String(note.author || '') === String(APP.player?.name || '');
+                  const canEdit = !sessionLocked && isOwner;
+                  const canDelete = !sessionLocked && (isOwner || isHost);
                   const color = /^#[0-9a-fA-F]{6}$/.test(note.color || '') ? note.color : '#fef3a7';
                   return `
                     <div class="brain-note" draggable="${sessionLocked ? 'false' : 'true'}" data-note-id="${note.id}" style="background:${escapeHtml(color)};">
@@ -17395,6 +18269,8 @@ function renderBrainstormCanvas() {
                         </button>
                       </div>
                       <div class="brain-note-controls">
+                        ${canEdit ? `<button class="btn-secondary" data-action="brainstorm-edit-note" data-note-id="${note.id}">Edit</button>` : ''}
+                        ${canDelete ? `<button class="btn-secondary" data-action="brainstorm-delete-note" data-note-id="${note.id}">Delete</button>` : ''}
                         <button class="btn-secondary" data-action="brainstorm-shift-note" data-note-id="${note.id}" data-direction="left" ${sessionLocked ? 'disabled' : ''}>←</button>
                         <button class="btn-secondary" data-action="brainstorm-shift-note" data-note-id="${note.id}" data-direction="right" ${sessionLocked ? 'disabled' : ''}>→</button>
                       </div>
@@ -17403,6 +18279,16 @@ function renderBrainstormCanvas() {
                 }).join('')}
               </div>
             ` : '<div style="color:var(--text-dim);font-size:0.85rem;">No ideas yet.</div>'}
+            <button
+              type="button"
+              class="btn-secondary"
+              data-action="brainstorm-open-add"
+              data-lane="${lane.id}"
+              ${addDisabled ? 'disabled' : ''}
+              style="margin-top:12px;width:100%;padding:12px 14px;border-style:dashed;background:rgba(255,255,255,0.04);"
+            >
+              + Add note to ${escapeHtml(lane.label)}
+            </button>
           </div>
         `).join('')}
       </div>
@@ -17417,6 +18303,33 @@ function renderBrainstormCanvas() {
         </div>
       </div>
     </div>
+    ${brainstormModal.open ? `
+      <div style="position:fixed;inset:0;z-index:10030;background:rgba(8,10,24,0.62);display:grid;place-items:center;padding:16px;">
+        <div style="width:min(520px,100%);background:var(--surface-solid);border:1px solid var(--border);border-radius:18px;padding:20px;box-shadow:0 24px 64px rgba(0,0,0,0.35);">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;">
+            <div>
+              <div style="font-family:'Fraunces',serif;font-size:1.35rem;">${escapeHtml(modalTitle)}</div>
+              <div style="font-size:0.84rem;color:var(--text-dim);">${escapeHtml(modalSubtitle)}</div>
+            </div>
+            <button class="btn-secondary" data-action="brainstorm-close-add-modal" style="width:auto;padding:10px 14px;">Close</button>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="brainModalNoteText">Note</label>
+            <textarea id="brainModalNoteText" class="form-input" rows="4" maxlength="200" placeholder="Add a sticky note idea...">${escapeHtml(modalInitialText)}</textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="brainModalNoteLane">Bucket</label>
+            <select id="brainModalNoteLane" class="form-input">
+              ${BRAINSTORM_LANES.map(lane => `<option value="${lane.id}" ${lane.id === modalLaneId ? 'selected' : ''}>${escapeHtml(lane.label)}</option>`).join('')}
+            </select>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+            <button class="btn-secondary" data-action="brainstorm-close-add-modal" style="width:auto;padding:10px 16px;">Cancel</button>
+            <button class="btn-primary" data-action="brainstorm-submit-add-modal" style="width:auto;padding:10px 16px;" ${APP.brainstormAddingNote ? 'disabled' : ''}>${APP.brainstormAddingNote ? (modalNote ? 'Saving...' : 'Adding...') : (modalNote ? 'Save Changes' : 'Add Note')}</button>
+          </div>
+        </div>
+      </div>
+    ` : ''}
   `;
 }
 
@@ -18899,12 +19812,14 @@ function renderScheduleMeeting() {
   const editingPlan = getSessionPlanById(APP.sessionManager.editingPlanId) || null;
   const sessionPlans = APP.sessionManager.plans || [];
   const selectedQueue = new Set(Array.isArray(editingPlan?.activityQueue) ? editingPlan.activityQueue : []);
+  const planQueueSchedule = normalizeQueueSchedule(editingPlan?.queueSchedule, editingPlan?.activityQueue || []);
   const contentBrief = normalizeContentBrief(editingPlan?.contentBrief);
   return `
     <div class="header">
       <h1 class="logo">${editingPlan ? 'Edit Session Plan' : 'Plan Session'}</h1>
       <p class="tagline">Set up a reusable session plan ahead of time, then share it or launch it into a live room when you are ready.</p>
     </div>
+    <button class="btn-secondary" data-action="go-screen" data-screen="dashboard">← Back</button>
     <div class="form-container">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
         <div style="color:var(--text-dim);font-size:0.92rem;">
@@ -18974,12 +19889,17 @@ function renderScheduleMeeting() {
       ${APP.preferences.enableActivityQueue !== false ? `
         <div class="form-group">
           <label class="form-label">Activity Queue</label>
+          <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <input type="checkbox" id="meetingTimedSessionEnabled" ${editingPlan?.timedSessionEnabled === true ? 'checked' : ''}>
+            <span>Run this as a timed session and automatically move to the next activity</span>
+          </label>
           <div id="activityQueueSelector" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
             ${getEnabledActivityItems().map(item => `
-              <label style="display:flex;align-items:center;gap:8px;padding:6px 0;">
+              <label style="display:grid;grid-template-columns:auto auto minmax(0,1fr) 92px;align-items:center;gap:8px;padding:6px 0;">
                 <input type="checkbox" class="activity-queue-checkbox" value="${item.id}" ${selectedQueue.has(item.id) ? 'checked' : ''}>
                 <span style="font-size:1.2rem;">${item.icon}</span>
                 <span>${escapeHtml(item.label)}</span>
+                <input type="number" class="form-input activity-queue-duration" data-activity-id="${item.id}" min="1" max="180" value="${planQueueSchedule.find(entry => entry.activityId === item.id)?.durationMinutes || DEFAULT_QUEUE_ACTIVITY_DURATION_MINUTES}" placeholder="Min">
               </label>
             `).join('')}
           </div>

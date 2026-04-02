@@ -5,9 +5,10 @@ Team Builder is a realtime facilitation app for host-led team sessions. It combi
 ## What It Includes
 
 - Realtime rooms with host-created room codes, join links, QR join, and optional private access tokens.
+- Public community lobbies with a server-backed directory for browsing and joining open drop-in rooms.
 - Host controls for room settings, activity queue, moderation, and AI-assisted content generation.
 - Voice chat with push-to-talk or open-mic room modes, host moderation, participant approval, raise-hand flow, 1:1 voice focus, mute controls, and compact floating controls.
-- Session planning and saved session plans with shareable links, launch-into-room flow, downloadable calendar invites, and session-scoped content planning.
+- Session planning and saved session plans with shareable links, launch-into-room flow, downloadable calendar invites, timed-run support, and session-scoped content planning.
 - Two presentation modes:
   - URL-based shared presentation viewer for slide decks and embeddable presentations.
   - `Slides Studio` for native in-app slide creation with templates, gradients, solid backgrounds, images, CTA links, source links, and AI slide generation from prompts.
@@ -39,25 +40,37 @@ Team Builder is a realtime facilitation app for host-led team sessions. It combi
 
 - Editable player profile with display name and emoji/avatar selection.
 - Activity Queue for preloading and running activities in sequence.
+- Timed session mode for auto-advancing queued activities on a countdown.
 - Feedback Hub plus Admin Console workflow.
 - Shared AI content workflow across Admin, Host Settings, Activity Queue, and Session Planning.
 - Theme-aware AI generation for reusable activity content and planned sessions.
+- Brainstorm Canvas note add/edit/delete from the board, with host moderation and creator-owned editing.
 - Export support for Brainstorm Canvas and Team Pulse Check.
 - Keyboard shortcuts for hosting, joining, navigation, presentation mode, queue access, and host settings.
 - Mobile-friendly board game layouts for Battleship, Bingo, Backgammon, and Connect 4.
-- Battleship fleet setup with drag-and-drop placement, board re-selection, quick rotate, double-tap rotate, and in-map ready controls.
-- Bingo cards with multiple marker styles such as daubers, chips, and icon markers.
+- Battleship fleet setup with drag-and-drop placement, board re-selection, quick rotate, double-tap rotate, next-vessel shortcuts, and in-map ready controls.
+- Bingo cards with multiple marker styles, colorable classic cover tokens, local Bingo voice announcements, live-ball draw interaction, and win celebration.
 
 ## Session Planning
 
 Team Builder now supports planning sessions ahead of time:
 
 - Save a session plan with title, date, time, meeting link, notes, activity queue, and content brief details.
+- Add per-activity durations for timed queue runs.
 - Share a saved session plan as a URL.
 - Import a shared session plan from the URL automatically.
 - Launch a new live room directly from a saved plan.
 - Download an `.ics` calendar invite from a saved plan.
 - Carry planned content and activity context into the live room when the session starts.
+
+## Community Lobbies
+
+Team Builder can also run public community spaces:
+
+- Browse active public community lobbies from the `Community Lobby` screen.
+- Host a public drop-in lobby using the same underlying room model as private sessions.
+- Join an open lobby directly from the directory without manually entering a room code.
+- Launch full-room activities from the community lobby and return everyone to that lobby after the activity ends.
 
 ## Voice Controls
 

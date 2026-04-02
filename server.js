@@ -664,6 +664,50 @@ function getRoomPrivacyFromState(key) {
   return extractRoomPrivacyFromValue(state.get(key));
 }
 
+function getCommunityRoomSummary(key, room) {
+  if (!isRoomKey(key) || !room || typeof room !== 'object') return null;
+  const roomType = String(room.roomType || '').trim().toLowerCase();
+  const isPrivate = room?.access?.privateSession === true || room?.hostSettings?.privateSession === true;
+  if (roomType !== 'community' || isPrivate) return null;
+  const participants = Array.isArray(room.participants)
+    ? room.participants.filter(participant => participant && typeof participant === 'object' && String(participant.name || '').trim())
+    : [];
+  const maxParticipants = Math.max(2, Number(room.maxParticipants) || 24);
+  const participantCount = participants.length;
+  return {
+    code: String(room.code || key.replace(/^room:/, '')).trim(),
+    title: String(room.communityTitle || room.title || `${room.host || 'Host'}'s Community Lobby`).trim().slice(0, 80),
+    description: String(room.communityDescription || '').trim().slice(0, 220),
+    roomType: 'community',
+    host: String(room.host || '').trim(),
+    participantCount,
+    maxParticipants,
+    currentActivity: String(room.currentActivity || '').trim() || null,
+    queueLength: Array.isArray(room.activityQueue) ? room.activityQueue.length : 0,
+    voiceEnabled: room?.hostSettings?.voice?.enabled === true,
+    created: Number(room.created) || 0,
+    lastUpdate: Number(room.lastUpdate) || Number(room.created) || 0,
+    presenceStatus: participantCount >= maxParticipants
+      ? 'full'
+      : room.currentActivity
+        ? 'in_game'
+        : 'open'
+  };
+}
+
+function listCommunityRooms() {
+  return Array.from(state.entries())
+    .map(([key, value]) => getCommunityRoomSummary(key, safeParseJsonObject(value)))
+    .filter(Boolean)
+    .sort((a, b) => {
+      if (a.presenceStatus !== b.presenceStatus) {
+        if (a.presenceStatus === 'open') return -1;
+        if (b.presenceStatus === 'open') return 1;
+      }
+      return (b.lastUpdate || 0) - (a.lastUpdate || 0);
+    });
+}
+
 function getRoomAccessMeta(key) {
   if (!isRoomKey(key)) return null;
   const existing = roomSecrets.get(key);
@@ -1016,6 +1060,13 @@ app.get('/api/config', (_req, res) => {
     storage: {
       configDatabaseConnected: Boolean(configDb)
     }
+  });
+});
+
+app.get('/api/community/rooms', (_req, res) => {
+  res.json({
+    ok: true,
+    rooms: listCommunityRooms()
   });
 });
 
