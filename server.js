@@ -30,9 +30,13 @@ const DATA_DIR = path.join(__dirname, '.runtime-data');
 const DATA_FILE = path.join(DATA_DIR, 'shared-state.json');
 const FEEDBACK_FILE = path.join(DATA_DIR, 'feedback-state.json');
 const ROOM_META_FILE = path.join(DATA_DIR, 'room-meta.json');
-const CHAT_GPT_MINI_KEY = String(process.env.CHAT_GPT_MINI_KEY || '').trim();
-const AI_QUESTION_ENDPOINT = String(process.env.AI_QUESTION_ENDPOINT || 'https://api.openai.com/v1/chat/completions').trim();
-const AI_QUESTION_MODEL = String(process.env.AI_QUESTION_MODEL || 'gpt-4o-mini').trim();
+const LEGACY_AI_API_KEY = String(process.env.CHAT_GPT_MINI_KEY || '').trim();
+const LEGACY_AI_ENDPOINT = String(process.env.AI_QUESTION_ENDPOINT || '').trim();
+const LEGACY_AI_MODEL = String(process.env.AI_QUESTION_MODEL || '').trim();
+const AI_PROVIDER = normalizeAIProvider(process.env.AI_PROVIDER || process.env.AI_DEFAULT_PROVIDER || '');
+const AI_API_KEY = String(process.env.AI_API_KEY || LEGACY_AI_API_KEY || '').trim();
+const AI_ENDPOINT = String(process.env.AI_ENDPOINT || LEGACY_AI_ENDPOINT || getDefaultAIEndpoint(AI_PROVIDER)).trim();
+const AI_MODEL = String(process.env.AI_MODEL || LEGACY_AI_MODEL || getDefaultAIModel(AI_PROVIDER)).trim();
 const DATABASE_URL = String(process.env.DATABASE_URL || '').trim();
 const IS_PRODUCTION = String(process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
 const GLOBAL_CONFIG_DB_KEY = 'global_config';
@@ -74,6 +78,135 @@ let roomMetaPersistTimer = null;
 let configDb = null;
 const roomSecrets = new Map();
 const voiceRooms = new Map();
+
+function normalizeAIProvider(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (['openai', 'openai-compatible', 'openai_compatible', 'compatible'].includes(normalized)) return 'openai-compatible';
+  if (['anthropic', 'claude'].includes(normalized)) return 'anthropic';
+  if (['google', 'gemini', 'google-gemini'].includes(normalized)) return 'google-gemini';
+  return 'openai-compatible';
+}
+
+function getDefaultAIEndpoint(provider) {
+  const normalized = normalizeAIProvider(provider);
+  if (normalized === 'anthropic') return 'https://api.anthropic.com/v1/messages';
+  if (normalized === 'google-gemini') return 'https://generativelanguage.googleapis.com/v1beta/models';
+  return 'https://api.openai.com/v1/chat/completions';
+}
+
+function getDefaultAIModel(provider) {
+  const normalized = normalizeAIProvider(provider);
+  if (normalized === 'anthropic') return 'claude-3-5-haiku-latest';
+  if (normalized === 'google-gemini') return 'gemini-1.5-flash';
+  return 'gpt-4o-mini';
+}
+
+function getAISystemPrompt() {
+  return 'You create accurate facilitator game content. Output strict JSON only.';
+}
+
+function buildAIProviderRequest({ provider, endpoint, apiKey, model, prompt, temperature }) {
+  const normalizedProvider = normalizeAIProvider(provider);
+  const safeEndpoint = String(endpoint || getDefaultAIEndpoint(normalizedProvider)).trim();
+  const safeModel = String(model || getDefaultAIModel(normalizedProvider)).trim() || getDefaultAIModel(normalizedProvider);
+  const safePrompt = String(prompt || '').trim();
+  const safeTemperature = Number.isFinite(Number(temperature)) ? Math.max(0, Math.min(2, Number(temperature))) : 0.7;
+
+  if (normalizedProvider === 'anthropic') {
+    return {
+      endpoint: safeEndpoint,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: {
+        model: safeModel,
+        system: getAISystemPrompt(),
+        max_tokens: 4096,
+        temperature: safeTemperature,
+        messages: [
+          { role: 'user', content: safePrompt }
+        ]
+      }
+    };
+  }
+
+  if (normalizedProvider === 'google-gemini') {
+    const endpointHasGenerate = /:generateContent(?:\?|$)/.test(safeEndpoint);
+    const endpointWithModel = endpointHasGenerate
+      ? safeEndpoint
+      : `${safeEndpoint.replace(/\/$/, '')}/${encodeURIComponent(safeModel)}:generateContent`;
+    const separator = endpointWithModel.includes('?') ? '&' : '?';
+    return {
+      endpoint: `${endpointWithModel}${separator}key=${encodeURIComponent(apiKey)}`,
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: {
+        systemInstruction: {
+          parts: [{ text: getAISystemPrompt() }]
+        },
+        generationConfig: {
+          temperature: safeTemperature
+        },
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: safePrompt }]
+          }
+        ]
+      }
+    };
+  }
+
+  return {
+    endpoint: safeEndpoint,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: {
+      model: safeModel,
+      messages: [
+        { role: 'system', content: getAISystemPrompt() },
+        { role: 'user', content: safePrompt }
+      ],
+      temperature: safeTemperature
+    }
+  };
+}
+
+function extractAITextContent(provider, data) {
+  const normalizedProvider = normalizeAIProvider(provider);
+  if (normalizedProvider === 'anthropic') {
+    const blocks = Array.isArray(data?.content) ? data.content : [];
+    return blocks
+      .map(block => (block && typeof block === 'object' ? String(block.text || '').trim() : ''))
+      .filter(Boolean)
+      .join('\n')
+      .trim();
+  }
+  if (normalizedProvider === 'google-gemini') {
+    const parts = Array.isArray(data?.candidates?.[0]?.content?.parts)
+      ? data.candidates[0].content.parts
+      : [];
+    return parts
+      .map(part => (part && typeof part === 'object' ? String(part.text || '').trim() : ''))
+      .filter(Boolean)
+      .join('\n')
+      .trim();
+  }
+  return String(data?.choices?.[0]?.message?.content || '').trim();
+}
+
+function extractAIErrorDetail(provider, data, response) {
+  const normalizedProvider = normalizeAIProvider(provider);
+  if (normalizedProvider === 'google-gemini') {
+    return String(data?.error?.message || data?.error?.status || response.statusText || 'Unknown AI error');
+  }
+  return String(data?.error?.message || data?.error?.type || data?.error || response.statusText || 'Unknown AI error');
+}
 
 function getAdminToken() {
   return String(process.env.ADMIN_TOKEN || '').trim();
@@ -875,8 +1008,10 @@ app.get('/api/config', (_req, res) => {
     config: feedbackState.config,
     collections: feedbackState.collections,
     ai: {
-      serverKeyConfigured: Boolean(CHAT_GPT_MINI_KEY),
-      model: AI_QUESTION_MODEL
+      serverKeyConfigured: Boolean(AI_API_KEY),
+      provider: AI_PROVIDER,
+      model: AI_MODEL,
+      endpointConfigured: Boolean(AI_ENDPOINT)
     },
     storage: {
       configDatabaseConnected: Boolean(configDb)
@@ -885,8 +1020,8 @@ app.get('/api/config', (_req, res) => {
 });
 
 app.post('/api/ai/generate', async (req, res) => {
-  if (!CHAT_GPT_MINI_KEY) {
-    res.status(503).json({ ok: false, error: 'AI server key is not configured (CHAT_GPT_MINI_KEY).' });
+  if (!AI_API_KEY) {
+    res.status(503).json({ ok: false, error: 'AI server key is not configured. Set AI_API_KEY or the legacy CHAT_GPT_MINI_KEY.' });
     return;
   }
 
@@ -902,7 +1037,8 @@ app.post('/api/ai/generate', async (req, res) => {
   }
 
   const prompt = String(req.body?.prompt || '').trim();
-  const model = String(req.body?.model || AI_QUESTION_MODEL).trim() || AI_QUESTION_MODEL;
+  const provider = normalizeAIProvider(req.body?.provider || AI_PROVIDER);
+  const model = String(req.body?.model || AI_MODEL).trim() || AI_MODEL;
   const temperatureRaw = Number(req.body?.temperature);
   const temperature = Number.isFinite(temperatureRaw) ? Math.max(0, Math.min(2, temperatureRaw)) : 0.7;
 
@@ -912,30 +1048,28 @@ app.post('/api/ai/generate', async (req, res) => {
   }
 
   try {
-    const response = await fetch(AI_QUESTION_ENDPOINT, {
+    const requestConfig = buildAIProviderRequest({
+      provider,
+      endpoint: AI_ENDPOINT,
+      apiKey: AI_API_KEY,
+      model,
+      prompt,
+      temperature
+    });
+    const response = await fetch(requestConfig.endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${CHAT_GPT_MINI_KEY}`
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: 'You create accurate facilitator game content. Output strict JSON only.' },
-          { role: 'user', content: prompt }
-        ],
-        temperature
-      })
+      headers: requestConfig.headers,
+      body: JSON.stringify(requestConfig.body)
     });
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const detail = String(data?.error?.message || data?.error || response.statusText || 'Unknown AI error');
+      const detail = extractAIErrorDetail(provider, data, response);
       res.status(502).json({ ok: false, error: `AI provider error: ${detail}` });
       return;
     }
 
-    const content = String(data?.choices?.[0]?.message?.content || '').trim();
+    const content = extractAITextContent(provider, data);
     if (!content) {
       res.status(502).json({ ok: false, error: 'AI provider returned empty content.' });
       return;

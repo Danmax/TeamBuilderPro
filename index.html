@@ -3134,10 +3134,130 @@ function getCurrentRoomParticipant(room = APP.room, player = APP.player) {
   return (room.participants || []).find(participant => participant?.id === player.id || participant?.name === player.name) || null;
 }
 
-function getDefaultHostLocalConfig() {
+function normalizeAIProvider(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (['openai', 'openai-compatible', 'openai_compatible', 'compatible'].includes(normalized)) return 'openai-compatible';
+  if (['anthropic', 'claude'].includes(normalized)) return 'anthropic';
+  if (['google', 'gemini', 'google-gemini'].includes(normalized)) return 'google-gemini';
+  return 'openai-compatible';
+}
+
+function getDefaultAIEndpoint(provider) {
+  const normalized = normalizeAIProvider(provider);
+  if (normalized === 'anthropic') return 'https://api.anthropic.com/v1/messages';
+  if (normalized === 'google-gemini') return 'https://generativelanguage.googleapis.com/v1beta/models';
+  return 'https://api.openai.com/v1/chat/completions';
+}
+
+function getDefaultAIModel(provider) {
+  const normalized = normalizeAIProvider(provider);
+  if (normalized === 'anthropic') return 'claude-3-5-haiku-latest';
+  if (normalized === 'google-gemini') return 'gemini-1.5-flash';
+  return 'gpt-4o-mini';
+}
+
+function getAIProviderLabel(provider) {
+  const normalized = normalizeAIProvider(provider);
+  if (normalized === 'anthropic') return 'Anthropic';
+  if (normalized === 'google-gemini') return 'Google Gemini';
+  return 'OpenAI-Compatible';
+}
+
+function getAISystemPrompt() {
+  return 'You create accurate facilitator game content. Output strict JSON only.';
+}
+
+function buildAIProviderRequest(provider, endpoint, apiKey, model, prompt, temperature = 0.7) {
+  const normalizedProvider = normalizeAIProvider(provider);
+  const safeEndpoint = String(endpoint || getDefaultAIEndpoint(normalizedProvider)).trim();
+  const safeModel = String(model || getDefaultAIModel(normalizedProvider)).trim() || getDefaultAIModel(normalizedProvider);
+  const safePrompt = String(prompt || '').trim();
+  const safeTemperature = Number.isFinite(Number(temperature)) ? Math.max(0, Math.min(2, Number(temperature))) : 0.7;
+
+  if (normalizedProvider === 'anthropic') {
+    return {
+      endpoint: safeEndpoint,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: {
+        model: safeModel,
+        system: getAISystemPrompt(),
+        max_tokens: 4096,
+        temperature: safeTemperature,
+        messages: [
+          { role: 'user', content: safePrompt }
+        ]
+      }
+    };
+  }
+
+  if (normalizedProvider === 'google-gemini') {
+    const endpointHasGenerate = /:generateContent(?:\?|$)/.test(safeEndpoint);
+    const endpointWithModel = endpointHasGenerate
+      ? safeEndpoint
+      : `${safeEndpoint.replace(/\/$/, '')}/${encodeURIComponent(safeModel)}:generateContent`;
+    const separator = endpointWithModel.includes('?') ? '&' : '?';
+    return {
+      endpoint: `${endpointWithModel}${separator}key=${encodeURIComponent(apiKey)}`,
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: {
+        systemInstruction: {
+          parts: [{ text: getAISystemPrompt() }]
+        },
+        generationConfig: {
+          temperature: safeTemperature
+        },
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: safePrompt }]
+          }
+        ]
+      }
+    };
+  }
+
   return {
-    aiEndpoint: window.AI_QUESTION_ENDPOINT || 'https://api.openai.com/v1/chat/completions',
-    aiModel: window.AI_QUESTION_MODEL || 'gpt-4o-mini',
+    endpoint: safeEndpoint,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: {
+      model: safeModel,
+      messages: [
+        { role: 'system', content: getAISystemPrompt() },
+        { role: 'user', content: safePrompt }
+      ],
+      temperature: safeTemperature
+    }
+  };
+}
+
+function extractAIProviderText(provider, data) {
+  const normalizedProvider = normalizeAIProvider(provider);
+  if (normalizedProvider === 'anthropic') {
+    const blocks = Array.isArray(data?.content) ? data.content : [];
+    return blocks.map(block => String(block?.text || '').trim()).filter(Boolean).join('\n').trim();
+  }
+  if (normalizedProvider === 'google-gemini') {
+    const parts = Array.isArray(data?.candidates?.[0]?.content?.parts) ? data.candidates[0].content.parts : [];
+    return parts.map(part => String(part?.text || '').trim()).filter(Boolean).join('\n').trim();
+  }
+  return String(data?.choices?.[0]?.message?.content || '').trim();
+}
+
+function getDefaultHostLocalConfig() {
+  const provider = normalizeAIProvider(window.AI_PROVIDER || window.AI_DEFAULT_PROVIDER || 'openai-compatible');
+  return {
+    aiProvider: provider,
+    aiEndpoint: window.AI_ENDPOINT || window.AI_QUESTION_ENDPOINT || getDefaultAIEndpoint(provider),
+    aiModel: window.AI_MODEL || window.AI_QUESTION_MODEL || getDefaultAIModel(provider),
     aiDefaultActivity: 'lightning-trivia',
     aiDefaultDifficulty: 'mixed',
     aiDefaultCount: 8,
@@ -3150,6 +3270,9 @@ function loadHostLocalConfig() {
   const stored = safeParseJson(localStorage.getItem('host-local-config') || '');
   if (!stored || typeof stored !== 'object') return defaults;
   const merged = { ...defaults, ...stored };
+  merged.aiProvider = normalizeAIProvider(merged.aiProvider || defaults.aiProvider);
+  merged.aiEndpoint = String(merged.aiEndpoint || '').trim() || getDefaultAIEndpoint(merged.aiProvider);
+  merged.aiModel = String(merged.aiModel || '').trim() || getDefaultAIModel(merged.aiProvider);
   const validActivities = new Set([
     'lightning-trivia',
     'emoji-charades',
@@ -11200,12 +11323,20 @@ function renderHostSettingsModal() {
         <div data-tab-panel="ai" class="host-tab-panel" ${activeTab !== 'ai' ? 'hidden' : ''} style="margin-bottom:18px;${globalAiEnabled ? '' : 'display:none;'}">
           <h4 style="margin-bottom:10px;">AI Configuration (Host Local)</h4>
           <div class="form-group">
+            <label class="form-label" for="hsAiProvider">Provider</label>
+            <select id="hsAiProvider" class="form-input">
+              <option value="openai-compatible" ${normalizeAIProvider(HOST_LOCAL_CONFIG.aiProvider) === 'openai-compatible' ? 'selected' : ''}>OpenAI-Compatible</option>
+              <option value="anthropic" ${normalizeAIProvider(HOST_LOCAL_CONFIG.aiProvider) === 'anthropic' ? 'selected' : ''}>Anthropic</option>
+              <option value="google-gemini" ${normalizeAIProvider(HOST_LOCAL_CONFIG.aiProvider) === 'google-gemini' ? 'selected' : ''}>Google Gemini</option>
+            </select>
+          </div>
+          <div class="form-group">
             <label class="form-label" for="hsAiEndpoint">Endpoint</label>
-            <input id="hsAiEndpoint" class="form-input" value="${escapeHtml(HOST_LOCAL_CONFIG.aiEndpoint)}" placeholder="https://api.openai.com/v1/chat/completions">
+            <input id="hsAiEndpoint" class="form-input" value="${escapeHtml(HOST_LOCAL_CONFIG.aiEndpoint)}" placeholder="${escapeHtml(getDefaultAIEndpoint(HOST_LOCAL_CONFIG.aiProvider))}">
           </div>
           <div class="form-group">
             <label class="form-label" for="hsAiModel">Model</label>
-            <input id="hsAiModel" class="form-input" value="${escapeHtml(HOST_LOCAL_CONFIG.aiModel)}" placeholder="gpt-4o-mini">
+            <input id="hsAiModel" class="form-input" value="${escapeHtml(HOST_LOCAL_CONFIG.aiModel)}" placeholder="${escapeHtml(getDefaultAIModel(HOST_LOCAL_CONFIG.aiProvider))}">
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
             <div class="form-group">
@@ -11231,7 +11362,7 @@ function renderHostSettingsModal() {
           </div>
           <div class="form-group">
             <label class="form-label" for="hsAiApiKey">API Key</label>
-            <input id="hsAiApiKey" class="form-input" type="password" value="${escapeHtml(HOST_LOCAL_CONFIG.aiApiKey)}" placeholder="Optional fallback. Preferred: server env CHAT_GPT_MINI_KEY">
+            <input id="hsAiApiKey" class="form-input" type="password" value="${escapeHtml(HOST_LOCAL_CONFIG.aiApiKey)}" placeholder="Optional fallback. Preferred: server env AI_API_KEY">
           </div>
 
           ${roomSettings.enableAIGenerator ? `
@@ -12758,8 +12889,9 @@ async function saveHostSettings() {
 
   HOST_LOCAL_CONFIG = {
     ...HOST_LOCAL_CONFIG,
-    aiEndpoint: (document.getElementById('hsAiEndpoint')?.value || '').trim() || getDefaultHostLocalConfig().aiEndpoint,
-    aiModel: (document.getElementById('hsAiModel')?.value || '').trim() || getDefaultHostLocalConfig().aiModel,
+    aiProvider: normalizeAIProvider(document.getElementById('hsAiProvider')?.value || HOST_LOCAL_CONFIG.aiProvider),
+    aiEndpoint: '',
+    aiModel: '',
     aiDefaultActivity: AI_GENERATION_TARGET_LABELS[document.getElementById('hsAiDefaultActivity')?.value || '']
       ? String(document.getElementById('hsAiDefaultActivity')?.value || '')
       : getDefaultHostLocalConfig().aiDefaultActivity,
@@ -12767,6 +12899,8 @@ async function saveHostSettings() {
     aiDefaultCount: Math.max(3, Math.min(20, Number.parseInt(document.getElementById('hsAiDefaultCount')?.value || '8', 10) || 8)),
     aiApiKey: (document.getElementById('hsAiApiKey')?.value || '').trim()
   };
+  HOST_LOCAL_CONFIG.aiEndpoint = (document.getElementById('hsAiEndpoint')?.value || '').trim() || getDefaultAIEndpoint(HOST_LOCAL_CONFIG.aiProvider);
+  HOST_LOCAL_CONFIG.aiModel = (document.getElementById('hsAiModel')?.value || '').trim() || getDefaultAIModel(HOST_LOCAL_CONFIG.aiProvider);
   localStorage.setItem('ai-question-api-key', HOST_LOCAL_CONFIG.aiApiKey || '');
   saveHostLocalConfig(HOST_LOCAL_CONFIG);
   APP.hostSettingsSaving = true;
@@ -12908,6 +13042,7 @@ async function requestAIGeneratedArray(prompt, apiKey = '') {
       roomToken: APP.roomAccessToken || '',
       body: {
         prompt,
+        provider: HOST_LOCAL_CONFIG.aiProvider,
         model: HOST_LOCAL_CONFIG.aiModel,
         temperature: 0.7,
         roomCode: APP.roomCode || ''
@@ -12920,23 +13055,21 @@ async function requestAIGeneratedArray(prompt, apiKey = '') {
 
   if (!textContent) {
     if (!apiKey) {
-      throw new Error(`${serverError || 'Server AI generation failed.'} Add CHAT_GPT_MINI_KEY on the server or provide an API key.`);
+      throw new Error(`${serverError || 'Server AI generation failed.'} Add AI_API_KEY on the server or provide a fallback API key.`);
     }
 
-    const response = await fetch(HOST_LOCAL_CONFIG.aiEndpoint, {
+    const requestConfig = buildAIProviderRequest(
+      HOST_LOCAL_CONFIG.aiProvider,
+      HOST_LOCAL_CONFIG.aiEndpoint,
+      apiKey,
+      HOST_LOCAL_CONFIG.aiModel,
+      prompt,
+      0.7
+    );
+    const response = await fetch(requestConfig.endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: HOST_LOCAL_CONFIG.aiModel,
-        messages: [
-          { role: 'system', content: 'You create accurate facilitator game content. Output strict JSON only.' },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.7
-      })
+      headers: requestConfig.headers,
+      body: JSON.stringify(requestConfig.body)
     });
 
     if (!response.ok) {
@@ -12944,7 +13077,7 @@ async function requestAIGeneratedArray(prompt, apiKey = '') {
       throw new Error(`AI request failed (${response.status}): ${errText.slice(0, 180)}`);
     }
     const data = await response.json();
-    textContent = String(data?.choices?.[0]?.message?.content || '');
+    textContent = extractAIProviderText(HOST_LOCAL_CONFIG.aiProvider, data);
   }
 
   const jsonText = extractFirstJson(textContent);
@@ -15561,7 +15694,7 @@ function renderSlidesStudio() {
           </div>
           <div class="form-group">
             <label class="form-label" for="slidesStudioAIApiKey">API key (optional fallback)</label>
-            <input id="slidesStudioAIApiKey" class="form-input" type="password" value="${escapeHtml(HOST_LOCAL_CONFIG.aiApiKey || '')}" placeholder="Uses server AI key when available">
+            <input id="slidesStudioAIApiKey" class="form-input" type="password" value="${escapeHtml(HOST_LOCAL_CONFIG.aiApiKey || '')}" placeholder="Uses server provider config when available">
           </div>
         </div>
       ` : ''}

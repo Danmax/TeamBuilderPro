@@ -92,6 +92,12 @@ AI generation uses the existing backend endpoint:
 
 - `POST /api/ai/generate`
 
+Supported providers:
+
+- OpenAI-compatible chat completion APIs
+- Anthropic Messages API
+- Google Gemini Generate Content API
+
 Supported workflows:
 
 - Global content generation from Admin AI Studio.
@@ -101,11 +107,17 @@ Supported workflows:
 
 Preferred auth mode:
 
-- Server-side key via `CHAT_GPT_MINI_KEY`
+- Server-side provider config via `AI_PROVIDER`, `AI_API_KEY`, `AI_ENDPOINT`, and `AI_MODEL`
 
 Fallback mode:
 
 - Host-provided browser API key stored locally in host settings
+- Host-local provider selection for direct fallback requests
+
+Notes:
+
+- The server keeps backward compatibility with `CHAT_GPT_MINI_KEY`, `AI_QUESTION_ENDPOINT`, and `AI_QUESTION_MODEL`.
+- Browser fallback is best for providers that support direct API-key requests. Providers that require OAuth or custom server-side auth should use the server configuration path.
 
 ## Tech Stack
 
@@ -121,9 +133,13 @@ Fallback mode:
 - `ADMIN_TOKEN`
 - `DEV_ADMIN_PASSWORD`
 - `ADMIN_TEMP_PASSWORD`
-- `CHAT_GPT_MINI_KEY`
-- `AI_QUESTION_ENDPOINT`
-- `AI_QUESTION_MODEL`
+- `AI_PROVIDER`
+- `AI_API_KEY`
+- `AI_ENDPOINT`
+- `AI_MODEL`
+- `CHAT_GPT_MINI_KEY` (legacy fallback)
+- `AI_QUESTION_ENDPOINT` (legacy fallback)
+- `AI_QUESTION_MODEL` (legacy fallback)
 - `DATABASE_URL`
 - `PGSSL`
 
