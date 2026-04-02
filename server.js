@@ -65,6 +65,7 @@ const FEATURE_FLAG_IDS = [
   'enableActivityQueue',
   'enableScheduleMeeting',
   'enableLoadSession',
+  'enableCommunityLobby',
   'enableAIGenerator',
   'enableSampleQuestions',
   'enableFooterQuotes',
@@ -245,6 +246,7 @@ function getDefaultPreferences() {
     enableActivityQueue: true,
     enableScheduleMeeting: true,
     enableLoadSession: true,
+    enableCommunityLobby: true,
     enableAIGenerator: true,
     enableSampleQuestions: true,
     enableFooterQuotes: false,
@@ -271,6 +273,13 @@ function normalizePreferences(raw) {
   FEATURE_FLAG_IDS.forEach(flag => {
     normalized[flag] = Boolean(source[flag] ?? defaults[flag]);
   });
+  normalized.communityHostAllowlist = Array.isArray(source.communityHostAllowlist)
+    ? source.communityHostAllowlist
+      .map(name => String(name || '').replace(/\s+/g, ' ').trim().slice(0, 32))
+      .filter(Boolean)
+      .filter((name, index, arr) => arr.indexOf(name) === index)
+      .slice(0, 100)
+    : [];
   normalized.enabledActivities = normalizeEnabledActivities(source.enabledActivities);
   return normalized;
 }
@@ -706,6 +715,28 @@ function listCommunityRooms() {
       }
       return (b.lastUpdate || 0) - (a.lastUpdate || 0);
     });
+}
+
+function deleteRoomState(key) {
+  if (!isRoomKey(key)) return false;
+  const existed = state.delete(key);
+  roomSecrets.delete(key);
+  if (voiceRooms.has(key)) {
+    const voiceState = voiceRooms.get(key);
+    voiceState?.sockets?.forEach((_member, socketId) => {
+      const socket = io.sockets.sockets.get(socketId);
+      if (socket) {
+        socket.leave(key);
+        socket.data.voiceKey = null;
+      }
+    });
+    voiceRooms.delete(key);
+  }
+  if (existed) {
+    schedulePersist();
+    scheduleRoomMetaPersist();
+  }
+  return existed;
 }
 
 function getRoomAccessMeta(key) {
@@ -1312,6 +1343,23 @@ io.on('connection', socket => {
     io.to(key).emit('shared:update', { key, value: state.get(key) });
     emitVoiceState(key, safeParseJsonObject(strValue));
     ack?.({ ok: true });
+  });
+
+  socket.on('shared:delete', (payload, ack) => {
+    const key = payload?.key;
+    const authToken = getRequestRoomToken(payload);
+    if (!isRoomKey(key)) {
+      ack?.({ ok: false, error: 'Invalid room key' });
+      return;
+    }
+    if (!isAuthorizedForRoom(key, authToken)) {
+      ack?.({ ok: false, error: 'Unauthorized room access' });
+      return;
+    }
+    const deleted = deleteRoomState(key);
+    io.to(key).emit('shared:update', { key, value: null });
+    io.in(key).socketsLeave(key);
+    ack?.({ ok: deleted });
   });
 
   socket.on('voice:join', (payload, ack) => {

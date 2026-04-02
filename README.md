@@ -69,7 +69,10 @@ Team Builder can also run public community spaces:
 
 - Browse active public community lobbies from the `Community Lobby` screen.
 - Host a public drop-in lobby using the same underlying room model as private sessions.
+- Restrict community-lobby creation to authenticated admins or host names allowlisted in Admin Console.
 - Join an open lobby directly from the directory without manually entering a room code.
+- Edit or remove a community lobby from the directory or from inside the live lobby when you are the host or an admin.
+- Built-in community chat inside the lobby with text messages, emoji reactions, newest-message pinning, and the most recent 50 messages visible in the feed.
 - Launch full-room activities from the community lobby and return everyone to that lobby after the activity ends.
 
 ## Voice Controls

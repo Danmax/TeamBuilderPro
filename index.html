@@ -2812,12 +2812,14 @@ function getDefaultAppPreferences() {
     enableActivityQueue: true,
     enableScheduleMeeting: true,
     enableLoadSession: true,
+    enableCommunityLobby: true,
     enableAIGenerator: true,
     enableSampleQuestions: true,
     enableFooterQuotes: false,
     autoRevealLightning: true,
     allowAnswerChanges: true,
     dynamicScoring: true,
+    communityHostAllowlist: [],
     enabledActivities: Object.fromEntries((ALL_ACTIVITY_IDS || []).map(activityId => [activityId, enabledByDefault.has(activityId)]))
   };
 }
@@ -2840,12 +2842,20 @@ function normalizeAppPreferences(raw) {
     enableActivityQueue: Boolean(source.enableActivityQueue ?? defaults.enableActivityQueue),
     enableScheduleMeeting: Boolean(source.enableScheduleMeeting ?? defaults.enableScheduleMeeting),
     enableLoadSession: Boolean(source.enableLoadSession ?? defaults.enableLoadSession),
+    enableCommunityLobby: Boolean(source.enableCommunityLobby ?? defaults.enableCommunityLobby),
     enableAIGenerator: Boolean(source.enableAIGenerator ?? defaults.enableAIGenerator),
     enableSampleQuestions: Boolean(source.enableSampleQuestions ?? defaults.enableSampleQuestions),
     enableFooterQuotes: Boolean(source.enableFooterQuotes ?? defaults.enableFooterQuotes),
     autoRevealLightning: Boolean(source.autoRevealLightning ?? defaults.autoRevealLightning),
     allowAnswerChanges: Boolean(source.allowAnswerChanges ?? defaults.allowAnswerChanges),
     dynamicScoring: Boolean(source.dynamicScoring ?? defaults.dynamicScoring),
+    communityHostAllowlist: Array.isArray(source.communityHostAllowlist)
+      ? source.communityHostAllowlist
+        .map(name => normalizeName(String(name || '')))
+        .filter(Boolean)
+        .filter((name, index, arr) => arr.indexOf(name) === index)
+        .slice(0, 100)
+      : [],
     enabledActivities: normalizeEnabledActivities(source.enabledActivities)
   };
 }
@@ -2874,6 +2884,34 @@ function applyBranding(config) {
 
 function isActivityEnabled(activityId) {
   return APP.preferences?.enabledActivities?.[activityId] !== false;
+}
+
+function canCurrentUserCreateCommunityRooms() {
+  if (APP.admin?.authenticated) return true;
+  const playerName = normalizeName(APP.player?.name || '');
+  if (!playerName) return false;
+  const allowlist = Array.isArray(APP.preferences?.communityHostAllowlist) ? APP.preferences.communityHostAllowlist : [];
+  return allowlist.includes(playerName);
+}
+
+function canCurrentUserManageCommunityRoom(room) {
+  if (!room || room.roomType !== 'community') return false;
+  if (APP.admin?.authenticated) return true;
+  return normalizeName(APP.player?.name || '') === normalizeName(room.host || '');
+}
+
+function exitUnavailableRoom(message = 'Room no longer available.') {
+  stopRoomSync();
+  ticTacToeFinalizePending = false;
+  APP.room = null;
+  APP.roomCode = null;
+  APP.roomAccessToken = null;
+  clearActiveSessionSnapshot();
+  APP.showHostSettings = false;
+  APP.screen = 'dashboard';
+  resetWordChainFocusState();
+  showError(message);
+  render();
 }
 
 function getEnabledActivityItems() {
@@ -2986,6 +3024,7 @@ function applyConfigPayload(data) {
   const collections = normalizeClientCollections(data?.collections || []);
   APP.admin.collections = collections;
   APP.admin.configDatabaseConnected = Boolean(data?.storage?.configDatabaseConnected);
+  APP.preferences = normalizeAppPreferences(config?.preferences || APP.preferences || {});
   rehydrateActivityBanksFromConfig(collections);
 }
 
@@ -3141,6 +3180,29 @@ function normalizeRoomParticipants(participants, hostName = '') {
     .filter(Boolean);
 }
 
+const COMMUNITY_CHAT_QUICK_EMOJIS = ['🙌', '👏', '🔥', '🎉', '😂', '❤️', '👋', '🤝'];
+
+function normalizeCommunityChatMessages(messages) {
+  if (!Array.isArray(messages)) return [];
+  return messages
+    .map((message, index) => {
+      if (!message || typeof message !== 'object') return null;
+      const text = String(message.text || '').replace(/\s+/g, ' ').trim().slice(0, 280);
+      if (!text) return null;
+      const playerName = normalizeName(message.playerName || '');
+      return {
+        id: String(message.id || `community-chat-${index + 1}`).trim().slice(0, 80),
+        playerId: normalizeParticipantId(message.playerId, playerName || `community-chat-${index + 1}`),
+        playerName: playerName || 'Guest',
+        avatar: normalizeEmoji(message.avatar || '') || '💬',
+        text,
+        ts: Number(message.ts) || Date.now()
+      };
+    })
+    .filter(Boolean)
+    .slice(-80);
+}
+
 function normalizeRoom(room) {
   if (!room || typeof room !== 'object') return null;
   const normalizedHost = normalizeName(room.host || '');
@@ -3157,6 +3219,7 @@ function normalizeRoom(room) {
     communityTitle: String(room.communityTitle || '').replace(/\s+/g, ' ').trim().slice(0, 80),
     communityDescription: String(room.communityDescription || '').replace(/\s+/g, ' ').trim().slice(0, 220),
     maxParticipants: Math.max(2, Number(room.maxParticipants) || 24),
+    communityChat: roomType === 'community' ? normalizeCommunityChatMessages(room.communityChat) : [],
     host: normalizedHost || room.host || '',
     participants,
     hostSettings,
@@ -3182,6 +3245,24 @@ function getRoomVoiceSettings(room) {
 function getCurrentRoomParticipant(room = APP.room, player = APP.player) {
   if (!room || !player) return null;
   return (room.participants || []).find(participant => participant?.id === player.id || participant?.name === player.name) || null;
+}
+
+function formatCommunityChatTime(ts) {
+  if (!Number(ts)) return '';
+  try {
+    return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  } catch (_error) {
+    return '';
+  }
+}
+
+function syncCommunityChatScroll() {
+  if (APP.screen !== 'lobby' || APP.room?.roomType !== 'community') return;
+  const chatList = document.querySelector('[data-community-chat-list]');
+  if (!(chatList instanceof HTMLElement)) return;
+  requestAnimationFrame(() => {
+    chatList.scrollTop = chatList.scrollHeight;
+  });
 }
 
 function normalizeAIProvider(value) {
@@ -3491,13 +3572,15 @@ async function getSocketClient() {
       const value = payload?.value;
       if (!key || key !== socketRoomKey || !APP.roomCode) return;
       const room = normalizeRoom(safeParseJson(value));
-      if (room) {
-        APP.room = room;
-        void maybeClaimSpinWheelWinnerXp();
-        roomRealtimeEnabled = true;
-        void syncVoiceFeatureState();
-        render();
+      if (!room) {
+        exitUnavailableRoom('This room has been removed.');
+        return;
       }
+      APP.room = room;
+      void maybeClaimSpinWheelWinnerXp();
+      roomRealtimeEnabled = true;
+      void syncVoiceFeatureState();
+      render();
     });
     socketRealtimeBound = true;
   }
@@ -4348,6 +4431,27 @@ const Storage = {
       return { key, value };
     } catch (e) {
       console.error('Storage set failed:', e.message);
+      return null;
+    }
+  },
+  remove: async function(key, shared = false, accessToken = '') {
+    try {
+      if (shared) {
+        if (!isValidSharedKey(key)) return null;
+        const authToken = getRoomAccessTokenForKey(key, accessToken);
+        const socket = await getSocketClient();
+        if (socket && (socket.connected || await waitForSocketConnection())) {
+          await socketEmitAck('shared:delete', authToken ? { key, authToken } : { key });
+          return { key };
+        }
+      }
+      if (window.storage?.remove) {
+        return await window.storage.remove(key, shared);
+      }
+      localStorage.removeItem(key);
+      return { key };
+    } catch (e) {
+      console.error('Storage remove failed:', e.message);
       return null;
     }
   }
@@ -10477,6 +10581,7 @@ function render() {
   updateVoiceMeterDom();
   syncSpotifyPlaylistPlayer();
   autoFocusWordChainActiveCell();
+  syncCommunityChatScroll();
 }
 
 async function loadCommunityRooms() {
@@ -10536,6 +10641,7 @@ function renderDashboard() {
   const showFeedback = APP.preferences.enableFeedbackHub !== false;
   const scheduleEnabled = APP.preferences.enableScheduleMeeting !== false;
   const loadEnabled = APP.preferences.enableLoadSession !== false;
+  const communityEnabled = APP.preferences.enableCommunityLobby !== false;
   const savedPlans = (APP.sessionManager?.plans?.length ? APP.sessionManager.plans : loadSessionPlans()) || [];
   const hasSavedPlans = savedPlans.length > 0;
   const sessionSetupTitle = hasSavedPlans ? 'Plan Session' : 'Session Setup';
@@ -10573,11 +10679,13 @@ function renderDashboard() {
         <p class="card-desc">Enter a room code to join your team</p>
       </button>
 
-      <button type="button" class="card" data-action="go-screen" data-screen="community" aria-label="Community Lobby">
-        <div class="card-icon">🌐</div>
-        <h3 class="card-title">Community Lobby</h3>
-        <p class="card-desc">Browse open public lobbies, join drop-in games, or host a community room</p>
-      </button>
+      ${communityEnabled ? `
+        <button type="button" class="card" data-action="go-screen" data-screen="community" aria-label="Community Lobby">
+          <div class="card-icon">🌐</div>
+          <h3 class="card-title">Community Lobby</h3>
+          <p class="card-desc">Browse open public lobbies, join drop-in games, or host a community room</p>
+        </button>
+      ` : ''}
 
       ${scheduleEnabled ? `
         <button type="button" class="card" data-action="go-screen" data-screen="schedule-meeting" aria-label="Plan Session">
@@ -10611,6 +10719,8 @@ function renderDashboard() {
 
 function renderCommunityDirectory() {
   const rooms = Array.isArray(APP.community.rooms) ? APP.community.rooms : [];
+  const canCreate = canCurrentUserCreateCommunityRooms();
+  const communityEnabled = APP.preferences.enableCommunityLobby !== false;
   return `
     <div class="header">
       <h1 class="logo">Community Lobby</h1>
@@ -10620,9 +10730,19 @@ function renderCommunityDirectory() {
     <button class="btn-secondary" data-action="go-screen" data-screen="dashboard">← Back</button>
 
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
-      <button class="btn-primary" data-action="create-community-room" style="width:auto;">🌐 Host Community Lobby</button>
+      <button class="btn-primary" data-action="create-community-room" style="width:auto;" ${(communityEnabled && canCreate) ? '' : 'disabled'}>🌐 Host Community Lobby</button>
       <button class="btn-secondary" data-action="refresh-community-rooms" style="width:auto;">↻ Refresh</button>
     </div>
+
+    ${!communityEnabled ? `
+      <div style="background:rgba(255,209,102,0.08);border:1px solid rgba(255,209,102,0.24);border-radius:16px;padding:14px 16px;margin-top:16px;color:#ffd166;">
+        Community Lobby is currently disabled by admin.
+      </div>
+    ` : !canCreate ? `
+      <div style="background:rgba(138,241,255,0.08);border:1px solid rgba(138,241,255,0.22);border-radius:16px;padding:14px 16px;margin-top:16px;color:var(--text-mid);">
+        Admin access or host allowlist approval is required to create community rooms. You can still browse and join open lobbies.
+      </div>
+    ` : ''}
 
     <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:20px;">
       <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:10px;">How It Works</h3>
@@ -10647,6 +10767,7 @@ function renderCommunityDirectory() {
           : room.presenceStatus === 'in_game'
             ? 'In Game'
             : 'Open';
+        const canManage = canCurrentUserManageCommunityRoom(room);
         return `
           <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:18px;padding:18px;display:grid;gap:12px;">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
@@ -10663,7 +10784,11 @@ function renderCommunityDirectory() {
             ${room.description ? `<div style="color:var(--text-mid);line-height:1.5;">${escapeHtml(room.description)}</div>` : ''}
             <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
               <div style="font-size:0.84rem;color:var(--text-dim);">${escapeHtml(String(room.participantCount || 0))}/${escapeHtml(String(room.maxParticipants || 24))} players • ${escapeHtml(String(room.queueLength || 0))} queued activities</div>
-              <button class="btn-primary" data-action="join-community-room" data-room-code="${escapeHtml(room.code || '')}" style="width:auto;" ${room.presenceStatus === 'full' ? 'disabled' : ''}>Join Lobby</button>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+                <button class="btn-primary" data-action="join-community-room" data-room-code="${escapeHtml(room.code || '')}" style="width:auto;" ${room.presenceStatus === 'full' ? 'disabled' : ''}>Join Lobby</button>
+                ${canManage ? `<button class="btn-secondary" data-action="edit-community-room" data-room-code="${escapeHtml(room.code || '')}" style="width:auto;">Edit</button>` : ''}
+                ${canManage ? `<button class="btn-secondary" data-action="remove-community-room" data-room-code="${escapeHtml(room.code || '')}" style="width:auto;border-color:rgba(255,107,107,0.3);color:#ff9c9c;">Remove</button>` : ''}
+              </div>
             </div>
           </div>
         `;
@@ -10988,6 +11113,10 @@ function renderAdminConsole() {
           Enable Manage Sessions
         </label>
         <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <input id="adminEnableCommunityLobby" type="checkbox" ${preferences.enableCommunityLobby !== false ? 'checked' : ''}>
+          Enable Community Lobby
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
           <input id="adminEnableAIGenerator" type="checkbox" ${preferences.enableAIGenerator !== false ? 'checked' : ''}>
           Enable AI Content Generator
         </label>
@@ -11013,6 +11142,13 @@ function renderAdminConsole() {
             <input id="adminDynamicScoring" type="checkbox" ${preferences.dynamicScoring !== false ? 'checked' : ''}>
             Use dynamic time-based scoring
           </label>
+        </div>
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+          <div style="font-weight:700;margin-bottom:8px;">Community Room Creators</div>
+          <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:8px;">
+            Admins can always create community rooms. Add approved host names below, one per line.
+          </div>
+          <textarea id="adminCommunityHostAllowlist" class="form-input" rows="5" placeholder="Alex Smith&#10;Jordan Lee">${escapeHtml((preferences.communityHostAllowlist || []).join('\n'))}</textarea>
         </div>
         <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
           <div style="font-weight:700;margin-bottom:8px;">Enable Activities in Main Menu</div>
@@ -11097,6 +11233,8 @@ function renderLobby() {
       : 'Host-approved participants';
   const voiceModeLabel = voiceSettings.transmissionMode === 'open' ? 'Open mic' : 'Push to talk';
   const isCommunityRoom = APP.room?.roomType === 'community';
+  const canManageCommunity = isCommunityRoom && canCurrentUserManageCommunityRoom(APP.room);
+  const communityChat = Array.isArray(APP.room?.communityChat) ? APP.room.communityChat.slice(-50) : [];
   const lobbyTitle = isCommunityRoom
     ? escapeHtml(APP.room.communityTitle || `${APP.room.host || 'Host'}'s Community Lobby`)
     : 'Session Lobby';
@@ -11119,6 +11257,13 @@ function renderLobby() {
       <h1 class="logo">${lobbyTitle}</h1>
       <p class="tagline">Room: ${safeRoomCode}${isCommunityRoom ? ' • Community Lobby' : ''}</p>
     </div>
+
+    ${canManageCommunity ? `
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
+        <button class="btn-secondary" data-action="edit-community-room" style="width:auto;">✏️ Edit Community</button>
+        <button class="btn-secondary" data-action="remove-community-room" style="width:auto;border-color:rgba(255,107,107,0.3);color:#ff9c9c;">🗑️ Remove Community</button>
+      </div>
+    ` : ''}
 
     ${isHost && voiceSettings.enabled && (raisedHandCount || focusedVoiceParticipant) ? `
       <div style="background:rgba(255,209,102,0.08);border:1px solid rgba(255,209,102,0.32);border-radius:var(--radius);padding:14px 16px;margin-bottom:18px;">
@@ -11298,6 +11443,66 @@ function renderLobby() {
         </div>
       `).join('')}
     </div>
+
+    ${isCommunityRoom ? `
+      <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:30px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+          <h3 style="font-weight:700;">Community Chat</h3>
+          <div style="font-size:0.82rem;color:var(--text-dim);">Lobby-wide messages and emoji reactions</div>
+        </div>
+
+        <div data-community-chat-list="1" style="display:grid;gap:10px;max-height:420px;overflow:auto;padding-right:4px;">
+          ${communityChat.length ? communityChat.map(message => {
+            const isOwnMessage = message.playerId === APP.player?.id || normalizeName(message.playerName || '') === normalizeName(APP.player?.name || '');
+            return `
+              <div style="display:flex;justify-content:${isOwnMessage ? 'flex-end' : 'flex-start'};">
+                <div style="background:${isOwnMessage ? 'rgba(0,210,211,0.12)' : 'var(--surface-2)'};border:1px solid ${isOwnMessage ? 'rgba(0,210,211,0.24)' : 'var(--border)'};border-radius:14px;padding:12px 14px;max-width:min(82%, 620px);">
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+                    <div style="display:flex;align-items:flex-start;gap:10px;min-width:0;flex-direction:${isOwnMessage ? 'row-reverse' : 'row'};">
+                      ${isOwnMessage ? '' : `<div style="font-size:1.3rem;line-height:1;">${escapeHtml(message.avatar || '💬')}</div>`}
+                      <div style="min-width:0;text-align:${isOwnMessage ? 'right' : 'left'};">
+                        <div style="font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:${isOwnMessage ? 'flex-end' : 'flex-start'};">
+                          <span>${escapeHtml(message.playerName || 'Guest')}</span>
+                          <span style="font-size:0.75rem;color:var(--text-dim);font-weight:600;">${escapeHtml(formatCommunityChatTime(message.ts))}</span>
+                        </div>
+                        <div style="color:var(--text-mid);line-height:1.5;word-break:break-word;margin-top:4px;">${escapeHtml(message.text || '')}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('') : `
+            <div style="background:var(--surface-2);border:1px dashed var(--border);border-radius:14px;padding:18px;color:var(--text-dim);text-align:center;">
+              No messages yet. Start the conversation or drop an emoji.
+            </div>
+          `}
+        </div>
+
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+          <div class="form-group" style="margin:0 0 10px;">
+            <label class="form-label" for="communityChatInput">Message</label>
+            <input id="communityChatInput" class="form-input" maxlength="280" placeholder="Say hi, react, or coordinate the next game">
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="position:relative;">
+              <details style="position:relative;">
+                <summary class="btn-secondary" style="list-style:none;width:auto;padding:10px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
+                  <span style="font-size:1rem;">😊</span>
+                  <span>React</span>
+                </summary>
+                <div style="position:absolute;left:0;bottom:calc(100% + 10px);z-index:4;min-width:220px;padding:10px;border-radius:16px;background:rgba(8,12,29,0.96);border:1px solid var(--border);box-shadow:0 18px 36px rgba(0,0,0,0.32);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;">
+                  ${COMMUNITY_CHAT_QUICK_EMOJIS.map(emoji => `
+                    <button class="btn-secondary" data-action="community-chat-emoji" data-emoji="${escapeHtml(emoji)}" style="width:auto;padding:10px 0;font-size:1rem;">${escapeHtml(emoji)}</button>
+                  `).join('')}
+                </div>
+              </details>
+            </div>
+            <button class="btn-primary" data-action="send-community-chat" style="width:auto;padding:12px 18px;">Send</button>
+          </div>
+        </div>
+      </div>
+    ` : ''}
 
     ${isHost ? `
       <h3 style="text-align:center;font-family:'Fraunces',serif;font-size:1.5rem;margin-bottom:20px;">
@@ -11855,6 +12060,10 @@ async function copyJoinLink() {
 }
 
 function goToScreen(screen) {
+  if (screen === 'community' && APP.preferences.enableCommunityLobby === false) {
+    showError('Community Lobby is disabled by admin.');
+    return;
+  }
   if (screen === 'schedule-meeting' && APP.preferences.enableScheduleMeeting === false) {
     showError('Schedule Team Meeting is disabled by admin.');
     return;
@@ -12010,12 +12219,112 @@ async function createRoomAndNavigate(options = {}) {
 }
 
 async function createCommunityRoomAndNavigate() {
+  if (APP.preferences.enableCommunityLobby === false) {
+    showError('Community Lobby is disabled by admin.');
+    return;
+  }
+  if (!canCurrentUserCreateCommunityRooms()) {
+    showError('Admin access or host allowlist approval is required to create community rooms.');
+    return;
+  }
   await createRoomAndNavigate({
     roomType: 'community',
     communityTitle: `${APP.player?.name || 'Host'}'s Community Lobby`,
     communityDescription: 'Open lobby for drop-in games and social play.',
     maxParticipants: 24
   });
+}
+
+async function editCommunityRoom(code = APP.roomCode) {
+  const normalizedCode = normalizeRoomCode(code);
+  if (!normalizedCode) return;
+  const accessToken = APP.roomCode === normalizedCode
+    ? (APP.roomAccessToken || '')
+    : getStoredRoomAccessToken(normalizedCode);
+  const room = await RoomManager.loadRoom(normalizedCode, accessToken);
+  if (!room || room.roomType !== 'community') {
+    showError('Community lobby not found.');
+    return;
+  }
+  if (!canCurrentUserManageCommunityRoom(room)) {
+    showError('Only the host or admin can edit this community lobby.');
+    return;
+  }
+
+  const currentTitle = room.communityTitle || `${room.host || 'Host'}'s Community Lobby`;
+  const promptedTitle = window.prompt('Community lobby title', currentTitle);
+  if (promptedTitle === null) return;
+  const nextTitle = String(promptedTitle || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  if (!nextTitle) {
+    showError('Community lobby title is required.');
+    return;
+  }
+
+  const currentDescription = room.communityDescription || '';
+  const promptedDescription = window.prompt('Community lobby description', currentDescription);
+  if (promptedDescription === null) return;
+  const nextDescription = String(promptedDescription || '').replace(/\s+/g, ' ').trim().slice(0, 220);
+  const currentMax = Math.max(2, Number(room.maxParticipants) || 24);
+  const promptedMax = window.prompt('Max participants (2-100)', String(currentMax));
+  if (promptedMax === null) return;
+  const requestedMax = String(promptedMax || '').trim();
+  const parsedMax = Math.max(2, Math.min(100, Number.parseInt(requestedMax, 10) || currentMax));
+
+  room.communityTitle = nextTitle;
+  room.communityDescription = nextDescription;
+  room.maxParticipants = parsedMax;
+  await RoomManager.updateRoom(normalizedCode, room, accessToken);
+
+  if (APP.roomCode === normalizedCode) {
+    APP.room = normalizeRoom({
+      ...room,
+      communityTitle: nextTitle,
+      communityDescription: nextDescription,
+      maxParticipants: parsedMax
+    });
+  }
+  if (APP.screen === 'community') {
+    await loadCommunityRooms();
+  } else {
+    render();
+  }
+  showError('Community lobby updated.');
+}
+
+async function removeCommunityRoom(code = APP.roomCode) {
+  const normalizedCode = normalizeRoomCode(code);
+  if (!normalizedCode) return;
+  const accessToken = APP.roomCode === normalizedCode
+    ? (APP.roomAccessToken || '')
+    : getStoredRoomAccessToken(normalizedCode);
+  const room = await RoomManager.loadRoom(normalizedCode, accessToken);
+  if (!room || room.roomType !== 'community') {
+    showError('Community lobby not found.');
+    return;
+  }
+  if (!canCurrentUserManageCommunityRoom(room)) {
+    showError('Only the host or admin can remove this community lobby.');
+    return;
+  }
+  const confirmed = window.confirm(`Remove "${room.communityTitle || `${room.host || 'Host'}'s Community Lobby`}"? This will end the community lobby for everyone inside.`);
+  if (!confirmed) return;
+
+  const removed = await Storage.remove(`room:${normalizedCode}`, true, accessToken);
+  if (!removed) {
+    showError('Unable to remove community lobby right now.');
+    return;
+  }
+  const removingCurrentRoom = APP.roomCode === normalizedCode;
+  if (APP.roomCode === normalizedCode) {
+    if (APP.roomCode) {
+      exitUnavailableRoom('Community lobby removed.');
+    }
+  } else if (APP.screen === 'community') {
+    await loadCommunityRooms();
+  }
+  if (!removingCurrentRoom) {
+    showError('Community lobby removed.');
+  }
 }
 
 async function createRoomFromSessionPlan(planId) {
@@ -12204,6 +12513,39 @@ async function joinRoomByCode(code, accessToken = '') {
   render();
 }
 
+async function sendCommunityChatMessage(content = '') {
+  if (!APP.roomCode || !APP.room || APP.room.roomType !== 'community' || !APP.player?.id) return;
+  const input = document.getElementById('communityChatInput');
+  const text = String(content || input?.value || '').replace(/\s+/g, ' ').trim().slice(0, 280);
+  if (!text) {
+    showError('Type a message first.');
+    return;
+  }
+  const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
+  if (!room || room.roomType !== 'community') {
+    showError('Community lobby not found.');
+    return;
+  }
+  room.communityChat = normalizeCommunityChatMessages([
+    ...(Array.isArray(room.communityChat) ? room.communityChat : []),
+    {
+      id: `community-chat-${Date.now()}-${randomAlphaNum(6)}`,
+      playerId: APP.player.id,
+      playerName: APP.player.name,
+      avatar: APP.player.avatar,
+      text,
+      ts: Date.now()
+    }
+  ]);
+  await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
+  APP.room = normalizeRoom(room);
+  if (input) {
+    input.value = '';
+    input.focus();
+  }
+  render();
+}
+
 async function leaveSession() {
   if (!APP.roomCode || !APP.player?.name) {
     APP.room = null;
@@ -12256,7 +12598,11 @@ function startRoomSync() {
     if (!APP.roomCode) return;
     if (!roomRealtimeEnabled) {
       const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
-      if (room && room.lastUpdate !== APP.room?.lastUpdate) {
+      if (!room) {
+        exitUnavailableRoom('This room has been removed.');
+        return;
+      }
+      if (room.lastUpdate !== APP.room?.lastUpdate) {
         APP.room = room;
         void maybeClaimSpinWheelWinnerXp();
         void syncVoiceFeatureState();
@@ -13018,12 +13364,19 @@ async function saveAdminConfig() {
   const enableActivityQueue = Boolean(document.getElementById('adminEnableActivityQueue')?.checked);
   const enableScheduleMeeting = Boolean(document.getElementById('adminEnableScheduleMeeting')?.checked);
   const enableLoadSession = Boolean(document.getElementById('adminEnableLoadSession')?.checked);
+  const enableCommunityLobby = Boolean(document.getElementById('adminEnableCommunityLobby')?.checked);
   const enableAIGenerator = Boolean(document.getElementById('adminEnableAIGenerator')?.checked);
   const enableSampleQuestions = Boolean(document.getElementById('adminEnableSampleQuestions')?.checked);
   const enableFooterQuotes = Boolean(document.getElementById('adminEnableFooterQuotes')?.checked);
   const autoRevealLightning = Boolean(document.getElementById('adminAutoRevealLightning')?.checked);
   const allowAnswerChanges = Boolean(document.getElementById('adminAllowAnswerChanges')?.checked);
   const dynamicScoring = Boolean(document.getElementById('adminDynamicScoring')?.checked);
+  const communityHostAllowlist = String(document.getElementById('adminCommunityHostAllowlist')?.value || '')
+    .split('\n')
+    .map(name => normalizeName(name))
+    .filter(Boolean)
+    .filter((name, index, arr) => arr.indexOf(name) === index)
+    .slice(0, 100);
   const enabledActivities = Object.fromEntries(
     ACTIVITY_QUEUE_ITEMS.map(item => [item.id, Boolean(document.getElementById(`adminActivityEnabled-${item.id}`)?.checked)])
   );
@@ -13042,12 +13395,14 @@ async function saveAdminConfig() {
           enableActivityQueue,
           enableScheduleMeeting,
           enableLoadSession,
+          enableCommunityLobby,
           enableAIGenerator,
           enableSampleQuestions,
           enableFooterQuotes,
           autoRevealLightning,
           allowAnswerChanges,
           dynamicScoring,
+          communityHostAllowlist,
           enabledActivities
         },
         collections: normalizeClientCollections(APP.admin.collections || [])
@@ -14051,6 +14406,14 @@ document.addEventListener('keydown', event => {
   handleHostWordleCellNavigation(event);
   handleWordChainArrowNavigation(event);
   handleGlobalKeyboardShortcuts(event);
+  if (event.key === 'Enter' && APP.room?.roomType === 'community' && APP.screen === 'lobby') {
+    const active = document.activeElement;
+    if (active && active.id === 'communityChatInput') {
+      event.preventDefault();
+      void sendCommunityChatMessage();
+      return;
+    }
+  }
   if (event.key === 'Enter' && APP.room?.currentActivity === 'emoji-charades') {
     const active = document.activeElement;
     if (active && active.id === 'emojiCharadesGuessInput') {
@@ -14262,6 +14625,18 @@ document.addEventListener('click', async (event) => {
       break;
     case 'join-community-room':
       if (roomCode) await joinRoomByCode(roomCode);
+      break;
+    case 'send-community-chat':
+      await sendCommunityChatMessage();
+      break;
+    case 'community-chat-emoji':
+      if (target.dataset.emoji) await sendCommunityChatMessage(target.dataset.emoji);
+      break;
+    case 'edit-community-room':
+      await editCommunityRoom(roomCode || APP.roomCode);
+      break;
+    case 'remove-community-room':
+      await removeCommunityRoom(roomCode || APP.roomCode);
       break;
     case 'edit-session-plan':
       if (target.dataset.planId) editSessionPlan(target.dataset.planId);
