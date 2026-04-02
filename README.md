@@ -6,11 +6,12 @@ Team Builder is a realtime facilitation app for host-led team sessions. It combi
 
 - Realtime rooms with host-created room codes, join links, QR join, and optional private access tokens.
 - Host controls for room settings, activity queue, moderation, and AI-assisted content generation.
-- Push-to-talk voice broadcast with host moderation, participant approval, mute controls, and compact floating controls.
-- Session planning and saved session plans with shareable links, launch-into-room flow, and downloadable calendar invites.
+- Voice chat with push-to-talk or open-mic room modes, host moderation, participant approval, raise-hand flow, 1:1 voice focus, mute controls, and compact floating controls.
+- Session planning and saved session plans with shareable links, launch-into-room flow, downloadable calendar invites, and session-scoped content planning.
 - Two presentation modes:
   - URL-based shared presentation viewer for slide decks and embeddable presentations.
   - `Slides Studio` for native in-app slide creation with templates, gradients, solid backgrounds, images, CTA links, source links, and AI slide generation from prompts.
+- Admin Console tabs for overview, feature flags, AI Studio, and feedback review.
 
 ## Activity Library
 
@@ -39,19 +40,35 @@ Team Builder is a realtime facilitation app for host-led team sessions. It combi
 - Editable player profile with display name and emoji/avatar selection.
 - Activity Queue for preloading and running activities in sequence.
 - Feedback Hub plus Admin Console workflow.
-- AI content generation for supported activities through the built-in backend endpoint.
+- Shared AI content workflow across Admin, Host Settings, Activity Queue, and Session Planning.
+- Theme-aware AI generation for reusable activity content and planned sessions.
 - Export support for Brainstorm Canvas and Team Pulse Check.
 - Keyboard shortcuts for hosting, joining, navigation, presentation mode, queue access, and host settings.
+- Mobile-friendly board game layouts for Battleship, Bingo, Backgammon, and Connect 4.
+- Battleship fleet setup with drag-and-drop placement, board re-selection, quick rotate, double-tap rotate, and in-map ready controls.
+- Bingo cards with multiple marker styles such as daubers, chips, and icon markers.
 
 ## Session Planning
 
 Team Builder now supports planning sessions ahead of time:
 
-- Save a session plan with title, date, time, meeting link, notes, and activity queue.
+- Save a session plan with title, date, time, meeting link, notes, activity queue, and content brief details.
 - Share a saved session plan as a URL.
 - Import a shared session plan from the URL automatically.
 - Launch a new live room directly from a saved plan.
 - Download an `.ics` calendar invite from a saved plan.
+- Carry planned content and activity context into the live room when the session starts.
+
+## Voice Controls
+
+Voice controls support both participant and host moderation flows:
+
+- Local mic input meter for the active speaker.
+- Host-selectable `push-to-talk` or `open mic` room defaults.
+- Raise-hand indicator for participants.
+- Host-side hand alerts in the lobby and moderation panels.
+- Per-user allow voice, mute/unmute, lower hand, and 1:1 conversation controls.
+- Movable/collapsible voice dock similar to the playlist dock.
 
 ## Slides Studio
 
@@ -75,7 +92,14 @@ AI generation uses the existing backend endpoint:
 
 - `POST /api/ai/generate`
 
-Preferred mode:
+Supported workflows:
+
+- Global content generation from Admin AI Studio.
+- Room-level generation from Host Settings.
+- Queue-aware generation for selected activities.
+- Session-plan generation tied to a saved content brief.
+
+Preferred auth mode:
 
 - Server-side key via `CHAT_GPT_MINI_KEY`
 

@@ -1904,6 +1904,37 @@
     margin-top: 14px;
   }
 
+  .game-mobile-shell,
+  .game-mobile-main,
+  .game-mobile-side {
+    width: 100%;
+  }
+
+  .game-mobile-scroll {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    padding-bottom: 4px;
+  }
+
+  .bingo-card-grid {
+    min-width: 290px;
+  }
+
+  .battleship-grid {
+    min-width: 320px;
+  }
+
+  .backgammon-grid {
+    min-width: 760px;
+  }
+
+  .connect4-grid {
+    min-width: 300px;
+  }
+
   @media (max-width: 960px) {
     .uno-table {
       grid-template-columns: 1fr;
@@ -1974,6 +2005,224 @@
 
     .uno-hand-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .game-mobile-main {
+      grid-template-columns: 1fr !important;
+      gap: 14px !important;
+    }
+
+    .game-mobile-scroll {
+      margin-left: -4px;
+      margin-right: -4px;
+      padding-left: 4px;
+      padding-right: 4px;
+    }
+
+    .bingo-card-frame {
+      padding: 8px !important;
+      border-width: 5px !important;
+      border-radius: 18px !important;
+    }
+
+    .bingo-card-header-cell {
+      font-size: 1.1rem !important;
+      padding: 8px 0 !important;
+    }
+
+    .bingo-card-cell {
+      padding: 4px !important;
+      font-size: 1.7rem !important;
+      border-width: 1px !important;
+    }
+
+    .bingo-card-cell-free {
+      font-size: 0.72rem !important;
+      line-height: 1.1 !important;
+      letter-spacing: 0.01em !important;
+    }
+
+    .bingo-call-ball {
+      width: 74px;
+      height: 74px;
+    }
+
+    .battleship-board-shell {
+      padding: 12px !important;
+      border-radius: 18px !important;
+    }
+
+    .battleship-board-grid {
+      grid-template-columns: 22px repeat(10, minmax(0, 1fr)) !important;
+      gap: 3px !important;
+    }
+
+    .battleship-board-grid-spectator {
+      grid-template-columns: 18px repeat(10, minmax(0, 1fr)) !important;
+      gap: 2px !important;
+    }
+
+    .battleship-grid-label {
+      font-size: 0.66rem !important;
+    }
+
+    .battleship-cell {
+      border-radius: 7px !important;
+      font-size: 0.66rem !important;
+    }
+
+    .battleship-cell-spectator {
+      border-radius: 5px !important;
+      font-size: 0.56rem !important;
+    }
+
+    .backgammon-board-shell {
+      padding: 12px !important;
+      border-radius: 22px !important;
+    }
+
+    .backgammon-board-layout {
+      grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr) !important;
+      gap: 8px !important;
+    }
+
+    .backgammon-half-grid {
+      gap: 4px !important;
+    }
+
+    .backgammon-point {
+      min-height: 164px !important;
+      border-radius: 10px !important;
+    }
+
+    .backgammon-point-label {
+      font-size: 0.62rem !important;
+    }
+
+    .backgammon-point-stack {
+      min-height: 144px !important;
+    }
+
+    .backgammon-point-triangle {
+      max-width: 52px !important;
+    }
+
+    .backgammon-checker {
+      width: 28px !important;
+      height: 28px !important;
+      font-size: 0.62rem !important;
+    }
+
+    .backgammon-bar-card {
+      min-height: 112px !important;
+      border-radius: 14px !important;
+    }
+
+    .backgammon-bar-btn {
+      min-height: 72px !important;
+      border-radius: 14px !important;
+      font-size: 0.72rem !important;
+    }
+
+    .backgammon-die {
+      width: 46px !important;
+      height: 46px !important;
+      border-radius: 12px !important;
+      font-size: 1.18rem !important;
+    }
+
+    .connect4-board-shell {
+      padding: 12px !important;
+      border-radius: 20px !important;
+    }
+
+    .connect4-column-grid {
+      gap: 6px !important;
+    }
+
+    .connect4-column-btn {
+      border-radius: 12px !important;
+      padding: 8px 0 !important;
+      font-size: 0.75rem !important;
+    }
+
+    .connect4-board-pad {
+      padding: 10px !important;
+      border-radius: 20px !important;
+    }
+
+    .connect4-board-grid {
+      gap: 6px !important;
+    }
+
+    .connect4-cell {
+      border-radius: 14px !important;
+    }
+
+    .connect4-disc {
+      width: 82% !important;
+      height: 82% !important;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .bingo-card-cell {
+      font-size: 1.28rem !important;
+    }
+
+    .bingo-card-cell-free {
+      font-size: 0.64rem !important;
+    }
+
+    .battleship-grid {
+      min-width: 280px;
+    }
+
+    .backgammon-grid {
+      min-width: 560px;
+    }
+
+    .backgammon-board-layout {
+      grid-template-columns: minmax(0, 1fr) 60px minmax(0, 1fr) !important;
+      gap: 6px !important;
+    }
+
+    .backgammon-point {
+      min-height: 142px !important;
+    }
+
+    .backgammon-point-stack {
+      min-height: 124px !important;
+    }
+
+    .backgammon-point-triangle {
+      max-width: 44px !important;
+    }
+
+    .backgammon-checker {
+      width: 24px !important;
+      height: 24px !important;
+      margin-top: -8px !important;
+      margin-bottom: -8px !important;
+    }
+
+    .backgammon-bar-card {
+      min-height: 92px !important;
+    }
+
+    .backgammon-bar-btn {
+      min-height: 64px !important;
+      font-size: 0.66rem !important;
+    }
+
+    .backgammon-die {
+      width: 40px !important;
+      height: 40px !important;
+      font-size: 1rem !important;
+    }
+
+    .connect4-grid {
+      min-width: 270px;
     }
   }
 </style>
@@ -2270,6 +2519,7 @@ const AI_BANK_EDITOR_TARGETS = [
   { id: 'wordle', label: 'Team Wordle' },
   { id: 'word-chain', label: 'Word Chain' },
   { id: 'team-jeopardy', label: 'Team Jeopardy' },
+  { id: 'brainstorm-canvas', label: 'Brainstorm Canvas' },
   { id: 'spin-wheel', label: 'Spin Wheel' }
 ];
 const AI_BANK_EDITOR_TARGET_LABELS = Object.fromEntries(AI_BANK_EDITOR_TARGETS.map(item => [item.id, item.label]));
@@ -2396,6 +2646,26 @@ function clearActiveSessionSnapshot() {
   localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
 }
 
+function normalizeContentBrief(raw) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const themePreset = String(source.themePreset || 'Team Collaboration').trim().slice(0, 80) || 'Team Collaboration';
+  const customTopic = normalizeTopic(source.customTopic || source.topic || '');
+  const audience = normalizeTopic(source.audience || '');
+  const tone = normalizeTopic(source.tone || '');
+  const difficulty = ['easy', 'mixed', 'hard'].includes(String(source.difficulty || '').trim())
+    ? String(source.difficulty).trim()
+    : 'mixed';
+  const count = Math.max(3, Math.min(20, Number.parseInt(source.count || '8', 10) || 8));
+  return {
+    themePreset,
+    customTopic,
+    audience,
+    tone,
+    difficulty,
+    count
+  };
+}
+
 function normalizeSessionPlan(raw, idx = 0) {
   if (!raw || typeof raw !== 'object') return null;
   const title = normalizeTopic(raw.title || raw.name || '');
@@ -2415,6 +2685,8 @@ function normalizeSessionPlan(raw, idx = 0) {
     zoomLink: normalizeSlidesStudioUrl(raw.zoomLink || raw.link || ''),
     details: String(raw.details || raw.description || '').replace(/\r/g, '').trim().slice(0, 2000),
     activityQueue: queue,
+    contentBrief: normalizeContentBrief(raw.contentBrief),
+    contentCollections: normalizeClientCollections(raw.contentCollections),
     createdAt: String(raw.createdAt || new Date().toISOString()),
     updatedAt: String(raw.updatedAt || raw.createdAt || new Date().toISOString())
   };
@@ -2476,8 +2748,11 @@ function applySessionPlanToRoom(room, plan) {
     time: normalizedPlan.time,
     zoomLink: normalizedPlan.zoomLink,
     details: normalizedPlan.details,
+    contentBrief: normalizedPlan.contentBrief,
     updatedAt: normalizedPlan.updatedAt
   };
+  room.contentBrief = normalizedPlan.contentBrief;
+  room.contentCollections = normalizeClientCollections(normalizedPlan.contentCollections || []);
   room.activityQueue = [...normalizedPlan.activityQueue];
   room.queueIndex = 0;
   room.queueActive = false;
@@ -2639,12 +2914,72 @@ function normalizeClientCollections(rawCollections) {
   return normalized;
 }
 
+function getCollectionActivityKey(activityId) {
+  if (activityId === 'regular-trivia' || activityId === 'lightning-trivia' || activityId === 'trivia-bank') {
+    return 'lightning-trivia';
+  }
+  return activityId;
+}
+
+function countCollectionActivityItems(activityId, items) {
+  const safeItems = Array.isArray(items) ? items : [];
+  if (activityId === 'team-jeopardy') {
+    return safeItems.reduce((sum, category) => sum + (Array.isArray(category?.clues) ? category.clues.length : 0), 0);
+  }
+  return safeItems.length;
+}
+
+function getScopedCollectionItemCount(collections, activityId) {
+  const key = getCollectionActivityKey(activityId);
+  return normalizeClientCollections(collections).reduce((sum, collection) => {
+    const items = collection?.activities?.[key];
+    if (!Array.isArray(items)) return sum;
+    return sum + countCollectionActivityItems(key, items);
+  }, 0);
+}
+
+function mergeCollections(baseCollections, scopedCollections) {
+  return [
+    ...normalizeClientCollections(baseCollections),
+    ...normalizeClientCollections(scopedCollections)
+  ];
+}
+
 function applyConfigPayload(data) {
   const config = data?.config || {};
   applyBranding(config);
   const collections = normalizeClientCollections(data?.collections || []);
   APP.admin.collections = collections;
   APP.admin.configDatabaseConnected = Boolean(data?.storage?.configDatabaseConnected);
+  rehydrateActivityBanksFromConfig(collections);
+}
+
+function getPlanCollections(planId = '') {
+  const plan = getSessionPlanById(planId || APP.sessionManager.editingPlanId);
+  return normalizeClientCollections(plan?.contentCollections || []);
+}
+
+function getRoomCollections(room = APP.room) {
+  return normalizeClientCollections(room?.contentCollections || []);
+}
+
+function shouldUseRoomScopedCollections() {
+  if (APP.showHostSettings) return true;
+  const globalOnlyScreens = new Set(['welcome', 'dashboard', 'about', 'join-room', 'feedback', 'admin', 'schedule-meeting', 'load-session']);
+  return !globalOnlyScreens.has(APP.screen);
+}
+
+function getEffectiveCollectionsForContext({ scope = 'global', planId = '', room = APP.room } = {}) {
+  const globalCollections = normalizeClientCollections(APP.admin.collections || []);
+  if (scope === 'plan') return mergeCollections(globalCollections, getPlanCollections(planId));
+  if (scope === 'room' || scope === 'queue') return mergeCollections(globalCollections, getRoomCollections(room));
+  return globalCollections;
+}
+
+function syncActiveContentBanks() {
+  const collections = shouldUseRoomScopedCollections()
+    ? getEffectiveCollectionsForContext({ scope: 'room' })
+    : normalizeClientCollections(APP.admin.collections || []);
   rehydrateActivityBanksFromConfig(collections);
 }
 
@@ -2682,13 +3017,20 @@ function getDefaultVoiceHostSettings() {
   return {
     enabled: false,
     participantMicPolicy: 'approved',
-    hideBlockedMicControls: true
+    hideBlockedMicControls: true,
+    transmissionMode: 'ptt',
+    focusParticipantId: ''
   };
 }
 
 function normalizeVoiceMicPolicy(value) {
   const normalized = String(value || '').trim().toLowerCase();
   return ['host_only', 'approved', 'open'].includes(normalized) ? normalized : 'approved';
+}
+
+function normalizeVoiceTransmissionMode(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return ['ptt', 'open'].includes(normalized) ? normalized : 'ptt';
 }
 
 function normalizeVoiceHostSettings(raw) {
@@ -2699,6 +3041,8 @@ function normalizeVoiceHostSettings(raw) {
   merged.enabled = merged.enabled === true;
   merged.participantMicPolicy = normalizeVoiceMicPolicy(merged.participantMicPolicy);
   merged.hideBlockedMicControls = merged.hideBlockedMicControls !== false;
+  merged.transmissionMode = normalizeVoiceTransmissionMode(merged.transmissionMode);
+  merged.focusParticipantId = String(merged.focusParticipantId || '').trim().slice(0, 64);
   return merged;
 }
 
@@ -2854,7 +3198,6 @@ const IS_LOCAL_DEV_CLIENT = (() => {
   const host = String(window.location.hostname || '').toLowerCase();
   return host === 'localhost' || host === '127.0.0.1';
 })();
-const DEV_ADMIN_PASSWORD_HINT = 'TAS2026!';
 const ENABLE_PRESENTATION_SHARE = true;
 const DEFAULT_SPOTIFY_PLAYLIST_URL = 'https://open.spotify.com/playlist/1spwwddGP1j6aaPy9IJ9zk?si=f33607c9ffa14144&pt=087efef975fd3cd17e88c9af035c57ee';
 const VOICE_RTC_CONFIG = {
@@ -2874,10 +3217,16 @@ let voiceClientBound = false;
 let voiceLocalStream = null;
 let voiceJoinInFlight = null;
 let voiceAudioContainer = null;
+let voiceMeterAudioContext = null;
+let voiceMeterSourceNode = null;
+let voiceMeterAnalyser = null;
+let voiceMeterData = null;
+let voiceMeterFrame = 0;
 const voicePeerConnections = new Map();
 const voiceRemoteStreams = new Map();
 const voiceRemoteAudioEls = new Map();
 let voiceDockDragState = null;
+let voicePttPointerActive = false;
 
 // Configure these for cross-device realtime sync via Supabase.
 // You can also set window.SUPABASE_URL / window.SUPABASE_ANON_KEY before this script loads.
@@ -3044,6 +3393,18 @@ function setVoiceDockCollapsed(forceValue = null) {
   render();
 }
 
+function snapVoiceDockToTopRight() {
+  const defaults = getDefaultVoiceDockState();
+  APP.voiceDock = clampVoiceDockPosition({
+    ...APP.voiceDock,
+    mobileRight: defaults.mobileRight,
+    mobileTop: defaults.mobileTop,
+    mobileCollapsed: false
+  });
+  saveVoiceDockState();
+  render();
+}
+
 function startVoiceDockDrag(event) {
   if (!isMobileVoiceViewport()) return;
   const dock = event.target instanceof Element ? event.target.closest('[data-voice-mobile-dock]') : null;
@@ -3087,6 +3448,9 @@ function isCurrentPlayerVoiceAllowed() {
   const voiceSettings = getRoomVoiceSettings(room);
   if (!room || !participant?.id || voiceSettings.enabled !== true) return false;
   if (participant.name === room.host) return true;
+  if (voiceSettings.focusParticipantId) {
+    return participant.id === voiceSettings.focusParticipantId;
+  }
   if (voiceSettings.participantMicPolicy === 'open') return true;
   if (voiceSettings.participantMicPolicy === 'host_only') return false;
   return Array.isArray(APP.voice.approvedSpeakerIds) && APP.voice.approvedSpeakerIds.includes(participant.id);
@@ -3106,9 +3470,104 @@ function isCurrentPlayerHandRaised() {
   return Boolean(participantId && Array.isArray(APP.voice.raisedHands) && APP.voice.raisedHands.includes(participantId));
 }
 
+function getVoiceTransmissionMode(room = APP.room) {
+  return normalizeVoiceTransmissionMode(getRoomVoiceSettings(room).transmissionMode);
+}
+
+function isVoiceOpenMicMode(room = APP.room) {
+  return getVoiceTransmissionMode(room) === 'open';
+}
+
+function isCurrentPlayerLiveSpeaker() {
+  const participantId = getCurrentVoiceParticipantId();
+  return Boolean(participantId && Array.isArray(APP.voice.liveSpeakerIds) && APP.voice.liveSpeakerIds.includes(participantId));
+}
+
+function getVoiceFocusParticipant(room = APP.room) {
+  const focusParticipantId = String(getRoomVoiceSettings(room).focusParticipantId || '').trim();
+  if (!focusParticipantId || !Array.isArray(room?.participants)) return null;
+  return room.participants.find(participant => participant?.id === focusParticipantId) || null;
+}
+
 function setVoiceError(message = '') {
   APP.voice.error = String(message || '').trim() || null;
   render();
+}
+
+function updateVoiceMeterDom(level = APP.voice.localLevel || 0) {
+  const clamped = Math.max(0, Math.min(1, Number(level) || 0));
+  const meterPercent = Math.round(clamped * 100);
+  document.querySelectorAll('[data-voice-meter-fill]').forEach(node => {
+    if (!(node instanceof HTMLElement)) return;
+    node.style.width = `${Math.max(6, meterPercent)}%`;
+    node.style.opacity = clamped > 0.02 ? '1' : '0.42';
+  });
+  document.querySelectorAll('[data-voice-meter-label]').forEach(node => {
+    node.textContent = `${meterPercent}%`;
+  });
+}
+
+function stopVoiceMeter() {
+  if (voiceMeterFrame) {
+    cancelAnimationFrame(voiceMeterFrame);
+    voiceMeterFrame = 0;
+  }
+  try {
+    voiceMeterSourceNode?.disconnect?.();
+  } catch (_error) {
+    // Ignore cleanup races on rapid mic toggles.
+  }
+  try {
+    voiceMeterAnalyser?.disconnect?.();
+  } catch (_error) {
+    // Ignore cleanup races on rapid mic toggles.
+  }
+  if (voiceMeterAudioContext && voiceMeterAudioContext.state !== 'closed') {
+    void voiceMeterAudioContext.close().catch(() => {});
+  }
+  voiceMeterAudioContext = null;
+  voiceMeterSourceNode = null;
+  voiceMeterAnalyser = null;
+  voiceMeterData = null;
+  APP.voice.localLevel = 0;
+  updateVoiceMeterDom(0);
+}
+
+async function startVoiceMeter(stream) {
+  if (!stream || typeof window.AudioContext === 'undefined') {
+    APP.voice.localLevel = 0;
+    updateVoiceMeterDom(0);
+    return;
+  }
+  stopVoiceMeter();
+  try {
+    voiceMeterAudioContext = new window.AudioContext();
+    voiceMeterSourceNode = voiceMeterAudioContext.createMediaStreamSource(stream);
+    voiceMeterAnalyser = voiceMeterAudioContext.createAnalyser();
+    voiceMeterAnalyser.fftSize = 512;
+    voiceMeterAnalyser.smoothingTimeConstant = 0.75;
+    voiceMeterData = new Uint8Array(voiceMeterAnalyser.fftSize);
+    voiceMeterSourceNode.connect(voiceMeterAnalyser);
+    if (voiceMeterAudioContext.state === 'suspended') {
+      await voiceMeterAudioContext.resume();
+    }
+    const tick = () => {
+      if (!voiceMeterAnalyser || !voiceMeterData) return;
+      voiceMeterAnalyser.getByteTimeDomainData(voiceMeterData);
+      let sumSquares = 0;
+      for (let index = 0; index < voiceMeterData.length; index += 1) {
+        const normalized = (voiceMeterData[index] - 128) / 128;
+        sumSquares += normalized * normalized;
+      }
+      const rms = Math.sqrt(sumSquares / voiceMeterData.length);
+      APP.voice.localLevel = Math.max(0, Math.min(1, rms * 3.6));
+      updateVoiceMeterDom(APP.voice.localLevel);
+      voiceMeterFrame = requestAnimationFrame(tick);
+    };
+    tick();
+  } catch (_error) {
+    stopVoiceMeter();
+  }
 }
 
 function syncVoiceAudioMutedState() {
@@ -3263,6 +3722,7 @@ async function ensureVoiceLocalStream() {
     }
   });
   voiceLocalStream = stream;
+  await startVoiceMeter(stream);
   syncVoiceTrackEnabled();
   for (const entry of voicePeerConnections.values()) {
     await syncVoiceSender(entry);
@@ -3330,12 +3790,14 @@ function syncVoiceStateFromServer(payload) {
   if (!payload || payload.key !== getVoiceRoomKey()) return;
   APP.voice.connected = true;
   APP.voice.joining = false;
+  APP.voice.transmissionMode = normalizeVoiceTransmissionMode(payload.transmissionMode);
   APP.voice.approvedSpeakerIds = Array.isArray(payload.approvedSpeakerIds) ? payload.approvedSpeakerIds : [];
   APP.voice.raisedHands = Array.isArray(payload.raisedHands) ? payload.raisedHands : [];
+  APP.voice.liveSpeakerIds = Array.isArray(payload.liveSpeakerIds) ? payload.liveSpeakerIds : [];
   APP.voice.members = Array.isArray(payload.members) ? payload.members : [];
   APP.voice.activeSpeakerId = String(payload.activeSpeakerId || '').trim();
   APP.voice.activeSpeakerName = String(payload.activeSpeakerName || '').trim();
-  if (APP.voice.activeSpeakerId !== getCurrentVoiceParticipantId() && APP.voice.isTransmitting) {
+  if (!isCurrentPlayerLiveSpeaker() && APP.voice.isTransmitting) {
     APP.voice.isTransmitting = false;
     syncVoiceTrackEnabled();
   }
@@ -3417,6 +3879,7 @@ async function leaveVoiceSession({ preserveSpeakerMute = true } = {}) {
     voiceLocalStream.getTracks().forEach(track => track.stop());
     voiceLocalStream = null;
   }
+  stopVoiceMeter();
   const nextSpeakerMute = preserveSpeakerMute ? APP.voice.speakerMuted === true : false;
   APP.voice = {
     ...getDefaultVoiceUiState(),
@@ -3459,6 +3922,7 @@ async function toggleVoiceMicReady() {
   } else if (voiceLocalStream) {
     voiceLocalStream.getTracks().forEach(track => track.stop());
     voiceLocalStream = null;
+    stopVoiceMeter();
     for (const entry of voicePeerConnections.values()) {
       await syncVoiceSender(entry);
     }
@@ -3474,6 +3938,12 @@ async function toggleVoiceMicReady() {
 
 async function requestVoiceAccess() {
   if (!canCurrentPlayerRequestVoice()) return;
+  await toggleVoiceHandRaised(true);
+}
+
+async function toggleVoiceHandRaised(forceValue = null) {
+  const participant = getCurrentVoiceParticipant();
+  if (!participant?.id || participant.name === APP.room?.host) return;
   if (!APP.voice.connected) {
     const joined = await joinVoiceSession();
     if (!joined) return;
@@ -3484,12 +3954,21 @@ async function requestVoiceAccess() {
     return;
   }
   try {
-    await socketEmitAck('voice:request-talk', {}, 1500);
+    const raised = typeof forceValue === 'boolean' ? forceValue : !isCurrentPlayerHandRaised();
+    await socketEmitAck('voice:toggle-hand', { raised }, 1500);
     APP.voice.error = null;
     render();
   } catch (error) {
-    setVoiceError(error.message || 'Unable to request access.');
+    setVoiceError(error.message || 'Unable to update raised hand.');
   }
+}
+
+async function toggleVoiceOpenLine() {
+  if (APP.voice.isTransmitting) {
+    await stopPushToTalk();
+    return;
+  }
+  await startPushToTalk();
 }
 
 async function updateParticipantVoicePermission(targetPlayerId, allow) {
@@ -3510,6 +3989,59 @@ async function updateParticipantVoicePermission(targetPlayerId, allow) {
   } catch (error) {
     setVoiceError(error.message || 'Unable to update voice permission.');
   }
+}
+
+async function lowerParticipantVoiceHand(targetPlayerId) {
+  if (!APP.room || APP.room.host !== APP.player?.name || !targetPlayerId) return;
+  if (!APP.voice.connected) {
+    const joined = await joinVoiceSession();
+    if (!joined) return;
+  }
+  const socket = await getSocketClient();
+  if (!socket || !(socket.connected || await waitForSocketConnection(1500))) {
+    setVoiceError('Realtime connection unavailable.');
+    return;
+  }
+  try {
+    await socketEmitAck('voice:toggle-hand', { raised: false, targetPlayerId }, 1500);
+    APP.voice.error = null;
+    render();
+  } catch (error) {
+    setVoiceError(error.message || 'Unable to lower the raised hand.');
+  }
+}
+
+async function setVoiceFocusedParticipant(targetPlayerId = '') {
+  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
+  const normalizedTargetId = String(targetPlayerId || '').trim();
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.host !== APP.player?.name) return;
+  const existingHostSettings = room.hostSettings && typeof room.hostSettings === 'object'
+    ? room.hostSettings
+    : {};
+  const nextVoiceSettings = normalizeVoiceHostSettings({
+    ...getRoomVoiceSettings(room),
+    focusParticipantId: normalizedTargetId
+  });
+  if (normalizedTargetId) {
+    const targetParticipant = (room.participants || []).find(participant => participant?.id === normalizedTargetId);
+    if (!targetParticipant?.id || targetParticipant.name === room.host) return;
+  }
+  room.hostSettings = {
+    ...existingHostSettings,
+    voice: nextVoiceSettings
+  };
+  room.access = {
+    ...(room.access && typeof room.access === 'object' ? room.access : {}),
+    privateSession: existingHostSettings.privateSession === true || room.access?.privateSession === true
+  };
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = normalizeRoom(room);
+  if (normalizedTargetId) {
+    await lowerParticipantVoiceHand(normalizedTargetId);
+  }
+  void syncVoiceFeatureState();
+  render();
 }
 
 async function forceStopVoiceSpeaker(targetPlayerId) {
@@ -3849,11 +4381,14 @@ function getDefaultVoiceUiState() {
     speakerMuted: false,
     micEnabled: false,
     isTransmitting: false,
+    transmissionMode: 'ptt',
     activeSpeakerId: '',
     activeSpeakerName: '',
     approvedSpeakerIds: [],
     raisedHands: [],
+    liveSpeakerIds: [],
     members: [],
+    localLevel: 0,
     error: null
   };
 }
@@ -3862,13 +4397,16 @@ function getDefaultBattleshipUiState() {
   return {
     selectedShipId: 'carrier',
     placementAxis: 'horizontal',
-    dragShipId: ''
+    dragShipId: '',
+    lastTapShipId: '',
+    lastTapAt: 0
   };
 }
 
 function getDefaultBingoUiState() {
   return {
-    lastAnimatedDrawStamp: null
+    lastAnimatedDrawStamp: null,
+    selectedMarker: 'dauber-red'
   };
 }
 
@@ -3889,7 +4427,7 @@ function getDefaultSlidesStudioUiState() {
 
 function getDefaultVoiceDockState() {
   return {
-    mobileCollapsed: true,
+    mobileCollapsed: false,
     mobileRight: 16,
     mobileTop: 88
   };
@@ -3904,7 +4442,9 @@ function loadVoiceDockState() {
     ? Math.max(8, (Math.max(window.innerHeight || 0, 480) - 84) - legacyBottom)
     : defaults.mobileTop;
   return {
-    mobileCollapsed: stored.mobileCollapsed !== false,
+    mobileCollapsed: typeof stored.mobileCollapsed === 'boolean'
+      ? stored.mobileCollapsed
+      : defaults.mobileCollapsed,
     mobileRight: Math.max(8, Number(stored.mobileRight) || defaults.mobileRight),
     mobileTop: Math.max(8, Number(stored.mobileTop) || inferredTopFromBottom || defaults.mobileTop)
   };
@@ -3954,6 +4494,7 @@ const APP = {
   admin: {
     authenticated: false,
     token: localStorage.getItem('admin-token') || '',
+    activeTab: 'overview',
     feedback: [],
     loading: false,
     collections: [],
@@ -3962,6 +4503,9 @@ const APP = {
     generatingContent: false,
     generationStatus: null
   },
+  contentStudioStatus: null,
+  contentStudioGenerating: false,
+  contentStudioDraft: null,
   sessionManager: {
     plans: [],
     editingPlanId: '',
@@ -4296,6 +4840,26 @@ function rehydrateActivityBanksFromConfig(collections = []) {
   });
 }
 
+function buildBrainstormSeedNotesFromCollections(collections = []) {
+  const seedItems = [];
+  normalizeClientCollections(collections).forEach(collection => {
+    const items = validateAIBrainstormNotes(collection?.activities?.['brainstorm-canvas']);
+    if (items.length) seedItems.push(...items);
+  });
+  const ts = Date.now();
+  return seedItems.map((item, idx) => ({
+    id: generateBrainstormNoteId(),
+    text: item.text,
+    author: 'AI Facilitator',
+    lane: item.lane,
+    votes: 0,
+    voters: [],
+    color: BRAINSTORM_NOTE_COLORS[idx % BRAINSTORM_NOTE_COLORS.length],
+    createdAt: ts + idx,
+    updatedAt: ts + idx
+  }));
+}
+
 const ACTIVITY_QUEUE_ITEMS = [
   { id: 'lightning-trivia', icon: '⚡', label: 'Lightning Trivia' },
   { id: 'emoji-charades', icon: '🎭', label: 'Emoji Charades' },
@@ -4355,6 +4919,13 @@ const BINGO_PATTERN_OPTIONS = [
   { id: 'four_corners', label: 'Four Corners', description: 'Mark all four corner spaces' },
   { id: 'full_card', label: 'Full Card', description: 'Mark every space on the card' }
 ];
+const BINGO_MARKER_OPTIONS = [
+  { id: 'dauber-red', label: 'Red Dauber', icon: '●', kind: 'dauber', accent: '#ef4444', fill: 'rgba(239,68,68,0.34)', border: 'rgba(185,28,28,0.55)', glow: 'rgba(239,68,68,0.28)' },
+  { id: 'dauber-blue', label: 'Blue Dauber', icon: '●', kind: 'dauber', accent: '#2563eb', fill: 'rgba(37,99,235,0.3)', border: 'rgba(30,64,175,0.5)', glow: 'rgba(37,99,235,0.24)' },
+  { id: 'chip-gold', label: 'Gold Chip', icon: '◉', kind: 'chip', accent: '#f59e0b', fill: 'rgba(245,158,11,0.18)', border: 'rgba(180,83,9,0.48)', glow: 'rgba(245,158,11,0.22)' },
+  { id: 'star-violet', label: 'Lucky Star', icon: '★', kind: 'icon', accent: '#a855f7', fill: 'rgba(168,85,247,0.14)', border: 'rgba(126,34,206,0.38)', glow: 'rgba(168,85,247,0.26)' },
+  { id: 'heart-pink', label: 'Heart Charm', icon: '♥', kind: 'icon', accent: '#ec4899', fill: 'rgba(236,72,153,0.14)', border: 'rgba(190,24,93,0.38)', glow: 'rgba(236,72,153,0.24)' }
+];
 const BACKGAMMON_COLORS = ['white', 'black'];
 const BACKGAMMON_COLOR_META = {
   white: { label: 'Ivory', accent: '#f8ead3', glow: 'rgba(255,232,196,0.48)', pipColor: '#6d3b22', icon: '⚪' },
@@ -4412,6 +4983,7 @@ function getAIGenerationTargetCount(activityId) {
   if (activityId === 'wordle') return WORDLE_WORDS.length;
   if (activityId === 'word-chain') return WORD_CHAIN_PUZZLES.length;
   if (activityId === 'team-jeopardy') return TEAM_JEOPARDY_BOARD.reduce((sum, category) => sum + (Array.isArray(category?.clues) ? category.clues.length : 0), 0);
+  if (activityId === 'brainstorm-canvas') return Array.isArray(APP.room?.brainstormData?.notes) ? APP.room.brainstormData.notes.length : 0;
   if (activityId === 'spin-wheel') return SPIN_WHEEL_DEFAULT_OPTIONS.length;
   return null;
 }
@@ -4444,6 +5016,8 @@ function getAIBankEditorItems(targetId) {
       return safeParseJson(JSON.stringify(WORD_CHAIN_PUZZLES)) || [];
     case 'team-jeopardy':
       return safeParseJson(JSON.stringify(TEAM_JEOPARDY_BOARD)) || [];
+    case 'brainstorm-canvas':
+      return safeParseJson(JSON.stringify(APP.room?.brainstormData?.notes || [])) || [];
     case 'spin-wheel':
       return [...SPIN_WHEEL_DEFAULT_OPTIONS];
     default:
@@ -4469,6 +5043,8 @@ function getAIBankEditorCount(targetId) {
       return WORD_CHAIN_PUZZLES.length;
     case 'team-jeopardy':
       return TEAM_JEOPARDY_BOARD.reduce((sum, category) => sum + (Array.isArray(category?.clues) ? category.clues.length : 0), 0);
+    case 'brainstorm-canvas':
+      return Array.isArray(APP.room?.brainstormData?.notes) ? APP.room.brainstormData.notes.length : 0;
     case 'spin-wheel':
       return SPIN_WHEEL_DEFAULT_OPTIONS.length;
     default:
@@ -4494,6 +5070,8 @@ function getAIBankEditorTargetHelp(targetId) {
       return 'Format: [{"title":"Chain Name","words":["WORD1",...,"WORD8"]}]';
     case 'team-jeopardy':
       return 'Format: [{"category":"Science","clues":[{"value":100,"q":"question","opts":["A","B","C","D"],"ans":0}]}]';
+    case 'brainstorm-canvas':
+      return 'Format: [{"text":"short sticky note","lane":"start|stop|improve|create"}]';
     case 'spin-wheel':
       return 'Format: ["Coffee Chat","Bonus 100 | points:100","Lightning Jump | activity:lightning-trivia"]';
     default:
@@ -4512,6 +5090,7 @@ function validateAIBankEditorItems(targetId, items) {
   if (bankId === 'wordle') return validateAIWordleWords(items);
   if (bankId === 'word-chain') return validateAIWordChainPuzzles(items);
   if (bankId === 'team-jeopardy') return validateAITeamJeopardyBoard(items);
+  if (bankId === 'brainstorm-canvas') return validateAIBrainstormNotes(items);
   if (bankId === 'spin-wheel') return validateAISpinWheelOptions(items);
   return [];
 }
@@ -4548,6 +5127,9 @@ function applyAIBankEditorItems(targetId, items) {
   }
   if (bankId === 'team-jeopardy') {
     replaceArrayContents(TEAM_JEOPARDY_BOARD, items);
+    return;
+  }
+  if (bankId === 'brainstorm-canvas') {
     return;
   }
   if (bankId === 'spin-wheel') {
@@ -4601,6 +5183,496 @@ function getQueueThemeTopic() {
   if (selectedTheme === 'Random') return customTheme || 'random trivia, fun facts, and mixed team-building topics';
   if (customTheme) return `${selectedTheme} with ${customTheme}`;
   return selectedTheme || 'General Knowledge';
+}
+
+function getContentStudioManagedCollectionId(scope) {
+  if (scope === 'admin') return ADMIN_GENERATED_COLLECTION_ID;
+  if (scope === 'plan') return 'session-plan-generated-content';
+  return 'room-generated-content';
+}
+
+function getContentStudioManagedCollectionName(scope) {
+  if (scope === 'admin') return ADMIN_GENERATED_COLLECTION_NAME;
+  if (scope === 'plan') return 'Session Plan Generated Content';
+  return 'Room Generated Content';
+}
+
+function getContentStudioScopeCollections(scope, planId = '') {
+  if (scope === 'admin') return normalizeClientCollections(APP.admin.collections || []);
+  if (scope === 'plan') return getPlanCollections(planId);
+  return getRoomCollections();
+}
+
+function getContentStudioEffectiveCollections(scope, planId = '') {
+  if (scope === 'admin') return normalizeClientCollections(APP.admin.collections || []);
+  if (scope === 'plan') return getEffectiveCollectionsForContext({ scope: 'plan', planId });
+  return getEffectiveCollectionsForContext({ scope: 'room' });
+}
+
+function getContentStudioManagedCollection(scope, planId = '') {
+  const collectionId = getContentStudioManagedCollectionId(scope);
+  return getContentStudioScopeCollections(scope, planId).find(collection => collection.id === collectionId) || null;
+}
+
+function getContentStudioActivityKeyFromBankTarget(targetId) {
+  switch (getAIBankEditorTargetOrDefault(targetId)) {
+    case 'trivia-bank':
+      return 'lightning-trivia';
+    case 'emoji-charades':
+      return 'emoji-charades';
+    case 'icebreaker':
+      return 'icebreaker';
+    case 'pulse-check':
+      return 'pulse-check';
+    case 'values-vote':
+      return 'values-vote';
+    case 'wordle':
+      return 'wordle';
+    case 'word-chain':
+      return 'word-chain';
+    case 'team-jeopardy':
+      return 'team-jeopardy';
+    case 'brainstorm-canvas':
+      return 'brainstorm-canvas';
+    case 'spin-wheel':
+      return 'spin-wheel';
+    default:
+      return 'lightning-trivia';
+  }
+}
+
+function getContentStudioManagedItems(scope, planId, targetId) {
+  const activityKey = getContentStudioActivityKeyFromBankTarget(targetId);
+  const managedCollection = getContentStudioManagedCollection(scope, planId);
+  const items = managedCollection?.activities?.[activityKey];
+  if (!Array.isArray(items)) return [];
+  return safeParseJson(JSON.stringify(items)) || [];
+}
+
+function getContentStudioContext(scope, planId = '') {
+  const normalizedScope = ['admin', 'plan', 'room', 'queue'].includes(scope) ? scope : 'room';
+  const editingPlan = normalizedScope === 'plan' ? getSessionPlanById(planId || APP.sessionManager.editingPlanId) : null;
+  const scopeCollections = getContentStudioScopeCollections(normalizedScope, planId);
+  const effectiveCollections = getContentStudioEffectiveCollections(normalizedScope, planId);
+  const availableTargets = normalizedScope === 'queue'
+    ? getQueueEligibleAIActivityIds(Array.isArray(APP.room?.activityQueue) ? APP.room.activityQueue : [])
+        .map(activityId => AI_GENERATION_TARGETS.find(item => item.id === activityId))
+        .filter(Boolean)
+    : AI_GENERATION_TARGETS;
+  const selectedActivityIds = normalizedScope === 'queue'
+    ? availableTargets.map(item => item.id)
+    : (normalizedScope === 'plan' && editingPlan?.activityQueue?.length
+      ? editingPlan.activityQueue.filter(activityId => AI_GENERATION_TARGET_LABELS[activityId])
+      : availableTargets.map(item => item.id));
+  const brief = normalizedScope === 'plan'
+    ? normalizeContentBrief(editingPlan?.contentBrief)
+    : normalizeContentBrief(APP.room?.contentBrief);
+  return {
+    scope: normalizedScope,
+    planId: editingPlan?.id || '',
+    brief,
+    availableTargets,
+    selectedActivityIds,
+    scopeCollections,
+    effectiveCollections,
+    managedCollection: getContentStudioManagedCollection(normalizedScope, planId),
+    title: normalizedScope === 'admin'
+      ? 'Global AI Content Studio'
+      : normalizedScope === 'plan'
+        ? 'Session Plan Content Studio'
+        : normalizedScope === 'queue'
+          ? 'Queue Content Studio'
+          : 'Room Content Studio',
+    description: normalizedScope === 'admin'
+      ? 'Generate reusable global datasets, bulk manage collections, and shape the default content library.'
+      : normalizedScope === 'plan'
+        ? 'Create a themed content pack tied to this saved session plan so launched rooms already match the topic.'
+        : normalizedScope === 'queue'
+          ? 'Generate content specifically for the queued activities so the run of show stays on theme.'
+          : 'Manage the current room dataset, generate fresh content, and keep the room aligned to the session topic.'
+  };
+}
+
+function getContentStudioDraftDefaults(scope, planId = '') {
+  const context = getContentStudioContext(scope, planId);
+  return {
+    scope: context.scope,
+    planId: context.planId,
+    themePreset: context.brief.themePreset || 'Team Collaboration',
+    customTopic: context.brief.customTopic || '',
+    audience: context.brief.audience || '',
+    tone: context.brief.tone || '',
+    difficulty: context.brief.difficulty || HOST_LOCAL_CONFIG.aiDefaultDifficulty || 'mixed',
+    count: context.brief.count || HOST_LOCAL_CONFIG.aiDefaultCount || 8,
+    apiKey: HOST_LOCAL_CONFIG.aiApiKey || localStorage.getItem('ai-question-api-key') || '',
+    selectedActivityIds: context.selectedActivityIds
+  };
+}
+
+function ensureContentStudioDraft(scope, planId = '') {
+  const existing = APP.contentStudioDraft && typeof APP.contentStudioDraft === 'object' ? APP.contentStudioDraft : null;
+  if (existing && existing.scope === scope && String(existing.planId || '') === String(planId || '')) {
+    return existing;
+  }
+  const nextDraft = getContentStudioDraftDefaults(scope, planId);
+  APP.contentStudioDraft = nextDraft;
+  APP.contentStudioStatus = null;
+  return nextDraft;
+}
+
+function captureContentStudioDraftFromInputs() {
+  const scope = String(document.getElementById('contentStudioScope')?.value || 'room');
+  const planId = String(document.getElementById('contentStudioPlanId')?.value || '');
+  const selectedActivityIds = Array.from(document.querySelectorAll('[id^="contentStudioActivity-"]:checked'))
+    .map(input => String(input.id || '').replace('contentStudioActivity-', '').trim())
+    .filter(activityId => AI_GENERATION_TARGET_LABELS[activityId]);
+  APP.contentStudioDraft = {
+    scope,
+    planId,
+    themePreset: String(document.getElementById('contentStudioThemePreset')?.value || 'Team Collaboration').trim(),
+    customTopic: normalizeTopic(document.getElementById('contentStudioCustomTopic')?.value || ''),
+    audience: normalizeTopic(document.getElementById('contentStudioAudience')?.value || ''),
+    tone: normalizeTopic(document.getElementById('contentStudioTone')?.value || ''),
+    difficulty: String(document.getElementById('contentStudioDifficulty')?.value || 'mixed'),
+    count: Math.max(3, Math.min(20, Number.parseInt(document.getElementById('contentStudioCount')?.value || '8', 10) || 8)),
+    apiKey: String(document.getElementById('contentStudioApiKey')?.value || '').trim(),
+    selectedActivityIds
+  };
+  if (APP.contentStudioDraft.apiKey) {
+    HOST_LOCAL_CONFIG.aiApiKey = APP.contentStudioDraft.apiKey;
+    localStorage.setItem('ai-question-api-key', APP.contentStudioDraft.apiKey);
+    saveHostLocalConfig(HOST_LOCAL_CONFIG);
+  }
+  return APP.contentStudioDraft;
+}
+
+function buildContentStudioTopic(draft) {
+  const pieces = [
+    String(draft?.themePreset || '').trim(),
+    String(draft?.customTopic || '').trim(),
+    draft?.audience ? `audience: ${draft.audience}` : '',
+    draft?.tone ? `tone: ${draft.tone}` : ''
+  ].filter(Boolean);
+  return normalizeTopic(pieces.join(' | ')) || 'team collaboration';
+}
+
+async function persistContentStudioCollections(scope, planId, collections) {
+  const normalized = normalizeClientCollections(collections);
+  if (scope === 'admin') {
+    APP.admin.collections = normalized;
+    await persistAdminCollectionsOnly();
+    return;
+  }
+  if (scope === 'plan') {
+    const targetPlanId = String(planId || APP.sessionManager.editingPlanId || '').trim();
+    if (!targetPlanId) throw new Error('Save the session plan first so content can be attached to it.');
+    const plans = loadSessionPlans();
+    const updatedPlans = plans.map(plan => (
+      plan.id === targetPlanId
+        ? { ...plan, contentCollections: normalized, updatedAt: new Date().toISOString() }
+        : plan
+    ));
+    persistSessionPlans(updatedPlans);
+    return;
+  }
+  if (!APP.roomCode || !APP.room) throw new Error('Open a room first to save room content.');
+  const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
+  if (!room) throw new Error('Room no longer available.');
+  room.contentCollections = normalized;
+  room.lastUpdate = Date.now();
+  await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
+  APP.room = normalizeRoom(room);
+}
+
+async function upsertContentStudioGeneratedCollection(scope, planId, activityId, items) {
+  const targetActivityId = getCollectionActivityKey(activityId);
+  const currentCollections = getContentStudioScopeCollections(scope, planId);
+  const managedCollectionId = getContentStudioManagedCollectionId(scope);
+  const managedCollectionName = getContentStudioManagedCollectionName(scope);
+  const existing = currentCollections.find(collection => collection.id === managedCollectionId);
+  const nextCollection = {
+    id: managedCollectionId,
+    name: managedCollectionName,
+    description: scope === 'admin'
+      ? 'AI-generated global activity content managed from Admin Console.'
+      : scope === 'plan'
+        ? 'AI-generated content attached to this session plan.'
+        : 'AI-generated content attached to the live room.',
+    activities: {
+      ...(existing?.activities || {}),
+      [targetActivityId]: items
+    }
+  };
+  const nextCollections = currentCollections.filter(collection => collection.id !== managedCollectionId);
+  nextCollections.push(nextCollection);
+  await persistContentStudioCollections(scope, planId, nextCollections);
+}
+
+async function addContentStudioCollectionFromInput() {
+  const scope = String(document.getElementById('contentStudioScope')?.value || 'room');
+  const planId = String(document.getElementById('contentStudioPlanId')?.value || '');
+  const input = document.getElementById('contentStudioCollectionJson');
+  const parsed = safeParseJson(input?.value || '');
+  if (!parsed) {
+    showError('Enter valid JSON for the content collection.');
+    return;
+  }
+  const additions = normalizeClientCollections(Array.isArray(parsed) ? parsed : [parsed]);
+  if (!additions.length) {
+    showError('No valid activity collections found in that JSON.');
+    return;
+  }
+  const existing = getContentStudioScopeCollections(scope, planId);
+  const merged = new Map(existing.map(item => [item.id, item]));
+  additions.forEach(item => merged.set(item.id, item));
+  await persistContentStudioCollections(scope, planId, Array.from(merged.values()));
+  APP.contentStudioStatus = `Added ${additions.length} collection${additions.length === 1 ? '' : 's'} to this scope.`;
+  render();
+}
+
+async function removeContentStudioCollection(collectionId) {
+  const scope = String(document.getElementById('contentStudioScope')?.value || 'room');
+  const planId = String(document.getElementById('contentStudioPlanId')?.value || '');
+  const nextCollections = getContentStudioScopeCollections(scope, planId).filter(collection => collection.id !== collectionId);
+  await persistContentStudioCollections(scope, planId, nextCollections);
+  APP.contentStudioStatus = 'Collection removed.';
+  render();
+}
+
+function renderAIContentStudioSection(scope, { planId = '', compact = false } = {}) {
+  const context = getContentStudioContext(scope, planId);
+  const draft = ensureContentStudioDraft(context.scope, context.planId);
+  const targetId = getAIBankEditorTargetOrDefault(APP.aiBankEditorTarget);
+  const bankItems = getContentStudioManagedItems(context.scope, context.planId, targetId);
+  const bankJson = JSON.stringify(bankItems, null, 2);
+  return `
+    <div style="margin-top:${compact ? '0' : '18px'};background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;">
+      <input type="hidden" id="contentStudioScope" value="${escapeHtml(context.scope)}">
+      <input type="hidden" id="contentStudioPlanId" value="${escapeHtml(context.planId)}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+        <div>
+          <h3 style="font-family:'Fraunces',serif;font-size:1.32rem;margin-bottom:6px;">${escapeHtml(context.title)}</h3>
+          <div style="font-size:0.84rem;color:var(--text-dim);max-width:760px;">${escapeHtml(context.description)}</div>
+        </div>
+        <div style="font-size:0.78rem;color:var(--text-dim);text-align:right;">
+          Scope collections: <strong>${context.scopeCollections.length}</strong><br>
+          Managed set: <strong>${escapeHtml(getContentStudioManagedCollectionName(context.scope))}</strong>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;">
+        ${context.availableTargets.map(item => {
+          const currentCount = getAIGenerationTargetCount(item.id);
+          const scopedCount = getScopedCollectionItemCount(context.scopeCollections, item.id);
+          return `
+            <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:12px;">
+              <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:6px;">${escapeHtml(item.label)}</div>
+              <div style="font-size:1.2rem;font-weight:800;">${Number.isFinite(currentCount) ? currentCount : 0}</div>
+              <div style="font-size:0.76rem;color:var(--text-dim);margin-top:4px;">
+                ${scopedCount ? `Scoped: ${scopedCount}` : 'Scoped: 0'}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1.4fr 1fr 1fr;gap:10px;margin-bottom:10px;">
+        <select id="contentStudioThemePreset" class="form-input">
+          ${['Team Collaboration', ...ACTIVITY_QUEUE_THEME_OPTIONS.filter(item => item !== 'Random'), 'Random'].map(theme => `
+            <option value="${escapeHtml(theme)}" ${draft.themePreset === theme ? 'selected' : ''}>${escapeHtml(theme)}</option>
+          `).join('')}
+        </select>
+        <input id="contentStudioCustomTopic" class="form-input" maxlength="160" value="${escapeHtml(draft.customTopic || '')}" placeholder="Custom topic or sub-theme">
+        <input id="contentStudioAudience" class="form-input" maxlength="120" value="${escapeHtml(draft.audience || '')}" placeholder="Audience (optional)">
+        <input id="contentStudioTone" class="form-input" maxlength="120" value="${escapeHtml(draft.tone || '')}" placeholder="Tone (optional)">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 0.7fr 1fr;gap:10px;margin-bottom:10px;">
+        <select id="contentStudioDifficulty" class="form-input">
+          <option value="easy" ${draft.difficulty === 'easy' ? 'selected' : ''}>Easy</option>
+          <option value="mixed" ${draft.difficulty !== 'easy' && draft.difficulty !== 'hard' ? 'selected' : ''}>Mixed</option>
+          <option value="hard" ${draft.difficulty === 'hard' ? 'selected' : ''}>Hard</option>
+        </select>
+        <input id="contentStudioCount" class="form-input" type="number" min="3" max="20" value="${Math.max(3, Math.min(20, Number(draft.count) || 8))}">
+        <input id="contentStudioApiKey" class="form-input" type="password" value="${escapeHtml(draft.apiKey || '')}" placeholder="Optional fallback API key">
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px;">
+        ${context.availableTargets.map(item => `
+          <label style="display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
+            <input id="contentStudioActivity-${item.id}" type="checkbox" ${draft.selectedActivityIds?.includes(item.id) ? 'checked' : ''}>
+            <span>${escapeHtml(item.label)}</span>
+          </label>
+        `).join('')}
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-primary" data-action="content-studio-generate-selected" ${APP.contentStudioGenerating ? 'disabled' : ''}>
+          ${APP.contentStudioGenerating ? 'Generating...' : 'Generate Selected'}
+        </button>
+        <button class="btn-secondary" data-action="content-studio-generate-all" ${APP.contentStudioGenerating ? 'disabled' : ''}>
+          Generate All Visible
+        </button>
+      </div>
+
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+        <h4 style="margin-bottom:10px;">Managed Dataset Editor</h4>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:8px;">
+          <select id="contentStudioBankTarget" class="form-input">
+            ${AI_BANK_EDITOR_TARGETS.map(target => `
+              <option value="${target.id}" ${targetId === target.id ? 'selected' : ''}>${escapeHtml(target.label)}</option>
+            `).join('')}
+          </select>
+          <button class="btn-secondary" data-action="reload-content-studio-bank" style="width:auto;padding:0 14px;">Reload</button>
+        </div>
+        <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:8px;">
+          Edit the AI-managed collection for this scope. ${escapeHtml(getAIBankEditorTargetHelp(targetId))}
+        </div>
+        <textarea id="contentStudioBankEditorText" class="form-input" style="min-height:220px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">${escapeHtml(bankJson)}</textarea>
+        <button class="btn-primary" data-action="save-content-studio-bank" style="margin-top:10px;">Save Managed Dataset</button>
+      </div>
+
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+        <h4 style="margin-bottom:10px;">Collections In This Scope</h4>
+        <textarea id="contentStudioCollectionJson" class="form-input" rows="6" placeholder='{"name":"Theme Pack","activities":{"lightning-trivia":[{"q":"...","opts":["A","B","C","D"],"ans":1}]}}'></textarea>
+        <button class="btn-secondary" data-action="content-studio-add-collection" style="margin-top:10px;">Add Collection JSON</button>
+        ${context.scopeCollections.length ? `
+          <div style="margin-top:12px;display:grid;gap:8px;">
+            ${context.scopeCollections.map(collection => `
+              <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px;display:flex;justify-content:space-between;gap:10px;align-items:center;">
+                <div>
+                  <div style="font-weight:700;">${escapeHtml(collection.name || collection.id)}</div>
+                  <div style="font-size:0.8rem;color:var(--text-dim);">${escapeHtml(collection.id || '')}</div>
+                </div>
+                <button class="btn-secondary" data-action="content-studio-remove-collection" data-key="${escapeHtml(collection.id || '')}" style="padding:6px 10px;">Remove</button>
+              </div>
+            `).join('')}
+          </div>
+        ` : '<div style="margin-top:10px;color:var(--text-dim);font-size:0.9rem;">No collections stored for this scope yet.</div>'}
+      </div>
+
+      ${APP.contentStudioStatus ? `<div role="status" aria-live="polite" style="margin-top:12px;color:var(--text-mid);font-size:0.9rem;">${escapeHtml(APP.contentStudioStatus)}</div>` : ''}
+    </div>
+  `;
+}
+
+async function saveContentStudioBankEditor() {
+  const scope = String(document.getElementById('contentStudioScope')?.value || 'room');
+  const planId = String(document.getElementById('contentStudioPlanId')?.value || '');
+  const targetId = getAIBankEditorTargetOrDefault(String(document.getElementById('contentStudioBankTarget')?.value || APP.aiBankEditorTarget || ''));
+  const editorValue = String(document.getElementById('contentStudioBankEditorText')?.value || '').trim();
+  if (!editorValue) {
+    APP.contentStudioStatus = 'Managed dataset save failed: editor is empty.';
+    render();
+    return;
+  }
+  const parsed = safeParseJson(editorValue);
+  if (!Array.isArray(parsed)) {
+    APP.contentStudioStatus = 'Managed dataset save failed: provide a valid JSON array.';
+    render();
+    return;
+  }
+  const validated = validateAIBankEditorItems(targetId, parsed);
+  if (!validated.length) {
+    APP.contentStudioStatus = `Managed dataset save failed: no valid entries for ${AI_BANK_EDITOR_TARGET_LABELS[targetId]}.`;
+    render();
+    return;
+  }
+
+  const activityKey = getContentStudioActivityKeyFromBankTarget(targetId);
+  const currentCollections = getContentStudioScopeCollections(scope, planId);
+  const managedCollectionId = getContentStudioManagedCollectionId(scope);
+  const existing = currentCollections.find(collection => collection.id === managedCollectionId);
+  const nextCollection = {
+    id: managedCollectionId,
+    name: getContentStudioManagedCollectionName(scope),
+    description: existing?.description || 'AI-managed content collection.',
+    activities: {
+      ...(existing?.activities || {}),
+      [activityKey]: validated
+    }
+  };
+  const nextCollections = currentCollections.filter(collection => collection.id !== managedCollectionId);
+  nextCollections.push(nextCollection);
+  await persistContentStudioCollections(scope, planId, nextCollections);
+  APP.contentStudioStatus = `Saved ${validated.length} item${validated.length === 1 ? '' : 's'} to ${AI_BANK_EDITOR_TARGET_LABELS[targetId]}.`;
+  render();
+}
+
+async function appendGeneratedBrainstormNotesToActiveRoom(items) {
+  if (!APP.roomCode || !APP.room || APP.room.currentActivity !== 'brainstorm-canvas') return;
+  const validated = validateAIBrainstormNotes(items);
+  if (!validated.length) return;
+  const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
+  if (!room) return;
+  const baseState = (room.activityState && typeof room.activityState === 'object')
+    ? room.activityState
+    : (room.brainstormData && typeof room.brainstormData === 'object'
+      ? room.brainstormData
+      : { title: BRAINSTORM_DEFAULT_TITLE, boardType: 'start-stop-improve-create', notes: [], sessionStatus: 'open', createdAt: Date.now() });
+  const notes = Array.isArray(baseState.notes) ? [...baseState.notes] : [];
+  const ts = Date.now();
+  validated.forEach((item, idx) => {
+    notes.unshift({
+      id: generateBrainstormNoteId(),
+      text: item.text,
+      author: 'AI Facilitator',
+      lane: item.lane,
+      votes: 0,
+      voters: [],
+      color: BRAINSTORM_NOTE_COLORS[idx % BRAINSTORM_NOTE_COLORS.length],
+      createdAt: ts + idx,
+      updatedAt: ts + idx
+    });
+  });
+  const nextState = { ...baseState, notes };
+  room.activityState = nextState;
+  room.brainstormData = safeParseJson(JSON.stringify(nextState)) || nextState;
+  room.lastUpdate = Date.now();
+  await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
+  APP.room = normalizeRoom(room);
+}
+
+async function generateContentStudioActivityContent(activityIds = null) {
+  const draft = captureContentStudioDraftFromInputs();
+  const context = getContentStudioContext(draft.scope, draft.planId);
+  const selectedIds = Array.isArray(activityIds)
+    ? activityIds.filter(activityId => context.availableTargets.some(item => item.id === activityId))
+    : draft.selectedActivityIds.filter(activityId => context.availableTargets.some(item => item.id === activityId));
+  if (!selectedIds.length) {
+    showError('Select at least one activity to generate.');
+    return;
+  }
+
+  const topic = buildContentStudioTopic(draft);
+  APP.contentStudioGenerating = true;
+  APP.contentStudioStatus = `Generating ${selectedIds.length} activit${selectedIds.length === 1 ? 'y' : 'ies'}...`;
+  render();
+
+  try {
+    const completed = [];
+    for (const activityId of selectedIds) {
+      APP.contentStudioStatus = `Generating ${AI_GENERATION_TARGET_LABELS[activityId] || activityId}...`;
+      render();
+      const prompt = buildAIPromptForActivity(activityId, topic, draft.difficulty, draft.count);
+      if (!prompt) throw new Error(`Unsupported activity selected: ${activityId}`);
+      const items = await requestAIGeneratedArray(prompt, draft.apiKey);
+      const validated = validateGeneratedContentForActivity(activityId, items);
+      if ((activityId === 'spin-wheel' && validated.length < 2) || (!validated.length && activityId !== 'spin-wheel')) {
+        throw new Error(`AI returned invalid content for ${AI_GENERATION_TARGET_LABELS[activityId] || activityId}.`);
+      }
+      await upsertContentStudioGeneratedCollection(draft.scope, draft.planId, activityId, validated);
+      if ((draft.scope === 'room' || draft.scope === 'queue') && activityId === 'brainstorm-canvas') {
+        await appendGeneratedBrainstormNotesToActiveRoom(validated);
+      }
+      completed.push(`${AI_GENERATION_TARGET_LABELS[activityId] || activityId} (${validated.length})`);
+    }
+    APP.contentStudioStatus = `Generated content for ${completed.join(', ')}.`;
+  } catch (error) {
+    APP.contentStudioStatus = `Generation failed: ${error.message}`;
+  } finally {
+    APP.contentStudioGenerating = false;
+    render();
+  }
 }
 
 function buildQueueCollectionTemplate(activityIds = []) {
@@ -5218,7 +6290,7 @@ function findSpinWheelLandedIndex(segments, wheelRotation) {
   return idx >= 0 ? idx : 0;
 }
 
-function createInitialActivityState(activityId) {
+function createInitialActivityState(activityId, room = APP.room) {
   if (activityId === 'lightning-trivia') {
     return {
       currentQ: 0,
@@ -5299,10 +6371,11 @@ function createInitialActivityState(activityId) {
     };
   }
   if (activityId === 'brainstorm-canvas') {
+    const seededNotes = buildBrainstormSeedNotesFromCollections(getEffectiveCollectionsForContext({ scope: 'room', room }));
     return {
       title: BRAINSTORM_DEFAULT_TITLE,
       boardType: 'start-stop-improve-create',
-      notes: [],
+      notes: seededNotes,
       sessionStatus: 'open',
       createdAt: Date.now()
     };
@@ -6225,10 +7298,30 @@ function createBingoMarkedGrid() {
   return Array.from({ length: 5 }, (_, row) => Array.from({ length: 5 }, (_, col) => row === 2 && col === 2));
 }
 
+function normalizeBingoMarkerType(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return BINGO_MARKER_OPTIONS.some(option => option.id === normalized)
+    ? normalized
+    : BINGO_MARKER_OPTIONS[0].id;
+}
+
+function getBingoMarkerMeta(value) {
+  const normalized = normalizeBingoMarkerType(value);
+  return BINGO_MARKER_OPTIONS.find(option => option.id === normalized) || BINGO_MARKER_OPTIONS[0];
+}
+
+function createBingoMarkerGrid() {
+  return Array.from({ length: 5 }, (_, row) => Array.from({ length: 5 }, (_, col) => {
+    if (row === 2 && col === 2) return 'star-violet';
+    return '';
+  }));
+}
+
 function createBingoPlayerCard() {
   return {
     grid: createBingoCard(),
-    marked: createBingoMarkedGrid()
+    marked: createBingoMarkedGrid(),
+    markers: createBingoMarkerGrid()
   };
 }
 
@@ -6275,6 +7368,17 @@ function normalizeBingoMarkedGrid(marked) {
   return Array.from({ length: 5 }, (_, row) => Array.from({ length: 5 }, (_, col) => {
     if (row === 2 && col === 2) return true;
     return Boolean(marked?.[row]?.[col]);
+  }));
+}
+
+function normalizeBingoMarkerGrid(markers, marked) {
+  const normalizedMarked = normalizeBingoMarkedGrid(marked);
+  return Array.from({ length: 5 }, (_, row) => Array.from({ length: 5 }, (_, col) => {
+    if (row === 2 && col === 2) {
+      return normalizeBingoMarkerType(markers?.[row]?.[col] || 'star-violet');
+    }
+    if (!normalizedMarked[row][col]) return '';
+    return normalizeBingoMarkerType(markers?.[row]?.[col] || BINGO_MARKER_OPTIONS[0].id);
   }));
 }
 
@@ -6878,7 +7982,7 @@ function getInitialActivityState(room, activityId) {
   if (activityId === 'uno') {
     return createUnoGameState(room?.participants || []);
   }
-  let initialState = createInitialActivityState(activityId);
+  let initialState = createInitialActivityState(activityId, room);
   if (activityId === 'brainstorm-canvas' && room?.brainstormData && typeof room.brainstormData === 'object') {
     const resumed = safeParseJson(JSON.stringify(room.brainstormData));
     if (resumed && typeof resumed === 'object') {
@@ -7226,10 +8330,43 @@ async function restartConnect4Match() {
   render();
 }
 
+function getCurrentBattleshipPlayerBoard() {
+  if (APP.room?.currentActivity !== 'battleship') return null;
+  const state = APP.room.activityState && typeof APP.room.activityState === 'object'
+    ? APP.room.activityState
+    : createBattleshipState(APP.room.participants || []);
+  const me = APP.player?.name || '';
+  if (!getBattleshipPlayers(state).includes(me)) return null;
+  return normalizeBattleshipBoard(getBattleshipBoard(state, me));
+}
+
 function selectBattleshipShip(shipId) {
   if (!shipId) return;
   APP.battleshipUi.selectedShipId = shipId;
+  const board = getCurrentBattleshipPlayerBoard();
+  const ship = board ? findBattleshipShip(board, shipId) : null;
+  if (ship && ship.cells.length === ship.length) {
+    APP.battleshipUi.placementAxis = ship.horizontal === false ? 'vertical' : 'horizontal';
+  }
   render();
+}
+
+async function handleBattleshipShipSelection(shipId) {
+  const normalizedShipId = String(shipId || '').trim();
+  if (!normalizedShipId) return;
+  const now = Date.now();
+  const sameShipTapped = APP.battleshipUi.selectedShipId === normalizedShipId
+    && APP.battleshipUi.lastTapShipId === normalizedShipId
+    && (now - Number(APP.battleshipUi.lastTapAt || 0)) <= 400;
+  APP.battleshipUi.lastTapShipId = normalizedShipId;
+  APP.battleshipUi.lastTapAt = now;
+  if (sameShipTapped && APP.room?.currentActivity === 'battleship') {
+    APP.battleshipUi.lastTapShipId = '';
+    APP.battleshipUi.lastTapAt = 0;
+    await toggleBattleshipPlacementAxis();
+    return;
+  }
+  selectBattleshipShip(normalizedShipId);
 }
 
 function setBattleshipPlacementAxis(axis) {
@@ -7237,8 +8374,23 @@ function setBattleshipPlacementAxis(axis) {
   render();
 }
 
-function toggleBattleshipPlacementAxis() {
-  setBattleshipPlacementAxis(APP.battleshipUi.placementAxis === 'horizontal' ? 'vertical' : 'horizontal');
+async function toggleBattleshipPlacementAxis() {
+  const nextAxis = APP.battleshipUi.placementAxis === 'horizontal' ? 'vertical' : 'horizontal';
+  APP.battleshipUi.placementAxis = nextAxis;
+  const board = getCurrentBattleshipPlayerBoard();
+  const selectedShipId = String(APP.battleshipUi.selectedShipId || '').trim();
+  const ship = board && selectedShipId ? findBattleshipShip(board, selectedShipId) : null;
+  if (!board || !ship || ship.cells.length !== ship.length || APP.room?.currentActivity !== 'battleship') {
+    render();
+    return;
+  }
+  const nextHorizontal = nextAxis !== 'vertical';
+  if (!canPlaceBattleshipShip(board, ship.id, ship.row, ship.col, nextHorizontal)) {
+    render();
+    showError('Ship rotated for the next drop. Move it to a new slot to finish the turn.');
+    return;
+  }
+  await placeBattleshipShipAt(ship.row, ship.col, ship.id);
 }
 
 async function placeBattleshipShipAt(row, col, explicitShipId = '') {
@@ -7258,6 +8410,8 @@ async function placeBattleshipShipAt(row, col, explicitShipId = '') {
     showError('Select a ship first.');
     return;
   }
+  const currentShip = findBattleshipShip(board, shipId);
+  const wasPlaced = Boolean(currentShip && currentShip.cells.length === currentShip.length);
   const horizontal = APP.battleshipUi.placementAxis !== 'vertical';
   if (!canPlaceBattleshipShip(board, shipId, row, col, horizontal)) {
     showError('That ship does not fit there.');
@@ -7266,7 +8420,7 @@ async function placeBattleshipShipAt(row, col, explicitShipId = '') {
   state.boards[APP.player.name] = placeBattleshipShip(board, shipId, row, col, horizontal);
   state.updatedAt = Date.now();
   const nextShip = normalizeBattleshipBoard(state.boards[APP.player.name]).ships.find(ship => ship.cells.length !== ship.length);
-  APP.battleshipUi.selectedShipId = nextShip?.id || shipId;
+  APP.battleshipUi.selectedShipId = wasPlaced ? shipId : (nextShip?.id || shipId);
   room.activityState = state;
   await RoomManager.updateRoom(APP.roomCode, room);
   APP.room = room;
@@ -7434,17 +8588,29 @@ async function bingoToggleMark(row, col) {
   const calledSet = buildBingoCalledSet(state);
   if (!isBingoCellMarkAllowed(card, calledSet, row, col)) return;
   const marked = normalizeBingoMarkedGrid(card.marked);
+  const markers = normalizeBingoMarkerGrid(card.markers, marked);
   if (!(row === 2 && col === 2)) {
-    marked[row][col] = !marked[row][col];
+    const nextMarked = !marked[row][col];
+    marked[row][col] = nextMarked;
+    markers[row][col] = nextMarked
+      ? normalizeBingoMarkerType(APP.bingoUi?.selectedMarker || BINGO_MARKER_OPTIONS[0].id)
+      : '';
   }
   state.cards[me] = {
     ...card,
-    marked
+    marked,
+    markers
   };
   state.updatedAt = Date.now();
   room.activityState = state;
   await RoomManager.updateRoom(APP.roomCode, room);
   APP.room = room;
+  render();
+}
+
+function selectBingoMarker(markerId) {
+  APP.bingoUi = APP.bingoUi && typeof APP.bingoUi === 'object' ? APP.bingoUi : getDefaultBingoUiState();
+  APP.bingoUi.selectedMarker = normalizeBingoMarkerType(markerId);
   render();
 }
 
@@ -8782,52 +9948,95 @@ function renderVoiceDock() {
   if (!participant?.id) return '';
   const isHost = participant.name === APP.room.host;
   const isAllowed = isCurrentPlayerVoiceAllowed();
+  const canRaiseHand = !isHost;
   const canRequest = canCurrentPlayerRequestVoice();
   const hideBlockedControls = voiceSettings.hideBlockedMicControls !== false && !isAllowed && !isHost;
-  const showSpeakerButton = true;
-  const showRequestButton = canRequest && !hideBlockedControls;
-  const showMicButtons = !hideBlockedControls;
-  const mobileDockStyle = `position:fixed;right:${APP.voiceDock.mobileRight}px;top:${APP.voiceDock.mobileTop}px;z-index:10010;pointer-events:auto;`;
-  const middleAction = showRequestButton
+  const showMicControls = (isAllowed || isHost) && !hideBlockedControls;
+  const openMicMode = isVoiceOpenMicMode(APP.room);
+  const meterLevel = Math.max(0, Math.min(1, Number(APP.voice.localLevel) || 0));
+  const liveSpeakerCount = Array.isArray(APP.voice.liveSpeakerIds) ? APP.voice.liveSpeakerIds.length : 0;
+  const currentStatusLabel = APP.voice.isTransmitting
+    ? (openMicMode ? 'Live mic open' : 'Transmitting')
+    : APP.voice.micEnabled
+      ? 'Mic ready'
+      : 'Mic off';
+  const handAction = canRaiseHand
     ? {
-      action: 'voice-request-talk',
-      label: isCurrentPlayerHandRaised() ? 'Microphone request sent' : 'Request microphone access',
-      icon: isCurrentPlayerHandRaised() ? '🖐️' : '✋',
-      disabled: false
+      action: 'voice-toggle-hand',
+      label: isCurrentPlayerHandRaised() ? 'Lower hand' : (canRequest ? 'Raise hand for mic' : 'Raise hand'),
+      icon: isCurrentPlayerHandRaised() ? '🫳' : '✋',
+      active: isCurrentPlayerHandRaised()
     }
-    : showMicButtons
-      ? {
-        action: 'voice-toggle-mic',
-        label: APP.voice.micEnabled ? 'Microphone ready' : 'Enable microphone',
-        icon: APP.voice.micEnabled ? '🎤' : '🚫',
-        disabled: false
-      }
-      : {
-        action: '',
-        label: 'Voice controls locked by host',
-        icon: '🔒',
-        disabled: true
-      };
-  const pttDisabled = !showMicButtons || !APP.voice.connected || !isAllowed || !APP.voice.micEnabled;
+    : null;
+  const mobileDockStyle = `position:fixed;right:${APP.voiceDock.mobileRight}px;top:${APP.voiceDock.mobileTop}px;z-index:10010;pointer-events:auto;`;
+  const micToggleLabel = APP.voice.micEnabled ? 'Disable microphone' : 'Enable microphone';
+  const talkButtonLabel = openMicMode
+    ? (APP.voice.isTransmitting ? 'Mute live mic' : 'Open live mic')
+    : (APP.voice.isTransmitting ? 'Live push to talk active' : 'Hold to talk');
+  const talkDisabled = !showMicControls || !APP.voice.connected || !isAllowed || !APP.voice.micEnabled;
+  const isCollapsed = APP.voiceDock.mobileCollapsed === true;
+  if (isCollapsed) {
+    return `
+      <div data-voice-mobile-dock="1" style="${mobileDockStyle}width:188px;transform:translateX(calc(100% - 46px));transition:transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);">
+        <div style="position:relative;background:rgba(7,7,13,0.94);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.1);box-shadow:0 18px 50px rgba(0,0,0,0.35);border-radius:16px 0 0 16px;padding:10px 12px 10px 14px;">
+          <button class="btn-secondary" data-action="voice-toggle-dock" aria-label="Open voice controls" title="Open voice controls" style="position:absolute;left:0;top:0;bottom:0;width:46px;padding:0;border:none;border-radius:16px 0 0 16px;background:linear-gradient(180deg,var(--accent),rgba(0,210,211,0.68));color:var(--bg);font-size:1rem;font-weight:800;">
+            🎙️
+          </button>
+          <div style="margin-left:40px;display:flex;flex-direction:column;gap:3px;min-width:0;">
+            <div style="font-size:0.72rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:rgba(236,233,225,0.76);white-space:nowrap;">Voice</div>
+            <div style="font-size:0.76rem;color:rgba(236,233,225,0.74);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              ${APP.voice.activeSpeakerName ? `Live: ${escapeHtml(APP.voice.activeSpeakerName)}` : 'Tap to reopen'}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
   return `
     <div data-voice-mobile-dock="1" style="${mobileDockStyle}width:auto;">
-      <div style="display:flex;align-items:center;gap:6px;background:rgba(7,7,13,0.94);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.1);box-shadow:0 18px 50px rgba(0,0,0,0.35);border-radius:16px;padding:8px;">
+      <div style="min-width:212px;background:rgba(7,7,13,0.94);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.1);box-shadow:0 18px 50px rgba(0,0,0,0.35);border-radius:16px;padding:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">
+          <div style="min-width:0;">
+            <div style="font-size:0.72rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:rgba(236,233,225,0.7);">
+              ${openMicMode ? 'Open Mic' : 'Push To Talk'}
+            </div>
+            <div style="font-size:0.76rem;font-weight:700;color:${APP.voice.isTransmitting ? '#7af59f' : 'rgba(236,233,225,0.78)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              ${escapeHtml(currentStatusLabel)}
+            </div>
+          </div>
+          <button class="btn-secondary" data-action="voice-toggle-dock" aria-label="Move voice controls off screen" title="Move voice controls off screen" style="width:auto;min-width:36px;padding:6px 8px;font-size:0.86rem;line-height:1;">
+            ↗
+          </button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <div style="flex:1;height:9px;border-radius:999px;background:rgba(255,255,255,0.08);overflow:hidden;border:1px solid rgba(255,255,255,0.06);">
+            <div data-voice-meter-fill="1" style="height:100%;width:${Math.max(6, Math.round(meterLevel * 100))}%;border-radius:999px;background:${APP.voice.isTransmitting ? 'linear-gradient(90deg,#7af59f,#00d2d3)' : 'linear-gradient(90deg,#ffd166,#f97316)'};opacity:${meterLevel > 0.02 ? '1' : '0.42'};transition:width 80ms linear,opacity 120ms ease;"></div>
+          </div>
+          <div data-voice-meter-label="1" style="min-width:38px;text-align:right;font-size:0.76rem;font-weight:700;color:rgba(236,233,225,0.8);">${Math.round(meterLevel * 100)}%</div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;">
         <button class="btn-secondary" data-action="voice-toggle-speaker" aria-label="${APP.voice.speakerMuted ? 'Unmute speaker' : 'Mute speaker'}" title="${APP.voice.speakerMuted ? 'Unmute speaker' : 'Mute speaker'}" style="width:auto;min-width:42px;padding:8px 10px;font-size:0.92rem;line-height:1;">
           ${APP.voice.speakerMuted ? '🔇' : '🔊'}
         </button>
-        <button class="btn-secondary" ${middleAction.action ? `data-action="${middleAction.action}"` : 'disabled'} aria-label="${middleAction.label}" title="${middleAction.label}" style="width:auto;min-width:42px;padding:8px 10px;font-size:0.92rem;line-height:1;opacity:${middleAction.disabled ? '0.45' : '1'};">
-          ${middleAction.icon}
-        </button>
-        <button
-          class="btn-primary"
-          data-voice-ptt="1"
-          ${pttDisabled ? 'disabled' : ''}
-          aria-pressed="${APP.voice.isTransmitting ? 'true' : 'false'}"
-          aria-label="${APP.voice.isTransmitting ? 'Live push to talk active' : 'Hold to talk'}"
-          title="${APP.voice.isTransmitting ? 'Live push to talk active' : 'Hold to talk'}"
-          style="width:auto;min-width:46px;padding:8px 10px;font-size:0.96rem;line-height:1;background:${APP.voice.isTransmitting ? 'linear-gradient(135deg, var(--danger), #ff7b7b)' : 'linear-gradient(135deg, var(--accent), var(--accent-2))'};">
-          ${APP.voice.isTransmitting ? '🔴' : '🗣️'}
-        </button>
+        ${handAction ? `
+          <button class="btn-secondary" data-action="${handAction.action}" aria-label="${handAction.label}" title="${handAction.label}" style="width:auto;min-width:42px;padding:8px 10px;font-size:0.92rem;line-height:1;border-color:${handAction.active ? 'rgba(255,209,102,0.5)' : 'var(--border)'};color:${handAction.active ? '#ffd166' : 'var(--text)'};">
+            ${handAction.icon}
+          </button>
+        ` : ''}
+        ${showMicControls ? `
+          <button class="btn-secondary" data-action="voice-toggle-mic" aria-label="${micToggleLabel}" title="${micToggleLabel}" style="width:auto;min-width:42px;padding:8px 10px;font-size:0.92rem;line-height:1;border-color:${APP.voice.micEnabled ? 'rgba(122,245,159,0.5)' : 'var(--border)'};color:${APP.voice.micEnabled ? '#7af59f' : 'var(--text)'};">
+            ${APP.voice.micEnabled ? '🎤' : '🚫'}
+          </button>
+        ` : ''}
+        ${showMicControls ? (
+          openMicMode
+            ? `<button class="btn-primary" data-action="voice-toggle-line" ${talkDisabled ? 'disabled' : ''} aria-pressed="${APP.voice.isTransmitting ? 'true' : 'false'}" aria-label="${talkButtonLabel}" title="${talkButtonLabel}" style="width:auto;min-width:52px;padding:8px 12px;font-size:0.92rem;line-height:1;background:${APP.voice.isTransmitting ? 'linear-gradient(135deg, var(--danger), #ff7b7b)' : 'linear-gradient(135deg, var(--accent), var(--accent-2))'};">${APP.voice.isTransmitting ? '🔴' : '🎙️'}</button>`
+            : `<button class="btn-primary" data-voice-ptt="1" ${talkDisabled ? 'disabled' : ''} aria-pressed="${APP.voice.isTransmitting ? 'true' : 'false'}" aria-label="${talkButtonLabel}" title="${talkButtonLabel}" style="width:auto;min-width:52px;padding:8px 12px;font-size:0.92rem;line-height:1;background:${APP.voice.isTransmitting ? 'linear-gradient(135deg, var(--danger), #ff7b7b)' : 'linear-gradient(135deg, var(--accent), var(--accent-2))'};">${APP.voice.isTransmitting ? '🔴' : '🗣️'}</button>`
+        ) : ''}
+        </div>
+        <div style="margin-top:8px;font-size:0.74rem;color:rgba(236,233,225,0.68);">
+          Live now: ${liveSpeakerCount}${APP.voice.activeSpeakerName ? ` • ${escapeHtml(APP.voice.activeSpeakerName)}` : ''}
+        </div>
       </div>
     </div>
   `;
@@ -8836,6 +10045,7 @@ function renderVoiceDock() {
 function render() {
   const app = document.getElementById('app');
   let html = '';
+  syncActiveContentBanks();
 
   if (APP.editingProfile) html = renderEditProfile();
   else if (APP.screen === 'welcome') html = renderWelcome();
@@ -8872,6 +10082,7 @@ function render() {
   html += renderFooter();
   
   app.innerHTML = html;
+  updateVoiceMeterDom();
   syncSpotifyPlaylistPlayer();
   autoFocusWordChainActiveCell();
 }
@@ -9001,7 +10212,7 @@ function renderAboutApp() {
       <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:10px;">Core Features</h3>
       <div style="display:grid;gap:10px;color:var(--text-mid);line-height:1.5;">
         <div>• Activity library with trivia, charades, brainstorming, card and board games, presentation tools, and queue-based facilitation.</div>
-        <div>• Push-to-talk voice broadcast with host moderation and participant speaking controls.</div>
+        <div>• Moderated room voice with push-to-talk, open mic, raise hand, and host controls.</div>
         <div>• Session planning with saved session plans, shareable plan links, launch-into-room flow, and downloadable calendar invites.</div>
         <div>• Presentation support through shared slide-deck URLs and the native Slides Studio slide builder.</div>
         <div>• AI generation for supported activities and prompt-based slide creation inside Slides Studio.</div>
@@ -9210,184 +10421,161 @@ function renderAdminConsole() {
     return `
       <div class="header">
         <h1 class="logo">Admin Console</h1>
-        <p class="tagline">${IS_LOCAL_DEV_CLIENT ? `Development mode password: ${escapeHtml(DEV_ADMIN_PASSWORD_HINT)}` : 'Sign in with the admin token from your server environment.'}</p>
+        <p class="tagline">${IS_LOCAL_DEV_CLIENT ? 'Sign in with the admin credentials configured for this environment.' : 'Sign in with the admin token from your server environment.'}</p>
       </div>
       <button class="btn-secondary" data-action="go-screen" data-screen="dashboard">← Back</button>
       <div class="form-container" style="margin-top:20px;">
         <div class="form-group">
           <label class="form-label" for="adminToken">Admin Token</label>
-          <input id="adminToken" class="form-input" value="${safeToken}" type="password" placeholder="${IS_LOCAL_DEV_CLIENT ? DEV_ADMIN_PASSWORD_HINT : 'x-admin-token'}">
+          <input id="adminToken" class="form-input" value="${safeToken}" type="password" placeholder="${IS_LOCAL_DEV_CLIENT ? 'Enter admin token or password' : 'x-admin-token'}">
         </div>
         <button class="btn-primary" data-action="admin-login">Login</button>
       </div>
     `;
   }
 
+  const activeTab = ['overview', 'features', 'ai', 'feedback'].includes(admin.activeTab) ? admin.activeTab : 'overview';
   return `
     <div class="header">
       <h1 class="logo">Admin Console</h1>
-      <p class="tagline">Manage activities, features, question libraries, and feedback workflow.</p>
+      <p class="tagline">Manage branding, feature controls, datasets, and facilitator feedback from one place.</p>
     </div>
     <button class="btn-secondary" data-action="go-screen" data-screen="dashboard">← Back</button>
     <button class="btn-secondary" data-action="admin-logout" style="margin-left:10px;">Log Out</button>
 
     <div class="form-container" style="margin-top:20px;">
-      <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:14px;">Branding & Preferences</h3>
-      <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:12px;">
-        Config storage: <strong>${dbConnected ? 'Database connected' : 'Local file fallback'}</strong>
+      <div class="host-tabs" role="tablist" aria-label="Admin console sections" style="margin-bottom:18px;">
+        <button class="host-tab-btn ${activeTab === 'overview' ? 'active' : ''}" data-action="admin-console-tab" data-tab="overview" role="tab" aria-selected="${activeTab === 'overview' ? 'true' : 'false'}">Overview</button>
+        <button class="host-tab-btn ${activeTab === 'features' ? 'active' : ''}" data-action="admin-console-tab" data-tab="features" role="tab" aria-selected="${activeTab === 'features' ? 'true' : 'false'}">Features</button>
+        <button class="host-tab-btn ${activeTab === 'ai' ? 'active' : ''}" data-action="admin-console-tab" data-tab="ai" role="tab" aria-selected="${activeTab === 'ai' ? 'true' : 'false'}">AI Studio</button>
+        <button class="host-tab-btn ${activeTab === 'feedback' ? 'active' : ''}" data-action="admin-console-tab" data-tab="feedback" role="tab" aria-selected="${activeTab === 'feedback' ? 'true' : 'false'}">Feedback</button>
       </div>
-      <div class="form-group">
-        <label class="form-label" for="adminBrandAppName">App Name</label>
-        <input id="adminBrandAppName" class="form-input" value="${safeAppName}" maxlength="64">
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="adminBrandTagline">Tagline</label>
-        <input id="adminBrandTagline" class="form-input" value="${safeTagline}" maxlength="140">
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="adminBrandAccent">Accent Color (#RRGGBB)</label>
-        <input id="adminBrandAccent" class="form-input" value="${safeAccent}" maxlength="7" placeholder="#00d2d3">
-      </div>
-      <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-        <input id="adminEnableFeedbackHub" type="checkbox" ${preferences.enableFeedbackHub !== false ? 'checked' : ''}>
-        Enable user Feedback Hub
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-        <input id="adminEnableActivityQueue" type="checkbox" ${preferences.enableActivityQueue !== false ? 'checked' : ''}>
-        Enable Activity Queue
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-        <input id="adminEnableScheduleMeeting" type="checkbox" ${preferences.enableScheduleMeeting !== false ? 'checked' : ''}>
-        Enable Schedule Team Meeting
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-        <input id="adminEnableLoadSession" type="checkbox" ${preferences.enableLoadSession !== false ? 'checked' : ''}>
-        Enable Load Saved Session
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-        <input id="adminEnableAIGenerator" type="checkbox" ${preferences.enableAIGenerator !== false ? 'checked' : ''}>
-        Enable AI Content Generator
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-        <input id="adminEnableSampleQuestions" type="checkbox" ${preferences.enableSampleQuestions !== false ? 'checked' : ''}>
-        Include built-in sample question sets
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-        <input id="adminEnableFooterQuotes" type="checkbox" ${preferences.enableFooterQuotes === true ? 'checked' : ''}>
-        Enable inspiring team quote footer
-      </label>
-      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-        <div style="font-weight:700;margin-bottom:10px;">Global Game Rules</div>
-        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-          <input id="adminAutoRevealLightning" type="checkbox" ${preferences.autoRevealLightning !== false ? 'checked' : ''}>
-          Auto-reveal Lightning answers when everyone answers or the timer ends
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-          <input id="adminAllowAnswerChanges" type="checkbox" ${preferences.allowAnswerChanges !== false ? 'checked' : ''}>
-          Allow answer changes before reveal
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-          <input id="adminDynamicScoring" type="checkbox" ${preferences.dynamicScoring !== false ? 'checked' : ''}>
-          Use dynamic time-based scoring
-        </label>
-      </div>
-
-      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-        <div style="font-weight:700;margin-bottom:8px;">Generate Global Activity Content</div>
-        <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:10px;">
-          When built-in sample question sets are turned off, generate replacement content for all supported activities at once or only the checked ones. Generated content is saved as a global collection.
+      <div data-tab-panel="overview" class="host-tab-panel" ${activeTab !== 'overview' ? 'hidden' : ''}>
+        <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:14px;">Branding & Overview</h3>
+        <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:12px;">
+          Config storage: <strong>${dbConnected ? 'Database connected' : 'Local file fallback'}</strong>
         </div>
-        <div style="display:grid;grid-template-columns:1.3fr 0.8fr 0.6fr;gap:10px;margin-bottom:10px;">
-          <input id="adminGenerateTopic" class="form-input" placeholder="Topic or focus (e.g., team culture, sales kickoff)" value="team collaboration">
-          <select id="adminGenerateDifficulty" class="form-input">
-            <option value="easy">Easy</option>
-            <option value="mixed" selected>Mixed</option>
-            <option value="hard">Hard</option>
-          </select>
-          <input id="adminGenerateCount" class="form-input" type="number" min="3" max="20" value="${Math.max(3, Math.min(20, Number(HOST_LOCAL_CONFIG.aiDefaultCount) || 8))}">
+        <div class="form-group">
+          <label class="form-label" for="adminBrandAppName">App Name</label>
+          <input id="adminBrandAppName" class="form-input" value="${safeAppName}" maxlength="64">
         </div>
-        <input id="adminGenerateApiKey" class="form-input" type="password" value="${escapeHtml(HOST_LOCAL_CONFIG.aiApiKey || '')}" placeholder="Optional fallback API key if server AI key is unavailable">
-        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0;">
-          ${ADMIN_GENERATION_TARGETS.map(item => `
-            <label style="display:flex;align-items:center;gap:8px;">
-              <input id="adminGenerateActivity-${item.id}" type="checkbox" checked>
-              <span>${escapeHtml(item.label)}</span>
-            </label>
-          `).join('')}
+        <div class="form-group">
+          <label class="form-label" for="adminBrandTagline">Tagline</label>
+          <input id="adminBrandTagline" class="form-input" value="${safeTagline}" maxlength="140">
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn-primary" data-action="admin-generate-all-content" ${APP.admin.generatingContent ? 'disabled' : ''}>
-            ${APP.admin.generatingContent ? 'Generating...' : 'Generate All Content'}
-          </button>
-          <button class="btn-secondary" data-action="admin-generate-selected-content" ${APP.admin.generatingContent ? 'disabled' : ''}>
-            Generate Selected
-          </button>
+        <div class="form-group">
+          <label class="form-label" for="adminBrandAccent">Accent Color (#RRGGBB)</label>
+          <input id="adminBrandAccent" class="form-input" value="${safeAccent}" maxlength="7" placeholder="#00d2d3">
         </div>
-        ${APP.admin.generationStatus ? `<div role="status" aria-live="polite" style="margin-top:10px;color:var(--text-mid);font-size:0.88rem;">${escapeHtml(APP.admin.generationStatus)}</div>` : ''}
-      </div>
-
-      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-        <div style="font-weight:700;margin-bottom:8px;">Enable Activities in Main Menu</div>
-        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
-          ${ACTIVITY_QUEUE_ITEMS.map(item => `
-            <label style="display:flex;align-items:center;gap:8px;">
-              <input id="adminActivityEnabled-${item.id}" type="checkbox" ${enabledActivities[item.id] !== false ? 'checked' : ''}>
-              <span>${escapeHtml(item.icon)} ${escapeHtml(item.label)}</span>
-            </label>
-          `).join('')}
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">
+          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px;">
+            <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:6px;">Collections</div>
+            <div style="font-size:1.28rem;font-weight:800;">${collections.length}</div>
+          </div>
+          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px;">
+            <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:6px;">Enabled Activities</div>
+            <div style="font-size:1.28rem;font-weight:800;">${Object.values(enabledActivities).filter(Boolean).length}</div>
+          </div>
+          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px;">
+            <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:6px;">Open Feedback Items</div>
+            <div style="font-size:1.28rem;font-weight:800;">${feedback.filter(item => (item.status || 'open') !== 'resolved').length}</div>
+          </div>
         </div>
       </div>
 
-      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-        <div style="font-weight:700;margin-bottom:8px;">Side-Load Collection (JSON)</div>
-        <textarea id="adminCollectionJson" class="form-input" rows="6" placeholder='{"name":"Q4 Pack","activities":{"lightning-trivia":[{"q":"...","opts":["A","B","C","D"],"ans":1}]}}'></textarea>
-        <button class="btn-secondary" data-action="admin-add-collection" style="margin-top:10px;">Add Collection</button>
-        ${collections.length ? `
-          <div style="margin-top:12px;display:grid;gap:8px;">
-            ${collections.map(col => `
-              <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px;display:flex;justify-content:space-between;gap:10px;align-items:center;">
-                <div>
-                  <div style="font-weight:700;">${escapeHtml(col.name || col.id)}</div>
-                  <div style="font-size:0.8rem;color:var(--text-dim);">${escapeHtml(col.id || '')}</div>
-                </div>
-                <button class="btn-secondary" data-action="admin-remove-collection" data-key="${escapeHtml(col.id || '')}" style="padding:6px 10px;">Remove</button>
-              </div>
+      <div data-tab-panel="features" class="host-tab-panel" ${activeTab !== 'features' ? 'hidden' : ''}>
+        <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:14px;">Feature Flags & Rules</h3>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <input id="adminEnableFeedbackHub" type="checkbox" ${preferences.enableFeedbackHub !== false ? 'checked' : ''}>
+          Enable user Feedback Hub
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <input id="adminEnableActivityQueue" type="checkbox" ${preferences.enableActivityQueue !== false ? 'checked' : ''}>
+          Enable Activity Queue
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <input id="adminEnableScheduleMeeting" type="checkbox" ${preferences.enableScheduleMeeting !== false ? 'checked' : ''}>
+          Enable Plan Session
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <input id="adminEnableLoadSession" type="checkbox" ${preferences.enableLoadSession !== false ? 'checked' : ''}>
+          Enable Manage Sessions
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <input id="adminEnableAIGenerator" type="checkbox" ${preferences.enableAIGenerator !== false ? 'checked' : ''}>
+          Enable AI Content Generator
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <input id="adminEnableSampleQuestions" type="checkbox" ${preferences.enableSampleQuestions !== false ? 'checked' : ''}>
+          Include built-in sample question sets
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <input id="adminEnableFooterQuotes" type="checkbox" ${preferences.enableFooterQuotes === true ? 'checked' : ''}>
+          Enable inspiring team quote footer
+        </label>
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+          <div style="font-weight:700;margin-bottom:10px;">Global Game Rules</div>
+          <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+            <input id="adminAutoRevealLightning" type="checkbox" ${preferences.autoRevealLightning !== false ? 'checked' : ''}>
+            Auto-reveal Lightning answers when everyone answers or the timer ends
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+            <input id="adminAllowAnswerChanges" type="checkbox" ${preferences.allowAnswerChanges !== false ? 'checked' : ''}>
+            Allow answer changes before reveal
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+            <input id="adminDynamicScoring" type="checkbox" ${preferences.dynamicScoring !== false ? 'checked' : ''}>
+            Use dynamic time-based scoring
+          </label>
+        </div>
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+          <div style="font-weight:700;margin-bottom:8px;">Enable Activities in Main Menu</div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+            ${ACTIVITY_QUEUE_ITEMS.map(item => `
+              <label style="display:flex;align-items:center;gap:8px;">
+                <input id="adminActivityEnabled-${item.id}" type="checkbox" ${enabledActivities[item.id] !== false ? 'checked' : ''}>
+                <span>${escapeHtml(item.icon)} ${escapeHtml(item.label)}</span>
+              </label>
             `).join('')}
           </div>
-        ` : '<div style="margin-top:10px;color:var(--text-dim);font-size:0.9rem;">No side-loaded collections yet.</div>'}
+        </div>
       </div>
 
-      <button class="btn-primary" data-action="save-admin-config" ${admin.savingConfig ? 'disabled aria-busy="true"' : ''}>
-        ${admin.savingConfig ? 'Saving...' : 'Save Branding & Preferences'}
-      </button>
-    </div>
+      <div data-tab-panel="ai" class="host-tab-panel" ${activeTab !== 'ai' ? 'hidden' : ''}>
+        ${renderAIContentStudioSection('admin')}
+      </div>
 
-    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:20px;">
-      <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:12px;">All Feedback</h3>
-      <button class="btn-secondary" data-action="refresh-admin-feedback" style="margin-bottom:12px;">Refresh</button>
-      ${admin.loading ? '<div style="color:var(--text-dim);">Loading...</div>' : ''}
-      ${!admin.loading && feedback.length === 0 ? '<div style="color:var(--text-dim);">No feedback available.</div>' : ''}
-      ${feedback.map(item => `
-        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;">
-          <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:8px;">
-            <strong>${escapeHtml(item.title || '')}</strong>
-            <span style="font-size:0.8rem;color:${statusColor[item.status] || 'var(--text-mid)'};text-transform:uppercase;">${escapeHtml((item.status || 'open').replace('_', ' '))}</span>
+      <div data-tab-panel="feedback" class="host-tab-panel" ${activeTab !== 'feedback' ? 'hidden' : ''}>
+        <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:12px;">All Feedback</h3>
+        <button class="btn-secondary" data-action="refresh-admin-feedback" style="margin-bottom:12px;">Refresh</button>
+        ${admin.loading ? '<div style="color:var(--text-dim);">Loading...</div>' : ''}
+        ${!admin.loading && feedback.length === 0 ? '<div style="color:var(--text-dim);">No feedback available.</div>' : ''}
+        ${feedback.map(item => `
+          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:8px;">
+              <strong>${escapeHtml(item.title || '')}</strong>
+              <span style="font-size:0.8rem;color:${statusColor[item.status] || 'var(--text-mid)'};text-transform:uppercase;">${escapeHtml((item.status || 'open').replace('_', ' '))}</span>
+            </div>
+            <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:8px;">
+              ${escapeHtml(item.userName || 'Anonymous')} • ${escapeHtml(item.type || 'general')} • ${escapeHtml(item.createdAt || '')}
+            </div>
+            <div style="color:var(--text-mid);margin-bottom:10px;">${escapeHtml(item.details || '')}</div>
+            <div style="display:grid;grid-template-columns:180px 1fr auto;gap:10px;">
+              <select id="admin-status-${item.id}" class="form-input">
+                <option value="open" ${(item.status || '') === 'open' ? 'selected' : ''}>Open</option>
+                <option value="in_review" ${(item.status || '') === 'in_review' ? 'selected' : ''}>In Review</option>
+                <option value="resolved" ${(item.status || '') === 'resolved' ? 'selected' : ''}>Resolved</option>
+              </select>
+              <input id="admin-notes-${item.id}" class="form-input" value="${escapeHtml(item.adminNotes || '')}" maxlength="2000" placeholder="Admin notes">
+              <button class="btn-primary" data-action="save-admin-feedback-item" data-feedback-id="${item.id}">Save</button>
+            </div>
           </div>
-          <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:8px;">
-            ${escapeHtml(item.userName || 'Anonymous')} • ${escapeHtml(item.type || 'general')} • ${escapeHtml(item.createdAt || '')}
-          </div>
-          <div style="color:var(--text-mid);margin-bottom:10px;">${escapeHtml(item.details || '')}</div>
-          <div style="display:grid;grid-template-columns:180px 1fr auto;gap:10px;">
-            <select id="admin-status-${item.id}" class="form-input">
-              <option value="open" ${(item.status || '') === 'open' ? 'selected' : ''}>Open</option>
-              <option value="in_review" ${(item.status || '') === 'in_review' ? 'selected' : ''}>In Review</option>
-              <option value="resolved" ${(item.status || '') === 'resolved' ? 'selected' : ''}>Resolved</option>
-            </select>
-            <input id="admin-notes-${item.id}" class="form-input" value="${escapeHtml(item.adminNotes || '')}" maxlength="2000" placeholder="Admin notes">
-            <button class="btn-primary" data-action="save-admin-feedback-item" data-feedback-id="${item.id}">Save</button>
-          </div>
-        </div>
-      `).join('')}
+        `).join('')}
+      </div>
+
+      <button class="btn-primary" data-action="save-admin-config" ${admin.savingConfig ? 'disabled aria-busy="true"' : ''} style="margin-top:18px;">
+        ${admin.savingConfig ? 'Saving...' : 'Save Admin Settings'}
+      </button>
     </div>
   `;
 }
@@ -9395,6 +10583,14 @@ function renderAdminConsole() {
 function renderLobby() {
   const isHost = APP.room.host === APP.player.name;
   const voiceSettings = getRoomVoiceSettings(APP.room);
+  const connectedVoiceIds = new Set((APP.voice.members || []).map(member => member?.playerId).filter(Boolean));
+  const approvedVoiceIds = new Set(APP.voice.approvedSpeakerIds || []);
+  const raisedVoiceIds = new Set(APP.voice.raisedHands || []);
+  const liveVoiceIds = new Set(APP.voice.liveSpeakerIds || []);
+  const raisedHandParticipants = (APP.room?.participants || []).filter(participant => Array.isArray(APP.voice.raisedHands) && APP.voice.raisedHands.includes(participant?.id));
+  const raisedHandCount = raisedHandParticipants.length;
+  const focusedVoiceParticipant = getVoiceFocusParticipant(APP.room);
+  const focusedVoiceParticipantId = String(focusedVoiceParticipant?.id || '').trim();
   const showFeedback = APP.preferences.enableFeedbackHub !== false;
   const safeRoomCode = escapeHtml(APP.roomCode);
   const privateSession = isRoomPrivateSession(APP.room);
@@ -9408,6 +10604,12 @@ function renderLobby() {
   const spotifySharedAtLabel = sharedSpotifyPlaylist?.updatedAt ? new Date(sharedSpotifyPlaylist.updatedAt).toLocaleString() : '';
   const showLobbyPlaylistSection = APP.showLobbyPlaylistSection === true;
   const enabledActivities = APP.preferences?.enabledActivities || {};
+  const voicePolicyLabel = voiceSettings.participantMicPolicy === 'open'
+    ? 'Everyone can speak'
+    : voiceSettings.participantMicPolicy === 'host_only'
+      ? 'Host only'
+      : 'Host-approved participants';
+  const voiceModeLabel = voiceSettings.transmissionMode === 'open' ? 'Open mic' : 'Push to talk';
   
   if (APP.room.currentActivity) {
     return renderActivity();
@@ -9419,14 +10621,33 @@ function renderLobby() {
       ${showFeedback ? '<button class="btn-secondary" data-action="open-feedback">🗣️ Feedback</button>' : ''}
       <button class="btn-secondary" data-action="leave-session">🚪 Leave Session</button>
       ${(isHost && APP.preferences.enableActivityQueue !== false) ? '<button class="btn-secondary" data-action="go-screen" data-screen="activity-queue" aria-keyshortcuts="Alt+Q">🗂️ Activity Queue</button>' : ''}
-      ${isHost ? `<button class="btn-secondary" data-action="toggle-host-voice" aria-label="${voiceSettings.enabled ? 'Turn off push to talk voice' : 'Turn on push to talk voice'}" title="${voiceSettings.enabled ? 'Turn off push to talk voice' : 'Turn on push to talk voice'}" style="border-color:${voiceSettings.enabled ? 'rgba(122,245,159,0.45)' : 'var(--border)'};color:${voiceSettings.enabled ? '#7af59f' : 'var(--text)'};">${voiceSettings.enabled ? '🎙️ Voice On' : '🔇 Voice Off'}</button>` : ''}
-      ${isHost ? '<button class="btn-secondary" data-action="open-host-settings" aria-keyshortcuts="Alt+S">⚙️ Host Settings</button>' : ''}
+      ${isHost ? `<button class="btn-secondary" data-action="toggle-host-voice" aria-label="${voiceSettings.enabled ? 'Turn off room voice' : 'Turn on room voice'}" title="${voiceSettings.enabled ? 'Turn off room voice' : 'Turn on room voice'}" style="border-color:${voiceSettings.enabled ? 'rgba(122,245,159,0.45)' : 'var(--border)'};color:${voiceSettings.enabled ? '#7af59f' : 'var(--text)'};">${voiceSettings.enabled ? '🎙️ Voice On' : '🔇 Voice Off'}</button>` : ''}
+      ${isHost ? `<button class="btn-secondary" data-action="open-host-settings" aria-keyshortcuts="Alt+S" style="border-color:${raisedHandCount ? 'rgba(255,209,102,0.45)' : 'var(--border)'};color:${raisedHandCount ? '#ffd166' : 'var(--text)'};">⚙️ Host Settings${raisedHandCount ? ` (${raisedHandCount} ✋)` : ''}</button>` : ''}
     </div>
 
     <div class="header">
       <h1 class="logo">Session Lobby</h1>
       <p class="tagline">Room: ${safeRoomCode}</p>
     </div>
+
+    ${isHost && voiceSettings.enabled && (raisedHandCount || focusedVoiceParticipant) ? `
+      <div style="background:rgba(255,209,102,0.08);border:1px solid rgba(255,209,102,0.32);border-radius:var(--radius);padding:14px 16px;margin-bottom:18px;">
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+          <div>
+            <div style="font-weight:800;margin-bottom:4px;">${raisedHandCount ? `${raisedHandCount} participant${raisedHandCount === 1 ? '' : 's'} raised a hand` : '1:1 conversation is active'}</div>
+            <div style="font-size:0.84rem;color:var(--text-dim);">
+              ${raisedHandCount
+                ? `${escapeHtml(raisedHandParticipants.map(participant => participant?.name || '').filter(Boolean).join(', '))} ${raisedHandCount === 1 ? 'is' : 'are'} waiting for host attention.`
+                : ''}
+              ${focusedVoiceParticipant ? `${raisedHandCount ? ' ' : ''}Current 1:1 focus: ${escapeHtml(focusedVoiceParticipant.name || 'selected participant')}.` : ''}
+            </div>
+          </div>
+          <button class="btn-secondary" data-action="open-host-settings" style="width:auto;padding:10px 14px;border-color:rgba(255,209,102,0.45);color:#ffd166;">
+            Open Voice Moderation
+          </button>
+        </div>
+      </div>
+    ` : ''}
     
     <div style="background:rgba(0,210,211,0.05);border:2px solid var(--accent);
       border-radius:var(--radius);padding:24px;margin-bottom:24px;">
@@ -9524,22 +10745,66 @@ function renderLobby() {
     
     <div style="background:var(--surface-solid);border:1px solid var(--border);
       border-radius:var(--radius);padding:24px;margin-bottom:30px;">
-      <h3 style="font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:10px;">
-        <div style="width:8px;height:8px;background:var(--success);border-radius:50%;animation:pulse 2s ease-in-out infinite;"></div>
-        ${APP.room.participants.length} ${APP.room.participants.length === 1 ? 'person' : 'people'} in room
-      </h3>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+        <h3 style="font-weight:600;display:flex;align-items:center;gap:10px;">
+          <div style="width:8px;height:8px;background:var(--success);border-radius:50%;animation:pulse 2s ease-in-out infinite;"></div>
+          ${APP.room.participants.length} ${APP.room.participants.length === 1 ? 'person' : 'people'} in room
+        </h3>
+        ${isHost ? `
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+            <span style="padding:6px 10px;border-radius:999px;background:${voiceSettings.enabled ? 'rgba(122,245,159,0.12)' : 'rgba(255,255,255,0.06)'};border:1px solid ${voiceSettings.enabled ? 'rgba(122,245,159,0.28)' : 'rgba(255,255,255,0.08)'};font-size:0.74rem;font-weight:700;color:${voiceSettings.enabled ? '#7af59f' : 'var(--text-dim)'};">
+              ${voiceSettings.enabled ? 'Voice Enabled' : 'Voice Off'}
+            </span>
+            ${voiceSettings.enabled ? `
+              <span style="padding:6px 10px;border-radius:999px;background:rgba(0,210,211,0.08);border:1px solid rgba(0,210,211,0.22);font-size:0.74rem;font-weight:700;color:var(--accent);">
+                Session default: ${escapeHtml(voiceModeLabel)}
+              </span>
+              <span style="padding:6px 10px;border-radius:999px;background:rgba(255,209,102,0.08);border:1px solid rgba(255,209,102,0.22);font-size:0.74rem;font-weight:700;color:#ffd166;">
+                ${escapeHtml(voicePolicyLabel)}
+              </span>
+            ` : ''}
+          </div>
+        ` : ''}
+      </div>
       
       ${APP.room.participants.map(p => `
         <div style="display:flex;justify-content:space-between;align-items:center;
-          background:var(--surface-2);border-radius:10px;padding:14px;margin-bottom:10px;">
-          <div style="display:flex;align-items:center;gap:12px;">
+          background:${isHost && focusedVoiceParticipantId === p.id ? 'rgba(0,210,211,0.08)' : 'var(--surface-2)'};border:${isHost && focusedVoiceParticipantId === p.id ? '1px solid rgba(0,210,211,0.26)' : '1px solid transparent'};border-radius:10px;padding:14px;margin-bottom:10px;gap:12px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:12px;min-width:0;">
             <div style="font-size:1.8rem;">${escapeHtml(p.avatar)}</div>
             <div>
               <div style="font-weight:600;">${escapeHtml(p.name)}</div>
-              ${p.isHost ? '<span style="background:var(--accent);color:var(--bg);padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;">HOST</span>' : ''}
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
+                ${p.isHost ? '<span style="background:var(--accent);color:var(--bg);padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;">HOST</span>' : ''}
+                ${voiceSettings.enabled && connectedVoiceIds.has(p.id) ? '<span style="background:rgba(122,245,159,0.12);color:#7af59f;padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;">VOICE</span>' : ''}
+                ${voiceSettings.enabled && raisedVoiceIds.has(p.id) ? '<span style="background:rgba(255,209,102,0.12);color:#ffd166;padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;">HAND RAISED</span>' : ''}
+                ${voiceSettings.enabled && !p.isHost && approvedVoiceIds.has(p.id) ? '<span style="background:rgba(0,210,211,0.1);color:var(--accent);padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;">MIC ALLOWED</span>' : ''}
+                ${voiceSettings.enabled && liveVoiceIds.has(p.id) ? '<span style="background:rgba(255,64,96,0.12);color:var(--danger);padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;">LIVE MIC</span>' : ''}
+                ${isHost && focusedVoiceParticipantId === p.id ? '<span style="background:rgba(0,210,211,0.12);color:var(--accent);padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;">1:1 FOCUS</span>' : ''}
+              </div>
             </div>
           </div>
-          <div style="color:var(--success);">✓</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto;">
+            ${isHost && voiceSettings.enabled && !p.isHost ? `
+              ${raisedVoiceIds.has(p.id) ? `
+                <button class="btn-secondary" data-action="voice-lower-hand" data-player-id="${escapeHtml(p.id)}" style="width:auto;padding:8px 12px;border-color:rgba(255,209,102,0.45);color:#ffd166;">
+                  Lower Hand
+                </button>
+              ` : ''}
+              <button class="btn-secondary" data-action="${focusedVoiceParticipantId === p.id ? 'voice-end-focus' : 'voice-start-focus'}" data-player-id="${escapeHtml(p.id)}" style="width:auto;padding:8px 12px;border-color:${focusedVoiceParticipantId === p.id ? 'rgba(0,210,211,0.45)' : 'var(--border)'};color:${focusedVoiceParticipantId === p.id ? 'var(--accent)' : 'var(--text)'};">
+                ${focusedVoiceParticipantId === p.id ? 'End 1:1' : 'Talk 1:1'}
+              </button>
+              ${liveVoiceIds.has(p.id) ? `
+                <button class="btn-secondary" data-action="voice-force-stop" data-player-id="${escapeHtml(p.id)}" style="width:auto;padding:8px 12px;border-color:var(--danger);color:var(--danger);">
+                  Mute Live
+                </button>
+              ` : ''}
+              <button class="btn-secondary" data-action="${approvedVoiceIds.has(p.id) ? 'voice-revoke-talk' : 'voice-grant-talk'}" data-player-id="${escapeHtml(p.id)}" style="width:auto;padding:8px 12px;">
+                ${approvedVoiceIds.has(p.id) ? 'Mute Person' : 'Allow Voice'}
+              </button>
+            ` : ''}
+            <div style="color:var(--success);">✓</div>
+          </div>
         </div>
       `).join('')}
     </div>
@@ -9759,73 +11024,13 @@ function renderActivityQueue() {
     </div>
 
     ${isHost ? `
-      <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:16px;">
-        <h3 style="font-weight:700;margin-bottom:10px;">AI Queue Builder</h3>
-        <div style="font-size:0.84rem;color:var(--text-dim);margin-bottom:12px;">
-          Generate themed content for queued activities, side-load a collection JSON, or download templates for prompt-driven prep.
-        </div>
-        <div style="font-size:0.78rem;color:var(--text-dim);margin:-4px 0 12px;">
-          Uses the server AI key when configured, or the fallback API key you already saved in Host Settings.
-        </div>
-
-        ${queueAiActivities.length ? `
-          <div style="display:grid;grid-template-columns:1.2fr 1fr 0.8fr 0.8fr;gap:10px;margin-bottom:12px;">
-            <select id="queueThemeSelect" class="form-input">
-              ${ACTIVITY_QUEUE_THEME_OPTIONS.map(theme => `<option value="${escapeHtml(theme)}" ${theme === 'General Knowledge' ? 'selected' : ''}>${escapeHtml(theme)}</option>`).join('')}
-            </select>
-            <input id="queueThemeCustom" class="form-input" maxlength="120" placeholder="Optional sub-theme or audience">
-            <select id="queueDifficulty" class="form-input">
-              <option value="easy">Easy</option>
-              <option value="mixed" selected>Mixed</option>
-              <option value="hard">Hard</option>
-            </select>
-            <input id="queueCount" class="form-input" type="number" min="3" max="20" value="${Math.max(3, Math.min(20, Number(HOST_LOCAL_CONFIG.aiDefaultCount) || 8))}">
+      ${queueAiActivities.length
+        ? renderAIContentStudioSection('queue')
+        : `
+          <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:16px;color:var(--text-dim);font-size:0.9rem;">
+            Add AI-supported activities like Trivia, Icebreaker, Team Jeopardy, Spin Wheel, or Word Chain to unlock queue content generation.
           </div>
-          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px;">
-            ${queueAiActivities.map(activityId => `
-              <label style="display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
-                <input id="queueGenerateActivity-${activityId}" type="checkbox" checked>
-                <span>${escapeHtml(ACTIVITY_QUEUE_ITEM_MAP[activityId]?.icon || '✨')} ${escapeHtml(AI_GENERATION_TARGET_LABELS[activityId] || activityId)}</span>
-              </label>
-            `).join('')}
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-            <button class="btn-primary" data-action="queue-generate-selected-content" ${APP.aiGenerating ? 'disabled' : ''}>
-              ${APP.aiGenerating ? 'Generating...' : 'Generate for Selected Activities'}
-            </button>
-            <button class="btn-secondary" data-action="queue-download-prompt-template">Download Template Prompt</button>
-            <button class="btn-secondary" data-action="queue-download-collection-template">Download JSON Template</button>
-          </div>
-        ` : `
-          <div style="font-size:0.84rem;color:var(--text-dim);margin-bottom:12px;">Add AI-supported activities like Trivia, Icebreaker, Team Jeopardy, Spin Wheel, or Word Chain to unlock queue generation.</div>
         `}
-
-        <div style="margin-top:10px;padding-top:14px;border-top:1px solid var(--border);">
-          <div style="font-weight:700;margin-bottom:8px;">Side-Load Options (JSON)</div>
-          <textarea id="queueCollectionJson" class="form-input" rows="6" placeholder='{"name":"Marvel Queue Pack","activities":{"lightning-trivia":[{"q":"...","opts":["A","B","C","D"],"ans":1}]}}'></textarea>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
-            <button class="btn-secondary" data-action="queue-add-collection">Add Collection to This Browser</button>
-          </div>
-          <div style="font-size:0.78rem;color:var(--text-dim);margin-top:8px;">
-            Side-loaded collections update the host browser’s activity banks immediately and can be used by queued activities in this session. Removing them here only affects this browser session.
-          </div>
-          ${localCollections.length ? `
-            <div style="margin-top:12px;display:grid;gap:8px;">
-              ${localCollections.map(col => `
-                <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px;display:flex;justify-content:space-between;gap:10px;align-items:center;">
-                  <div>
-                    <div style="font-weight:700;">${escapeHtml(col.name || col.id)}</div>
-                    <div style="font-size:0.8rem;color:var(--text-dim);">${escapeHtml(col.id || '')}</div>
-                  </div>
-                  <button class="btn-secondary" data-action="queue-remove-collection" data-key="${escapeHtml(col.id || '')}" style="padding:6px 10px;">Remove</button>
-                </div>
-              `).join('')}
-            </div>
-          ` : '<div style="margin-top:10px;color:var(--text-dim);font-size:0.9rem;">No side-loaded collections in this browser yet.</div>'}
-        </div>
-
-        ${APP.aiStatus ? `<div role="status" aria-live="polite" style="margin-top:12px;color:var(--text-mid);font-size:0.9rem;">${escapeHtml(APP.aiStatus)}</div>` : ''}
-      </div>
     ` : ''}
   `;
 }
@@ -9843,6 +11048,9 @@ function renderHostSettingsModal() {
   const connectedVoiceIds = new Set((APP.voice.members || []).map(member => member?.playerId).filter(Boolean));
   const raisedVoiceIds = new Set(APP.voice.raisedHands || []);
   const approvedVoiceIds = new Set(APP.voice.approvedSpeakerIds || []);
+  const liveVoiceIds = new Set(APP.voice.liveSpeakerIds || []);
+  const focusedVoiceParticipant = getVoiceFocusParticipant(APP.room);
+  const focusedVoiceParticipantId = String(focusedVoiceParticipant?.id || '').trim();
   return `
     <div style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10020;display:grid;place-items:center;padding:16px;">
       <div style="width:min(760px,100%);max-height:90vh;overflow:auto;background:var(--surface-solid);
@@ -9890,7 +11098,7 @@ function renderHostSettingsModal() {
             <h4 style="margin-bottom:10px;">Voice Broadcast</h4>
             <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
               <input type="checkbox" id="hsVoiceEnabled" ${voiceSettings.enabled ? 'checked' : ''}>
-              Enable push-to-talk voice broadcast
+              Enable voice in this room
             </label>
             <div class="form-group" style="margin-bottom:10px;">
               <label class="form-label" for="hsVoiceMicPolicy">Who can speak</label>
@@ -9900,36 +11108,57 @@ function renderHostSettingsModal() {
                 <option value="open" ${voiceSettings.participantMicPolicy === 'open' ? 'selected' : ''}>Everyone in the room</option>
               </select>
             </div>
+            <div class="form-group" style="margin-bottom:10px;">
+              <label class="form-label" for="hsVoiceTransmissionMode">Talk mode</label>
+              <select id="hsVoiceTransmissionMode" class="form-input">
+                <option value="ptt" ${voiceSettings.transmissionMode === 'ptt' ? 'selected' : ''}>Push to talk</option>
+                <option value="open" ${voiceSettings.transmissionMode === 'open' ? 'selected' : ''}>Open mic with mute toggle</option>
+              </select>
+            </div>
             <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
               <input type="checkbox" id="hsVoiceHideBlockedControls" ${voiceSettings.hideBlockedMicControls !== false ? 'checked' : ''}>
               Hide mic controls for blocked participants
             </label>
             ${voiceSettings.enabled ? `
               <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:10px;">
-                Connected now: ${APP.voice.members.length}. Live: <strong>${escapeHtml(APP.voice.activeSpeakerName || 'None')}</strong>
+                Connected now: ${APP.voice.members.length}. Live: <strong>${liveVoiceIds.size ? escapeHtml((APP.voice.members || []).filter(member => liveVoiceIds.has(member.playerId)).map(member => member.playerName).join(', ') || APP.voice.activeSpeakerName || 'Live') : 'None'}</strong>. Raised hands: <strong>${raisedVoiceIds.size}</strong>
               </div>
+              ${focusedVoiceParticipantId ? `
+                <div style="margin-bottom:10px;padding:10px 12px;border-radius:10px;background:rgba(0,210,211,0.08);border:1px solid rgba(0,210,211,0.28);font-size:0.84rem;">
+                  1:1 focus is active with <strong>${escapeHtml(focusedVoiceParticipant?.name || 'selected participant')}</strong>. Only the host and that participant can speak.
+                </div>
+              ` : ''}
               <div style="display:grid;gap:8px;">
                 ${(APP.room?.participants || []).filter(participant => participant?.name && !participant.isHost).map(participant => {
                   const isApproved = approvedVoiceIds.has(participant.id);
                   const isRaised = raisedVoiceIds.has(participant.id);
                   const isConnected = connectedVoiceIds.has(participant.id);
-                  const isLive = APP.voice.activeSpeakerId === participant.id;
+                  const isLive = liveVoiceIds.has(participant.id);
+                  const isFocused = participant.id === focusedVoiceParticipantId;
                   return `
-                    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:${isFocused ? 'rgba(0,210,211,0.08)' : 'var(--surface-2)'};border:1px solid ${isFocused ? 'rgba(0,210,211,0.28)' : 'var(--border)'};border-radius:10px;padding:10px 12px;">
                       <div>
                         <div style="font-weight:700;">${escapeHtml(participant.avatar || '👤')} ${escapeHtml(participant.name)}</div>
                         <div style="font-size:0.78rem;color:var(--text-dim);margin-top:4px;">
-                          ${isConnected ? 'Connected to voice' : 'Not connected'}${isRaised ? ' • Requested access' : ''}${isLive ? ' • Speaking now' : ''}
+                          ${isConnected ? 'Connected to voice' : 'Not connected'}${isApproved ? ' • Mic allowed' : ''}${isRaised ? ' • Hand raised' : ''}${isLive ? ' • Live mic open' : ''}${isFocused ? ' • 1:1 with host' : ''}
                         </div>
                       </div>
                       <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+                        <button class="btn-secondary" data-action="${isFocused ? 'voice-end-focus' : 'voice-start-focus'}" data-player-id="${escapeHtml(participant.id)}" style="width:auto;padding:8px 12px;border-color:${isFocused ? 'rgba(0,210,211,0.45)' : 'var(--border)'};color:${isFocused ? 'var(--accent)' : 'var(--text)'};">
+                          ${isFocused ? 'End 1:1' : 'Talk 1:1'}
+                        </button>
                         ${isLive ? `
                           <button class="btn-secondary" data-action="voice-force-stop" data-player-id="${escapeHtml(participant.id)}" style="width:auto;padding:8px 12px;border-color:var(--danger);color:var(--danger);">
-                            Stop Speaker
+                            Mute Live Mic
+                          </button>
+                        ` : ''}
+                        ${isRaised ? `
+                          <button class="btn-secondary" data-action="voice-lower-hand" data-player-id="${escapeHtml(participant.id)}" style="width:auto;padding:8px 12px;border-color:rgba(255,209,102,0.45);color:#ffd166;">
+                            Lower Hand
                           </button>
                         ` : ''}
                         <button class="btn-secondary" data-action="${isApproved ? 'voice-revoke-talk' : 'voice-grant-talk'}" data-player-id="${escapeHtml(participant.id)}" style="width:auto;padding:8px 12px;">
-                          ${isApproved ? 'Block Mic' : 'Allow Mic'}
+                          ${isApproved ? 'Mute Person' : 'Unmute Person'}
                         </button>
                       </div>
                     </div>
@@ -10006,52 +11235,7 @@ function renderHostSettingsModal() {
           </div>
 
           ${roomSettings.enableAIGenerator ? `
-            <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
-              <h4 style="margin-bottom:10px;">🤖 AI Content Generator</h4>
-              <div style="display:grid;grid-template-columns:1.2fr 2fr 1fr 1fr;gap:10px;margin-bottom:10px;">
-                <select id="aiActivity" class="form-input">
-                  ${AI_GENERATION_TARGETS.map(item => `
-                    <option value="${item.id}" ${HOST_LOCAL_CONFIG.aiDefaultActivity === item.id ? 'selected' : ''}>${escapeHtml(getAIGenerationTargetLabelWithCount(item.id, item.label))}</option>
-                  `).join('')}
-                </select>
-                <input id="aiTopic" class="form-input" placeholder="Topic or focus (e.g., Sprint Retro, Space, Leadership)">
-                <select id="aiDifficulty" class="form-input">
-                  <option value="easy" ${HOST_LOCAL_CONFIG.aiDefaultDifficulty === 'easy' ? 'selected' : ''}>Easy</option>
-                  <option value="mixed" ${HOST_LOCAL_CONFIG.aiDefaultDifficulty === 'mixed' ? 'selected' : ''}>Mixed</option>
-                  <option value="hard" ${HOST_LOCAL_CONFIG.aiDefaultDifficulty === 'hard' ? 'selected' : ''}>Hard</option>
-                </select>
-                <input id="aiCount" class="form-input" type="number" min="3" max="20" value="${HOST_LOCAL_CONFIG.aiDefaultCount}" placeholder="Count">
-              </div>
-              <input id="aiApiKey" class="form-input" type="password" value="${escapeHtml(HOST_LOCAL_CONFIG.aiApiKey)}" placeholder="Optional fallback API key (local browser only)" style="margin-bottom:10px;">
-              <button class="btn-primary" data-action="generate-ai-questions" ${APP.aiGenerating ? 'disabled' : ''}>
-                ${APP.aiGenerating ? 'Generating...' : 'Generate & Add Content'}
-              </button>
-              <div style="margin-top:8px;font-size:0.85rem;color:var(--text-dim);">
-                Uses server-side AI key from <code>CHAT_GPT_MINI_KEY</code> when configured. Supported targets: Lightning Trivia, Emoji Charades, Trivia Battle, Icebreaker, Team Pulse, Values Vote, Team Wordle, Word Chain, Team Jeopardy, Brainstorm Canvas, Spin Wheel.
-              </div>
-              ${APP.aiStatus ? `<div role="status" aria-live="polite" style="margin-top:10px;color:var(--text-mid);font-size:0.9rem;">${escapeHtml(APP.aiStatus)}</div>` : ''}
-            </div>
-            <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-              <h4 style="margin-bottom:10px;">🗂️ Question Bank Manager</h4>
-              <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:8px;">
-                <select id="hsAiBankTarget" class="form-input">
-                  ${AI_BANK_EDITOR_TARGETS.map(target => `
-                    <option value="${target.id}" ${aiBankEditorTarget === target.id ? 'selected' : ''}>
-                      ${escapeHtml(target.label)} (${getAIBankEditorCount(target.id)})
-                    </option>
-                  `).join('')}
-                </select>
-                <button type="button" class="btn-secondary" data-action="reload-ai-bank-editor" style="width:auto;padding:0 14px;">Reload</button>
-              </div>
-              <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:8px;">
-                Edit the JSON array for the selected bank, then save. ${escapeHtml(aiBankEditorHelp)}
-              </div>
-              <textarea id="hsAiBankEditorText" class="form-input" style="min-height:220px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">${escapeHtml(aiBankEditorJson)}</textarea>
-              <button class="btn-primary" data-action="save-ai-bank-editor" style="margin-top:10px;">
-                Save Bank Changes
-              </button>
-              ${APP.aiBankEditorStatus ? `<div role="status" aria-live="polite" style="margin-top:8px;color:var(--text-mid);font-size:0.88rem;">${escapeHtml(APP.aiBankEditorStatus)}</div>` : ''}
-            </div>
+            ${renderAIContentStudioSection('room', { compact: true })}
           ` : `
             <div style="margin-top:10px;color:var(--text-dim);font-size:0.9rem;">
               AI Content Generator is disabled. Enable it above to generate content here.
@@ -10318,7 +11502,7 @@ async function createRoomFromSessionPlan(planId) {
   const created = await RoomManager.createRoom(APP.player.id, APP.player.name, APP.player.avatar);
   const room = applySessionPlanToRoom(created.room, plan);
   await RoomManager.updateRoom(room.code, room, created.accessToken);
-  APP.room = room;
+  APP.room = normalizeRoom(room);
   APP.roomCode = room.code;
   APP.roomAccessToken = created.accessToken;
   APP.screen = 'lobby';
@@ -10344,6 +11528,14 @@ async function saveSessionPlan() {
   const time = String(document.getElementById('meetingTime')?.value || '').trim().slice(0, 32);
   const zoomLink = normalizeSlidesStudioUrl(document.getElementById('zoomLink')?.value || '');
   const details = String(document.getElementById('meetingDetails')?.value || '').replace(/\r/g, '').trim().slice(0, 2000);
+  const contentBrief = normalizeContentBrief({
+    themePreset: document.getElementById('meetingThemePreset')?.value || 'Team Collaboration',
+    customTopic: document.getElementById('meetingCustomTopic')?.value || '',
+    audience: document.getElementById('meetingAudience')?.value || '',
+    tone: document.getElementById('meetingTone')?.value || '',
+    difficulty: document.getElementById('meetingDifficulty')?.value || 'mixed',
+    count: document.getElementById('meetingContentCount')?.value || '8'
+  });
   const activityQueue = Array.from(
     document.querySelectorAll('.activity-queue-checkbox:checked')
   ).map(cb => cb.value).filter(activityId => ALL_ACTIVITY_IDS.includes(activityId));
@@ -10361,6 +11553,8 @@ async function saveSessionPlan() {
     time,
     zoomLink,
     details,
+    contentBrief,
+    contentCollections: existing?.contentCollections || [],
     activityQueue,
     createdAt: existing?.createdAt || nowIso,
     updatedAt: nowIso
@@ -10981,6 +12175,12 @@ function openAdminConsole() {
   render();
 }
 
+function switchAdminConsoleTab(tabId) {
+  const allowed = new Set(['overview', 'features', 'ai', 'feedback']);
+  APP.admin.activeTab = allowed.has(tabId) ? tabId : 'overview';
+  render();
+}
+
 async function adminLogin() {
   const tokenInput = document.getElementById('adminToken');
   const token = String(tokenInput?.value || APP.admin.token || '').trim();
@@ -11008,6 +12208,7 @@ async function adminLogin() {
 
 function adminLogout() {
   APP.admin.authenticated = false;
+  APP.admin.activeTab = 'overview';
   APP.admin.feedback = [];
   APP.admin.loading = false;
   APP.admin.savingConfig = false;
@@ -11545,9 +12746,11 @@ async function saveHostSettings() {
     spinWheelAllowPlayerPicks: Boolean(document.getElementById('hsSpinWheelAllowPlayerPicks')?.checked),
     emojiCharadesAllowCloseAnswers: Boolean(document.getElementById('hsEmojiCharadesAllowCloseAnswers')?.checked),
     voice: normalizeVoiceHostSettings({
+      focusParticipantId: getRoomVoiceSettings(APP.room).focusParticipantId || '',
       enabled: Boolean(document.getElementById('hsVoiceEnabled')?.checked),
       participantMicPolicy: document.getElementById('hsVoiceMicPolicy')?.value || 'approved',
-      hideBlockedMicControls: Boolean(document.getElementById('hsVoiceHideBlockedControls')?.checked)
+      hideBlockedMicControls: Boolean(document.getElementById('hsVoiceHideBlockedControls')?.checked),
+      transmissionMode: document.getElementById('hsVoiceTransmissionMode')?.value || 'ptt'
     }),
     enableAIGenerator: APP.preferences.enableAIGenerator !== false
       && Boolean(document.getElementById('hsEnableAIGenerator')?.checked)
@@ -12254,6 +13457,7 @@ document.addEventListener('pointerdown', event => {
   startVoiceDockDrag(event);
   const voiceTarget = event.target instanceof Element ? event.target.closest('[data-voice-ptt]') : null;
   if (!voiceTarget) return;
+  voicePttPointerActive = true;
   event.preventDefault();
   void startPushToTalk();
 });
@@ -12264,15 +13468,20 @@ document.addEventListener('pointermove', event => {
 
 document.addEventListener('pointerup', event => {
   endVoiceDockDrag(event);
-  if (!APP.voice.isTransmitting) return;
-  if (event.target instanceof Element && event.target.closest('[data-voice-ptt]')) {
-    event.preventDefault();
+  if (!voicePttPointerActive) return;
+  voicePttPointerActive = false;
+  if (APP.voice.isTransmitting) {
+    if (event.target instanceof Element && event.target.closest('[data-voice-ptt]')) {
+      event.preventDefault();
+    }
+    void stopPushToTalk();
   }
-  void stopPushToTalk();
 });
 
 document.addEventListener('pointercancel', () => {
   endVoiceDockDrag();
+  if (!voicePttPointerActive) return;
+  voicePttPointerActive = false;
   void stopPushToTalk();
 });
 
@@ -12324,16 +13533,19 @@ document.addEventListener('input', event => {
 document.addEventListener('change', event => {
   const target = event.target;
   if (!(target instanceof HTMLSelectElement)) return;
-  if (target.id !== 'hsAiBankTarget') return;
-  APP.aiBankEditorTarget = getAIBankEditorTargetOrDefault(target.value);
-  APP.aiBankEditorStatus = null;
-  render();
+  if (target.id === 'hsAiBankTarget' || target.id === 'contentStudioBankTarget') {
+    APP.aiBankEditorTarget = getAIBankEditorTargetOrDefault(target.value);
+    APP.aiBankEditorStatus = null;
+    APP.contentStudioStatus = null;
+    render();
+  }
 });
 
 document.addEventListener('dragstart', event => {
   const battleshipShip = event.target instanceof HTMLElement ? event.target.closest('[data-battleship-ship-id]') : null;
   if (battleshipShip && APP.room?.currentActivity === 'battleship') {
     APP.battleshipUi.dragShipId = String(battleshipShip.getAttribute('data-battleship-ship-id') || '').trim();
+    if (APP.battleshipUi.dragShipId) selectBattleshipShip(APP.battleshipUi.dragShipId);
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/plain', APP.battleshipUi.dragShipId || '');
@@ -12346,6 +13558,13 @@ document.addEventListener('dragstart', event => {
   if (event.dataTransfer) {
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('text/plain', brainstormDraggedNoteId || '');
+  }
+});
+
+document.addEventListener('dragend', event => {
+  const battleshipShip = event.target instanceof HTMLElement ? event.target.closest('[data-battleship-ship-id]') : null;
+  if (battleshipShip && APP.room?.currentActivity === 'battleship') {
+    APP.battleshipUi.dragShipId = '';
   }
 });
 
@@ -12388,7 +13607,7 @@ document.addEventListener('click', async (event) => {
   const target = event.target.closest('[data-action]');
   if (!target) return;
 
-  const { action, avatar, screen, key, index, feedbackId, activity, queueIndex, noteId, lane, direction, tab, word, cat, clue, player, accepted, cardId, color, playerId, shipId, slideId, bsRow, bsCol, axis, readyState, pattern } = target.dataset;
+  const { action, avatar, screen, key, index, feedbackId, activity, queueIndex, noteId, lane, direction, tab, word, cat, clue, player, accepted, cardId, color, playerId, shipId, slideId, bsRow, bsCol, axis, readyState, pattern, marker } = target.dataset;
   const parsedIndex = Number.parseInt(index ?? '', 10);
   const parsedQueueIndex = Number.parseInt(queueIndex ?? '', 10);
   const parsedCategoryIndex = Number.parseInt(cat ?? '', 10);
@@ -12442,6 +13661,9 @@ document.addEventListener('click', async (event) => {
     case 'open-admin-console':
       openAdminConsole();
       break;
+    case 'admin-console-tab':
+      switchAdminConsoleTab(tab || 'overview');
+      break;
     case 'close-shortcut-help':
       toggleShortcutHelp(false);
       break;
@@ -12459,6 +13681,28 @@ document.addEventListener('click', async (event) => {
       break;
     case 'save-admin-config':
       await saveAdminConfig();
+      break;
+    case 'content-studio-generate-all':
+      await generateContentStudioActivityContent(getContentStudioContext(
+        String(document.getElementById('contentStudioScope')?.value || 'room'),
+        String(document.getElementById('contentStudioPlanId')?.value || '')
+      ).availableTargets.map(item => item.id));
+      break;
+    case 'content-studio-generate-selected':
+      await generateContentStudioActivityContent();
+      break;
+    case 'content-studio-add-collection':
+      await addContentStudioCollectionFromInput();
+      break;
+    case 'content-studio-remove-collection':
+      if (key) await removeContentStudioCollection(key);
+      break;
+    case 'reload-content-studio-bank':
+      APP.contentStudioStatus = null;
+      render();
+      break;
+    case 'save-content-studio-bank':
+      await saveContentStudioBankEditor();
       break;
     case 'admin-generate-all-content':
       await generateAdminActivityContent(ADMIN_GENERATION_TARGETS.map(item => item.id));
@@ -12541,8 +13785,23 @@ document.addEventListener('click', async (event) => {
     case 'voice-toggle-mic':
       await toggleVoiceMicReady();
       break;
+    case 'voice-toggle-line':
+      await toggleVoiceOpenLine();
+      break;
+    case 'voice-toggle-hand':
+      await toggleVoiceHandRaised();
+      break;
+    case 'voice-start-focus':
+      if (playerId) await setVoiceFocusedParticipant(playerId);
+      break;
+    case 'voice-end-focus':
+      await setVoiceFocusedParticipant('');
+      break;
     case 'voice-request-talk':
       await requestVoiceAccess();
+      break;
+    case 'voice-lower-hand':
+      if (playerId) await lowerParticipantVoiceHand(playerId);
       break;
     case 'voice-grant-talk':
       if (playerId) await updateParticipantVoicePermission(playerId, true);
@@ -12797,11 +14056,11 @@ document.addEventListener('click', async (event) => {
       await startSpinWheelMiniSession();
       break;
     case 'battleship-select-ship':
-      if (shipId) selectBattleshipShip(shipId);
+      if (shipId) await handleBattleshipShipSelection(shipId);
       break;
     case 'battleship-toggle-axis':
       if (axis) setBattleshipPlacementAxis(axis);
-      else toggleBattleshipPlacementAxis();
+      else await toggleBattleshipPlacementAxis();
       break;
     case 'battleship-place-ship':
       if (Number.isInteger(parsedBsRow) && Number.isInteger(parsedBsCol)) {
@@ -12832,6 +14091,9 @@ document.addEventListener('click', async (event) => {
       if (Number.isInteger(parsedBsRow) && Number.isInteger(parsedBsCol)) {
         await bingoToggleMark(parsedBsRow, parsedBsCol);
       }
+      break;
+    case 'bingo-select-marker':
+      if (marker) selectBingoMarker(marker);
       break;
     case 'bingo-claim':
       await bingoClaimWin();
@@ -13006,12 +14268,14 @@ function renderBingo() {
   const lastBallMeta = getBingoBallMeta(state.lastCalled);
   const drawAnimationStamp = Number(state.lastCalledAt) || null;
   APP.bingoUi = APP.bingoUi && typeof APP.bingoUi === 'object' ? APP.bingoUi : getDefaultBingoUiState();
+  APP.bingoUi.selectedMarker = normalizeBingoMarkerType(APP.bingoUi.selectedMarker || BINGO_MARKER_OPTIONS[0].id);
   const shouldAnimateBall = drawAnimationStamp !== null && APP.bingoUi.lastAnimatedDrawStamp !== drawAnimationStamp;
   APP.bingoUi.lastAnimatedDrawStamp = drawAnimationStamp;
   const calledNumbers = Array.isArray(state.calledNumbers) ? state.calledNumbers : [];
   const recentCalls = [...calledNumbers].slice(-15).reverse();
   const participantNames = (APP.room.participants || []).map(player => player?.name).filter(Boolean);
   const bingoHeaderColors = ['#ef233c', '#2563eb', '#16a34a', '#facc15', '#f97316'];
+  const cardMarkers = card ? normalizeBingoMarkerGrid(card.markers, card.marked) : null;
 
   return `
     <div class="header">
@@ -13021,8 +14285,8 @@ function renderBingo() {
 
     ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
 
-    <div style="max-width:1220px;margin:24px auto 0;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,0.9fr);gap:18px;align-items:start;">
-      <div style="display:grid;gap:18px;">
+    <div class="game-mobile-shell game-mobile-main" style="max-width:1220px;margin:24px auto 0;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(300px,0.9fr);gap:18px;align-items:start;">
+      <div class="game-mobile-side" style="display:grid;gap:18px;">
         <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:18px;padding:18px;">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
             <div>
@@ -13035,10 +14299,36 @@ function renderBingo() {
           </div>
 
           ${card ? `
-            <div style="background:#ffffff;border:8px solid #ef233c;border-radius:24px;padding:12px 12px 14px;box-shadow:0 18px 42px rgba(0,0,0,0.18);margin-bottom:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;padding:12px 14px;border-radius:16px;background:var(--surface-2);border:1px solid var(--border);">
+              <div>
+                <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;">Marker Tray</div>
+                <div style="font-size:0.84rem;color:var(--text-dim);">Pick the stamp you want before tapping a called square.</div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+                ${BINGO_MARKER_OPTIONS.map(option => {
+                  const isSelected = APP.bingoUi.selectedMarker === option.id;
+                  const markerLabel = escapeHtml(option.label);
+                  return `
+                    <button
+                      type="button"
+                      data-action="bingo-select-marker"
+                      data-marker="${escapeHtml(option.id)}"
+                      aria-pressed="${isSelected ? 'true' : 'false'}"
+                      title="${markerLabel}"
+                      style="min-width:58px;padding:10px 12px;border-radius:14px;border:1px solid ${isSelected ? option.border : 'var(--border)'};background:${isSelected ? `linear-gradient(135deg,${option.fill},rgba(255,255,255,0.16))` : 'rgba(255,255,255,0.04)'};box-shadow:${isSelected ? `0 10px 20px ${option.glow}` : 'none'};color:${isSelected ? option.accent : 'var(--text)'};font:inherit;cursor:pointer;display:grid;place-items:center;gap:4px;"
+                    >
+                      <span style="font-size:1.3rem;font-weight:900;line-height:1;">${escapeHtml(option.icon)}</span>
+                      <span style="font-size:0.63rem;font-weight:800;letter-spacing:0.04em;white-space:nowrap;">${markerLabel}</span>
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+            <div class="game-mobile-scroll">
+            <div class="bingo-card-frame bingo-card-grid" style="background:#ffffff;border:8px solid #ef233c;border-radius:24px;padding:12px 12px 14px;box-shadow:0 18px 42px rgba(0,0,0,0.18);margin-bottom:14px;">
               <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;margin-bottom:6px;">
                 ${BINGO_COLUMN_LABELS.map((label, idx) => `
-                  <div style="display:grid;place-items:center;padding:12px 0;border-radius:10px 10px 0 0;background:${bingoHeaderColors[idx]};border:2px solid ${bingoHeaderColors[idx]};font-weight:900;letter-spacing:0.18em;font-size:1.55rem;color:${idx === 3 ? '#3f2200' : '#ffffff'};text-shadow:${idx === 3 ? 'none' : '0 1px 0 rgba(0,0,0,0.18)'};">
+                  <div class="bingo-card-header-cell" style="display:grid;place-items:center;padding:12px 0;border-radius:10px 10px 0 0;background:${bingoHeaderColors[idx]};border:2px solid ${bingoHeaderColors[idx]};font-weight:900;letter-spacing:0.18em;font-size:1.55rem;color:${idx === 3 ? '#3f2200' : '#ffffff'};text-shadow:${idx === 3 ? 'none' : '0 1px 0 rgba(0,0,0,0.18)'};">
                     ${escapeHtml(label)}
                   </div>
                 `).join('')}
@@ -13047,36 +14337,55 @@ function renderBingo() {
               ${Array.from({ length: 5 }, (_, row) => Array.from({ length: 5 }, (_, col) => {
                 const value = card.grid[row][col];
                 const marked = normalizeBingoMarkedGrid(card.marked)[row][col];
+                const markerType = cardMarkers?.[row]?.[col] || '';
+                const markerMeta = getBingoMarkerMeta(markerType || APP.bingoUi.selectedMarker);
                 const callable = isBingoCellMarkAllowed(card, calledSet, row, col);
                 const canToggle = state.phase === 'playing' && callable && !(row === 2 && col === 2);
                 const isFree = value === 'FREE';
                 const cellBackground = marked
-                  ? 'linear-gradient(135deg,#ef233c,#f97316)'
+                  ? `linear-gradient(135deg,${markerMeta.fill},rgba(255,255,255,0.92))`
                   : isFree
                     ? 'linear-gradient(135deg,#fef3c7,#dcfce7)'
                     : '#ffffff';
                 const cellColor = marked
-                  ? '#ffffff'
+                  ? '#220312'
                   : isFree
                     ? '#5b2400'
                     : '#220312';
                 const borderColor = marked
-                  ? '#7f1d1d'
+                  ? markerMeta.border
                   : callable
                     ? '#651226'
                     : '#a78b95';
+                const markerOverlayShadow = markerMeta.kind === 'chip'
+                  ? `inset 0 0 0 4px ${markerMeta.border}, 0 10px 18px ${markerMeta.glow}`
+                  : markerMeta.kind === 'dauber'
+                    ? `0 0 0 2px ${markerMeta.border}, inset 0 0 26px rgba(255,255,255,0.12)`
+                    : 'none';
+                const markerOverlayFilter = markerMeta.kind === 'icon'
+                  ? `drop-shadow(0 6px 10px ${markerMeta.glow})`
+                  : 'none';
+                const markerOverlay = marked ? `
+                  <span
+                    aria-hidden="true"
+                    style="position:absolute;inset:8px;border-radius:${markerMeta.kind === 'chip' ? '999px' : '18px'};display:grid;place-items:center;pointer-events:none;color:${markerMeta.accent};background:${markerMeta.kind === 'dauber' ? markerMeta.fill : 'transparent'};box-shadow:${markerOverlayShadow};filter:${markerOverlayFilter};font-size:${markerMeta.kind === 'icon' ? '2.15rem' : '3rem'};font-weight:900;line-height:1;opacity:${markerMeta.kind === 'dauber' ? '0.98' : '1'};"
+                  >${escapeHtml(markerMeta.icon)}</span>
+                ` : '';
                 return `
                   <button
                     type="button"
+                    class="bingo-card-cell ${isFree ? 'bingo-card-cell-free' : ''}"
                     data-action="${canToggle ? 'bingo-toggle-mark' : ''}"
                     data-bs-row="${row}"
                     data-bs-col="${col}"
-                    style="aspect-ratio:1/1;border-radius:0;border:2px solid ${borderColor};background:${cellBackground};color:${cellColor};display:grid;place-items:center;padding:10px;cursor:${canToggle ? 'pointer' : 'default'};font-weight:900;font-size:${isFree ? '0.98rem' : '3rem'};line-height:${isFree ? '1.05' : '0.95'};box-shadow:${marked ? 'inset 0 0 0 2px rgba(255,255,255,0.2)' : 'none'};letter-spacing:${isFree ? '0.02em' : '-0.05em'};">
-                    ${isFree ? 'FREE SPACE' : escapeHtml(String(value))}
+                    style="position:relative;overflow:hidden;isolation:isolate;aspect-ratio:1/1;border-radius:0;border:2px solid ${borderColor};background:${cellBackground};color:${cellColor};display:grid;place-items:center;padding:10px;cursor:${canToggle ? 'pointer' : 'default'};font-weight:900;font-size:${isFree ? '0.98rem' : '3rem'};line-height:${isFree ? '1.05' : '0.95'};box-shadow:${marked ? `inset 0 0 0 2px rgba(255,255,255,0.36), 0 10px 24px ${markerMeta.glow}` : 'none'};letter-spacing:${isFree ? '0.02em' : '-0.05em'};">
+                    ${markerOverlay}
+                    <span style="position:relative;z-index:1;text-shadow:${marked && markerMeta.kind !== 'icon' ? '0 1px 0 rgba(255,255,255,0.2)' : 'none'};">${isFree ? 'FREE SPACE' : escapeHtml(String(value))}</span>
                   </button>
                 `;
               }).join('')).join('')}
               </div>
+            </div>
             </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
               <button class="btn-primary" data-action="bingo-claim" style="width:auto;padding:10px 16px;" ${(state.phase !== 'playing' || !hasWinningCard) ? 'disabled' : ''}>Claim Bingo</button>
@@ -13107,7 +14416,7 @@ function renderBingo() {
         </div>
       </div>
 
-      <div style="display:grid;gap:18px;">
+      <div class="game-mobile-side" style="display:grid;gap:18px;">
         ${isHost ? `
           <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:18px;padding:18px;">
             <div style="font-family:'Fraunces',serif;font-size:1.35rem;margin-bottom:12px;">Host Controls</div>
@@ -13232,7 +14541,7 @@ function formatBattleshipShipPosition(ship) {
 }
 
 function renderBattleshipGridLabelCell(content, extraStyle = '') {
-  return `<div style="display:grid;place-items:center;font-size:0.78rem;font-weight:800;color:rgba(236,233,225,0.72);text-shadow:0 0 10px rgba(138,241,255,0.2);${extraStyle}">${content}</div>`;
+  return `<div class="battleship-grid-label" style="display:grid;place-items:center;font-size:0.78rem;font-weight:800;color:rgba(236,233,225,0.72);text-shadow:0 0 10px rgba(138,241,255,0.2);${extraStyle}">${content}</div>`;
 }
 
 function renderBattleship() {
@@ -13249,12 +14558,15 @@ function renderBattleship() {
   const opponentBoard = opponent ? normalizeBattleshipBoard(getBattleshipBoard(state, opponent)) : null;
   const selectedShipId = APP.battleshipUi.selectedShipId || '';
   const placementAxis = APP.battleshipUi.placementAxis === 'vertical' ? 'vertical' : 'horizontal';
+  const selectedShip = myBoard && selectedShipId ? findBattleshipShip(myBoard, selectedShipId) : null;
   const setupReadyCount = players.filter(name => normalizeBattleshipBoard(getBattleshipBoard(state, name)).ready).length;
   const turnName = String(state.turn || '');
   const winnerName = String(state.winner || '');
   const spectators = (APP.room.participants || []).map(participant => participant?.name).filter(name => name && !players.includes(name));
   const phaseLabel = state.phase === 'setup' ? 'Setup Fleet' : state.phase === 'battle' ? 'Battle' : 'Finished';
   const myShipsPlaced = myBoard ? areBattleshipShipsPlaced(myBoard) : false;
+  const myPlacedShipCount = myBoard ? myBoard.ships.filter(ship => ship.cells.length === ship.length).length : 0;
+  const shipsRemainingToPlace = myBoard ? Math.max(0, myBoard.ships.length - myPlacedShipCount) : 0;
   const myRemainingShips = myBoard ? getBattleshipLivingShips(myBoard) : 0;
   const opponentRemainingShips = opponentBoard ? getBattleshipLivingShips(opponentBoard) : 0;
   const myHitCount = myBoard ? myBoard.shotsTaken.filter(shot => shot.result === 'hit').length : 0;
@@ -13265,6 +14577,33 @@ function renderBattleship() {
     : state.phase === 'battle'
       ? '#8af1ff'
       : '#7af59f';
+  const readyButtonLabel = myBoard?.ready
+    ? 'Fleet Ready'
+    : myShipsPlaced
+      ? 'Ready Up Fleet'
+      : `Deploy ${shipsRemainingToPlace} More`;
+  const readyButtonAccent = myBoard?.ready
+    ? 'linear-gradient(135deg,#22c55e,#15803d)'
+    : myShipsPlaced
+      ? 'linear-gradient(135deg,#8af1ff,#2563eb)'
+      : 'linear-gradient(135deg,#334155,#1e293b)';
+  const readyButtonCursor = (state.phase === 'setup' && myShipsPlaced && !myBoard?.ready) ? 'pointer' : 'default';
+  const editFleetLabel = myBoard?.ready ? 'Unlock Fleet' : 'Editing Fleet';
+  const editFleetAccent = myBoard?.ready
+    ? 'linear-gradient(135deg,rgba(255,209,102,0.22),rgba(255,143,163,0.16))'
+    : 'linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))';
+  const mapReadyToggleMarkup = isBattlePlayer && state.phase === 'setup' ? `
+    <button
+      type="button"
+      class="btn-secondary"
+      data-action="battleship-ready"
+      data-ready-state="${myBoard?.ready ? 'false' : 'true'}"
+      aria-label="${myBoard?.ready ? 'Unlock fleet' : myShipsPlaced ? 'Ready fleet' : 'Finish placing ships before readying up'}"
+      title="${myBoard?.ready ? 'Unlock Fleet' : myShipsPlaced ? 'Ready Up Fleet' : 'Place all ships before readying up'}"
+      style="width:48px;height:48px;padding:0;border-radius:999px;display:grid;place-items:center;font-size:1.2rem;border:${myBoard?.ready ? '1px solid rgba(34,197,94,0.42)' : myShipsPlaced ? '1px solid rgba(138,241,255,0.32)' : '1px solid rgba(255,255,255,0.1)'};background:${myBoard?.ready ? 'linear-gradient(135deg,rgba(34,197,94,0.22),rgba(21,128,61,0.14))' : myShipsPlaced ? 'linear-gradient(135deg,rgba(138,241,255,0.18),rgba(37,99,235,0.14))' : 'linear-gradient(135deg,rgba(255,255,255,0.07),rgba(255,255,255,0.03))'};color:${myBoard?.ready ? '#7af59f' : myShipsPlaced ? '#8af1ff' : 'rgba(236,233,225,0.58)'};box-shadow:${myBoard?.ready ? '0 0 22px rgba(34,197,94,0.18)' : myShipsPlaced ? '0 0 18px rgba(138,241,255,0.14)' : 'none'};cursor:${myShipsPlaced || myBoard?.ready ? 'pointer' : 'not-allowed'};opacity:${myShipsPlaced || myBoard?.ready ? '1' : '0.7'};"
+      ${(state.phase !== 'setup' || (!myShipsPlaced && !myBoard?.ready)) ? 'disabled' : ''}
+    >${myBoard?.ready ? '✓' : '⚓'}</button>
+  ` : '';
 
   const shipTray = myBoard ? `
     <div style="display:grid;gap:8px;">
@@ -13307,7 +14646,8 @@ function renderBattleship() {
   ` : '';
 
   const ownBoardMarkup = `
-    <div style="padding:16px;border-radius:24px;background:
+    <div class="game-mobile-scroll">
+    <div class="battleship-board-shell battleship-grid" style="padding:16px;border-radius:24px;background:
       radial-gradient(circle at 50% 115%, rgba(255,78,182,0.18), transparent 32%),
       linear-gradient(180deg, rgba(16,10,58,0.98), rgba(8,10,30,0.98));
       border:1px solid rgba(141,232,255,0.22);
@@ -13316,15 +14656,18 @@ function renderBattleship() {
       <div style="position:absolute;inset:0;pointer-events:none;opacity:0.26;background:
         repeating-linear-gradient(to right, rgba(141,232,255,0.22) 0 1px, transparent 1px 10%),
         repeating-linear-gradient(to bottom, rgba(141,232,255,0.18) 0 1px, transparent 1px 10%);"></div>
-    <div style="display:grid;grid-template-columns:28px repeat(${BATTLESHIP_BOARD_SIZE}, minmax(0, 1fr));gap:4px;align-items:stretch;position:relative;z-index:1;">
+    <div class="battleship-board-grid" style="display:grid;grid-template-columns:28px repeat(${BATTLESHIP_BOARD_SIZE}, minmax(0, 1fr));gap:4px;align-items:stretch;position:relative;z-index:1;">
       ${renderBattleshipGridLabelCell('')}
       ${BATTLESHIP_COLUMN_LABELS.map(label => renderBattleshipGridLabelCell(escapeHtml(label))).join('')}
       ${Array.from({ length: BATTLESHIP_BOARD_SIZE }, (_, row) => `
         ${renderBattleshipGridLabelCell(String(row + 1))}
         ${Array.from({ length: BATTLESHIP_BOARD_SIZE }, (_, col) => {
-          const ownCell = myBoard ? getBattleshipOwnCellState(myBoard, row, col) : { ship: null, shot: null };
+        const ownCell = myBoard ? getBattleshipOwnCellState(myBoard, row, col) : { ship: null, shot: null };
           const shipId = ownCell.ship?.id || '';
-          const canPlace = state.phase === 'setup' && isBattlePlayer;
+          const isPlacedShipCell = state.phase === 'setup' && Boolean(ownCell.ship);
+          const isSelectedShipCell = Boolean(selectedShipId && ownCell.ship?.id === selectedShipId);
+          const canPlace = state.phase === 'setup' && isBattlePlayer && !ownCell.ship && Boolean(selectedShipId);
+          const cellAction = isPlacedShipCell ? 'battleship-select-ship' : (canPlace ? 'battleship-place-ship' : '');
           const background = ownCell.shot?.result === 'hit'
             ? 'linear-gradient(135deg,#ff8aa0,#b31244)'
             : ownCell.shot?.result === 'miss'
@@ -13332,15 +14675,34 @@ function renderBattleship() {
               : ownCell.ship
                 ? `linear-gradient(135deg, color-mix(in srgb, ${ownCell.ship.accent || '#7af59f'} 36%, #14304d 64%), #0b203a)`
                 : 'linear-gradient(135deg,#101739,#183b73)';
+          const borderColor = isSelectedShipCell
+            ? ownCell.ship?.accent || '#8af1ff'
+            : 'rgba(255,255,255,0.1)';
+          const boxShadow = ownCell.shot?.result === 'hit'
+            ? '0 0 18px rgba(255,85,126,0.35)'
+            : ownCell.shot?.result === 'miss'
+              ? '0 0 16px rgba(97,190,255,0.2)'
+              : isSelectedShipCell
+                ? `0 0 0 2px color-mix(in srgb, ${ownCell.ship?.accent || '#8af1ff'} 32%, rgba(255,255,255,0.18)), 0 0 20px color-mix(in srgb, ${ownCell.ship?.accent || '#8af1ff'} 36%, transparent)`
+                : ownCell.ship
+                  ? '0 0 14px rgba(122,245,159,0.14)'
+                  : 'none';
+          const cellCursor = isPlacedShipCell
+            ? 'grab'
+            : canPlace
+              ? 'pointer'
+              : 'default';
           return `
             <button
               type="button"
-              data-action="${canPlace ? 'battleship-place-ship' : ''}"
+              class="battleship-cell"
+              data-action="${cellAction}"
               data-bs-row="${row}"
               data-bs-col="${col}"
-              data-ship-id="${escapeHtml(selectedShipId)}"
-              title="${BATTLESHIP_COLUMN_LABELS[col]}${row + 1}"
-              style="aspect-ratio:1/1;border:1px solid rgba(255,255,255,0.1);border-radius:10px;background:${background};box-shadow:${ownCell.shot?.result === 'hit' ? '0 0 18px rgba(255,85,126,0.35)' : ownCell.shot?.result === 'miss' ? '0 0 16px rgba(97,190,255,0.2)' : ownCell.ship ? '0 0 14px rgba(122,245,159,0.14)' : 'none'};color:#fff;display:grid;place-items:center;font-size:0.8rem;font-weight:800;cursor:${canPlace ? 'pointer' : 'default'};padding:0;text-shadow:0 0 14px rgba(255,255,255,0.22);">
+              data-ship-id="${escapeHtml(shipId || selectedShipId)}"
+              ${isPlacedShipCell ? `draggable="${state.phase === 'setup' ? 'true' : 'false'}" data-battleship-ship-id="${escapeHtml(shipId)}"` : ''}
+              title="${isPlacedShipCell ? `${escapeHtml(ownCell.ship?.label || shipId)} • drag to move` : `${BATTLESHIP_COLUMN_LABELS[col]}${row + 1}`}"
+              style="aspect-ratio:1/1;border:1px solid ${borderColor};border-radius:10px;background:${background};box-shadow:${boxShadow};color:#fff;display:grid;place-items:center;font-size:${isSelectedShipCell ? '0.88rem' : '0.8rem'};font-weight:800;cursor:${cellCursor};padding:0;text-shadow:0 0 14px rgba(255,255,255,0.22);transform:${isSelectedShipCell ? 'translateY(-1px)' : 'none'};">
               ${ownCell.shot?.result === 'hit' ? '✕' : ownCell.shot?.result === 'miss' ? '•' : ownCell.ship ? escapeHtml(shipId.slice(0, 1).toUpperCase()) : ''}
             </button>
           `;
@@ -13348,10 +14710,12 @@ function renderBattleship() {
       `).join('')}
     </div>
     </div>
+    </div>
   `;
 
   const targetBoardMarkup = isBattlePlayer && opponentBoard ? `
-    <div style="padding:16px;border-radius:24px;background:
+    <div class="game-mobile-scroll">
+    <div class="battleship-board-shell battleship-grid" style="padding:16px;border-radius:24px;background:
       radial-gradient(circle at 50% 115%, rgba(255,95,126,0.16), transparent 32%),
       linear-gradient(180deg, rgba(20,10,58,0.98), rgba(6,9,26,0.98));
       border:1px solid rgba(255,143,163,0.22);
@@ -13360,7 +14724,7 @@ function renderBattleship() {
       <div style="position:absolute;inset:0;pointer-events:none;opacity:0.22;background:
         repeating-linear-gradient(to right, rgba(255,143,163,0.22) 0 1px, transparent 1px 10%),
         repeating-linear-gradient(to bottom, rgba(255,143,163,0.18) 0 1px, transparent 1px 10%);"></div>
-    <div style="display:grid;grid-template-columns:28px repeat(${BATTLESHIP_BOARD_SIZE}, minmax(0, 1fr));gap:4px;align-items:stretch;position:relative;z-index:1;">
+    <div class="battleship-board-grid" style="display:grid;grid-template-columns:28px repeat(${BATTLESHIP_BOARD_SIZE}, minmax(0, 1fr));gap:4px;align-items:stretch;position:relative;z-index:1;">
       ${renderBattleshipGridLabelCell('')}
       ${BATTLESHIP_COLUMN_LABELS.map(label => renderBattleshipGridLabelCell(escapeHtml(label))).join('')}
       ${Array.from({ length: BATTLESHIP_BOARD_SIZE }, (_, row) => `
@@ -13376,6 +14740,7 @@ function renderBattleship() {
           return `
             <button
               type="button"
+              class="battleship-cell"
               data-action="${canAttack ? 'battleship-attack' : ''}"
               data-bs-row="${row}"
               data-bs-col="${col}"
@@ -13386,6 +14751,7 @@ function renderBattleship() {
           `;
         }).join('')}
       `).join('')}
+    </div>
     </div>
     </div>
   ` : `
@@ -13401,7 +14767,8 @@ function renderBattleship() {
         return `
           <div style="background:linear-gradient(180deg,rgba(20,12,68,0.96),rgba(8,8,28,0.98));border:1px solid rgba(152,115,255,0.34);border-radius:20px;padding:14px;">
             <div style="font-weight:800;margin-bottom:10px;">${escapeHtml(playerName)} • ${getBattleshipLivingShips(board)} ships left</div>
-            <div style="display:grid;grid-template-columns:24px repeat(${BATTLESHIP_BOARD_SIZE}, minmax(0, 1fr));gap:3px;">
+            <div class="game-mobile-scroll">
+            <div class="battleship-board-grid-spectator battleship-grid" style="display:grid;grid-template-columns:24px repeat(${BATTLESHIP_BOARD_SIZE}, minmax(0, 1fr));gap:3px;">
               ${renderBattleshipGridLabelCell('', 'font-size:0.7rem;')}
               ${BATTLESHIP_COLUMN_LABELS.map(label => renderBattleshipGridLabelCell(escapeHtml(label), 'font-size:0.7rem;')).join('')}
               ${Array.from({ length: BATTLESHIP_BOARD_SIZE }, (_, row) => `
@@ -13413,9 +14780,10 @@ function renderBattleship() {
                     : shot?.result === 'miss'
                       ? 'linear-gradient(135deg,#9dd9ff,#2563eb)'
                       : 'linear-gradient(135deg,#101739,#1c2f62)';
-                  return `<div style="aspect-ratio:1/1;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:${background};display:grid;place-items:center;color:#fff;font-size:0.72rem;font-weight:700;">${shot?.result === 'hit' ? '✕' : shot?.result === 'miss' ? '•' : ''}</div>`;
+                  return `<div class="battleship-cell battleship-cell-spectator" style="aspect-ratio:1/1;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:${background};display:grid;place-items:center;color:#fff;font-size:0.72rem;font-weight:700;">${shot?.result === 'hit' ? '✕' : shot?.result === 'miss' ? '•' : ''}</div>`;
                 }).join('')}
               `).join('')}
+            </div>
             </div>
           </div>
         `;
@@ -13431,15 +14799,23 @@ function renderBattleship() {
 
     ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
 
-    <div style="max-width:1280px;margin:24px auto 0;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,0.95fr);gap:18px;align-items:start;">
-      <div style="display:grid;gap:18px;">
+    <div class="game-mobile-shell game-mobile-main" style="max-width:1280px;margin:24px auto 0;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,0.95fr);gap:18px;align-items:start;">
+      <div class="game-mobile-side" style="display:grid;gap:18px;">
         <div style="background:linear-gradient(180deg,rgba(20,12,68,0.96),rgba(8,8,28,0.98));border:1px solid rgba(152,115,255,0.34);border-radius:24px;padding:18px;box-shadow:0 24px 54px rgba(6,6,26,0.45);">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
             <div>
               <div style="font-family:'Fraunces',serif;font-size:1.4rem;">${isBattlePlayer ? 'Your Fleet' : 'Battle Overview'}</div>
               <div style="font-size:0.84rem;color:rgba(236,233,225,0.72);">${state.lastAction ? escapeHtml(state.lastAction) : state.phase === 'setup' ? 'Place ships, rotate, then lock your fleet.' : turnName ? `${escapeHtml(turnName)} is up.` : 'Match complete.'}</div>
             </div>
-            ${state.phase === 'finished' && isHost ? '<button class="btn-primary" data-action="battleship-restart" style="width:auto;padding:10px 16px;">Restart Match</button>' : ''}
+            <div style="display:flex;align-items:center;gap:10px;">
+              ${state.phase === 'setup' && isBattlePlayer ? `
+                <div style="font-size:0.76rem;color:${myBoard?.ready ? '#7af59f' : myShipsPlaced ? '#8af1ff' : 'rgba(236,233,225,0.58)'};font-weight:800;letter-spacing:0.08em;text-transform:uppercase;">
+                  ${myBoard?.ready ? 'Ready' : myShipsPlaced ? 'Ready Up' : `${shipsRemainingToPlace} Left`}
+                </div>
+              ` : ''}
+              ${mapReadyToggleMarkup}
+              ${state.phase === 'finished' && isHost ? '<button class="btn-primary" data-action="battleship-restart" style="width:auto;padding:10px 16px;">Restart Match</button>' : ''}
+            </div>
           </div>
           ${isBattlePlayer ? `
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;">
@@ -13483,7 +14859,7 @@ function renderBattleship() {
         </div>
       </div>
 
-      <div style="display:grid;gap:18px;">
+      <div class="game-mobile-side" style="display:grid;gap:18px;">
         <div style="background:linear-gradient(180deg,rgba(20,12,68,0.96),rgba(8,8,28,0.98));border:1px solid rgba(152,115,255,0.34);border-radius:24px;padding:18px;box-shadow:0 24px 54px rgba(6,6,26,0.45);">
           <div style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:12px;">Match Status</div>
           <div style="display:grid;gap:10px;">
@@ -13522,17 +14898,38 @@ function renderBattleship() {
           <div style="background:linear-gradient(180deg,rgba(20,12,68,0.96),rgba(8,8,28,0.98));border:1px solid rgba(152,115,255,0.34);border-radius:24px;padding:18px;box-shadow:0 24px 54px rgba(6,6,26,0.45);">
             <div style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:12px;">Fleet Controls</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-              <button class="btn-secondary" data-action="battleship-toggle-axis" style="width:auto;padding:10px 14px;">Axis: ${placementAxis === 'horizontal' ? 'Horizontal' : 'Vertical'}</button>
+              <button class="btn-secondary" data-action="battleship-toggle-axis" style="width:auto;padding:10px 14px;">Rotate: ${placementAxis === 'horizontal' ? 'Horizontal' : 'Vertical'}</button>
               <button class="btn-secondary" data-action="battleship-randomize" style="width:auto;padding:10px 14px;" ${state.phase !== 'setup' ? 'disabled' : ''}>Randomize</button>
               <button class="btn-secondary" data-action="battleship-clear" style="width:auto;padding:10px 14px;" ${state.phase !== 'setup' ? 'disabled' : ''}>Clear</button>
             </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:12px;">
+              <div style="padding:12px 14px;border-radius:16px;background:linear-gradient(135deg, rgba(138,241,255,0.12), rgba(37,99,235,0.08));border:1px solid rgba(138,241,255,0.18);">
+                <div style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:rgba(236,233,225,0.58);margin-bottom:4px;">Deployment</div>
+                <div style="font-size:1.15rem;font-weight:800;color:#8af1ff;">${myPlacedShipCount}/${myBoard.ships.length}</div>
+                <div style="font-size:0.8rem;color:var(--text-dim);margin-top:4px;">${myShipsPlaced ? 'All ships positioned' : `${shipsRemainingToPlace} ship${shipsRemainingToPlace === 1 ? '' : 's'} left`}</div>
+              </div>
+              <div style="padding:12px 14px;border-radius:16px;background:${myBoard.ready ? 'linear-gradient(135deg, rgba(34,197,94,0.18), rgba(21,128,61,0.1))' : 'linear-gradient(135deg, rgba(255,209,102,0.12), rgba(255,143,163,0.08))'};border:1px solid ${myBoard.ready ? 'rgba(34,197,94,0.24)' : 'rgba(255,209,102,0.18)'};">
+                <div style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:rgba(236,233,225,0.58);margin-bottom:4px;">Fleet status</div>
+                <div style="font-size:1.15rem;font-weight:800;color:${myBoard.ready ? '#7af59f' : '#ffd166'};">${myBoard.ready ? 'Locked In' : 'Editing'}</div>
+                <div style="font-size:0.8rem;color:var(--text-dim);margin-top:4px;">${myBoard.ready ? 'Ready for battle start' : selectedShip ? `${escapeHtml(selectedShip.label)} selected` : 'Place or move ships'}</div>
+              </div>
+            </div>
+            ${selectedShip ? `
+              <div style="margin-bottom:12px;padding:12px 14px;border-radius:16px;background:linear-gradient(135deg, color-mix(in srgb, ${selectedShip.accent || '#8af1ff'} 14%, rgba(255,255,255,0.04) 86%), rgba(255,255,255,0.03));border:1px solid color-mix(in srgb, ${selectedShip.accent || '#8af1ff'} 36%, rgba(255,255,255,0.08));">
+                <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:rgba(236,233,225,0.6);margin-bottom:4px;">Selected ship</div>
+                <div style="font-weight:800;color:${selectedShip.accent || '#8af1ff'};">${escapeHtml(selectedShip.label)}</div>
+                <div style="font-size:0.82rem;color:var(--text-dim);margin-top:4px;">${selectedShip.cells.length === selectedShip.length ? 'Highlighted on your board. Drag any glowing segment, or tap a new empty cell to move it.' : 'Tap a board cell to deploy it, or drag from the tray on desktop.'}</div>
+              </div>
+            ` : ''}
             ${shipTray}
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
-              <button class="btn-primary" data-action="battleship-ready" data-ready-state="true" style="width:auto;padding:10px 16px;" ${(state.phase !== 'setup' || !myShipsPlaced || myBoard.ready) ? 'disabled' : ''}>Ready Up</button>
-              <button class="btn-secondary" data-action="battleship-ready" data-ready-state="false" style="width:auto;padding:10px 16px;" ${(state.phase !== 'setup' || !myBoard.ready) ? 'disabled' : ''}>Not Ready</button>
+              <button class="btn-primary" data-action="battleship-ready" data-ready-state="true" style="width:auto;padding:10px 16px;background:${readyButtonAccent};border:none;cursor:${readyButtonCursor};opacity:${(state.phase !== 'setup' || (!myShipsPlaced && !myBoard.ready)) ? '0.72' : '1'};" ${(state.phase !== 'setup' || !myShipsPlaced || myBoard.ready) ? 'disabled' : ''}>${readyButtonLabel}</button>
+              <button class="btn-secondary" data-action="battleship-ready" data-ready-state="false" style="width:auto;padding:10px 16px;background:${editFleetAccent};border:${myBoard.ready ? '1px solid rgba(255,209,102,0.28)' : '1px solid rgba(255,255,255,0.08)'};color:${myBoard.ready ? '#ffd166' : 'var(--text)'};box-shadow:${myBoard.ready ? '0 0 18px rgba(255,209,102,0.12)' : 'none'};" ${(state.phase !== 'setup' || !myBoard.ready) ? 'disabled' : ''}>${editFleetLabel}</button>
             </div>
             <div style="font-size:0.82rem;color:var(--text-dim);margin-top:10px;">
-              Drag a ship onto the grid on desktop, or tap a ship then tap a square on touch devices.
+              ${myBoard.ready
+                ? 'Your fleet is locked. Choose Unlock Fleet if you want to move ships again before the match starts.'
+                : 'Drag ships from the tray or from the board itself on desktop. On touch devices, tap a ship to highlight it, rotate if needed, then tap a new empty square to reposition it.'}
             </div>
           </div>
         ` : `
@@ -13595,7 +14992,7 @@ function renderBackgammon() {
   const renderChecker = (color, index, totalCount, orientation = 'top') => {
     const colorMeta = BACKGAMMON_COLOR_META[color];
     return `
-      <div style="
+      <div class="backgammon-checker" style="
         width:32px;height:32px;border-radius:50%;
         background:radial-gradient(circle at 34% 32%, rgba(255,255,255,0.92), ${colorMeta.accent} 42%, color-mix(in srgb, ${colorMeta.accent} 76%, #111 24%) 100%);
         border:2px solid rgba(255,255,255,0.78);
@@ -13622,6 +15019,7 @@ function renderBackgammon() {
       : 'polygon(8% 100%, 92% 100%, 50% 0)';
     return `
       <button
+        class="backgammon-point"
         type="button"
         data-action="${buttonAction}"
         data-index="${pointIndex}"
@@ -13636,12 +15034,12 @@ function renderBackgammon() {
         title="Point ${pointIndex + 1}"
       >
         <div style="position:absolute;inset:0;display:flex;align-items:${orientation === 'top' ? 'flex-start' : 'flex-end'};justify-content:center;padding:${orientation === 'top' ? '0 4px 14px' : '14px 4px 0'};">
-          <div style="width:100%;height:100%;max-width:64px;clip-path:${triangleAccent};background:${triangleColor};box-shadow:0 0 12px rgba(255,210,154,0.12), inset 0 0 0 1px rgba(255,255,255,0.12);"></div>
+          <div class="backgammon-point-triangle" style="width:100%;height:100%;max-width:64px;clip-path:${triangleAccent};background:${triangleColor};box-shadow:0 0 12px rgba(255,210,154,0.12), inset 0 0 0 1px rgba(255,255,255,0.12);"></div>
         </div>
-        <div style="position:absolute;${orientation === 'top' ? 'top' : 'bottom'}:10px;left:50%;transform:translateX(-50%);font-size:0.72rem;font-weight:800;color:${isSource || isTarget ? '#ffffff' : 'rgba(255,232,196,0.68)'};text-shadow:0 0 8px rgba(0,0,0,0.4);">
+        <div class="backgammon-point-label" style="position:absolute;${orientation === 'top' ? 'top' : 'bottom'}:10px;left:50%;transform:translateX(-50%);font-size:0.72rem;font-weight:800;color:${isSource || isTarget ? '#ffffff' : 'rgba(255,232,196,0.68)'};text-shadow:0 0 8px rgba(0,0,0,0.4);">
           ${pointIndex + 1}
         </div>
-        <div style="position:relative;z-index:1;display:flex;flex-direction:${orientation === 'top' ? 'column' : 'column-reverse'};align-items:center;justify-content:${orientation === 'top' ? 'flex-start' : 'flex-end'};min-height:180px;padding:${orientation === 'top' ? '12px 0 26px' : '26px 0 12px'};">
+        <div class="backgammon-point-stack" style="position:relative;z-index:1;display:flex;flex-direction:${orientation === 'top' ? 'column' : 'column-reverse'};align-items:center;justify-content:${orientation === 'top' ? 'flex-start' : 'flex-end'};min-height:180px;padding:${orientation === 'top' ? '12px 0 26px' : '26px 0 12px'};">
           ${count ? Array.from({ length: Math.min(count, 5) }, (_, checkerIndex) => renderChecker(owner, checkerIndex, count, orientation)).join('') : ''}
         </div>
         ${count ? `<div style="position:absolute;${orientation === 'top' ? 'bottom' : 'top'}:36px;right:6px;padding:2px 6px;border-radius:999px;background:${colorMeta?.glow || 'rgba(255,255,255,0.08)'};font-size:0.68rem;font-weight:800;color:${colorMeta?.accent || '#fff'};">${count}</div>` : ''}
@@ -13650,13 +15048,13 @@ function renderBackgammon() {
   };
 
   const renderHalf = (pointIndexes, orientation) => `
-    <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;">
+    <div class="backgammon-half-grid" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;">
       ${pointIndexes.map((pointIndex, slotIndex) => renderPoint(pointIndex, orientation, slotIndex)).join('')}
     </div>
   `;
 
   const renderDie = (value, active = true, key = '') => `
-    <div style="
+    <div class="backgammon-die" style="
       width:54px;height:54px;border-radius:14px;background:linear-gradient(145deg,#fffdf8,#f0e7d3);
       border:2px solid rgba(90,50,22,0.22);box-shadow:${active ? '0 0 18px rgba(255,209,102,0.26)' : 'none'},0 10px 20px rgba(0,0,0,0.2);
       display:grid;place-items:center;font-size:1.4rem;font-weight:900;color:#5f331f;
@@ -13679,8 +15077,8 @@ function renderBackgammon() {
       </div>
     ` : ''}
 
-    <div style="max-width:1320px;margin:24px auto 0;display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,0.85fr);gap:18px;align-items:start;">
-      <div style="background:
+    <div class="game-mobile-shell game-mobile-main" style="max-width:1320px;margin:24px auto 0;display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,0.85fr);gap:18px;align-items:start;">
+      <div class="game-mobile-side" style="background:
         radial-gradient(circle at 50% 74%, rgba(255,82,138,0.18), transparent 24%),
         linear-gradient(180deg, rgba(48,23,10,0.96), rgba(28,14,8,0.98));
         border:1px solid rgba(255,216,169,0.18);border-radius:30px;padding:18px 18px 20px;box-shadow:0 26px 58px rgba(6,6,26,0.5), inset 0 0 0 1px rgba(255,255,255,0.04);">
@@ -13694,38 +15092,44 @@ function renderBackgammon() {
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:minmax(0,1fr) 88px minmax(0,1fr);gap:12px;align-items:stretch;">
-          <div style="display:grid;gap:10px;">
-            ${renderHalf(BACKGAMMON_TOP_POINTS.slice(0, 6), 'top')}
-            ${renderHalf(BACKGAMMON_BOTTOM_POINTS.slice(0, 6), 'bottom')}
-          </div>
+        <div class="game-mobile-scroll">
+          <div class="backgammon-grid">
+            <div class="backgammon-board-shell" style="padding:0;">
+              <div class="backgammon-board-layout" style="display:grid;grid-template-columns:minmax(0,1fr) 88px minmax(0,1fr);gap:12px;align-items:stretch;">
+                <div style="display:grid;gap:10px;">
+                  ${renderHalf(BACKGAMMON_TOP_POINTS.slice(0, 6), 'top')}
+                  ${renderHalf(BACKGAMMON_BOTTOM_POINTS.slice(0, 6), 'bottom')}
+                </div>
 
-          <div style="display:grid;grid-template-rows:1fr auto 1fr;gap:12px;align-items:center;">
-            <div style="background:linear-gradient(180deg, rgba(24,12,54,0.94), rgba(14,8,30,0.98));border:1px solid rgba(255,143,163,0.14);border-radius:18px;padding:12px;display:grid;place-items:center;min-height:140px;">
-              <div style="text-align:center;">
-                <div style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,232,196,0.6);margin-bottom:8px;">Black Bar</div>
-                <div style="font-size:2rem;font-weight:900;color:#ff8fa3;">${bar.black || 0}</div>
+                <div style="display:grid;grid-template-rows:1fr auto 1fr;gap:12px;align-items:center;">
+                  <div class="backgammon-bar-card" style="background:linear-gradient(180deg, rgba(24,12,54,0.94), rgba(14,8,30,0.98));border:1px solid rgba(255,143,163,0.14);border-radius:18px;padding:12px;display:grid;place-items:center;min-height:140px;">
+                    <div style="text-align:center;">
+                      <div style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,232,196,0.6);margin-bottom:8px;">Black Bar</div>
+                      <div style="font-size:2rem;font-weight:900;color:#ff8fa3;">${bar.black || 0}</div>
+                    </div>
+                  </div>
+                  <button class="backgammon-bar-btn" type="button" data-action="${canInteract && (bar[myColor] || 0) > 0 ? 'backgammon-bar' : ''}" ${canInteract && (bar[myColor] || 0) > 0 ? '' : 'disabled'} style="background:linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));border:${selectedSource === 'bar' ? '2px solid #8af1ff' : '1px solid rgba(255,255,255,0.08)'};border-radius:18px;padding:12px;min-height:88px;color:${selectedSource === 'bar' ? '#8af1ff' : 'rgba(255,232,196,0.8)'};font-weight:800;letter-spacing:0.08em;text-transform:uppercase;cursor:${canInteract && (bar[myColor] || 0) > 0 ? 'pointer' : 'default'};">
+                    Enter<br>Bar
+                  </button>
+                  <div class="backgammon-bar-card" style="background:linear-gradient(180deg, rgba(24,12,54,0.94), rgba(14,8,30,0.98));border:1px solid rgba(138,241,255,0.14);border-radius:18px;padding:12px;display:grid;place-items:center;min-height:140px;">
+                    <div style="text-align:center;">
+                      <div style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,232,196,0.6);margin-bottom:8px;">White Bar</div>
+                      <div style="font-size:2rem;font-weight:900;color:#8af1ff;">${bar.white || 0}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="display:grid;gap:10px;">
+                  ${renderHalf(BACKGAMMON_TOP_POINTS.slice(7), 'top')}
+                  ${renderHalf(BACKGAMMON_BOTTOM_POINTS.slice(7), 'bottom')}
+                </div>
               </div>
             </div>
-            <button type="button" data-action="${canInteract && (bar[myColor] || 0) > 0 ? 'backgammon-bar' : ''}" ${canInteract && (bar[myColor] || 0) > 0 ? '' : 'disabled'} style="background:linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));border:${selectedSource === 'bar' ? '2px solid #8af1ff' : '1px solid rgba(255,255,255,0.08)'};border-radius:18px;padding:12px;min-height:88px;color:${selectedSource === 'bar' ? '#8af1ff' : 'rgba(255,232,196,0.8)'};font-weight:800;letter-spacing:0.08em;text-transform:uppercase;cursor:${canInteract && (bar[myColor] || 0) > 0 ? 'pointer' : 'default'};">
-              Enter<br>Bar
-            </button>
-            <div style="background:linear-gradient(180deg, rgba(24,12,54,0.94), rgba(14,8,30,0.98));border:1px solid rgba(138,241,255,0.14);border-radius:18px;padding:12px;display:grid;place-items:center;min-height:140px;">
-              <div style="text-align:center;">
-                <div style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,232,196,0.6);margin-bottom:8px;">White Bar</div>
-                <div style="font-size:2rem;font-weight:900;color:#8af1ff;">${bar.white || 0}</div>
-              </div>
-            </div>
-          </div>
-
-          <div style="display:grid;gap:10px;">
-            ${renderHalf(BACKGAMMON_TOP_POINTS.slice(7), 'top')}
-            ${renderHalf(BACKGAMMON_BOTTOM_POINTS.slice(7), 'bottom')}
           </div>
         </div>
       </div>
 
-      <div style="display:grid;gap:18px;">
+      <div class="game-mobile-side" style="display:grid;gap:18px;">
         <div style="background:linear-gradient(180deg,rgba(20,12,68,0.96),rgba(8,8,28,0.98));border:1px solid rgba(152,115,255,0.34);border-radius:24px;padding:18px;box-shadow:0 24px 54px rgba(6,6,26,0.45);">
           <div style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:12px;">Match Status</div>
           <div style="display:grid;gap:10px;">
@@ -13843,6 +15247,7 @@ function renderConnect4() {
     const enabled = canDrop && dropRow >= 0;
     return `
       <button
+        class="connect4-column-btn"
         type="button"
         data-action="${enabled ? 'connect4-drop' : ''}"
         data-index="${col}"
@@ -13868,7 +15273,7 @@ function renderConnect4() {
       const colorMeta = color ? CONNECT4_COLOR_META[color] : null;
       const isWinningCell = winningKeySet.has(`${row}:${col}`);
       return `
-        <div style="
+        <div class="connect4-cell" style="
           aspect-ratio:1/1;
           border-radius:22px;
           background:linear-gradient(180deg, rgba(33,15,92,0.92), rgba(14,8,43,0.98));
@@ -13876,7 +15281,7 @@ function renderConnect4() {
           display:grid;place-items:center;
           box-shadow:inset 0 0 0 1px rgba(255,255,255,0.04), ${isWinningCell ? '0 0 22px rgba(255,255,255,0.14)' : 'none'};
         ">
-          <div style="
+          <div class="connect4-disc" style="
             width:78%;height:78%;border-radius:50%;
             background:${colorMeta
               ? `radial-gradient(circle at 34% 32%, rgba(255,255,255,0.94), ${colorMeta.accent} 42%, color-mix(in srgb, ${colorMeta.accent} 76%, #171717 24%) 100%)`
@@ -13905,8 +15310,8 @@ function renderConnect4() {
       </div>
     ` : ''}
 
-    <div style="max-width:1280px;margin:24px auto 0;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(300px,0.85fr);gap:18px;align-items:start;">
-      <div style="background:
+    <div class="game-mobile-shell game-mobile-main" style="max-width:1280px;margin:24px auto 0;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(300px,0.85fr);gap:18px;align-items:start;">
+      <div class="game-mobile-side" style="background:
         radial-gradient(circle at 50% 76%, rgba(255,82,138,0.18), transparent 28%),
         linear-gradient(180deg, rgba(23,10,74,0.98) 0%, rgba(13,9,45,0.98) 52%, rgba(8,7,26,0.99) 100%);
         border:1px solid rgba(174,118,255,0.42);
@@ -13932,18 +15337,22 @@ function renderConnect4() {
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:repeat(${CONNECT4_COLS}, minmax(0,1fr));gap:8px;margin-bottom:10px;">
-          ${columnButtons}
-        </div>
+        <div class="game-mobile-scroll">
+          <div class="connect4-grid">
+            <div class="connect4-column-grid" style="display:grid;grid-template-columns:repeat(${CONNECT4_COLS}, minmax(0,1fr));gap:8px;margin-bottom:10px;">
+              ${columnButtons}
+            </div>
 
-        <div style="padding:16px;border-radius:28px;background:linear-gradient(180deg, rgba(24,53,143,0.94), rgba(14,30,103,0.98));border:1px solid rgba(145,196,255,0.22);box-shadow:0 20px 48px rgba(6,6,26,0.45), inset 0 0 0 1px rgba(255,255,255,0.04);">
-          <div style="display:grid;grid-template-columns:repeat(${CONNECT4_COLS}, minmax(0,1fr));gap:10px;">
-            ${boardMarkup}
+            <div class="connect4-board-shell" style="padding:16px;border-radius:28px;background:linear-gradient(180deg, rgba(24,53,143,0.94), rgba(14,30,103,0.98));border:1px solid rgba(145,196,255,0.22);box-shadow:0 20px 48px rgba(6,6,26,0.45), inset 0 0 0 1px rgba(255,255,255,0.04);">
+              <div class="connect4-board-grid" style="display:grid;grid-template-columns:repeat(${CONNECT4_COLS}, minmax(0,1fr));gap:10px;">
+                ${boardMarkup}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div style="display:grid;gap:18px;">
+      <div class="game-mobile-side" style="display:grid;gap:18px;">
         <div style="background:linear-gradient(180deg,rgba(20,12,68,0.96),rgba(8,8,28,0.98));border:1px solid rgba(152,115,255,0.34);border-radius:24px;padding:18px;box-shadow:0 24px 54px rgba(6,6,26,0.45);">
           <div style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:12px;">Match Status</div>
           <div style="display:grid;gap:10px;">
@@ -17357,6 +18766,7 @@ function renderScheduleMeeting() {
   const editingPlan = getSessionPlanById(APP.sessionManager.editingPlanId) || null;
   const sessionPlans = APP.sessionManager.plans || [];
   const selectedQueue = new Set(Array.isArray(editingPlan?.activityQueue) ? editingPlan.activityQueue : []);
+  const contentBrief = normalizeContentBrief(editingPlan?.contentBrief);
   return `
     <div class="header">
       <h1 class="logo">${editingPlan ? 'Edit Session Plan' : 'Plan Session'}</h1>
@@ -17389,6 +18799,45 @@ function renderScheduleMeeting() {
         <label class="form-label" for="meetingDetails">Agenda / Details</label>
         <textarea id="meetingDetails" class="form-input" rows="5" placeholder="Agenda, goals, notes, facilitators, reminders...">${escapeHtml(editingPlan?.details || '')}</textarea>
       </div>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+        <div style="font-weight:700;margin-bottom:10px;">Content Brief</div>
+        <div style="display:grid;grid-template-columns:1fr 1.2fr 1fr 1fr;gap:10px;">
+          <div class="form-group">
+            <label class="form-label" for="meetingThemePreset">Theme</label>
+            <select id="meetingThemePreset" class="form-input">
+              ${['Team Collaboration', ...ACTIVITY_QUEUE_THEME_OPTIONS.filter(item => item !== 'Random'), 'Random'].map(theme => `
+                <option value="${escapeHtml(theme)}" ${contentBrief.themePreset === theme ? 'selected' : ''}>${escapeHtml(theme)}</option>
+              `).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="meetingCustomTopic">Custom Topic</label>
+            <input id="meetingCustomTopic" class="form-input" maxlength="160" value="${escapeHtml(contentBrief.customTopic || '')}" placeholder="Kickoff, retrospective, trust, service, etc.">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="meetingAudience">Audience</label>
+            <input id="meetingAudience" class="form-input" maxlength="120" value="${escapeHtml(contentBrief.audience || '')}" placeholder="Leadership team">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="meetingTone">Tone</label>
+            <input id="meetingTone" class="form-input" maxlength="120" value="${escapeHtml(contentBrief.tone || '')}" placeholder="Energetic, reflective, casual">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="form-group">
+            <label class="form-label" for="meetingDifficulty">Content Difficulty</label>
+            <select id="meetingDifficulty" class="form-input">
+              <option value="easy" ${contentBrief.difficulty === 'easy' ? 'selected' : ''}>Easy</option>
+              <option value="mixed" ${contentBrief.difficulty !== 'easy' && contentBrief.difficulty !== 'hard' ? 'selected' : ''}>Mixed</option>
+              <option value="hard" ${contentBrief.difficulty === 'hard' ? 'selected' : ''}>Hard</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="meetingContentCount">Default Count</label>
+            <input id="meetingContentCount" class="form-input" type="number" min="3" max="20" value="${Math.max(3, Math.min(20, Number(contentBrief.count) || 8))}">
+          </div>
+        </div>
+      </div>
       ${APP.preferences.enableActivityQueue !== false ? `
         <div class="form-group">
           <label class="form-label">Activity Queue</label>
@@ -17411,6 +18860,11 @@ function renderScheduleMeeting() {
       </div>
       <button class="btn-secondary" data-action="go-screen" data-screen="dashboard" style="margin-top:10px;">Cancel</button>
     </div>
+    ${editingPlan ? renderAIContentStudioSection('plan', { planId: editingPlan.id }) : `
+      <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:18px;color:var(--text-dim);font-size:0.9rem;">
+        Save this session plan first, then use the shared content studio below to generate themed datasets attached to the plan.
+      </div>
+    `}
   `;
 }
 
@@ -17448,6 +18902,7 @@ function renderLoadSession() {
                 ${escapeHtml([plan.date || '', plan.time || ''].filter(Boolean).join(' • ') || 'No date set')}
                 ${plan.zoomLink ? ' • Link ready' : ''}
                 ${plan.activityQueue.length ? ` • ${plan.activityQueue.length} queued activit${plan.activityQueue.length === 1 ? 'y' : 'ies'}` : ''}
+                ${plan.contentCollections?.length ? ` • ${plan.contentCollections.length} content collection${plan.contentCollections.length === 1 ? '' : 's'}` : ''}
               </div>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -17458,6 +18913,13 @@ function renderLoadSession() {
               <button class="btn-secondary" data-action="delete-session-plan" data-plan-id="${escapeHtml(plan.id)}" style="width:auto;padding:10px 16px;">Delete</button>
             </div>
           </div>
+          ${plan.contentBrief?.themePreset || plan.contentBrief?.customTopic ? `
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+              <span class="slides-studio-chip" style="font-size:0.78rem;">Theme: ${escapeHtml(plan.contentBrief.customTopic || plan.contentBrief.themePreset || 'Team Collaboration')}</span>
+              ${plan.contentBrief.audience ? `<span class="slides-studio-chip" style="font-size:0.78rem;">Audience: ${escapeHtml(plan.contentBrief.audience)}</span>` : ''}
+              ${plan.contentBrief.tone ? `<span class="slides-studio-chip" style="font-size:0.78rem;">Tone: ${escapeHtml(plan.contentBrief.tone)}</span>` : ''}
+            </div>
+          ` : ''}
           ${plan.details ? `<div style="margin-top:12px;color:var(--text-mid);line-height:1.55;white-space:pre-wrap;">${escapeHtml(plan.details)}</div>` : ''}
           ${plan.activityQueue.length ? `
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">

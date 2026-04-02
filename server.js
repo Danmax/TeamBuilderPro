@@ -612,13 +612,20 @@ function getDefaultVoiceSettings() {
   return {
     enabled: false,
     participantMicPolicy: 'approved',
-    hideBlockedMicControls: true
+    hideBlockedMicControls: true,
+    transmissionMode: 'ptt',
+    focusParticipantId: ''
   };
 }
 
 function normalizeVoiceMicPolicy(value) {
   const normalized = String(value || '').trim().toLowerCase();
   return ['host_only', 'approved', 'open'].includes(normalized) ? normalized : 'approved';
+}
+
+function normalizeVoiceTransmissionMode(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return ['ptt', 'open'].includes(normalized) ? normalized : 'ptt';
 }
 
 function getRoomSnapshot(key) {
@@ -632,6 +639,8 @@ function getRoomVoiceSettings(room) {
   };
   merged.participantMicPolicy = normalizeVoiceMicPolicy(merged.participantMicPolicy);
   merged.hideBlockedMicControls = merged.hideBlockedMicControls !== false;
+  merged.transmissionMode = normalizeVoiceTransmissionMode(merged.transmissionMode);
+  merged.focusParticipantId = String(merged.focusParticipantId || '').trim().slice(0, 64);
   return merged;
 }
 
@@ -654,6 +663,7 @@ function getOrCreateVoiceRoomState(key) {
     sockets: new Map(),
     approvedSpeakerIds: new Set(),
     raisedHands: new Set(),
+    liveSpeakerIds: new Set(),
     activeSpeakerId: '',
     activeSpeakerName: ''
   };
@@ -683,6 +693,9 @@ function isVoiceParticipantAllowed(room, voiceState, playerId = '', playerName =
   if (isRoomHostParticipant(room, playerId, playerName)) return true;
   const participant = getRoomParticipant(room, playerId, playerName);
   if (!participant?.id) return false;
+  if (voiceSettings.focusParticipantId) {
+    return participant.id === voiceSettings.focusParticipantId;
+  }
   if (voiceSettings.participantMicPolicy === 'open') return true;
   if (voiceSettings.participantMicPolicy === 'host_only') return false;
   return voiceState.approvedSpeakerIds.has(participant.id);
@@ -717,6 +730,30 @@ function listVoiceMembers(voiceState, room = null) {
   return Array.from(byPlayerId.values()).sort((a, b) => a.playerName.localeCompare(b.playerName));
 }
 
+function syncVoiceLiveSpeakerState(voiceState, room = null) {
+  if (!voiceState) return;
+  const roomSnapshot = room || null;
+  voiceState.liveSpeakerIds.forEach(playerId => {
+    if (!isVoiceParticipantAllowed(roomSnapshot, voiceState, playerId, '')) {
+      voiceState.liveSpeakerIds.delete(playerId);
+    }
+  });
+  if (voiceState.activeSpeakerId && voiceState.liveSpeakerIds.has(voiceState.activeSpeakerId)) {
+    const activeParticipant = getRoomParticipant(roomSnapshot, voiceState.activeSpeakerId, voiceState.activeSpeakerName);
+    voiceState.activeSpeakerName = activeParticipant?.name || voiceState.activeSpeakerName || '';
+    return;
+  }
+  const nextLiveSpeakerId = Array.from(voiceState.liveSpeakerIds)[0] || '';
+  if (!nextLiveSpeakerId) {
+    voiceState.activeSpeakerId = '';
+    voiceState.activeSpeakerName = '';
+    return;
+  }
+  const nextParticipant = getRoomParticipant(roomSnapshot, nextLiveSpeakerId, '');
+  voiceState.activeSpeakerId = nextLiveSpeakerId;
+  voiceState.activeSpeakerName = nextParticipant?.name || voiceState.activeSpeakerName || '';
+}
+
 function pruneVoiceRoomState(key, room = null) {
   const voiceState = voiceRooms.get(key);
   if (!voiceState) return null;
@@ -744,20 +781,28 @@ function pruneVoiceRoomState(key, room = null) {
       voiceState.raisedHands.delete(playerId);
     }
   });
+  voiceState.liveSpeakerIds.forEach(playerId => {
+    if (!participantIds.has(playerId)) {
+      voiceState.liveSpeakerIds.delete(playerId);
+    }
+  });
 
   if (voiceSettings.enabled !== true) {
+    voiceState.liveSpeakerIds.clear();
     voiceState.activeSpeakerId = '';
     voiceState.activeSpeakerName = '';
     voiceState.raisedHands.clear();
-  } else if (
-    voiceState.activeSpeakerId
-    && !isVoiceParticipantAllowed(roomSnapshot, voiceState, voiceState.activeSpeakerId, voiceState.activeSpeakerName)
-  ) {
-    voiceState.activeSpeakerId = '';
-    voiceState.activeSpeakerName = '';
+  } else {
+    if (
+      voiceSettings.focusParticipantId
+      && !participantIds.has(voiceSettings.focusParticipantId)
+    ) {
+      voiceSettings.focusParticipantId = '';
+    }
+    syncVoiceLiveSpeakerState(voiceState, roomSnapshot);
   }
 
-  if (!voiceState.sockets.size && !voiceState.approvedSpeakerIds.size && !voiceState.raisedHands.size && !voiceState.activeSpeakerId) {
+  if (!voiceState.sockets.size && !voiceState.approvedSpeakerIds.size && !voiceState.raisedHands.size && !voiceState.liveSpeakerIds.size) {
     voiceRooms.delete(key);
     return null;
   }
@@ -775,8 +820,11 @@ function buildVoiceStatePayload(key, room = null) {
     enabled: voiceSettings.enabled === true,
     participantMicPolicy: normalizeVoiceMicPolicy(voiceSettings.participantMicPolicy),
     hideBlockedMicControls: voiceSettings.hideBlockedMicControls !== false,
+    transmissionMode: normalizeVoiceTransmissionMode(voiceSettings.transmissionMode),
+    focusParticipantId: voiceSettings.focusParticipantId || '',
     approvedSpeakerIds: Array.from(voiceState.approvedSpeakerIds),
     raisedHands: Array.from(voiceState.raisedHands),
+    liveSpeakerIds: Array.from(voiceState.liveSpeakerIds),
     activeSpeakerId: voiceState.activeSpeakerId || '',
     activeSpeakerName: activeParticipant?.name || voiceState.activeSpeakerName || '',
     members: listVoiceMembers(voiceState, roomSnapshot),
@@ -807,9 +855,12 @@ function removeSocketFromVoiceRoom(socket, emitUpdate = true) {
   }
   const member = voiceState.sockets.get(socket.id);
   voiceState.sockets.delete(socket.id);
-  if (member?.playerId && voiceState.activeSpeakerId === member.playerId) {
-    voiceState.activeSpeakerId = '';
-    voiceState.activeSpeakerName = '';
+  if (member?.playerId) {
+    const hasAnotherSocket = Array.from(voiceState.sockets.values()).some(entry => entry?.playerId === member.playerId);
+    if (!hasAnotherSocket) {
+      voiceState.liveSpeakerIds.delete(member.playerId);
+      syncVoiceLiveSpeakerState(voiceState, getRoomSnapshot(key));
+    }
   }
   socket.data.voiceKey = null;
   const pruned = pruneVoiceRoomState(key);
@@ -1137,6 +1188,48 @@ io.on('connection', socket => {
     ack?.({ ok: true });
   });
 
+  socket.on('voice:toggle-hand', (payload, ack) => {
+    const key = socket.data.voiceKey;
+    const member = getVoiceMemberForSocket(socket);
+    const room = getRoomSnapshot(key);
+    if (!isRoomKey(key) || !member?.playerId || !room) {
+      ack?.({ ok: false, error: 'Voice session unavailable' });
+      return;
+    }
+    const voiceState = getOrCreateVoiceRoomState(key);
+    const isHost = isRoomHostParticipant(room, member.playerId, member.playerName);
+    const requestedTargetId = String(payload?.targetPlayerId || '').trim();
+    const targetPlayerId = isHost && requestedTargetId ? requestedTargetId : member.playerId;
+    if (!targetPlayerId) {
+      ack?.({ ok: false, error: 'Participant not found' });
+      return;
+    }
+    const targetParticipant = getRoomParticipant(room, targetPlayerId, '');
+    if (!targetParticipant && targetPlayerId !== member.playerId) {
+      ack?.({ ok: false, error: 'Participant not found' });
+      return;
+    }
+    if (!isHost && targetPlayerId !== member.playerId) {
+      ack?.({ ok: false, error: 'Only host can change another participant hand state' });
+      return;
+    }
+    if (!isHost && targetPlayerId === member.playerId && isRoomHostParticipant(room, targetPlayerId, member.playerName)) {
+      ack?.({ ok: false, error: 'Host does not use raise hand' });
+      return;
+    }
+    const requestedRaised = payload?.raised;
+    const shouldRaise = typeof requestedRaised === 'boolean'
+      ? requestedRaised
+      : !voiceState.raisedHands.has(targetPlayerId);
+    if (shouldRaise) {
+      voiceState.raisedHands.add(targetPlayerId);
+    } else {
+      voiceState.raisedHands.delete(targetPlayerId);
+    }
+    emitVoiceState(key, room);
+    ack?.({ ok: true, raised: shouldRaise });
+  });
+
   socket.on('voice:grant-talk', (payload, ack) => {
     const key = socket.data.voiceKey;
     const member = getVoiceMemberForSocket(socket);
@@ -1179,10 +1272,8 @@ io.on('connection', socket => {
     const voiceState = getOrCreateVoiceRoomState(key);
     voiceState.approvedSpeakerIds.delete(targetPlayerId);
     voiceState.raisedHands.delete(targetPlayerId);
-    if (voiceState.activeSpeakerId === targetPlayerId) {
-      voiceState.activeSpeakerId = '';
-      voiceState.activeSpeakerName = '';
-    }
+    voiceState.liveSpeakerIds.delete(targetPlayerId);
+    syncVoiceLiveSpeakerState(voiceState, room);
     emitVoiceState(key, room);
     ack?.({ ok: true });
   });
@@ -1201,9 +1292,9 @@ io.on('connection', socket => {
       return;
     }
     const voiceState = getOrCreateVoiceRoomState(key);
-    if (voiceState.activeSpeakerId === targetPlayerId) {
-      voiceState.activeSpeakerId = '';
-      voiceState.activeSpeakerName = '';
+    if (voiceState.liveSpeakerIds.has(targetPlayerId)) {
+      voiceState.liveSpeakerIds.delete(targetPlayerId);
+      syncVoiceLiveSpeakerState(voiceState, room);
       emitVoiceState(key, room);
     }
     ack?.({ ok: true });
@@ -1222,10 +1313,16 @@ io.on('connection', socket => {
       ack?.({ ok: false, error: 'Host has not allowed you to speak' });
       return;
     }
-    if (voiceState.activeSpeakerId && voiceState.activeSpeakerId !== member.playerId) {
+    const voiceSettings = getRoomVoiceSettings(room);
+    if (
+      voiceSettings.transmissionMode !== 'open'
+      && voiceState.liveSpeakerIds.size
+      && !voiceState.liveSpeakerIds.has(member.playerId)
+    ) {
       ack?.({ ok: false, error: 'Another speaker is live' });
       return;
     }
+    voiceState.liveSpeakerIds.add(member.playerId);
     voiceState.activeSpeakerId = member.playerId;
     voiceState.activeSpeakerName = member.playerName || '';
     voiceState.raisedHands.delete(member.playerId);
@@ -1241,9 +1338,9 @@ io.on('connection', socket => {
       return;
     }
     const voiceState = getOrCreateVoiceRoomState(key);
-    if (voiceState.activeSpeakerId === member.playerId) {
-      voiceState.activeSpeakerId = '';
-      voiceState.activeSpeakerName = '';
+    if (voiceState.liveSpeakerIds.has(member.playerId)) {
+      voiceState.liveSpeakerIds.delete(member.playerId);
+      syncVoiceLiveSpeakerState(voiceState, getRoomSnapshot(key));
       emitVoiceState(key);
     }
     ack?.({ ok: true });
