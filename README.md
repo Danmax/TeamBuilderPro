@@ -31,6 +31,7 @@ Team Builder is a realtime facilitation app for host-led team sessions. It combi
 - Spin Wheel
 - Presentation
 - Slides Studio
+- DJ Booth
 - Battleship
 - Bingo
 - Backgammon
@@ -50,6 +51,7 @@ Team Builder is a realtime facilitation app for host-led team sessions. It combi
 - Mobile-friendly board game layouts for Battleship, Bingo, Backgammon, and Connect 4.
 - Battleship fleet setup with drag-and-drop placement, board re-selection, quick rotate, double-tap rotate, next-vessel shortcuts, and in-map ready controls.
 - Bingo cards with multiple marker styles, colorable classic cover tokens, local Bingo voice announcements, live-ball draw interaction, and win celebration.
+- DJ Booth with two deck sources, YouTube playlist/video support, local file decks, room-shared uploaded tracks, mic clip recording, crossfader/master controls, deck playheads, sound pads, broadcast banner, and animated booth lights.
 
 ## Session Planning
 
@@ -101,6 +103,29 @@ It supports:
 - Text positioning controls
 - CTA button links and source links
 - AI-generated slide decks from a prompt
+
+## DJ Booth
+
+DJ Booth is a host-led live music activity inside the room.
+
+It supports:
+
+- Two independent decks (`Deck A` and `Deck B`)
+- YouTube video or playlist loading per deck
+- Local host-only audio file loading
+- Room-shared uploaded track library for cross-device playback
+- Mic clip recording into the shared track library
+- Deck play/pause, restart, seek, and per-deck volume
+- Crossfader and master volume controls
+- Eight editable sound pads
+- Scrolling broadcast banner text
+- Animated DJ lighting modes and intensity controls
+
+Notes:
+
+- Local file decks play on the host device only.
+- Shared uploaded tracks are the preferred path when you want participants to load the same audio source in the room.
+- Browser autoplay policies may still require participant interaction before audio starts on some devices.
 
 ## AI
 

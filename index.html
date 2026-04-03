@@ -105,6 +105,182 @@
     65% { opacity: 1; transform: translateX(-12px) rotate(-14deg) scale(1.05); }
     100% { opacity: 1; transform: translateX(0) rotate(0deg) scale(1); }
   }
+  @keyframes djBoothMarquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  @keyframes djBoothGlowPulse {
+    0%, 100% { transform: translateY(0) scaleY(0.72); opacity: 0.48; }
+    50% { transform: translateY(-2px) scaleY(1.08); opacity: 1; }
+  }
+  @keyframes djBoothPadFlash {
+    0%, 100% { box-shadow: 0 0 0 rgba(255,255,255,0), inset 0 1px 0 rgba(255,255,255,0.08); }
+    50% { box-shadow: 0 0 24px rgba(255,255,255,0.22), 0 0 42px var(--pad-glow, rgba(0,210,211,0.42)); }
+  }
+
+  .dj-booth-shell {
+    display: grid;
+    gap: 18px;
+    max-width: 1320px;
+    margin: 24px auto 0;
+  }
+
+  .dj-booth-banner {
+    position: relative;
+    overflow: hidden;
+    border-radius: 22px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+    padding: 16px 18px;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.18);
+  }
+
+  .dj-booth-banner-track {
+    display: inline-flex;
+    min-width: max-content;
+    gap: 48px;
+    padding-right: 48px;
+    animation: djBoothMarquee 18s linear infinite;
+    will-change: transform;
+  }
+
+  .dj-booth-banner-copy {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.92rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.86);
+    white-space: nowrap;
+  }
+
+  .dj-booth-light-rig {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 10px;
+    align-items: end;
+    min-height: 110px;
+    padding: 18px;
+    border-radius: 22px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background:
+      radial-gradient(circle at top, rgba(255,255,255,0.12), transparent 42%),
+      linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+  }
+
+  .dj-booth-light {
+    border-radius: 999px 999px 16px 16px;
+    min-height: 26px;
+    animation: djBoothGlowPulse 1.8s ease-in-out infinite;
+    transform-origin: bottom center;
+    box-shadow: 0 0 22px color-mix(in srgb, var(--light-color, var(--accent)) 48%, transparent);
+  }
+
+  .dj-booth-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px minmax(0, 1fr);
+    gap: 18px;
+    align-items: start;
+  }
+
+  .dj-booth-panel,
+  .dj-booth-mixer,
+  .dj-booth-status-card,
+  .dj-booth-pad-card {
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 18px;
+    box-shadow: 0 18px 40px rgba(0,0,0,0.18);
+  }
+
+  .dj-booth-player-frame {
+    overflow: hidden;
+    border-radius: 18px;
+    min-height: 260px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .dj-booth-meter {
+    position: relative;
+    display: flex;
+    align-items: end;
+    gap: 6px;
+    min-height: 68px;
+  }
+
+  .dj-booth-meter-bar {
+    flex: 1;
+    min-height: 10px;
+    border-radius: 999px 999px 10px 10px;
+    animation: djBoothGlowPulse 1.6s ease-in-out infinite;
+  }
+
+  .dj-booth-pad-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .dj-booth-pad {
+    position: relative;
+    width: 100%;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 16px 14px;
+    text-align: left;
+    color: #ffffff;
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform 0.18s ease, border-color 0.18s ease;
+  }
+
+  .dj-booth-pad:hover:not(:disabled) {
+    transform: translateY(-2px);
+    border-color: rgba(255,255,255,0.22);
+  }
+
+  .dj-booth-pad:disabled {
+    opacity: 0.75;
+    cursor: default;
+  }
+
+  .dj-booth-pad-active {
+    animation: djBoothPadFlash 0.55s ease-out 2;
+  }
+
+  .dj-booth-range {
+    width: 100%;
+    accent-color: var(--accent);
+  }
+
+  @media (max-width: 1040px) {
+    .dj-booth-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .dj-booth-pad-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 640px) {
+    .dj-booth-banner-copy {
+      font-size: 0.78rem;
+      letter-spacing: 0.1em;
+    }
+
+    .dj-booth-light-rig {
+      gap: 6px;
+      padding: 14px;
+      min-height: 80px;
+    }
+
+    .dj-booth-pad-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+  }
 
   .bingo-call-ball {
     width: 92px;
@@ -2336,6 +2512,10 @@ function normalizeEmoji(value) {
   return String(value || '').trim().slice(0, 8);
 }
 
+function isValidHexColor(value) {
+  return /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(String(value || '').trim());
+}
+
 function normalizeTopic(value) {
   return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 80);
 }
@@ -3023,6 +3203,7 @@ function applyConfigPayload(data) {
   applyBranding(config);
   const collections = normalizeClientCollections(data?.collections || []);
   APP.admin.collections = collections;
+  APP.admin.communityHostRequests = normalizeCommunityHostRequests(data?.communityHostRequests || APP.admin.communityHostRequests || []);
   APP.admin.configDatabaseConnected = Boolean(data?.storage?.configDatabaseConnected);
   APP.preferences = normalizeAppPreferences(config?.preferences || APP.preferences || {});
   rehydrateActivityBanksFromConfig(collections);
@@ -3182,6 +3363,35 @@ function normalizeRoomParticipants(participants, hostName = '') {
 
 const COMMUNITY_CHAT_QUICK_EMOJIS = ['🙌', '👏', '🔥', '🎉', '😂', '❤️', '👋', '🤝'];
 
+function normalizeCommunityHostRequest(rawRequest, idx = 0) {
+  if (!rawRequest || typeof rawRequest !== 'object') return null;
+  const userName = normalizeName(rawRequest.userName || '');
+  const reason = String(rawRequest.reason || '').replace(/\s+/g, ' ').trim().slice(0, 400);
+  const status = String(rawRequest.status || 'pending').trim().toLowerCase();
+  if (!userName) return null;
+  return {
+    id: String(rawRequest.id || `community-host-request-${idx + 1}`).trim().slice(0, 80),
+    userToken: String(rawRequest.userToken || '').trim().slice(0, 80),
+    userId: String(rawRequest.userId || '').trim().slice(0, 64),
+    userName,
+    reason,
+    status: ['pending', 'approved', 'denied'].includes(status) ? status : 'pending',
+    adminNotes: String(rawRequest.adminNotes || '').trim().slice(0, 400),
+    createdAt: String(rawRequest.createdAt || ''),
+    updatedAt: String(rawRequest.updatedAt || rawRequest.createdAt || ''),
+    resolvedAt: rawRequest.resolvedAt ? String(rawRequest.resolvedAt) : null
+  };
+}
+
+function normalizeCommunityHostRequests(rawRequests) {
+  if (!Array.isArray(rawRequests)) return [];
+  return rawRequests
+    .map((item, idx) => normalizeCommunityHostRequest(item, idx))
+    .filter(Boolean)
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime())
+    .slice(0, 200);
+}
+
 function normalizeCommunityChatMessages(messages) {
   if (!Array.isArray(messages)) return [];
   return messages
@@ -3218,7 +3428,7 @@ function normalizeRoom(room) {
     roomType,
     communityTitle: String(room.communityTitle || '').replace(/\s+/g, ' ').trim().slice(0, 80),
     communityDescription: String(room.communityDescription || '').replace(/\s+/g, ' ').trim().slice(0, 220),
-    maxParticipants: Math.max(2, Number(room.maxParticipants) || 24),
+    maxParticipants: Math.max(2, Math.min(MAX_ROOM_PARTICIPANTS, Number(room.maxParticipants) || 24)),
     communityChat: roomType === 'community' ? normalizeCommunityChatMessages(room.communityChat) : [],
     host: normalizedHost || room.host || '',
     participants,
@@ -3448,12 +3658,24 @@ const API_BASE_URL = (() => {
   }
   return window.location.origin;
 })();
+function getAbsoluteApiUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    return new URL(raw, API_BASE_URL).toString();
+  } catch (_error) {
+    return raw;
+  }
+}
 const IS_LOCAL_DEV_CLIENT = (() => {
   const host = String(window.location.hostname || '').toLowerCase();
   return host === 'localhost' || host === '127.0.0.1';
 })();
 const ENABLE_PRESENTATION_SHARE = true;
 const DEFAULT_SPOTIFY_PLAYLIST_URL = 'https://open.spotify.com/playlist/1spwwddGP1j6aaPy9IJ9zk?si=f33607c9ffa14144&pt=087efef975fd3cd17e88c9af035c57ee';
+const MAX_ROOM_PARTICIPANTS = 142;
+const DJ_BOOTH_DECK_KEYS = ['deckA', 'deckB'];
+const DJ_BOOTH_TONE_IDS = ['airhorn', 'laser', 'clap', 'chime', 'bass', 'siren', 'sparkle', 'hit'];
 const VOICE_RTC_CONFIG = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' }
@@ -3481,6 +3703,27 @@ const voiceRemoteStreams = new Map();
 const voiceRemoteAudioEls = new Map();
 let voiceDockDragState = null;
 let voicePttPointerActive = false;
+let djBoothApiPromise = null;
+let djBoothPadAudioContext = null;
+let djBoothProgressFrame = 0;
+const djBoothPlayers = {
+  deckA: null,
+  deckB: null
+};
+const djBoothLocalDeckAudio = {
+  deckA: null,
+  deckB: null
+};
+const djBoothLocalDeckMeta = {
+  deckA: null,
+  deckB: null
+};
+let djBoothParkingLot = null;
+let djBoothClipRecorder = null;
+let djBoothClipRecorderStream = null;
+let djBoothClipRecorderChunks = [];
+let djBoothClipRecorderStartedAt = 0;
+let djBoothClipRecorderTimer = 0;
 
 // Configure these for cross-device realtime sync via Supabase.
 // You can also set window.SUPABASE_URL / window.SUPABASE_ANON_KEY before this script loads.
@@ -4565,7 +4808,7 @@ const RoomManager = {
     const communityDescription = roomType === 'community'
       ? String(options.communityDescription || 'Open lobby for drop-in games and social play.').replace(/\s+/g, ' ').trim().slice(0, 220)
       : '';
-    const maxParticipants = Math.max(2, Number(options.maxParticipants) || 24);
+    const maxParticipants = Math.max(2, Math.min(MAX_ROOM_PARTICIPANTS, Number(options.maxParticipants) || 24));
     const room = normalizeRoom({
       code: code,
       roomType,
@@ -4610,6 +4853,10 @@ const RoomManager = {
     
     const existingParticipant = room.participants.find(p => p.id === playerId || p.name === playerName);
     if (!existingParticipant) {
+      const maxParticipants = Math.max(2, Math.min(MAX_ROOM_PARTICIPANTS, Number(room.maxParticipants) || 24));
+      if ((room.participants?.length || 0) >= maxParticipants) {
+        throw new Error(`This room is full (${maxParticipants} participants max).`);
+      }
       room.participants.push(createRoomParticipant(playerId, playerName, playerAvatar, false));
       room.participants = normalizeRoomParticipants(room.participants, room.host);
       room.lastUpdate = Date.now();
@@ -4665,6 +4912,7 @@ const ALL_ACTIVITY_IDS = [
   'spin-wheel',
   'presentation',
   'slides-studio',
+  'dj-booth',
   'battleship',
   'bingo',
   'backgammon',
@@ -4724,6 +4972,22 @@ function getDefaultSlidesStudioUiState() {
     aiCount: 5,
     generateExpanded: true,
     editorExpanded: true
+  };
+}
+
+function getDefaultDjBoothUiState() {
+  return {
+    lastPadTriggerAt: 0,
+    recordingClip: false,
+    recordingSeconds: 0,
+    deckTitles: {
+      deckA: '',
+      deckB: ''
+    },
+    localDecks: {
+      deckA: null,
+      deckB: null
+    }
   };
 }
 
@@ -4796,10 +5060,14 @@ const APP = {
   bingoUi: getDefaultBingoUiState(),
   backgammonUi: getDefaultBackgammonUiState(),
   slidesStudioUi: getDefaultSlidesStudioUiState(),
+  djBoothUi: getDefaultDjBoothUiState(),
   voiceDock: loadVoiceDockState(),
   community: {
     rooms: [],
-    loading: false
+    loading: false,
+    requests: [],
+    requestsLoading: false,
+    requestSubmitting: false
   },
   feedback: [],
   feedbackLoading: false,
@@ -4810,6 +5078,7 @@ const APP = {
     feedback: [],
     loading: false,
     collections: [],
+    communityHostRequests: [],
     configDatabaseConnected: false,
     savingConfig: false,
     generatingContent: false,
@@ -5188,6 +5457,7 @@ const ACTIVITY_QUEUE_ITEMS = [
   { id: 'spin-wheel', icon: '🎡', label: 'Spin Wheel' },
   { id: 'presentation', icon: '📽️', label: 'Presentation' },
   { id: 'slides-studio', icon: '🎞️', label: 'Slides Studio' },
+  { id: 'dj-booth', icon: '🎚️', label: 'DJ Booth' },
   { id: 'battleship', icon: '🚢', label: 'Battleship' },
   { id: 'bingo', icon: '🎟️', label: 'Bingo' },
   { id: 'backgammon', icon: '🎲', label: 'Backgammon' },
@@ -6781,6 +7051,13 @@ function formatClockFromMs(ms) {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
+function formatFileSize(bytes) {
+  const size = Math.max(0, Number(bytes) || 0);
+  if (size >= 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  if (size >= 1024) return `${Math.round(size / 1024)} KB`;
+  return `${size} B`;
+}
+
 function buildCelebrationConfettiPieces(count = 24) {
   const confettiPalette = ['#00d2d3', '#feca57', '#00d26a', '#ff4060', '#ffd700'];
   return Array.from({ length: count }, (_, idx) => {
@@ -8043,6 +8320,890 @@ function createSlidesStudioState() {
   });
 }
 
+function getDefaultDjBoothPads() {
+  return [
+    { id: 'pad-1', label: 'Air Horn', emoji: '📣', tone: 'airhorn', color: '#ff6b6b' },
+    { id: 'pad-2', label: 'Laser', emoji: '✨', tone: 'laser', color: '#7c3aed' },
+    { id: 'pad-3', label: 'Clap', emoji: '👏', tone: 'clap', color: '#f59e0b' },
+    { id: 'pad-4', label: 'Chime', emoji: '🔔', tone: 'chime', color: '#22c55e' },
+    { id: 'pad-5', label: 'Bass Drop', emoji: '💥', tone: 'bass', color: '#0ea5e9' },
+    { id: 'pad-6', label: 'Siren', emoji: '🚨', tone: 'siren', color: '#ef4444' },
+    { id: 'pad-7', label: 'Sparkle', emoji: '🌟', tone: 'sparkle', color: '#facc15' },
+    { id: 'pad-8', label: 'Hit', emoji: '🥁', tone: 'hit', color: '#14b8a6' }
+  ];
+}
+
+function normalizeDjBoothPad(rawPad, idx = 0) {
+  const fallback = getDefaultDjBoothPads()[idx] || { id: `pad-${idx + 1}`, label: `Pad ${idx + 1}`, emoji: '🎛️', tone: DJ_BOOTH_TONE_IDS[idx % DJ_BOOTH_TONE_IDS.length], color: '#00d2d3' };
+  const tone = DJ_BOOTH_TONE_IDS.includes(String(rawPad?.tone || '').trim()) ? String(rawPad.tone).trim() : fallback.tone;
+  return {
+    id: String(rawPad?.id || fallback.id).trim() || fallback.id,
+    label: String(rawPad?.label || fallback.label).replace(/\s+/g, ' ').trim().slice(0, 24) || fallback.label,
+    emoji: normalizeEmoji(rawPad?.emoji || '') || fallback.emoji,
+    tone,
+    color: isValidHexColor(rawPad?.color || '') ? String(rawPad.color).trim() : fallback.color
+  };
+}
+
+function normalizeDjBoothPads(rawPads) {
+  const base = Array.isArray(rawPads) && rawPads.length ? rawPads : getDefaultDjBoothPads();
+  return Array.from({ length: 8 }, (_, idx) => normalizeDjBoothPad(base[idx], idx));
+}
+
+function normalizeDjBoothTrack(rawTrack, idx = 0) {
+  if (!rawTrack || typeof rawTrack !== 'object') return null;
+  const id = String(rawTrack.id || `track-${idx + 1}`).trim().slice(0, 80);
+  const name = String(rawTrack.name || rawTrack.sourceLabel || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+  const url = getAbsoluteApiUrl(String(rawTrack.url || rawTrack.sourceUrl || '').trim()).slice(0, 500);
+  if (!id || !name || !url) return null;
+  return {
+    id,
+    name,
+    url,
+    storageKey: String(rawTrack.storageKey || '').trim().slice(0, 180),
+    contentType: String(rawTrack.contentType || '').trim().slice(0, 80),
+    size: Math.max(0, Number(rawTrack.size) || 0),
+    uploadedAt: String(rawTrack.uploadedAt || '').trim().slice(0, 80),
+    uploadedBy: String(rawTrack.uploadedBy || '').replace(/\s+/g, ' ').trim().slice(0, 32)
+  };
+}
+
+function normalizeDjBoothTrackLibrary(rawLibrary) {
+  if (!Array.isArray(rawLibrary)) return [];
+  return rawLibrary
+    .map((track, idx) => normalizeDjBoothTrack(track, idx))
+    .filter(Boolean)
+    .slice(0, 48);
+}
+
+function parseYouTubeSource(rawValue) {
+  const raw = String(rawValue || '').trim();
+  if (!raw) return { sourceUrl: '', sourceType: 'none', videoId: '', playlistId: '', trackIndex: 0 };
+  try {
+    const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    const parsed = new URL(withProtocol);
+    const host = parsed.hostname.replace(/^www\./i, '').toLowerCase();
+    let videoId = '';
+    let playlistId = '';
+    let trackIndex = Math.max(0, Number.parseInt(parsed.searchParams.get('index') || '0', 10) - 1);
+    if (host === 'youtu.be') {
+      videoId = parsed.pathname.replace(/\//g, '').trim();
+      playlistId = parsed.searchParams.get('list') || '';
+    } else if (host.endsWith('youtube.com') || host.endsWith('youtube-nocookie.com')) {
+      if (parsed.pathname === '/watch') {
+        videoId = parsed.searchParams.get('v') || '';
+        playlistId = parsed.searchParams.get('list') || '';
+      } else if (parsed.pathname === '/playlist') {
+        playlistId = parsed.searchParams.get('list') || '';
+      } else if (parsed.pathname.startsWith('/embed/')) {
+        videoId = parsed.pathname.split('/')[2] || '';
+        playlistId = parsed.searchParams.get('list') || '';
+      } else if (parsed.pathname.startsWith('/shorts/')) {
+        videoId = parsed.pathname.split('/')[2] || '';
+      }
+    }
+    videoId = String(videoId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 16);
+    playlistId = String(playlistId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+    return {
+      sourceUrl: raw,
+      sourceType: playlistId ? 'playlist' : videoId ? 'video' : 'none',
+      videoId,
+      playlistId,
+      trackIndex: Math.max(0, trackIndex)
+    };
+  } catch (_error) {
+    return { sourceUrl: raw, sourceType: 'none', videoId: '', playlistId: '', trackIndex: 0 };
+  }
+}
+
+function createDjBoothDeckState(label = 'Deck') {
+  return {
+    label,
+    sourceMode: 'youtube',
+    sourceUrl: '',
+    sourceType: 'none',
+    sourceLabel: '',
+    videoId: '',
+    playlistId: '',
+    trackIndex: 0,
+    playing: false,
+    volume: 82,
+    positionSeconds: 0,
+    lastActionAt: Date.now()
+  };
+}
+
+function normalizeDjBoothDeckState(rawDeck, fallbackLabel = 'Deck') {
+  const requestedSourceMode = String(rawDeck?.sourceMode || '').trim();
+  const sourceMode = ['local', 'shared'].includes(requestedSourceMode) ? requestedSourceMode : 'youtube';
+  if (sourceMode === 'shared') {
+    return {
+      label: String(rawDeck?.label || fallbackLabel).replace(/\s+/g, ' ').trim().slice(0, 24) || fallbackLabel,
+      sourceMode: 'shared',
+      sourceUrl: String(rawDeck?.sourceUrl || '').trim().slice(0, 500),
+      sourceType: 'audio',
+      sourceLabel: String(rawDeck?.sourceLabel || `${fallbackLabel} shared track`).replace(/\s+/g, ' ').trim().slice(0, 80) || `${fallbackLabel} shared track`,
+      videoId: '',
+      playlistId: '',
+      trackIndex: 0,
+      playing: rawDeck?.playing === true,
+      volume: Math.max(0, Math.min(100, Number.parseInt(rawDeck?.volume ?? 82, 10) || 82)),
+      positionSeconds: Math.max(0, Number(rawDeck?.positionSeconds) || 0),
+      lastActionAt: Number(rawDeck?.lastActionAt) || Date.now()
+    };
+  }
+  if (sourceMode === 'local') {
+    return {
+      label: String(rawDeck?.label || fallbackLabel).replace(/\s+/g, ' ').trim().slice(0, 24) || fallbackLabel,
+      sourceMode: 'local',
+      sourceUrl: '',
+      sourceType: 'local',
+      sourceLabel: String(rawDeck?.sourceLabel || rawDeck?.label || `${fallbackLabel} local file`).replace(/\s+/g, ' ').trim().slice(0, 80) || `${fallbackLabel} local file`,
+      videoId: '',
+      playlistId: '',
+      trackIndex: 0,
+      playing: rawDeck?.playing === true,
+      volume: Math.max(0, Math.min(100, Number.parseInt(rawDeck?.volume ?? 82, 10) || 82)),
+      positionSeconds: Math.max(0, Number(rawDeck?.positionSeconds) || 0),
+      lastActionAt: Number(rawDeck?.lastActionAt) || Date.now()
+    };
+  }
+  const source = parseYouTubeSource(rawDeck?.sourceUrl || '');
+  return {
+    label: String(rawDeck?.label || fallbackLabel).replace(/\s+/g, ' ').trim().slice(0, 24) || fallbackLabel,
+    sourceMode: 'youtube',
+    sourceUrl: String(rawDeck?.sourceUrl || source.sourceUrl || '').trim().slice(0, 500),
+    sourceType: source.sourceType,
+    sourceLabel: String(rawDeck?.sourceLabel || '').replace(/\s+/g, ' ').trim().slice(0, 80),
+    videoId: String(source.videoId || '').trim(),
+    playlistId: String(source.playlistId || '').trim(),
+    trackIndex: Math.max(0, Number.parseInt(rawDeck?.trackIndex ?? source.trackIndex ?? 0, 10) || 0),
+    playing: rawDeck?.playing === true,
+    volume: Math.max(0, Math.min(100, Number.parseInt(rawDeck?.volume ?? 82, 10) || 82)),
+    positionSeconds: Math.max(0, Number(rawDeck?.positionSeconds) || 0),
+    lastActionAt: Number(rawDeck?.lastActionAt) || Date.now()
+  };
+}
+
+function normalizeDjBoothState(rawState) {
+  const source = rawState && typeof rawState === 'object' ? rawState : {};
+  const lights = source.lights && typeof source.lights === 'object' ? source.lights : {};
+  return {
+    marqueeText: String(source.marqueeText || 'Broadcast live from the Team Builder DJ Booth').replace(/\s+/g, ' ').trim().slice(0, 140) || 'Broadcast live from the Team Builder DJ Booth',
+    masterVolume: Math.max(0, Math.min(100, Number.parseInt(source.masterVolume ?? 86, 10) || 86)),
+    crossfader: Math.max(0, Math.min(100, Number.parseInt(source.crossfader ?? 50, 10) || 50)),
+    micLive: source.micLive === true,
+    deckA: normalizeDjBoothDeckState(source.deckA, 'Deck A'),
+    deckB: normalizeDjBoothDeckState(source.deckB, 'Deck B'),
+    trackLibrary: normalizeDjBoothTrackLibrary(source.trackLibrary),
+    soundPads: normalizeDjBoothPads(source.soundPads),
+    activePadId: String(source.activePadId || '').trim(),
+    lastPadTriggerAt: Number(source.lastPadTriggerAt) || 0,
+    lights: {
+      enabled: lights.enabled !== false,
+      mode: ['ambient', 'pulse', 'wave', 'strobe', 'party'].includes(String(lights.mode || '').trim()) ? String(lights.mode).trim() : 'pulse',
+      speed: Math.max(10, Math.min(100, Number.parseInt(lights.speed ?? 55, 10) || 55)),
+      intensity: Math.max(10, Math.min(100, Number.parseInt(lights.intensity ?? 75, 10) || 75)),
+      colorA: isValidHexColor(lights.colorA || '') ? String(lights.colorA).trim() : '#00d2d3',
+      colorB: isValidHexColor(lights.colorB || '') ? String(lights.colorB).trim() : '#ff4d8d',
+      flashAt: Number(lights.flashAt) || 0
+    },
+    updatedAt: Number(source.updatedAt) || Date.now()
+  };
+}
+
+function createDjBoothState() {
+  return normalizeDjBoothState({
+    deckA: createDjBoothDeckState('Deck A'),
+    deckB: createDjBoothDeckState('Deck B'),
+    trackLibrary: [],
+    soundPads: getDefaultDjBoothPads(),
+    marqueeText: 'Broadcast live from the Team Builder DJ Booth',
+    masterVolume: 86,
+    crossfader: 50,
+    micLive: false,
+    activePadId: '',
+    lastPadTriggerAt: 0,
+    lights: {
+      enabled: true,
+      mode: 'pulse',
+      speed: 55,
+      intensity: 75,
+      colorA: '#00d2d3',
+      colorB: '#ff4d8d',
+      flashAt: 0
+    },
+    updatedAt: Date.now()
+  });
+}
+
+function getDjBoothEffectiveDeckPosition(deck) {
+  const safeDeck = normalizeDjBoothDeckState(deck, deck?.label || 'Deck');
+  if (!safeDeck.playing) return safeDeck.positionSeconds;
+  return Math.max(0, safeDeck.positionSeconds + ((Date.now() - safeDeck.lastActionAt) / 1000));
+}
+
+function computeDjBoothDeckEffectiveVolume(state, deckKey) {
+  const safeState = normalizeDjBoothState(state);
+  const deck = safeState[deckKey];
+  if (!deck) return 0;
+  const cross = Math.max(0, Math.min(100, Number(safeState.crossfader) || 50));
+  const master = Math.max(0, Math.min(100, Number(safeState.masterVolume) || 0)) / 100;
+  const deckVolume = Math.max(0, Math.min(100, Number(deck.volume) || 0)) / 100;
+  const crossFactor = deckKey === 'deckA'
+    ? Math.min(1, Math.max(0, (100 - cross) / 50))
+    : Math.min(1, Math.max(0, cross / 50));
+  return Math.round(deckVolume * crossFactor * master * 100);
+}
+
+function ensureDjBoothAudioContext() {
+  if (djBoothPadAudioContext) return djBoothPadAudioContext;
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) return null;
+  djBoothPadAudioContext = new AudioCtx();
+  return djBoothPadAudioContext;
+}
+
+function scheduleDjBoothTone(ctx, { type = 'sine', frequency = 440, gain = 0.2, startOffset = 0, duration = 0.2, endFrequency = null }) {
+  const oscillator = ctx.createOscillator();
+  const gainNode = ctx.createGain();
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(frequency, ctx.currentTime + startOffset);
+  if (endFrequency != null) {
+    oscillator.frequency.exponentialRampToValueAtTime(Math.max(20, endFrequency), ctx.currentTime + startOffset + duration);
+  }
+  gainNode.gain.setValueAtTime(0.0001, ctx.currentTime + startOffset);
+  gainNode.gain.exponentialRampToValueAtTime(Math.max(0.001, gain), ctx.currentTime + startOffset + 0.02);
+  gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + startOffset + duration);
+  oscillator.connect(gainNode).connect(ctx.destination);
+  oscillator.start(ctx.currentTime + startOffset);
+  oscillator.stop(ctx.currentTime + startOffset + duration + 0.05);
+}
+
+function playDjBoothPadSound(pad) {
+  const ctx = ensureDjBoothAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  const tone = String(pad?.tone || '').trim();
+  if (tone === 'airhorn') {
+    scheduleDjBoothTone(ctx, { type: 'sawtooth', frequency: 520, endFrequency: 250, gain: 0.28, duration: 0.7 });
+    scheduleDjBoothTone(ctx, { type: 'triangle', frequency: 780, endFrequency: 360, gain: 0.14, duration: 0.7 });
+    return;
+  }
+  if (tone === 'laser') {
+    scheduleDjBoothTone(ctx, { type: 'square', frequency: 900, endFrequency: 120, gain: 0.2, duration: 0.3 });
+    scheduleDjBoothTone(ctx, { type: 'triangle', frequency: 1200, endFrequency: 180, gain: 0.08, startOffset: 0.04, duration: 0.28 });
+    return;
+  }
+  if (tone === 'clap') {
+    scheduleDjBoothTone(ctx, { type: 'square', frequency: 240, endFrequency: 90, gain: 0.08, duration: 0.08 });
+    scheduleDjBoothTone(ctx, { type: 'square', frequency: 260, endFrequency: 100, gain: 0.08, startOffset: 0.05, duration: 0.08 });
+    scheduleDjBoothTone(ctx, { type: 'square', frequency: 300, endFrequency: 110, gain: 0.08, startOffset: 0.1, duration: 0.08 });
+    return;
+  }
+  if (tone === 'chime') {
+    scheduleDjBoothTone(ctx, { type: 'sine', frequency: 660, gain: 0.12, duration: 0.34 });
+    scheduleDjBoothTone(ctx, { type: 'sine', frequency: 990, gain: 0.11, startOffset: 0.08, duration: 0.34 });
+    scheduleDjBoothTone(ctx, { type: 'triangle', frequency: 1320, gain: 0.07, startOffset: 0.16, duration: 0.28 });
+    return;
+  }
+  if (tone === 'bass') {
+    scheduleDjBoothTone(ctx, { type: 'sine', frequency: 120, endFrequency: 48, gain: 0.3, duration: 0.55 });
+    scheduleDjBoothTone(ctx, { type: 'triangle', frequency: 60, endFrequency: 35, gain: 0.16, duration: 0.6 });
+    return;
+  }
+  if (tone === 'siren') {
+    scheduleDjBoothTone(ctx, { type: 'square', frequency: 520, endFrequency: 900, gain: 0.12, duration: 0.35 });
+    scheduleDjBoothTone(ctx, { type: 'square', frequency: 900, endFrequency: 520, gain: 0.12, startOffset: 0.35, duration: 0.35 });
+    return;
+  }
+  if (tone === 'sparkle') {
+    [880, 1320, 1760, 1480].forEach((frequency, idx) => {
+      scheduleDjBoothTone(ctx, { type: 'triangle', frequency, gain: 0.08, startOffset: idx * 0.05, duration: 0.16 });
+    });
+    return;
+  }
+  scheduleDjBoothTone(ctx, { type: 'triangle', frequency: 210, endFrequency: 90, gain: 0.18, duration: 0.22 });
+}
+
+function maybePlayDjBoothPadTrigger(state) {
+  const safeState = normalizeDjBoothState(state);
+  const stamp = Number(safeState.lastPadTriggerAt) || 0;
+  if (stamp <= (Number(APP.djBoothUi.lastPadTriggerAt) || 0)) return;
+  APP.djBoothUi.lastPadTriggerAt = stamp;
+  const pad = safeState.soundPads.find(item => item.id === safeState.activePadId);
+  if (pad) playDjBoothPadSound(pad);
+}
+
+function teardownDjBoothPlayers() {
+  if (djBoothProgressFrame) {
+    cancelAnimationFrame(djBoothProgressFrame);
+    djBoothProgressFrame = 0;
+  }
+  if (djBoothClipRecorder || djBoothClipRecorderStream) {
+    cleanupDjBoothClipRecorder();
+  }
+  DJ_BOOTH_DECK_KEYS.forEach(deckKey => {
+    const player = djBoothPlayers[deckKey];
+    if (player && typeof player.destroy === 'function') {
+      try {
+        player.destroy();
+      } catch (_error) {
+        // Ignore player teardown races during rerenders.
+      }
+    }
+    djBoothPlayers[deckKey] = null;
+  });
+  DJ_BOOTH_DECK_KEYS.forEach(deckKey => {
+    const audio = djBoothLocalDeckAudio[deckKey];
+    if (audio instanceof HTMLAudioElement) {
+      try {
+        audio.pause();
+      } catch (_error) {
+        // Ignore audio teardown races.
+      }
+    }
+    const meta = djBoothLocalDeckMeta[deckKey];
+    if (meta?.objectUrl) {
+      try {
+        URL.revokeObjectURL(meta.objectUrl);
+      } catch (_error) {
+        // Ignore revoked URL races.
+      }
+    }
+    djBoothLocalDeckAudio[deckKey] = null;
+    djBoothLocalDeckMeta[deckKey] = null;
+  });
+}
+
+function ensureDjBoothParkingLot() {
+  if (djBoothParkingLot instanceof HTMLElement && document.body.contains(djBoothParkingLot)) {
+    return djBoothParkingLot;
+  }
+  djBoothParkingLot = document.createElement('div');
+  djBoothParkingLot.id = 'djBoothParkingLot';
+  djBoothParkingLot.style.display = 'none';
+  document.body.appendChild(djBoothParkingLot);
+  return djBoothParkingLot;
+}
+
+function preserveDjBoothPlayersBeforeRender() {
+  if (APP.room?.currentActivity !== 'dj-booth') return;
+  const parkingLot = ensureDjBoothParkingLot();
+  DJ_BOOTH_DECK_KEYS.forEach(deckKey => {
+    const player = djBoothPlayers[deckKey];
+    if (!player || typeof player.getIframe !== 'function') return;
+    try {
+      const iframe = player.getIframe();
+      if (iframe instanceof HTMLElement) parkingLot.appendChild(iframe);
+    } catch (_error) {
+      // Ignore stale iframe references during rerender.
+    }
+  });
+}
+
+function restoreDjBoothPlayersAfterRender() {
+  if (APP.room?.currentActivity !== 'dj-booth') return;
+  DJ_BOOTH_DECK_KEYS.forEach(deckKey => {
+    const player = djBoothPlayers[deckKey];
+    if (!player || typeof player.getIframe !== 'function') return;
+    try {
+      const iframe = player.getIframe();
+      const container = document.getElementById(`djBoothPlayer-${deckKey}`);
+      if (iframe instanceof HTMLElement && container instanceof HTMLElement && !container.contains(iframe)) {
+        container.innerHTML = '';
+        container.appendChild(iframe);
+      }
+    } catch (_error) {
+      // Ignore stale iframe references during rerender.
+    }
+  });
+}
+
+function setDjBoothLocalDeckAudio(deckKey, file) {
+  if (!DJ_BOOTH_DECK_KEYS.includes(deckKey) || !(file instanceof File)) return null;
+  clearDjBoothLocalDeckAudio(deckKey);
+  const objectUrl = URL.createObjectURL(file);
+  const audio = new Audio(objectUrl);
+  audio.preload = 'auto';
+  audio.loop = false;
+  audio.addEventListener('ended', () => {
+    void updateDjBoothState(state => {
+      const deck = normalizeDjBoothDeckState(state[deckKey], deckKey === 'deckA' ? 'Deck A' : 'Deck B');
+      deck.playing = false;
+      deck.positionSeconds = Number.isFinite(audio.duration) ? audio.duration : deck.positionSeconds;
+      deck.lastActionAt = Date.now();
+      state[deckKey] = deck;
+    });
+  });
+  djBoothLocalDeckAudio[deckKey] = audio;
+  djBoothLocalDeckMeta[deckKey] = {
+    sourceMode: 'local',
+    sourceUrl: objectUrl,
+    fileName: file.name,
+    objectUrl,
+    size: file.size
+  };
+  APP.djBoothUi = APP.djBoothUi && typeof APP.djBoothUi === 'object' ? APP.djBoothUi : getDefaultDjBoothUiState();
+  APP.djBoothUi.localDecks = {
+    ...(APP.djBoothUi.localDecks || {}),
+    [deckKey]: {
+      fileName: file.name,
+      size: file.size
+    }
+  };
+  return audio;
+}
+
+function clearDjBoothLocalDeckAudio(deckKey) {
+  if (!DJ_BOOTH_DECK_KEYS.includes(deckKey)) return;
+  const existingAudio = djBoothLocalDeckAudio[deckKey];
+  if (existingAudio instanceof HTMLAudioElement) {
+    try {
+      existingAudio.pause();
+    } catch (_error) {
+      // Ignore teardown races.
+    }
+  }
+  const existingMeta = djBoothLocalDeckMeta[deckKey];
+  if (existingMeta?.objectUrl) {
+    try {
+      URL.revokeObjectURL(existingMeta.objectUrl);
+    } catch (_error) {
+      // Ignore revoked URL races.
+    }
+  }
+  djBoothLocalDeckAudio[deckKey] = null;
+  djBoothLocalDeckMeta[deckKey] = null;
+  APP.djBoothUi = APP.djBoothUi && typeof APP.djBoothUi === 'object' ? APP.djBoothUi : getDefaultDjBoothUiState();
+  APP.djBoothUi.localDecks = {
+    ...(APP.djBoothUi.localDecks || {}),
+    [deckKey]: null
+  };
+}
+
+function resetDjBoothClipRecorderUi() {
+  APP.djBoothUi = APP.djBoothUi && typeof APP.djBoothUi === 'object' ? APP.djBoothUi : getDefaultDjBoothUiState();
+  APP.djBoothUi.recordingClip = false;
+  APP.djBoothUi.recordingSeconds = 0;
+}
+
+function cleanupDjBoothClipRecorder() {
+  if (djBoothClipRecorderTimer) {
+    clearInterval(djBoothClipRecorderTimer);
+    djBoothClipRecorderTimer = 0;
+  }
+  if (djBoothClipRecorderStream) {
+    djBoothClipRecorderStream.getTracks().forEach(track => {
+      try {
+        track.stop();
+      } catch (_error) {
+        // Ignore track stop races.
+      }
+    });
+  }
+  djBoothClipRecorder = null;
+  djBoothClipRecorderStream = null;
+  djBoothClipRecorderChunks = [];
+  djBoothClipRecorderStartedAt = 0;
+  resetDjBoothClipRecorderUi();
+}
+
+async function startDjBoothClipRecording() {
+  if (djBoothClipRecorder || APP.room?.host !== APP.player?.name) return;
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+    showError('This browser does not support mic clip recording.');
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mimeType = MediaRecorder.isTypeSupported?.('audio/webm;codecs=opus')
+      ? 'audio/webm;codecs=opus'
+      : (MediaRecorder.isTypeSupported?.('audio/webm') ? 'audio/webm' : '');
+    const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+    djBoothClipRecorder = recorder;
+    djBoothClipRecorderStream = stream;
+    djBoothClipRecorderChunks = [];
+    djBoothClipRecorderStartedAt = Date.now();
+    APP.djBoothUi = APP.djBoothUi && typeof APP.djBoothUi === 'object' ? APP.djBoothUi : getDefaultDjBoothUiState();
+    APP.djBoothUi.recordingClip = true;
+    APP.djBoothUi.recordingSeconds = 0;
+    recorder.addEventListener('dataavailable', event => {
+      if (event.data && event.data.size > 0) djBoothClipRecorderChunks.push(event.data);
+    });
+    recorder.start(250);
+    djBoothClipRecorderTimer = window.setInterval(() => {
+      if (!djBoothClipRecorderStartedAt) return;
+      APP.djBoothUi.recordingSeconds = Math.max(0, Math.floor((Date.now() - djBoothClipRecorderStartedAt) / 1000));
+      render();
+    }, 500);
+    render();
+  } catch (error) {
+    cleanupDjBoothClipRecorder();
+    showError(error.message || 'Unable to access the microphone for recording.');
+  }
+}
+
+async function stopDjBoothClipRecording() {
+  if (!djBoothClipRecorder) return;
+  const recorder = djBoothClipRecorder;
+  const mimeType = recorder.mimeType || 'audio/webm';
+  const stopped = new Promise((resolve, reject) => {
+    recorder.addEventListener('stop', () => resolve(), { once: true });
+    recorder.addEventListener('error', event => reject(event.error || new Error('Recording failed.')), { once: true });
+  });
+  try {
+    recorder.stop();
+    await stopped;
+    const blob = new Blob(djBoothClipRecorderChunks, { type: mimeType });
+    if (!blob.size) throw new Error('Recorded clip is empty.');
+    const clipStamp = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(/\s+/g, '');
+    const defaultName = `DJ Clip ${clipStamp}`;
+    const requestedName = prompt('Name this recorded clip', defaultName);
+    cleanupDjBoothClipRecorder();
+    if (requestedName === null) return;
+    const safeName = String(requestedName || '').replace(/\s+/g, ' ').trim().slice(0, 64) || defaultName;
+    const extension = mimeType.includes('ogg') ? 'ogg' : mimeType.includes('wav') ? 'wav' : 'webm';
+    const file = new File([blob], `${safeName}.${extension}`, { type: mimeType });
+    await addDjBoothSharedTrack(file);
+  } catch (error) {
+    cleanupDjBoothClipRecorder();
+    showError(error.message || 'Unable to finish the recorded clip.');
+  }
+}
+
+function ensureDjBoothSharedDeckAudio(deckKey, deck) {
+  if (!DJ_BOOTH_DECK_KEYS.includes(deckKey)) return null;
+  const safeDeck = normalizeDjBoothDeckState(deck, deckKey === 'deckA' ? 'Deck A' : 'Deck B');
+  if (safeDeck.sourceMode !== 'shared' || !safeDeck.sourceUrl) return null;
+  const existingAudio = djBoothLocalDeckAudio[deckKey];
+  const existingMeta = djBoothLocalDeckMeta[deckKey];
+  if (
+    existingAudio instanceof HTMLAudioElement
+    && existingMeta?.sourceMode === 'shared'
+    && existingMeta?.sourceUrl === safeDeck.sourceUrl
+  ) {
+    return existingAudio;
+  }
+  clearDjBoothLocalDeckAudio(deckKey);
+  const audio = new Audio(safeDeck.sourceUrl);
+  audio.preload = 'auto';
+  audio.crossOrigin = 'anonymous';
+  audio.loop = false;
+  audio.addEventListener('ended', () => {
+    void updateDjBoothState(state => {
+      const nextDeck = normalizeDjBoothDeckState(state[deckKey], deckKey === 'deckA' ? 'Deck A' : 'Deck B');
+      if (nextDeck.sourceMode !== 'shared' || nextDeck.sourceUrl !== safeDeck.sourceUrl) return;
+      nextDeck.playing = false;
+      nextDeck.positionSeconds = Number.isFinite(audio.duration) ? audio.duration : nextDeck.positionSeconds;
+      nextDeck.lastActionAt = Date.now();
+      state[deckKey] = nextDeck;
+    });
+  });
+  djBoothLocalDeckAudio[deckKey] = audio;
+  djBoothLocalDeckMeta[deckKey] = {
+    sourceMode: 'shared',
+    sourceUrl: safeDeck.sourceUrl,
+    fileName: safeDeck.sourceLabel,
+    objectUrl: ''
+  };
+  return audio;
+}
+
+function isDjBoothDeckFinished(deckKey, deck) {
+  const safeDeck = normalizeDjBoothDeckState(deck, deckKey === 'deckA' ? 'Deck A' : 'Deck B');
+  if (safeDeck.sourceMode === 'local' || safeDeck.sourceMode === 'shared') {
+    const audio = djBoothLocalDeckAudio[deckKey];
+    if (!(audio instanceof HTMLAudioElement)) return safeDeck.positionSeconds > 0;
+    const duration = Number(audio.duration) || 0;
+    const currentTime = Number(audio.currentTime) || 0;
+    return duration > 0 && currentTime >= Math.max(0, duration - 0.35);
+  }
+  const player = djBoothPlayers[deckKey];
+  if (player && typeof player.getDuration === 'function' && typeof player.getCurrentTime === 'function') {
+    try {
+      const duration = Number(player.getDuration()) || 0;
+      const currentTime = Number(player.getCurrentTime()) || 0;
+      const playerState = typeof player.getPlayerState === 'function' ? player.getPlayerState() : null;
+      return (playerState === window.YT?.PlayerState?.ENDED) || (duration > 0 && currentTime >= Math.max(0, duration - 1));
+    } catch (_error) {
+      return false;
+    }
+  }
+  return false;
+}
+
+function loadYouTubeIframeApi() {
+  if (window.YT?.Player) return Promise.resolve(window.YT);
+  if (djBoothApiPromise) return djBoothApiPromise;
+  djBoothApiPromise = new Promise((resolve, reject) => {
+    const previousReady = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      if (typeof previousReady === 'function') previousReady();
+      resolve(window.YT);
+    };
+    if (document.getElementById('youtube-iframe-api')) return;
+    const script = document.createElement('script');
+    script.id = 'youtube-iframe-api';
+    script.src = 'https://www.youtube.com/iframe_api';
+    script.async = true;
+    script.onerror = () => reject(new Error('Failed to load YouTube API'));
+    document.head.appendChild(script);
+  });
+  return djBoothApiPromise;
+}
+
+function syncDjBoothProgressLoop() {
+  if (djBoothProgressFrame) cancelAnimationFrame(djBoothProgressFrame);
+  const tick = () => {
+    if (APP.room?.currentActivity !== 'dj-booth') return;
+    const activityState = normalizeDjBoothState(APP.room?.activityState || {});
+    DJ_BOOTH_DECK_KEYS.forEach(deckKey => {
+      const deckState = normalizeDjBoothDeckState(activityState[deckKey], deckKey === 'deckA' ? 'Deck A' : 'Deck B');
+      const localAudio = djBoothLocalDeckAudio[deckKey];
+      const player = djBoothPlayers[deckKey];
+      const titleNode = document.querySelector(`[data-dj-track-title="${deckKey}"]`);
+      const timeNode = document.querySelector(`[data-dj-track-time="${deckKey}"]`);
+      const sliderNode = document.getElementById(`djBoothSeek-${deckKey}`);
+      let currentTime = 0;
+      let duration = 0;
+      let liveTitle = deckState.sourceLabel || (deckKey === 'deckA' ? 'Deck A ready' : 'Deck B ready');
+      if ((deckState.sourceMode === 'local' || deckState.sourceMode === 'shared') && localAudio instanceof HTMLAudioElement) {
+        currentTime = Number(localAudio.currentTime) || 0;
+        duration = Number(localAudio.duration) || 0;
+      } else if (player && typeof player.getCurrentTime === 'function') {
+        currentTime = Number(player.getCurrentTime()) || 0;
+        duration = Number(player.getDuration()) || 0;
+        liveTitle = String(player.getVideoData?.().title || '').trim() || liveTitle;
+      } else {
+        currentTime = getDjBoothEffectiveDeckPosition(deckState);
+      }
+      APP.djBoothUi = APP.djBoothUi && typeof APP.djBoothUi === 'object' ? APP.djBoothUi : getDefaultDjBoothUiState();
+      APP.djBoothUi.deckTitles = {
+        ...(APP.djBoothUi.deckTitles || {}),
+        [deckKey]: liveTitle
+      };
+      if (titleNode instanceof HTMLElement) {
+        titleNode.textContent = liveTitle;
+      }
+      if (timeNode instanceof HTMLElement) {
+        timeNode.textContent = `${formatClockFromMs(currentTime * 1000)} / ${formatClockFromMs(duration * 1000)}`;
+      }
+      if (sliderNode instanceof HTMLInputElement && document.activeElement !== sliderNode) {
+        sliderNode.max = String(Math.max(1, Math.round(duration || 1)));
+        sliderNode.value = String(Math.max(0, Math.min(Number(sliderNode.max) || 1, Math.round(currentTime))));
+      }
+    });
+    djBoothProgressFrame = requestAnimationFrame(tick);
+  };
+  djBoothProgressFrame = requestAnimationFrame(tick);
+}
+
+async function syncDjBoothPlayers() {
+  if (APP.room?.currentActivity !== 'dj-booth') {
+    teardownDjBoothPlayers();
+    return;
+  }
+  const state = normalizeDjBoothState(APP.room.activityState || {});
+  maybePlayDjBoothPadTrigger(state);
+  try {
+    await loadYouTubeIframeApi();
+  } catch (_error) {
+    return;
+  }
+  for (const deckKey of DJ_BOOTH_DECK_KEYS) {
+    const deck = state[deckKey];
+    const containerId = `djBoothPlayer-${deckKey}`;
+    const container = document.getElementById(containerId);
+    if (!(container instanceof HTMLElement)) continue;
+    if (deck.sourceMode === 'local' || deck.sourceMode === 'shared') {
+      const player = djBoothPlayers[deckKey];
+      if (player && typeof player.destroy === 'function') {
+        try {
+          player.destroy();
+        } catch (_error) {
+          // Ignore rerender teardown races.
+        }
+      }
+      djBoothPlayers[deckKey] = null;
+      const localAudio = deck.sourceMode === 'shared'
+        ? ensureDjBoothSharedDeckAudio(deckKey, deck)
+        : djBoothLocalDeckAudio[deckKey];
+      if (localAudio instanceof HTMLAudioElement) {
+        const expectedPosition = Math.max(0, getDjBoothEffectiveDeckPosition(deck));
+        try {
+          localAudio.volume = Math.max(0, Math.min(1, computeDjBoothDeckEffectiveVolume(state, deckKey) / 100));
+          if (Math.abs((Number(localAudio.currentTime) || 0) - expectedPosition) > 1.5) {
+            localAudio.currentTime = expectedPosition;
+          }
+          if (deck.playing && localAudio.paused) {
+            localAudio.play().catch(() => {});
+          } else if (!deck.playing && !localAudio.paused) {
+            localAudio.pause();
+          }
+        } catch (_error) {
+          // Ignore local audio sync races.
+        }
+        container.innerHTML = `<div style="display:grid;place-items:center;width:100%;height:100%;min-height:240px;border-radius:18px;background:linear-gradient(135deg,rgba(0,210,211,0.12),rgba(197,108,240,0.08));border:1px solid rgba(255,255,255,0.1);color:var(--text);padding:24px;text-align:center;"><div><div style="font-family:'Fraunces',serif;font-size:1.4rem;margin-bottom:8px;">${escapeHtml(deck.sourceLabel || deck.label)}</div><div style="font-size:0.84rem;color:var(--text-dim);">${escapeHtml(deck.sourceMode === 'shared' ? 'Shared room track streaming on this device' : (APP.room?.host === APP.player?.name ? 'Local file loaded on this device' : 'Host is playing a local file on this deck'))}</div></div></div>`;
+      } else {
+        container.innerHTML = `<div style="display:grid;place-items:center;width:100%;height:100%;min-height:240px;border-radius:18px;background:linear-gradient(135deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02));border:1px dashed rgba(255,255,255,0.16);color:var(--text-dim);padding:24px;text-align:center;">${escapeHtml(deck.sourceMode === 'shared' ? 'Shared track is loading on this device' : (APP.room?.host === APP.player?.name ? 'Load a local audio file on this deck' : 'Host local file source is not available on this device'))}</div>`;
+      }
+      continue;
+    }
+    if (djBoothLocalDeckAudio[deckKey] instanceof HTMLAudioElement || djBoothLocalDeckMeta[deckKey]) {
+      clearDjBoothLocalDeckAudio(deckKey);
+    }
+    const player = djBoothPlayers[deckKey];
+    let liveStartAt = Math.max(0, Math.floor(getDjBoothEffectiveDeckPosition(deck)));
+    if (player && typeof player.getCurrentTime === 'function') {
+      try {
+        liveStartAt = Math.max(0, Math.floor(Number(player.getCurrentTime()) || liveStartAt));
+      } catch (_error) {
+        // Ignore stale player time reads during rerender.
+      }
+    }
+    if (deck.sourceType === 'none' || (!deck.videoId && !deck.playlistId)) {
+      if (player && typeof player.destroy === 'function') {
+        try {
+          player.destroy();
+        } catch (_error) {
+          // Ignore rerender teardown races.
+        }
+      }
+      djBoothPlayers[deckKey] = null;
+      container.innerHTML = `<div style="display:grid;place-items:center;width:100%;height:100%;min-height:240px;border-radius:18px;background:linear-gradient(135deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02));border:1px dashed rgba(255,255,255,0.16);color:var(--text-dim);padding:24px;text-align:center;">Load a YouTube video or playlist on ${escapeHtml(deck.label)}</div>`;
+      continue;
+    }
+    const metaKey = JSON.stringify({
+      sourceType: deck.sourceType,
+      videoId: deck.videoId,
+      playlistId: deck.playlistId,
+      trackIndex: deck.trackIndex
+    });
+    const mountedIframe = player && typeof player.getIframe === 'function'
+      ? player.getIframe()
+      : null;
+    const playerStillMounted = mountedIframe instanceof HTMLElement && container.contains(mountedIframe);
+    if (player && player.__djMetaKey === metaKey && playerStillMounted) {
+      try {
+        const duration = Number(player.getDuration?.()) || 0;
+        const livePosition = Number(player.getCurrentTime?.()) || 0;
+        const expectedPosition = Math.max(0, Math.min(duration || Number.MAX_SAFE_INTEGER, getDjBoothEffectiveDeckPosition(deck)));
+        player.setVolume(computeDjBoothDeckEffectiveVolume(state, deckKey));
+        if (Math.abs(livePosition - expectedPosition) > 2.5) {
+          player.seekTo(expectedPosition, true);
+        }
+        const playerState = typeof player.getPlayerState === 'function' ? player.getPlayerState() : null;
+        if (deck.playing && playerState !== window.YT.PlayerState.PLAYING) {
+          player.playVideo();
+        } else if (!deck.playing && playerState === window.YT.PlayerState.PLAYING) {
+          player.pauseVideo();
+        }
+      } catch (_error) {
+        // Ignore transient player state errors.
+      }
+      continue;
+    }
+    if (player && typeof player.destroy === 'function') {
+      try {
+        player.destroy();
+      } catch (_error) {
+        // Ignore rerender teardown races.
+      }
+    }
+    djBoothPlayers[deckKey] = null;
+    const startAt = liveStartAt;
+    const createdPlayer = new window.YT.Player(containerId, {
+      width: '100%',
+      height: '260',
+      videoId: deck.videoId || undefined,
+      playerVars: {
+        autoplay: deck.playing ? 1 : 0,
+        controls: 0,
+        disablekb: 1,
+        fs: 0,
+        modestbranding: 1,
+        playsinline: 1,
+        rel: 0,
+        start: startAt,
+        listType: deck.playlistId ? 'playlist' : undefined,
+        list: deck.playlistId || undefined
+      },
+      events: {
+        onReady: event => {
+          const readyPlayer = event.target;
+          try {
+            if (deck.playlistId) {
+              if (deck.playing) {
+                readyPlayer.loadPlaylist({ listType: 'playlist', list: deck.playlistId, index: deck.trackIndex, startSeconds: startAt });
+              } else {
+                readyPlayer.cuePlaylist({ listType: 'playlist', list: deck.playlistId, index: deck.trackIndex, startSeconds: startAt });
+              }
+            } else if (deck.videoId) {
+              if (deck.playing) {
+                readyPlayer.loadVideoById({ videoId: deck.videoId, startSeconds: startAt });
+              } else {
+                readyPlayer.cueVideoById({ videoId: deck.videoId, startSeconds: startAt });
+              }
+            }
+          } catch (_error) {
+            // Ignore early player API timing races.
+          }
+          setTimeout(() => {
+            try {
+              readyPlayer.setVolume(computeDjBoothDeckEffectiveVolume(state, deckKey));
+              if (!deck.playing) readyPlayer.pauseVideo();
+            } catch (_error) {
+              // Ignore player volume races.
+            }
+          }, 160);
+        },
+        onStateChange: event => {
+          const ytState = event.data;
+          const playerTarget = event.target;
+          if (!window.YT?.PlayerState) return;
+          if (ytState === window.YT.PlayerState.PLAYING || ytState === window.YT.PlayerState.CUED) {
+            if (!deck.playlistId || typeof playerTarget.getPlaylistIndex !== 'function') return;
+            const currentPlaylistIndex = Number(playerTarget.getPlaylistIndex());
+            if (!Number.isInteger(currentPlaylistIndex) || currentPlaylistIndex < 0 || currentPlaylistIndex === deck.trackIndex) return;
+            void updateDjBoothState(state => {
+              const nextDeck = normalizeDjBoothDeckState(state[deckKey], deckKey === 'deckA' ? 'Deck A' : 'Deck B');
+              if (nextDeck.sourceMode !== 'youtube' || nextDeck.playlistId !== deck.playlistId) return;
+              nextDeck.trackIndex = currentPlaylistIndex;
+              nextDeck.positionSeconds = Math.max(0, Number(playerTarget.getCurrentTime?.()) || 0);
+              nextDeck.lastActionAt = Date.now();
+              state[deckKey] = nextDeck;
+            });
+            return;
+          }
+          if (ytState !== window.YT.PlayerState.ENDED) return;
+          const playlistIndex = deck.playlistId && typeof playerTarget.getPlaylistIndex === 'function'
+            ? Math.max(0, Number(playerTarget.getPlaylistIndex()) || deck.trackIndex)
+            : deck.trackIndex;
+          const duration = Math.max(0, Number(playerTarget.getDuration?.()) || 0);
+          void updateDjBoothState(state => {
+            const nextDeck = normalizeDjBoothDeckState(state[deckKey], deckKey === 'deckA' ? 'Deck A' : 'Deck B');
+            if (nextDeck.sourceMode !== 'youtube') return;
+            if (nextDeck.playlistId) {
+              nextDeck.trackIndex = Math.max(playlistIndex + 1, nextDeck.trackIndex + 1);
+              nextDeck.positionSeconds = 0;
+              nextDeck.playing = true;
+            } else {
+              nextDeck.playing = false;
+              nextDeck.positionSeconds = duration;
+            }
+            nextDeck.lastActionAt = Date.now();
+            state[deckKey] = nextDeck;
+          });
+        }
+      }
+    });
+    createdPlayer.__djMetaKey = metaKey;
+    djBoothPlayers[deckKey] = createdPlayer;
+  }
+  syncDjBoothProgressLoop();
+}
+
 function getSlidesStudioActiveSlideIndex(state) {
   const normalized = normalizeSlidesStudioState(state);
   const idx = normalized.slides.findIndex(slide => slide.id === normalized.activeSlideId);
@@ -8074,6 +9235,330 @@ async function updateSlidesStudioState(mutator) {
   APP.room = room;
   render();
   return room;
+}
+
+async function updateDjBoothState(mutator) {
+  if (!APP.roomCode || !APP.room) return null;
+  const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
+  if (!room || room.currentActivity !== 'dj-booth') return null;
+  if (room.host !== APP.player?.name) return room;
+  const state = normalizeDjBoothState(room.activityState || {});
+  if (typeof mutator === 'function') mutator(state);
+  state.updatedAt = Date.now();
+  room.activityState = normalizeDjBoothState(state);
+  await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
+  APP.room = room;
+  render();
+  return room;
+}
+
+async function loadDjBoothDeckSource(deckKey, rawSource = '') {
+  if (!DJ_BOOTH_DECK_KEYS.includes(deckKey)) return;
+  const input = document.getElementById(`djBoothSource-${deckKey}`);
+  const parsed = parseYouTubeSource(rawSource || input?.value || '');
+  if (parsed.sourceType === 'none') {
+    showError('Enter a valid YouTube video or playlist URL.');
+    return;
+  }
+  clearDjBoothLocalDeckAudio(deckKey);
+  await updateDjBoothState(state => {
+    state[deckKey] = {
+      ...state[deckKey],
+      sourceMode: 'youtube',
+      ...parsed,
+      sourceLabel: '',
+      playing: false,
+      positionSeconds: 0,
+      lastActionAt: Date.now()
+    };
+  });
+}
+
+async function loadDjBoothLocalDeckFile(deckKey, file) {
+  if (!DJ_BOOTH_DECK_KEYS.includes(deckKey) || !(file instanceof File)) return;
+  const audio = setDjBoothLocalDeckAudio(deckKey, file);
+  if (!audio) return;
+  await updateDjBoothState(state => {
+    state[deckKey] = {
+      ...state[deckKey],
+      sourceMode: 'local',
+      sourceType: 'local',
+      sourceUrl: '',
+      sourceLabel: String(file.name || `${deckKey === 'deckA' ? 'Deck A' : 'Deck B'} local track`).trim().slice(0, 80),
+      videoId: '',
+      playlistId: '',
+      trackIndex: 0,
+      playing: false,
+      positionSeconds: 0,
+      lastActionAt: Date.now()
+    };
+  });
+}
+
+async function uploadDjBoothSharedTrack(file) {
+  if (!(file instanceof File)) return null;
+  if (!APP.roomCode || !APP.room) throw new Error('Join a room before uploading DJ tracks.');
+  if (APP.room.host !== APP.player?.name) throw new Error('Only the host can upload shared DJ tracks.');
+  const response = await fetch(`${API_BASE_URL}/api/dj/library/upload?roomCode=${encodeURIComponent(APP.roomCode)}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': file.type || 'application/octet-stream',
+      'x-room-token': APP.roomAccessToken || '',
+      'x-player-name': APP.player?.name || '',
+      'x-file-name': encodeURIComponent(file.name || 'track')
+    },
+    body: file
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data?.ok === false) {
+    throw new Error(data?.error || `Upload failed: ${response.status}`);
+  }
+  return normalizeDjBoothTrack(data.track);
+}
+
+async function addDjBoothSharedTrack(file) {
+  const track = await uploadDjBoothSharedTrack(file);
+  if (!track) return;
+  await updateDjBoothState(state => {
+    const library = normalizeDjBoothTrackLibrary(state.trackLibrary);
+    const withoutSame = library.filter(item => item.id !== track.id);
+    state.trackLibrary = [track, ...withoutSame].slice(0, 48);
+  });
+}
+
+async function loadDjBoothSharedTrack(deckKey, trackId) {
+  if (!DJ_BOOTH_DECK_KEYS.includes(deckKey)) return;
+  const library = normalizeDjBoothTrackLibrary(APP.room?.activityState?.trackLibrary);
+  const track = library.find(item => item.id === String(trackId || '').trim());
+  if (!track) {
+    showError('Shared track not found.');
+    return;
+  }
+  clearDjBoothLocalDeckAudio(deckKey);
+  await updateDjBoothState(state => {
+    state[deckKey] = {
+      ...state[deckKey],
+      sourceMode: 'shared',
+      sourceType: 'audio',
+      sourceUrl: track.url,
+      sourceLabel: track.name,
+      videoId: '',
+      playlistId: '',
+      trackIndex: 0,
+      playing: false,
+      positionSeconds: 0,
+      lastActionAt: Date.now()
+    };
+  });
+}
+
+async function removeDjBoothSharedTrack(trackId) {
+  const requestedId = String(trackId || '').trim();
+  if (!requestedId || !APP.roomCode || !APP.room) return;
+  const library = normalizeDjBoothTrackLibrary(APP.room?.activityState?.trackLibrary);
+  const track = library.find(item => item.id === requestedId);
+  if (!track) return;
+  const response = await fetch(`${API_BASE_URL}/api/dj/library/${encodeURIComponent(requestedId)}?roomCode=${encodeURIComponent(APP.roomCode)}`, {
+    method: 'DELETE',
+    headers: {
+      'x-room-token': APP.roomAccessToken || '',
+      'x-player-name': APP.player?.name || ''
+    }
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data?.ok === false) {
+    throw new Error(data?.error || `Remove failed: ${response.status}`);
+  }
+  await updateDjBoothState(state => {
+    state.trackLibrary = normalizeDjBoothTrackLibrary(state.trackLibrary).filter(item => item.id !== requestedId);
+    DJ_BOOTH_DECK_KEYS.forEach(deckKey => {
+      const deck = normalizeDjBoothDeckState(state[deckKey], deckKey === 'deckA' ? 'Deck A' : 'Deck B');
+      if (deck.sourceMode === 'shared' && deck.sourceUrl === track.url) {
+        state[deckKey] = {
+          ...deck,
+          sourceMode: 'youtube',
+          sourceType: 'none',
+          sourceUrl: '',
+          sourceLabel: '',
+          playing: false,
+          positionSeconds: 0,
+          lastActionAt: Date.now()
+        };
+      }
+    });
+  });
+}
+
+async function toggleDjBoothDeckPlayback(deckKey) {
+  if (!DJ_BOOTH_DECK_KEYS.includes(deckKey)) return;
+  await updateDjBoothState(state => {
+    const deck = normalizeDjBoothDeckState(state[deckKey], deckKey === 'deckA' ? 'Deck A' : 'Deck B');
+    const now = Date.now();
+    const currentPosition = getDjBoothEffectiveDeckPosition(deck);
+    const nextPlaying = !deck.playing;
+    if (nextPlaying && isDjBoothDeckFinished(deckKey, deck)) {
+      if (deck.playlistId) {
+        deck.trackIndex = Math.max(0, deck.trackIndex + 1);
+      }
+      deck.positionSeconds = 0;
+    } else {
+      deck.positionSeconds = currentPosition;
+    }
+    deck.playing = nextPlaying;
+    deck.lastActionAt = now;
+    state[deckKey] = deck;
+  });
+}
+
+async function shiftDjBoothDeckTrack(deckKey, direction = 1) {
+  if (!DJ_BOOTH_DECK_KEYS.includes(deckKey)) return;
+  await updateDjBoothState(state => {
+    const fallbackLabel = deckKey === 'deckA' ? 'Deck A' : 'Deck B';
+    const deck = normalizeDjBoothDeckState(state[deckKey], fallbackLabel);
+    if (deck.sourceMode === 'local') {
+      deck.positionSeconds = 0;
+      deck.lastActionAt = Date.now();
+      state[deckKey] = deck;
+      return;
+    }
+    const movingForward = Number(direction) >= 0;
+    deck.positionSeconds = 0;
+    deck.lastActionAt = Date.now();
+    if (deck.playlistId) {
+      deck.trackIndex = Math.max(0, deck.trackIndex + (movingForward ? 1 : -1));
+    }
+    state[deckKey] = deck;
+  });
+}
+
+async function restartDjBoothDeck(deckKey) {
+  if (!DJ_BOOTH_DECK_KEYS.includes(deckKey)) return;
+  await updateDjBoothState(state => {
+    const deck = normalizeDjBoothDeckState(state[deckKey], deckKey === 'deckA' ? 'Deck A' : 'Deck B');
+    deck.positionSeconds = 0;
+    deck.lastActionAt = Date.now();
+    state[deckKey] = deck;
+  });
+}
+
+async function setDjBoothDeckSeek(deckKey, seconds) {
+  if (!DJ_BOOTH_DECK_KEYS.includes(deckKey)) return;
+  const safeSeconds = Math.max(0, Number(seconds) || 0);
+  await updateDjBoothState(state => {
+    const deck = normalizeDjBoothDeckState(state[deckKey], deckKey === 'deckA' ? 'Deck A' : 'Deck B');
+    deck.positionSeconds = safeSeconds;
+    deck.lastActionAt = Date.now();
+    state[deckKey] = deck;
+  });
+}
+
+async function setDjBoothDeckVolume(deckKey, volume) {
+  if (!DJ_BOOTH_DECK_KEYS.includes(deckKey)) return;
+  const safeVolume = Math.max(0, Math.min(100, Number.parseInt(volume, 10) || 0));
+  await updateDjBoothState(state => {
+    const deck = normalizeDjBoothDeckState(state[deckKey], deckKey === 'deckA' ? 'Deck A' : 'Deck B');
+    deck.volume = safeVolume;
+    state[deckKey] = deck;
+  });
+}
+
+async function setDjBoothMixerValue(key, value) {
+  const allowedKeys = new Set(['crossfader', 'masterVolume']);
+  if (!allowedKeys.has(key)) return;
+  const safeValue = Math.max(0, Math.min(100, Number.parseInt(value, 10) || 0));
+  await updateDjBoothState(state => {
+    state[key] = safeValue;
+  });
+}
+
+async function setDjBoothLightValue(key, value) {
+  const numericKeys = new Set(['speed', 'intensity']);
+  const modeKeys = new Set(['mode']);
+  await updateDjBoothState(state => {
+    const lights = state.lights && typeof state.lights === 'object' ? state.lights : normalizeDjBoothState({}).lights;
+    if (numericKeys.has(key)) {
+      lights[key] = Math.max(10, Math.min(100, Number.parseInt(value, 10) || 10));
+    } else if (modeKeys.has(key)) {
+      lights[key] = ['ambient', 'pulse', 'wave', 'strobe', 'party'].includes(String(value || '').trim()) ? String(value).trim() : 'pulse';
+    } else if (key === 'enabled') {
+      lights.enabled = value === true || value === 'true' || value === 1 || value === '1';
+    }
+    state.lights = lights;
+  });
+}
+
+async function fadeDjBoothCrossfader(target) {
+  const presets = {
+    left: 0,
+    center: 50,
+    right: 100
+  };
+  if (!(target in presets)) return;
+  await setDjBoothMixerValue('crossfader', presets[target]);
+}
+
+async function saveDjBoothMarquee() {
+  const input = document.getElementById('djBoothMarqueeInput');
+  if (!(input instanceof HTMLInputElement)) return;
+  const nextValue = String(input.value || '').replace(/\s+/g, ' ').trim().slice(0, 140);
+  await updateDjBoothState(state => {
+    state.marqueeText = nextValue || 'Broadcast live from the Team Builder DJ Booth';
+  });
+}
+
+async function toggleDjBoothMicLive() {
+  await updateDjBoothState(state => {
+    state.micLive = state.micLive !== true;
+    if (state.micLive) {
+      state.lights = {
+        ...(state.lights || normalizeDjBoothState({}).lights),
+        flashAt: Date.now()
+      };
+    }
+  });
+}
+
+async function triggerDjBoothPad(padId) {
+  const requestedId = String(padId || '').trim();
+  if (!requestedId) return;
+  await updateDjBoothState(state => {
+    const pad = normalizeDjBoothPads(state.soundPads).find(item => item.id === requestedId);
+    if (!pad) return;
+    state.activePadId = requestedId;
+    state.lastPadTriggerAt = Date.now();
+    state.lights = {
+      ...(state.lights || normalizeDjBoothState({}).lights),
+      flashAt: Date.now()
+    };
+  });
+}
+
+async function editDjBoothPad(padId) {
+  const requestedId = String(padId || '').trim();
+  if (!requestedId) return;
+  const state = normalizeDjBoothState(APP.room?.activityState || {});
+  const padIndex = state.soundPads.findIndex(item => item.id === requestedId);
+  if (padIndex < 0) return;
+  const currentPad = state.soundPads[padIndex];
+  const label = prompt('Pad label', currentPad.label || '');
+  if (label === null) return;
+  const emoji = prompt('Pad emoji', currentPad.emoji || '');
+  if (emoji === null) return;
+  const tone = prompt(`Pad tone (${DJ_BOOTH_TONE_IDS.join(', ')})`, currentPad.tone || '');
+  if (tone === null) return;
+  const color = prompt('Pad color (hex)', currentPad.color || '');
+  if (color === null) return;
+  await updateDjBoothState(nextState => {
+    const pads = normalizeDjBoothPads(nextState.soundPads);
+    pads[padIndex] = normalizeDjBoothPad({
+      ...pads[padIndex],
+      label,
+      emoji,
+      tone,
+      color
+    }, padIndex);
+    nextState.soundPads = pads;
+  });
 }
 
 async function slidesStudioSelectSlide(slideId) {
@@ -8360,6 +9845,9 @@ function getInitialActivityState(room, activityId) {
   if (activityId === 'slides-studio') {
     return createSlidesStudioState();
   }
+  if (activityId === 'dj-booth') {
+    return createDjBoothState();
+  }
   if (activityId === 'tic-tac-toe-blitz') {
     return createTicTacToeBlitzState(room?.participants || []);
   }
@@ -8468,6 +9956,9 @@ async function startActivityById(activityId) {
   }
   if (activityId === 'backgammon') {
     APP.backgammonUi = getDefaultBackgammonUiState();
+  }
+  if (activityId === 'dj-booth') {
+    APP.djBoothUi = getDefaultDjBoothUiState();
   }
   render();
   return true;
@@ -8591,6 +10082,7 @@ async function startTeamJeopardy() { await startActivityById('team-jeopardy'); }
 async function startSpinWheel() { await startActivityById('spin-wheel'); }
 async function startPresentationActivity() { await startActivityById('presentation'); }
 async function startSlidesStudio() { await startActivityById('slides-studio'); }
+async function startDjBooth() { await startActivityById('dj-booth'); }
 async function startBattleship() { await startActivityById('battleship'); }
 async function startBingo() { await startActivityById('bingo'); }
 async function startBackgammon() { await startActivityById('backgammon'); }
@@ -10541,6 +12033,7 @@ function render() {
   const app = document.getElementById('app');
   let html = '';
   syncActiveContentBanks();
+  preserveDjBoothPlayersBeforeRender();
 
   if (APP.editingProfile) html = renderEditProfile();
   else if (APP.screen === 'welcome') html = renderWelcome();
@@ -10578,8 +12071,14 @@ function render() {
   html += renderFooter();
   
   app.innerHTML = html;
+  restoreDjBoothPlayersAfterRender();
   updateVoiceMeterDom();
   syncSpotifyPlaylistPlayer();
+  if (APP.room?.currentActivity === 'dj-booth') {
+    void syncDjBoothPlayers();
+  } else {
+    teardownDjBoothPlayers();
+  }
   autoFocusWordChainActiveCell();
   syncCommunityChatScroll();
 }
@@ -10596,6 +12095,88 @@ async function loadCommunityRooms() {
   } finally {
     APP.community.loading = false;
     render();
+  }
+}
+
+async function refreshCommunityHostAccessRequests() {
+  APP.community.requestsLoading = true;
+  render();
+  try {
+    const data = await apiRequest('/api/community/host-access-request/mine', { withUserToken: true });
+    APP.community.requests = normalizeCommunityHostRequests(data?.requests || []);
+  } catch (_error) {
+    APP.community.requests = [];
+  } finally {
+    APP.community.requestsLoading = false;
+    render();
+  }
+}
+
+async function loadCommunityDirectoryData() {
+  void loadGlobalConfig();
+  await Promise.all([
+    loadCommunityRooms(),
+    refreshCommunityHostAccessRequests()
+  ]);
+}
+
+async function submitCommunityHostAccessRequest() {
+  if (APP.community.requestSubmitting) return;
+  const playerName = normalizeName(APP.player?.name || '');
+  if (!playerName) {
+    showError('Set your player name before requesting host access.');
+    return;
+  }
+  const reason = String(document.getElementById('communityHostAccessReason')?.value || '').replace(/\s+/g, ' ').trim().slice(0, 400);
+  if (!reason) {
+    showError('Add a short reason for requesting community host access.');
+    return;
+  }
+  APP.community.requestSubmitting = true;
+  render();
+  try {
+    await apiRequest('/api/community/host-access-request', {
+      method: 'POST',
+      withUserToken: true,
+      body: {
+        userName: playerName,
+        userId: APP.player?.id || '',
+        reason
+      }
+    });
+    const input = document.getElementById('communityHostAccessReason');
+    if (input) input.value = '';
+    await refreshCommunityHostAccessRequests();
+    await loadGlobalConfig();
+    showError('Community host access request sent.');
+  } catch (e) {
+    showError(e.message);
+  } finally {
+    APP.community.requestSubmitting = false;
+    render();
+  }
+}
+
+async function saveCommunityHostAccessRequest(requestId, status) {
+  if (!APP.admin.authenticated || !requestId) return;
+  const normalizedStatus = ['pending', 'approved', 'denied'].includes(String(status || '').trim().toLowerCase())
+    ? String(status).trim().toLowerCase()
+    : 'pending';
+  const adminNotes = String(document.getElementById(`community-request-notes-${requestId}`)?.value || '').trim();
+  try {
+    const data = await apiRequest(`/api/admin/community-host-requests/${requestId}`, {
+      method: 'PATCH',
+      adminToken: APP.admin.token,
+      body: {
+        status: normalizedStatus,
+        adminNotes
+      }
+    });
+    applyConfigPayload(data);
+    APP.admin.communityHostRequests = normalizeCommunityHostRequests(data?.communityHostRequests || APP.admin.communityHostRequests || []);
+    render();
+  } catch (e) {
+    showError(e.message);
   }
 }
 
@@ -10721,6 +12302,13 @@ function renderCommunityDirectory() {
   const rooms = Array.isArray(APP.community.rooms) ? APP.community.rooms : [];
   const canCreate = canCurrentUserCreateCommunityRooms();
   const communityEnabled = APP.preferences.enableCommunityLobby !== false;
+  const latestRequest = normalizeCommunityHostRequests(APP.community.requests || [])[0] || null;
+  const latestRequestStatus = latestRequest?.status || '';
+  const requestStatusColor = latestRequestStatus === 'approved'
+    ? 'var(--success)'
+    : latestRequestStatus === 'denied'
+      ? 'var(--danger)'
+      : 'var(--warning)';
   return `
     <div class="header">
       <h1 class="logo">Community Lobby</h1>
@@ -10740,7 +12328,48 @@ function renderCommunityDirectory() {
       </div>
     ` : !canCreate ? `
       <div style="background:rgba(138,241,255,0.08);border:1px solid rgba(138,241,255,0.22);border-radius:16px;padding:14px 16px;margin-top:16px;color:var(--text-mid);">
-        Admin access or host allowlist approval is required to create community rooms. You can still browse and join open lobbies.
+        Admin access or host allowlist approval is required to create community rooms. You can still browse and join open lobbies, or request community host access below.
+      </div>
+    ` : ''}
+
+    ${communityEnabled && !canCreate ? `
+      <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-top:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+          <div>
+            <h3 style="font-family:'Fraunces',serif;font-size:1.2rem;margin-bottom:4px;">Request Community Host Access</h3>
+            <div style="font-size:0.84rem;color:var(--text-dim);">Ask an admin to allow your player profile to create public community lobbies.</div>
+          </div>
+          ${latestRequest ? `
+            <span style="padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.06);border:1px solid var(--border);font-size:0.76rem;font-weight:800;color:${requestStatusColor};text-transform:uppercase;">
+              ${escapeHtml(latestRequestStatus || 'pending')}
+            </span>
+          ` : ''}
+        </div>
+        ${latestRequest ? `
+          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:12px;">
+            <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:6px;">
+              Latest request • ${escapeHtml(latestRequest.updatedAt || latestRequest.createdAt || '')}
+            </div>
+            <div style="color:var(--text-mid);margin-bottom:${latestRequest.adminNotes ? '8px' : '0'};">${escapeHtml(latestRequest.reason || '')}</div>
+            ${latestRequest.adminNotes ? `<div style="font-size:0.84rem;color:var(--text-dim);">Admin notes: ${escapeHtml(latestRequest.adminNotes)}</div>` : ''}
+          </div>
+        ` : ''}
+        ${APP.community.requestsLoading ? `
+          <div style="font-size:0.84rem;color:var(--text-dim);margin-bottom:10px;">Loading your request status...</div>
+        ` : ''}
+        ${latestRequestStatus === 'pending' ? `
+          <div style="font-size:0.84rem;color:var(--text-dim);">Your request is pending admin review.</div>
+        ` : latestRequestStatus === 'approved' ? `
+          <div style="font-size:0.84rem;color:var(--success);">Your profile is approved. Refreshing config or reopening this screen should enable community hosting for you.</div>
+        ` : `
+          <div class="form-group" style="margin-bottom:10px;">
+            <label class="form-label" for="communityHostAccessReason">Why do you want community host access?</label>
+            <textarea id="communityHostAccessReason" class="form-input" rows="4" maxlength="400" placeholder="Example: I run weekly drop-in game rooms and need to host public lobbies for the team."></textarea>
+          </div>
+          <button class="btn-secondary" data-action="submit-community-host-access-request" ${APP.community.requestSubmitting ? 'disabled aria-busy="true"' : ''} style="width:auto;">
+            ${APP.community.requestSubmitting ? 'Sending...' : (latestRequestStatus === 'denied' ? 'Request Access Again' : 'Request Access')}
+          </button>
+        `}
       </div>
     ` : ''}
 
@@ -11022,6 +12651,8 @@ function renderAdminConsole() {
   const collections = Array.isArray(admin.collections) ? admin.collections : [];
   const dbConnected = Boolean(admin.configDatabaseConnected);
   const feedback = admin.feedback || [];
+  const communityHostRequests = normalizeCommunityHostRequests(admin.communityHostRequests || []);
+  const pendingCommunityHostRequests = communityHostRequests.filter(item => item.status === 'pending');
   const statusColor = {
     open: 'var(--warning)',
     in_review: 'var(--accent)',
@@ -11091,6 +12722,10 @@ function renderAdminConsole() {
             <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:6px;">Open Feedback Items</div>
             <div style="font-size:1.28rem;font-weight:800;">${feedback.filter(item => (item.status || 'open') !== 'resolved').length}</div>
           </div>
+          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px;">
+            <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:6px;">Pending Host Requests</div>
+            <div style="font-size:1.28rem;font-weight:800;">${pendingCommunityHostRequests.length}</div>
+          </div>
         </div>
       </div>
 
@@ -11149,6 +12784,34 @@ function renderAdminConsole() {
             Admins can always create community rooms. Add approved host names below, one per line.
           </div>
           <textarea id="adminCommunityHostAllowlist" class="form-input" rows="5" placeholder="Alex Smith&#10;Jordan Lee">${escapeHtml((preferences.communityHostAllowlist || []).join('\n'))}</textarea>
+        </div>
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
+            <div style="font-weight:700;">Community Host Access Requests</div>
+            <div style="font-size:0.82rem;color:var(--text-dim);">${pendingCommunityHostRequests.length} pending</div>
+          </div>
+          ${communityHostRequests.length ? communityHostRequests.map(item => `
+            <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;">
+              <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
+                <div>
+                  <div style="font-weight:700;">${escapeHtml(item.userName)}</div>
+                  <div style="font-size:0.82rem;color:var(--text-dim);">${escapeHtml(item.createdAt || '')}${item.userId ? ` • ${escapeHtml(item.userId)}` : ''}</div>
+                </div>
+                <span style="padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.05);border:1px solid var(--border);font-size:0.76rem;font-weight:800;color:${item.status === 'approved' ? 'var(--success)' : item.status === 'denied' ? 'var(--danger)' : 'var(--warning)'};text-transform:uppercase;">
+                  ${escapeHtml(item.status)}
+                </span>
+              </div>
+              <div style="color:var(--text-mid);margin-bottom:10px;">${escapeHtml(item.reason || '')}</div>
+              <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center;">
+                <input id="community-request-notes-${item.id}" class="form-input" value="${escapeHtml(item.adminNotes || '')}" maxlength="400" placeholder="Admin notes">
+                <button class="btn-secondary" data-action="review-community-host-request" data-request-id="${item.id}" data-request-status="pending" style="width:auto;">Mark Pending</button>
+                <button class="btn-secondary" data-action="review-community-host-request" data-request-id="${item.id}" data-request-status="denied" style="width:auto;border-color:rgba(255,107,107,0.3);color:#ff9c9c;">Deny</button>
+                <button class="btn-primary" data-action="review-community-host-request" data-request-id="${item.id}" data-request-status="approved" style="width:auto;">Approve</button>
+              </div>
+            </div>
+          `).join('') : `
+            <div style="font-size:0.84rem;color:var(--text-dim);">No community host access requests yet.</div>
+          `}
         </div>
         <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
           <div style="font-weight:700;margin-bottom:8px;">Enable Activities in Main Menu</div>
@@ -11600,6 +13263,12 @@ function renderLobby() {
           <div class="card-icon">🎞️</div>
           <h3 class="card-title">Slides Studio</h3>
           <p class="card-desc">Create live slides with gradients, images, rounded cards, and presenter controls directly inside the room</p>
+        </button>
+
+        <button type="button" class="card" data-action="start-dj-booth" aria-label="Start DJ Booth" style="${enabledActivities['dj-booth'] === false ? 'display:none;' : ''}">
+          <div class="card-icon">🎚️</div>
+          <h3 class="card-title">DJ Booth</h3>
+          <p class="card-desc">Load two YouTube decks, blend them live, fire sound pads, and broadcast a scrolling DJ banner</p>
         </button>
 
         <button type="button" class="card" data-action="start-battleship" aria-label="Start Battleship" style="${enabledActivities.battleship === false ? 'display:none;' : ''}">
@@ -12092,7 +13761,7 @@ function goToScreen(screen) {
     createRoomAndNavigate();
   } else if (screen === 'community') {
     render();
-    void loadCommunityRooms();
+    void loadCommunityDirectoryData();
   } else {
     render();
   }
@@ -12264,11 +13933,11 @@ async function editCommunityRoom(code = APP.roomCode) {
   const promptedDescription = window.prompt('Community lobby description', currentDescription);
   if (promptedDescription === null) return;
   const nextDescription = String(promptedDescription || '').replace(/\s+/g, ' ').trim().slice(0, 220);
-  const currentMax = Math.max(2, Number(room.maxParticipants) || 24);
-  const promptedMax = window.prompt('Max participants (2-100)', String(currentMax));
+  const currentMax = Math.max(2, Math.min(MAX_ROOM_PARTICIPANTS, Number(room.maxParticipants) || 24));
+  const promptedMax = window.prompt(`Max participants (2-${MAX_ROOM_PARTICIPANTS})`, String(currentMax));
   if (promptedMax === null) return;
   const requestedMax = String(promptedMax || '').trim();
-  const parsedMax = Math.max(2, Math.min(100, Number.parseInt(requestedMax, 10) || currentMax));
+  const parsedMax = Math.max(2, Math.min(MAX_ROOM_PARTICIPANTS, Number.parseInt(requestedMax, 10) || currentMax));
 
   room.communityTitle = nextTitle;
   room.communityDescription = nextDescription;
@@ -12477,7 +14146,13 @@ async function joinRoom() {
     return;
   }
   
-  const room = await RoomManager.joinRoom(code, APP.player.id, APP.player.name, APP.player.avatar, accessToken);
+  let room = null;
+  try {
+    room = await RoomManager.joinRoom(code, APP.player.id, APP.player.name, APP.player.avatar, accessToken);
+  } catch (e) {
+    showError(e.message || 'Unable to join this room.');
+    return;
+  }
   if (!room) {
     showError('Room not found, or this private session requires a valid access token.');
     return;
@@ -12497,7 +14172,13 @@ async function joinRoom() {
 
 async function joinRoomByCode(code, accessToken = '') {
   const normalizedCode = normalizeRoomCode(code);
-  const room = await RoomManager.joinRoom(normalizedCode, APP.player.id, APP.player.name, APP.player.avatar, normalizeRoomAccessToken(accessToken));
+  let room = null;
+  try {
+    room = await RoomManager.joinRoom(normalizedCode, APP.player.id, APP.player.name, APP.player.avatar, normalizeRoomAccessToken(accessToken));
+  } catch (e) {
+    showError(e.message || 'Unable to join that lobby.');
+    return;
+  }
   if (!room) {
     showError('Unable to join that lobby.');
     return;
@@ -14477,6 +16158,10 @@ document.addEventListener('input', event => {
     APP.slidesStudioUi.aiCount = Math.max(3, Math.min(10, Number.parseInt(target.value || '5', 10) || 5));
     return;
   }
+  if (target.dataset.djOutputId) {
+    const output = document.getElementById(target.dataset.djOutputId);
+    if (output) output.textContent = `${target.value}${target.dataset.djSuffix || ''}`;
+  }
   if (target.classList.contains('host-wordle-cell-input')) {
     target.value = normalizeWord(target.value).slice(0, 1);
     captureHostWordleDraft();
@@ -14511,7 +16196,56 @@ document.addEventListener('input', event => {
 
 document.addEventListener('change', event => {
   const target = event.target;
+  if (target instanceof HTMLInputElement) {
+    if (target.id === 'djBoothLibraryUpload') {
+      const file = target.files?.[0] || null;
+      if (file) {
+        void addDjBoothSharedTrack(file).catch(error => showError(error.message || 'Unable to upload track.'));
+      }
+      target.value = '';
+      return;
+    }
+    if (target.id.startsWith('djBoothLocalFile-')) {
+      const deckKey = target.id.replace('djBoothLocalFile-', '');
+      const file = target.files?.[0] || null;
+      if (file) void loadDjBoothLocalDeckFile(deckKey, file);
+      target.value = '';
+      return;
+    }
+    if (target.id.startsWith('djBoothSeek-')) {
+      void setDjBoothDeckSeek(target.id.replace('djBoothSeek-', ''), target.value);
+      return;
+    }
+    if (target.id.startsWith('djBoothVolume-')) {
+      void setDjBoothDeckVolume(target.id.replace('djBoothVolume-', ''), target.value);
+      return;
+    }
+    if (target.id === 'djBoothCrossfader') {
+      void setDjBoothMixerValue('crossfader', target.value);
+      return;
+    }
+    if (target.id === 'djBoothMasterVolume') {
+      void setDjBoothMixerValue('masterVolume', target.value);
+      return;
+    }
+    if (target.id === 'djBoothLightSpeed') {
+      void setDjBoothLightValue('speed', target.value);
+      return;
+    }
+    if (target.id === 'djBoothLightIntensity') {
+      void setDjBoothLightValue('intensity', target.value);
+      return;
+    }
+    if (target.id === 'djBoothLightsEnabled') {
+      void setDjBoothLightValue('enabled', target.checked);
+      return;
+    }
+  }
   if (!(target instanceof HTMLSelectElement)) return;
+  if (target.id === 'djBoothLightMode') {
+    void setDjBoothLightValue('mode', target.value);
+    return;
+  }
   if (target.id === 'hsAiBankTarget' || target.id === 'contentStudioBankTarget') {
     APP.aiBankEditorTarget = getAIBankEditorTargetOrDefault(target.value);
     APP.aiBankEditorStatus = null;
@@ -14596,7 +16330,7 @@ document.addEventListener('click', async (event) => {
   const target = event.target.closest('[data-action]');
   if (!target) return;
 
-  const { action, avatar, screen, key, index, feedbackId, activity, queueIndex, noteId, lane, direction, tab, word, cat, clue, player, accepted, cardId, color, playerId, shipId, slideId, bsRow, bsCol, axis, readyState, pattern, marker, roomCode } = target.dataset;
+  const { action, avatar, screen, key, index, feedbackId, requestId, requestStatus, activity, queueIndex, noteId, lane, direction, tab, word, cat, clue, player, accepted, cardId, color, playerId, shipId, slideId, bsRow, bsCol, axis, readyState, pattern, marker, roomCode, deckKey, padId, fadeTarget, trackId } = target.dataset;
   const parsedIndex = Number.parseInt(index ?? '', 10);
   const parsedQueueIndex = Number.parseInt(queueIndex ?? '', 10);
   const parsedCategoryIndex = Number.parseInt(cat ?? '', 10);
@@ -14621,10 +16355,16 @@ document.addEventListener('click', async (event) => {
       await createCommunityRoomAndNavigate();
       break;
     case 'refresh-community-rooms':
-      await loadCommunityRooms();
+      await loadCommunityDirectoryData();
       break;
     case 'join-community-room':
       if (roomCode) await joinRoomByCode(roomCode);
+      break;
+    case 'submit-community-host-access-request':
+      await submitCommunityHostAccessRequest();
+      break;
+    case 'review-community-host-request':
+      if (requestId) await saveCommunityHostAccessRequest(requestId, requestStatus || 'pending');
       break;
     case 'send-community-chat':
       await sendCommunityChatMessage();
@@ -14913,6 +16653,9 @@ document.addEventListener('click', async (event) => {
     case 'start-slides-studio':
       await startSlidesStudio();
       break;
+    case 'start-dj-booth':
+      await startDjBooth();
+      break;
     case 'start-battleship':
       await startBattleship();
       break;
@@ -15173,6 +16916,57 @@ document.addEventListener('click', async (event) => {
     case 'slides-studio-next':
       await slidesStudioNavigate(1);
       break;
+    case 'dj-booth-load-source':
+      if (deckKey) await loadDjBoothDeckSource(deckKey);
+      break;
+    case 'dj-booth-toggle-play':
+      if (deckKey) await toggleDjBoothDeckPlayback(deckKey);
+      break;
+    case 'dj-booth-prev-track':
+      if (deckKey) await shiftDjBoothDeckTrack(deckKey, -1);
+      break;
+    case 'dj-booth-next-track':
+      if (deckKey) await shiftDjBoothDeckTrack(deckKey, 1);
+      break;
+    case 'dj-booth-restart-track':
+      if (deckKey) await restartDjBoothDeck(deckKey);
+      break;
+    case 'dj-booth-fade':
+      if (fadeTarget) await fadeDjBoothCrossfader(fadeTarget);
+      break;
+    case 'dj-booth-save-marquee':
+      await saveDjBoothMarquee();
+      break;
+    case 'dj-booth-toggle-mic':
+      await toggleDjBoothMicLive();
+      break;
+    case 'dj-booth-open-voice':
+      if (APP.room?.host === APP.player?.name) openHostSettings();
+      break;
+    case 'dj-booth-load-shared-track':
+      if (deckKey && trackId) await loadDjBoothSharedTrack(deckKey, trackId);
+      break;
+    case 'dj-booth-start-recording':
+      await startDjBoothClipRecording();
+      break;
+    case 'dj-booth-stop-recording':
+      await stopDjBoothClipRecording();
+      break;
+    case 'dj-booth-remove-shared-track':
+      if (trackId) {
+        try {
+          await removeDjBoothSharedTrack(trackId);
+        } catch (error) {
+          showError(error.message || 'Unable to remove shared track.');
+        }
+      }
+      break;
+    case 'dj-booth-trigger-pad':
+      if (padId) await triggerDjBoothPad(padId);
+      break;
+    case 'dj-booth-edit-pad':
+      if (padId) await editDjBoothPad(padId);
+      break;
     case 'backgammon-roll':
       await rollBackgammonDice();
       break;
@@ -15257,6 +17051,374 @@ document.addEventListener('click', async (event) => {
   }
 });
 
+function renderDjBoothLightRig(state) {
+  const safeState = normalizeDjBoothState(state);
+  const playingBoostA = safeState.deckA.playing ? 1 : 0.56;
+  const playingBoostB = safeState.deckB.playing ? 1 : 0.56;
+  const leftWeight = (100 - safeState.crossfader) / 100;
+  const rightWeight = safeState.crossfader / 100;
+  const pulseSpeed = Math.max(0.55, 2.6 - (safeState.lights.speed / 40));
+  return Array.from({ length: 12 }, (_, idx) => {
+    const bias = idx < 6 ? leftWeight * playingBoostA : rightWeight * playingBoostB;
+    const color = idx < 6 ? safeState.lights.colorA : safeState.lights.colorB;
+    const height = Math.max(24, Math.round(28 + (safeState.lights.intensity * 0.74) + (idx % 4) * 8 + (bias * 34)));
+    const opacity = safeState.lights.enabled ? 0.46 + (bias * 0.5) : 0.16;
+    const modeMultiplier = safeState.lights.mode === 'strobe' ? 0.42 : safeState.lights.mode === 'party' ? 0.8 : safeState.lights.mode === 'wave' ? 1.3 : 1;
+    return `
+      <div
+        class="dj-booth-light"
+        style="height:${height}px;background:linear-gradient(180deg,color-mix(in srgb, ${color} 92%, #ffffff 8%),color-mix(in srgb, ${color} 54%, #080b1f 46%));opacity:${opacity};animation-duration:${(pulseSpeed * modeMultiplier).toFixed(2)}s;animation-delay:${(idx * 0.08).toFixed(2)}s;"
+      ></div>
+    `;
+  }).join('');
+}
+
+function renderDjBoothDeckMeter(state, deckKey) {
+  const safeState = normalizeDjBoothState(state);
+  const deck = safeState[deckKey];
+  const bars = Array.from({ length: 9 }, (_, idx) => {
+    const activeLevel = ((idx + 1) / 9) * 100;
+    const effective = computeDjBoothDeckEffectiveVolume(safeState, deckKey);
+    const lit = effective >= activeLevel;
+    const baseColor = deckKey === 'deckA' ? safeState.lights.colorA : safeState.lights.colorB;
+    return `
+      <div
+        class="dj-booth-meter-bar"
+        style="height:${18 + (idx * 6)}px;background:${lit ? `linear-gradient(180deg,color-mix(in srgb, ${baseColor} 88%, #ffffff 12%),color-mix(in srgb, ${baseColor} 56%, #060711 44%))` : 'rgba(255,255,255,0.08)'};opacity:${lit ? 1 : 0.28};animation-delay:${(idx * 0.05).toFixed(2)}s;"
+      ></div>
+    `;
+  }).join('');
+  return `
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">
+        <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);">${escapeHtml(deck.label)} level</div>
+        <div style="font-family:'IBM Plex Mono',monospace;color:var(--text-mid);font-size:0.84rem;">${computeDjBoothDeckEffectiveVolume(safeState, deckKey)}%</div>
+      </div>
+      <div class="dj-booth-meter">${bars}</div>
+    </div>
+  `;
+}
+
+function renderDjBoothDeck(state, deckKey, isHost) {
+  const safeState = normalizeDjBoothState(state);
+  const deck = normalizeDjBoothDeckState(safeState[deckKey], deckKey === 'deckA' ? 'Deck A' : 'Deck B');
+  const isLocalDeck = deck.sourceMode === 'local';
+  const isSharedDeck = deck.sourceMode === 'shared';
+  const activePosition = Math.round(getDjBoothEffectiveDeckPosition(deck));
+  const sourceSummary = isLocalDeck
+    ? `${APP.room?.host === APP.player?.name ? 'Local audio loaded on this device' : 'Host local audio source'}`
+    : isSharedDeck
+      ? 'Shared room track loaded for all participants'
+    : deck.sourceType === 'playlist'
+    ? `Playlist loaded • track ${deck.trackIndex + 1}`
+    : deck.sourceType === 'video'
+      ? 'Single video loaded'
+      : 'No source loaded yet';
+  const timeLabel = `${formatClockFromMs(activePosition * 1000)} / --:--`;
+  const titleLabel = (isLocalDeck ? deck.sourceLabel : APP.djBoothUi?.deckTitles?.[deckKey]) || `${deck.label} ready`;
+  const playLabel = deck.playing ? 'Pause' : 'Play';
+  return `
+    <div class="dj-booth-panel">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:14px;">
+        <div>
+          <div style="display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);font-size:0.74rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;">
+            <span>${escapeHtml(deck.label)}</span>
+            <span style="color:${deck.playing ? '#7af59f' : 'var(--text-dim)'};">${deck.playing ? 'LIVE' : 'CUED'}</span>
+          </div>
+          <div data-dj-track-title="${deckKey}" style="font-family:'Fraunces',serif;font-size:1.4rem;line-height:1.05;">${escapeHtml(titleLabel)}</div>
+          <div style="font-size:0.84rem;color:var(--text-dim);margin-top:6px;">${escapeHtml(sourceSummary)}</div>
+        </div>
+        <div style="text-align:right;">
+          <div data-dj-track-time="${deckKey}" style="font-family:'IBM Plex Mono',monospace;font-size:0.9rem;color:var(--text-mid);">${escapeHtml(timeLabel)}</div>
+          <div style="font-size:0.76rem;color:var(--text-dim);margin-top:6px;">Volume ${deck.volume}%</div>
+        </div>
+      </div>
+
+      <div class="dj-booth-player-frame" id="djBoothPlayer-${deckKey}"></div>
+
+      <div style="margin-top:14px;display:grid;gap:12px;">
+        ${isHost ? `
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <input id="djBoothSource-${deckKey}" class="form-input" value="${escapeHtml(deck.sourceUrl || '')}" placeholder="Paste YouTube playlist or video URL" style="flex:1;min-width:220px;">
+            <button class="btn-primary" data-action="dj-booth-load-source" data-deck-key="${deckKey}" style="width:auto;padding:12px 16px;">Load</button>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;border-radius:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);">
+            <div>
+              <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;">Local File Deck</div>
+              <div style="font-size:0.84rem;color:var(--text-dim);">${escapeHtml(isLocalDeck ? (deck.sourceLabel || 'Local file selected') : 'Load MP3 / WAV / M4A from this device')}</div>
+            </div>
+            <label class="btn-secondary" style="width:auto;padding:10px 14px;cursor:pointer;">
+              Load Local File
+              <input id="djBoothLocalFile-${deckKey}" type="file" accept="audio/*" style="display:none;">
+            </label>
+          </div>
+        ` : ''}
+
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;">
+            <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);">Playhead</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:0.84rem;color:var(--text-mid);">${escapeHtml(formatClockFromMs(activePosition * 1000))}</div>
+          </div>
+          <input
+            id="djBoothSeek-${deckKey}"
+            class="dj-booth-range"
+            type="range"
+            min="0"
+            max="${Math.max(1, activePosition + 1)}"
+            value="${activePosition}"
+            ${isHost ? '' : 'disabled'}
+            data-dj-output-id="djBoothSeekOut-${deckKey}"
+            data-dj-suffix="s"
+          >
+          <div id="djBoothSeekOut-${deckKey}" style="margin-top:6px;font-size:0.76rem;color:var(--text-dim);">Drag to scrub ${escapeHtml(deck.label.toLowerCase())}</div>
+        </div>
+
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;">
+            <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);">${escapeHtml(deck.label)} volume</div>
+            <div id="djBoothVolumeOut-${deckKey}" style="font-family:'IBM Plex Mono',monospace;font-size:0.84rem;color:var(--text-mid);">${deck.volume}%</div>
+          </div>
+          <input
+            id="djBoothVolume-${deckKey}"
+            class="dj-booth-range"
+            type="range"
+            min="0"
+            max="100"
+            value="${deck.volume}"
+            ${isHost ? '' : 'disabled'}
+            data-dj-output-id="djBoothVolumeOut-${deckKey}"
+            data-dj-suffix="%"
+          >
+        </div>
+
+        ${renderDjBoothDeckMeter(safeState, deckKey)}
+
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;">
+          <button class="btn-secondary" data-action="dj-booth-prev-track" data-deck-key="${deckKey}" ${(isHost && !isLocalDeck && !isSharedDeck) ? '' : 'disabled'} style="padding:10px 12px;">⏮</button>
+          <button class="btn-primary" data-action="dj-booth-toggle-play" data-deck-key="${deckKey}" ${isHost ? '' : 'disabled'} style="padding:10px 12px;">${escapeHtml(playLabel)}</button>
+          <button class="btn-secondary" data-action="dj-booth-restart-track" data-deck-key="${deckKey}" ${isHost ? '' : 'disabled'} style="padding:10px 12px;">↺</button>
+          <button class="btn-secondary" data-action="dj-booth-next-track" data-deck-key="${deckKey}" ${(isHost && !isLocalDeck && !isSharedDeck) ? '' : 'disabled'} style="padding:10px 12px;">⏭</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderDjBooth() {
+  const isHost = APP.room.host === APP.player.name;
+  const state = normalizeDjBoothState(APP.room.activityState || {});
+  const voiceSettings = getRoomVoiceSettings(APP.room);
+  const bannerCopy = escapeHtml(state.marqueeText || 'Broadcast live from the Team Builder DJ Booth');
+  const participants = (APP.room.participants || []).map(player => player?.name).filter(Boolean);
+  const activePadId = String(state.activePadId || '').trim();
+  const activePadFresh = Date.now() - (Number(state.lastPadTriggerAt) || 0) < 1400;
+  const lightModeLabel = state.lights.mode.charAt(0).toUpperCase() + state.lights.mode.slice(1);
+  const boothStatus = state.micLive
+    ? (voiceSettings.enabled ? 'DJ mic is live in the room voice mix.' : 'DJ mic is armed. Turn room voice on to broadcast it.')
+    : 'Deck-only performance mode is active.';
+  const crossfaderSide = state.crossfader < 45 ? 'Deck A' : state.crossfader > 55 ? 'Deck B' : 'Centered';
+  const sharedTracks = normalizeDjBoothTrackLibrary(state.trackLibrary);
+  const recordingClip = APP.djBoothUi?.recordingClip === true;
+  const recordingLabel = formatClockFromMs((Number(APP.djBoothUi?.recordingSeconds) || 0) * 1000);
+
+  return `
+    <div class="header">
+      <h1 style="font-size:2rem;font-weight:700;">🎚️ DJ Booth</h1>
+      <p class="tagline">Two YouTube decks, live mixer controls, sound pads, and broadcast visuals for the whole room.</p>
+    </div>
+
+    ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
+
+    <div class="dj-booth-shell">
+      <div class="dj-booth-banner">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <span style="padding:8px 12px;border-radius:999px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);font-size:0.74rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--warning);">Broadcast Banner</span>
+            <span style="font-size:0.82rem;color:var(--text-dim);">${escapeHtml(lightModeLabel)} lights • ${escapeHtml(crossfaderSide)} lead</span>
+          </div>
+          <div style="font-size:0.82rem;color:var(--text-dim);">Audience: ${participants.length}</div>
+        </div>
+        <div style="overflow:hidden;">
+          <div class="dj-booth-banner-track">
+            <div class="dj-booth-banner-copy">${bannerCopy}</div>
+            <div class="dj-booth-banner-copy">${bannerCopy}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dj-booth-light-rig">
+        ${renderDjBoothLightRig(state)}
+      </div>
+
+      <div class="dj-booth-layout">
+        ${renderDjBoothDeck(state, 'deckA', isHost)}
+
+        <div class="dj-booth-mixer">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+            <div>
+              <div style="font-family:'Fraunces',serif;font-size:1.5rem;">Mixer</div>
+              <div style="font-size:0.84rem;color:var(--text-dim);">Blend both decks, fire pads, and steer the broadcast.</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn-secondary" data-action="dj-booth-fade" data-fade-target="left" ${isHost ? '' : 'disabled'} style="width:auto;padding:10px 14px;">Fade A</button>
+              <button class="btn-secondary" data-action="dj-booth-fade" data-fade-target="center" ${isHost ? '' : 'disabled'} style="width:auto;padding:10px 14px;">Center</button>
+              <button class="btn-secondary" data-action="dj-booth-fade" data-fade-target="right" ${isHost ? '' : 'disabled'} style="width:auto;padding:10px 14px;">Fade B</button>
+            </div>
+          </div>
+
+          <div class="dj-booth-status-card" style="margin-bottom:14px;background:linear-gradient(135deg,rgba(0,210,211,0.1),rgba(197,108,240,0.06));">
+            <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;">Broadcast Status</div>
+            <div style="font-family:'Fraunces',serif;font-size:1.2rem;margin-bottom:8px;">${escapeHtml(boothStatus)}</div>
+            <div style="font-size:0.84rem;color:var(--text-dim);">Crossfader ${state.crossfader}% • Master ${state.masterVolume}% • ${state.lights.enabled ? 'Lights live' : 'Lights dimmed'}</div>
+          </div>
+
+          <div style="display:grid;gap:14px;">
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;">
+                <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);">Crossfader</div>
+                <div id="djBoothCrossfaderOut" style="font-family:'IBM Plex Mono',monospace;font-size:0.84rem;color:var(--text-mid);">${state.crossfader}%</div>
+              </div>
+              <input id="djBoothCrossfader" class="dj-booth-range" type="range" min="0" max="100" value="${state.crossfader}" ${isHost ? '' : 'disabled'} data-dj-output-id="djBoothCrossfaderOut" data-dj-suffix="%">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;font-size:0.76rem;color:var(--text-dim);">
+                <span>Deck A</span><span>Blend</span><span>Deck B</span>
+              </div>
+            </div>
+
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;">
+                <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);">Master Volume</div>
+                <div id="djBoothMasterVolumeOut" style="font-family:'IBM Plex Mono',monospace;font-size:0.84rem;color:var(--text-mid);">${state.masterVolume}%</div>
+              </div>
+              <input id="djBoothMasterVolume" class="dj-booth-range" type="range" min="0" max="100" value="${state.masterVolume}" ${isHost ? '' : 'disabled'} data-dj-output-id="djBoothMasterVolumeOut" data-dj-suffix="%">
+            </div>
+
+            <div class="dj-booth-status-card">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+                <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);">DJ Mic</div>
+                <button class="btn-primary" data-action="dj-booth-toggle-mic" ${isHost ? '' : 'disabled'} style="width:auto;padding:10px 14px;background:${state.micLive ? 'linear-gradient(135deg,var(--danger),#ff7b7b)' : 'linear-gradient(135deg,var(--accent),var(--accent-2))'};">
+                  ${state.micLive ? 'Mic Live' : 'Mic Standby'}
+                </button>
+              </div>
+              <div style="font-size:0.84rem;color:var(--text-dim);margin-bottom:12px;">Use the existing room voice controls for the actual mic path. This booth toggle announces when the DJ mic should be considered live.</div>
+              <button class="btn-secondary" data-action="dj-booth-open-voice" ${isHost ? '' : 'disabled'} style="width:100%;">Open Voice Controls</button>
+            </div>
+
+            <div class="dj-booth-status-card">
+              <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:12px;">Lighting Control</div>
+              <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                <input id="djBoothLightsEnabled" type="checkbox" ${state.lights.enabled ? 'checked' : ''} ${isHost ? '' : 'disabled'}>
+                <span>Show booth lights</span>
+              </label>
+              <div class="form-group" style="margin-bottom:12px;">
+                <label>Mode</label>
+                <select id="djBoothLightMode" class="form-input" ${isHost ? '' : 'disabled'}>
+                  ${['ambient', 'pulse', 'wave', 'strobe', 'party'].map(mode => `<option value="${mode}" ${state.lights.mode === mode ? 'selected' : ''}>${escapeHtml(mode.charAt(0).toUpperCase() + mode.slice(1))}</option>`).join('')}
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom:12px;">
+                <label style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><span>Speed</span><span id="djBoothLightSpeedOut">${state.lights.speed}%</span></label>
+                <input id="djBoothLightSpeed" class="dj-booth-range" type="range" min="10" max="100" value="${state.lights.speed}" ${isHost ? '' : 'disabled'} data-dj-output-id="djBoothLightSpeedOut" data-dj-suffix="%">
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label style="display:flex;justify-content:space-between;align-items:center;gap:8px;"><span>Intensity</span><span id="djBoothLightIntensityOut">${state.lights.intensity}%</span></label>
+                <input id="djBoothLightIntensity" class="dj-booth-range" type="range" min="10" max="100" value="${state.lights.intensity}" ${isHost ? '' : 'disabled'} data-dj-output-id="djBoothLightIntensityOut" data-dj-suffix="%">
+              </div>
+            </div>
+
+            <div class="dj-booth-status-card">
+              <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;">Broadcast Message</div>
+              <input id="djBoothMarqueeInput" class="form-input" maxlength="140" value="${bannerCopy}" ${isHost ? '' : 'disabled'} placeholder="Type a scrolling room message">
+              <button class="btn-primary" data-action="dj-booth-save-marquee" ${isHost ? '' : 'disabled'} style="margin-top:10px;">Update Banner</button>
+            </div>
+          </div>
+        </div>
+
+        ${renderDjBoothDeck(state, 'deckB', isHost)}
+      </div>
+
+      <div class="dj-booth-status-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+          <div>
+            <div style="font-family:'Fraunces',serif;font-size:1.38rem;">Shared Track Library</div>
+            <div style="font-size:0.84rem;color:var(--text-dim);">Upload a room track once, record live clips, then load them onto either deck for everyone.</div>
+          </div>
+          ${isHost ? `
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+              <label class="btn-primary" style="width:auto;padding:10px 16px;cursor:pointer;">
+                Upload Shared Track
+                <input id="djBoothLibraryUpload" type="file" accept="audio/*" style="display:none;">
+              </label>
+              <button class="btn-secondary" data-action="${recordingClip ? 'dj-booth-stop-recording' : 'dj-booth-start-recording'}" style="width:auto;padding:10px 16px;border-color:${recordingClip ? 'rgba(255,107,107,0.45)' : 'rgba(0,210,211,0.35)'};color:${recordingClip ? '#ff9c9c' : 'var(--accent)'};">
+                ${recordingClip ? `Stop Recording ${escapeHtml(recordingLabel)}` : 'Record Clip'}
+              </button>
+            </div>
+          ` : `<div style="font-size:0.82rem;color:var(--text-dim);">Host-managed shared audio library</div>`}
+        </div>
+        ${isHost && recordingClip ? `
+          <div style="margin-bottom:12px;padding:12px 14px;border-radius:16px;background:linear-gradient(135deg,rgba(255,64,96,0.12),rgba(255,255,255,0.03));border:1px solid rgba(255,64,96,0.24);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:#ff9c9c;margin-bottom:4px;">Recording Clip</div>
+              <div style="font-size:0.9rem;">Mic capture is live. Stop when the clip is ready to upload.</div>
+            </div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:1rem;color:#ffd7de;">${escapeHtml(recordingLabel)}</div>
+          </div>
+        ` : ''}
+        ${sharedTracks.length ? `
+          <div style="display:grid;gap:10px;">
+            ${sharedTracks.map(track => `
+              <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:14px;border-radius:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);">
+                <div style="min-width:0;">
+                  <div style="font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(track.name)}</div>
+                  <div style="font-size:0.8rem;color:var(--text-dim);margin-top:4px;">${escapeHtml(formatFileSize(track.size))}${track.uploadedBy ? ` • uploaded by ${escapeHtml(track.uploadedBy)}` : ''}</div>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+                  <button class="btn-secondary" data-action="dj-booth-load-shared-track" data-deck-key="deckA" data-track-id="${escapeHtml(track.id)}" ${isHost ? '' : 'disabled'} style="width:auto;padding:8px 12px;">Load A</button>
+                  <button class="btn-secondary" data-action="dj-booth-load-shared-track" data-deck-key="deckB" data-track-id="${escapeHtml(track.id)}" ${isHost ? '' : 'disabled'} style="width:auto;padding:8px 12px;">Load B</button>
+                  ${isHost ? `<button class="btn-secondary" data-action="dj-booth-remove-shared-track" data-track-id="${escapeHtml(track.id)}" style="width:auto;padding:8px 12px;border-color:rgba(255,107,107,0.3);color:#ff9c9c;">Remove</button>` : ''}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        ` : `<div style="font-size:0.84rem;color:var(--text-dim);padding:6px 0 2px;">No shared tracks uploaded yet.</div>`}
+      </div>
+
+      <div class="dj-booth-pad-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+          <div>
+            <div style="font-family:'Fraunces',serif;font-size:1.45rem;">Sound Pads</div>
+            <div style="font-size:0.84rem;color:var(--text-dim);">Eight custom triggers for drops, stingers, and crowd moments.</div>
+          </div>
+          <div style="font-size:0.82rem;color:var(--text-dim);">${isHost ? 'Tap a pad to trigger it. Use Edit to retune the pad.' : 'Watch for host-triggered pads to light up live.'}</div>
+        </div>
+        <div class="dj-booth-pad-grid">
+          ${state.soundPads.map((pad, idx) => {
+            const isActive = activePadFresh && activePadId === pad.id;
+            return `
+              <div>
+                <button
+                  class="dj-booth-pad ${isActive ? 'dj-booth-pad-active' : ''}"
+                  data-action="dj-booth-trigger-pad"
+                  data-pad-id="${escapeHtml(pad.id)}"
+                  ${isHost ? '' : 'disabled'}
+                  style="background:linear-gradient(160deg,color-mix(in srgb, ${pad.color} 88%, #ffffff 12%),color-mix(in srgb, ${pad.color} 42%, #080916 58%));--pad-glow:${pad.color};"
+                >
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;">
+                    <div style="font-size:1.5rem;line-height:1;">${escapeHtml(pad.emoji)}</div>
+                    <div style="padding:6px 8px;border-radius:999px;background:rgba(0,0,0,0.18);font-size:0.68rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;">P${idx + 1}</div>
+                  </div>
+                  <div style="font-weight:800;font-size:1rem;line-height:1.15;">${escapeHtml(pad.label)}</div>
+                  <div style="margin-top:6px;font-size:0.76rem;color:rgba(255,255,255,0.82);text-transform:uppercase;letter-spacing:0.08em;">${escapeHtml(pad.tone)}</div>
+                </button>
+                ${isHost ? `<button class="btn-secondary" data-action="dj-booth-edit-pad" data-pad-id="${escapeHtml(pad.id)}" style="margin-top:8px;padding:8px 12px;width:100%;">Edit Pad</button>` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function renderActivity() {
   const activity = APP.room.currentActivity;
   let content = '<div>Activity loading...</div>';
@@ -15279,6 +17441,7 @@ function renderActivity() {
   else if (activity === 'spin-wheel') content = renderSpinWheel();
   else if (activity === 'presentation') content = renderPresentationActivity();
   else if (activity === 'slides-studio') content = renderSlidesStudio();
+  else if (activity === 'dj-booth') content = renderDjBooth();
   else if (activity === 'battleship') content = renderBattleship();
   else if (activity === 'bingo') content = renderBingo();
   else if (activity === 'backgammon') content = renderBackgammon();

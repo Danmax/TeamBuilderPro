@@ -30,6 +30,7 @@ const DATA_DIR = path.join(__dirname, '.runtime-data');
 const DATA_FILE = path.join(DATA_DIR, 'shared-state.json');
 const FEEDBACK_FILE = path.join(DATA_DIR, 'feedback-state.json');
 const ROOM_META_FILE = path.join(DATA_DIR, 'room-meta.json');
+const DJ_UPLOAD_DIR = path.join(DATA_DIR, 'dj-library');
 const LEGACY_AI_API_KEY = String(process.env.CHAT_GPT_MINI_KEY || '').trim();
 const LEGACY_AI_ENDPOINT = String(process.env.AI_QUESTION_ENDPOINT || '').trim();
 const LEGACY_AI_MODEL = String(process.env.AI_QUESTION_MODEL || '').trim();
@@ -55,6 +56,7 @@ const ALL_ACTIVITY_IDS = [
   'team-jeopardy',
   'spin-wheel',
   'slides-studio',
+  'dj-booth',
   'battleship',
   'bingo',
   'backgammon',
@@ -341,13 +343,51 @@ function normalizeConfig(rawConfig) {
   };
 }
 
+function normalizeCommunityHostRequest(rawRequest, idx = 0) {
+  if (!rawRequest || typeof rawRequest !== 'object') return null;
+  const userName = String(rawRequest.userName || '').replace(/\s+/g, ' ').trim().slice(0, 32);
+  const reason = String(rawRequest.reason || '').replace(/\s+/g, ' ').trim().slice(0, 400);
+  const userToken = String(rawRequest.userToken || '').trim().slice(0, 80);
+  if (!userName || !userToken) return null;
+  const status = String(rawRequest.status || 'pending').trim().toLowerCase();
+  return {
+    id: String(rawRequest.id || `community-host-request-${idx + 1}`).trim().slice(0, 80),
+    userToken,
+    userId: String(rawRequest.userId || '').trim().slice(0, 64),
+    userName,
+    reason,
+    status: ['pending', 'approved', 'denied'].includes(status) ? status : 'pending',
+    adminNotes: String(rawRequest.adminNotes || '').trim().slice(0, 400),
+    createdAt: String(rawRequest.createdAt || nowIso()),
+    updatedAt: String(rawRequest.updatedAt || rawRequest.createdAt || nowIso()),
+    resolvedAt: rawRequest.resolvedAt ? String(rawRequest.resolvedAt) : null
+  };
+}
+
+function normalizeCommunityHostRequests(rawRequests) {
+  if (!Array.isArray(rawRequests)) return [];
+  return rawRequests
+    .map((item, idx) => normalizeCommunityHostRequest(item, idx))
+    .filter(Boolean)
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime())
+    .slice(0, 500);
+}
+
 const feedbackState = {
   feedback: [],
   config: normalizeConfig({}),
-  collections: []
+  collections: [],
+  communityHostRequests: []
 };
 
 app.use(express.json({ limit: '1mb' }));
+app.use('/media/dj', express.static(DJ_UPLOAD_DIR, {
+  fallthrough: false,
+  index: false,
+  setHeaders: res => {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  }
+}));
 
 // Security: Add Helmet for secure headers
 app.use(helmet({
@@ -412,6 +452,7 @@ function loadFeedbackStateFromDisk() {
       });
     }
     feedbackState.collections = normalizeCollections(parsed.collections || []);
+    feedbackState.communityHostRequests = normalizeCommunityHostRequests(parsed.communityHostRequests || []);
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Failed to load feedback state:', error.message);
@@ -599,6 +640,12 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function ensureRuntimeDir(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+}
+
 function createFeedbackId() {
   return `fb_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -609,6 +656,76 @@ function getUserToken(req) {
 
 function isValidHexColor(value) {
   return /^#[0-9a-fA-F]{6}$/.test(String(value || '').trim());
+}
+
+function sanitizeDjFileName(value) {
+  return String(value || '')
+    .replace(/\+/g, ' ')
+    .trim()
+    .replace(/[^a-zA-Z0-9._ -]+/g, '')
+    .replace(/\s+/g, ' ')
+    .slice(0, 120);
+}
+
+function getDjUploadExtension(fileName = '', contentType = '') {
+  const extFromName = path.extname(String(fileName || '').trim()).toLowerCase();
+  const allowedExts = new Set(['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.webm']);
+  if (allowedExts.has(extFromName)) return extFromName;
+  const type = String(contentType || '').trim().toLowerCase();
+  if (type.includes('mpeg')) return '.mp3';
+  if (type.includes('wav')) return '.wav';
+  if (type.includes('mp4') || type.includes('m4a') || type.includes('aac')) return '.m4a';
+  if (type.includes('ogg')) return '.ogg';
+  if (type.includes('webm')) return '.webm';
+  return '';
+}
+
+function isAllowedDjUpload(contentType = '', fileName = '') {
+  const type = String(contentType || '').trim().toLowerCase();
+  const baseType = type.split(';')[0].trim();
+  const ext = getDjUploadExtension(fileName, contentType);
+  const allowedMime = new Set([
+    'audio/mpeg',
+    'audio/mp3',
+    'audio/wav',
+    'audio/x-wav',
+    'audio/wave',
+    'audio/mp4',
+    'audio/x-m4a',
+    'audio/m4a',
+    'audio/mp4a-latm',
+    'audio/aac',
+    'audio/ogg',
+    'audio/webm',
+    'video/mp4',
+    'video/webm'
+  ]);
+  return Boolean(ext) && (
+    allowedMime.has(baseType)
+    || baseType === 'application/octet-stream'
+    || baseType.startsWith('audio/')
+    || baseType === 'video/mp4'
+    || baseType === 'video/webm'
+  );
+}
+
+function normalizeDjLibraryTrack(rawTrack, idx = 0) {
+  if (!rawTrack || typeof rawTrack !== 'object') return null;
+  const id = String(rawTrack.id || `track_${idx + 1}`).trim().slice(0, 80);
+  const name = String(rawTrack.name || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+  const url = String(rawTrack.url || '').trim().slice(0, 500);
+  const storageKey = String(rawTrack.storageKey || '').trim().slice(0, 180);
+  if (!id || !name || !url) return null;
+  return {
+    id,
+    name,
+    url,
+    storageKey,
+    contentType: String(rawTrack.contentType || '').trim().slice(0, 80),
+    size: Math.max(0, Number(rawTrack.size) || 0),
+    uploadedAt: String(rawTrack.uploadedAt || nowIso()),
+    uploadedBy: String(rawTrack.uploadedBy || '').replace(/\s+/g, ' ').trim().slice(0, 32)
+  };
 }
 
 function isLocalDevRequest(req) {
@@ -1101,6 +1218,105 @@ app.get('/api/community/rooms', (_req, res) => {
   });
 });
 
+app.post('/api/dj/library/upload', express.raw({ type: () => true, limit: '30mb' }), (req, res) => {
+  const roomCode = String(req.query?.roomCode || '').trim().toUpperCase();
+  const roomKey = isRoomKey(`room:${roomCode}`) ? `room:${roomCode}` : '';
+  const roomToken = String(req.header('x-room-token') || '').trim();
+  const playerName = String(req.header('x-player-name') || '').replace(/\s+/g, ' ').trim().slice(0, 32);
+  const rawFileName = sanitizeDjFileName(decodeURIComponent(String(req.header('x-file-name') || 'track').trim()));
+  const fileName = rawFileName || 'track';
+  const contentType = String(req.header('content-type') || 'application/octet-stream').trim().toLowerCase();
+  const room = roomKey ? getRoomSnapshot(roomKey) : null;
+
+  if (!roomKey || !room) {
+    res.status(404).json({ ok: false, error: 'Room not found.' });
+    return;
+  }
+  if (!isAuthorizedForRoom(roomKey, roomToken)) {
+    res.status(401).json({ ok: false, error: 'Unauthorized room access.' });
+    return;
+  }
+  if (!playerName || room.host !== playerName) {
+    res.status(403).json({ ok: false, error: 'Only the host can upload DJ tracks.' });
+    return;
+  }
+  if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+    res.status(400).json({ ok: false, error: 'Audio file is required.' });
+    return;
+  }
+  if (!isAllowedDjUpload(contentType, fileName)) {
+    res.status(400).json({ ok: false, error: 'Unsupported audio format. Use mp3, wav, m4a, ogg, or webm audio.' });
+    return;
+  }
+
+  try {
+    ensureRuntimeDir(DJ_UPLOAD_DIR);
+    const extension = getDjUploadExtension(fileName, contentType);
+    const trackId = `dj_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+    const storageKey = `${trackId}${extension}`;
+    const filePath = path.join(DJ_UPLOAD_DIR, storageKey);
+    fs.writeFileSync(filePath, req.body);
+    res.json({
+      ok: true,
+      track: normalizeDjLibraryTrack({
+        id: trackId,
+        name: fileName.replace(/\.[^.]+$/, '') || fileName,
+        url: `/media/dj/${storageKey}`,
+        storageKey,
+        contentType,
+        size: req.body.length,
+        uploadedAt: nowIso(),
+        uploadedBy: playerName
+      })
+    });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: `Upload failed: ${error.message}` });
+  }
+});
+
+app.delete('/api/dj/library/:trackId', (req, res) => {
+  const roomCode = String(req.query?.roomCode || '').trim().toUpperCase();
+  const roomKey = isRoomKey(`room:${roomCode}`) ? `room:${roomCode}` : '';
+  const roomToken = String(req.header('x-room-token') || '').trim();
+  const playerName = String(req.header('x-player-name') || '').replace(/\s+/g, ' ').trim().slice(0, 32);
+  const room = roomKey ? getRoomSnapshot(roomKey) : null;
+  const trackId = String(req.params?.trackId || '').trim();
+
+  if (!roomKey || !room) {
+    res.status(404).json({ ok: false, error: 'Room not found.' });
+    return;
+  }
+  if (!isAuthorizedForRoom(roomKey, roomToken)) {
+    res.status(401).json({ ok: false, error: 'Unauthorized room access.' });
+    return;
+  }
+  if (!playerName || room.host !== playerName) {
+    res.status(403).json({ ok: false, error: 'Only the host can remove DJ tracks.' });
+    return;
+  }
+
+  const activityState = room.activityState && typeof room.activityState === 'object' ? room.activityState : {};
+  const library = Array.isArray(activityState.trackLibrary) ? activityState.trackLibrary : [];
+  const match = library
+    .map((item, idx) => normalizeDjLibraryTrack(item, idx))
+    .find(item => item?.id === trackId);
+
+  if (!match) {
+    res.status(404).json({ ok: false, error: 'Track not found.' });
+    return;
+  }
+
+  try {
+    if (match.storageKey) {
+      const filePath = path.join(DJ_UPLOAD_DIR, path.basename(match.storageKey));
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: `Unable to remove track: ${error.message}` });
+  }
+});
+
 app.post('/api/ai/generate', async (req, res) => {
   if (!AI_API_KEY) {
     res.status(503).json({ ok: false, error: 'AI server key is not configured. Set AI_API_KEY or the legacy CHAT_GPT_MINI_KEY.' });
@@ -1213,6 +1429,84 @@ app.get('/api/feedback/mine', (req, res) => {
   res.json({ ok: true, feedback: mine });
 });
 
+app.get('/api/community/host-access-request/mine', (req, res) => {
+  const userToken = getUserToken(req);
+  if (!userToken) {
+    res.status(400).json({ ok: false, error: 'Missing user token' });
+    return;
+  }
+  const requests = normalizeCommunityHostRequests(feedbackState.communityHostRequests)
+    .filter(item => item.userToken === userToken);
+  res.json({ ok: true, requests });
+});
+
+app.post('/api/community/host-access-request', (req, res) => {
+  const userToken = getUserToken(req);
+  if (!userToken) {
+    res.status(400).json({ ok: false, error: 'Missing user token' });
+    return;
+  }
+  const userName = String(req.body?.userName || '').replace(/\s+/g, ' ').trim().slice(0, 32);
+  const userId = String(req.body?.userId || '').trim().slice(0, 64);
+  const reason = String(req.body?.reason || '').replace(/\s+/g, ' ').trim().slice(0, 400);
+  if (!userName) {
+    res.status(400).json({ ok: false, error: 'Your player name is required.' });
+    return;
+  }
+  if (!reason) {
+    res.status(400).json({ ok: false, error: 'Please include a short reason for access.' });
+    return;
+  }
+
+  const allowlist = normalizePreferences(feedbackState.config.preferences).communityHostAllowlist || [];
+  if (allowlist.includes(userName)) {
+    res.json({
+      ok: true,
+      request: normalizeCommunityHostRequest({
+        id: `community-host-access-approved-${userName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+        userToken,
+        userId,
+        userName,
+        reason,
+        status: 'approved',
+        adminNotes: 'Already approved through the community host allowlist.',
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+        resolvedAt: nowIso()
+      })
+    });
+    return;
+  }
+
+  const existingPending = feedbackState.communityHostRequests.find(item => item.userToken === userToken && item.status === 'pending');
+  if (existingPending) {
+    existingPending.userId = userId || existingPending.userId;
+    existingPending.userName = userName;
+    existingPending.reason = reason;
+    existingPending.updatedAt = nowIso();
+    scheduleFeedbackPersist();
+    res.json({ ok: true, request: existingPending });
+    return;
+  }
+
+  const request = normalizeCommunityHostRequest({
+    id: createFeedbackId(),
+    userToken,
+    userId,
+    userName,
+    reason,
+    status: 'pending',
+    adminNotes: '',
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+    resolvedAt: null
+  });
+  feedbackState.communityHostRequests.unshift(request);
+  feedbackState.communityHostRequests = normalizeCommunityHostRequests(feedbackState.communityHostRequests);
+  scheduleFeedbackPersist();
+  res.json({ ok: true, request });
+});
+
 app.post('/api/admin/login', requireAdmin, (_req, res) => {
   res.json({ ok: true });
 });
@@ -1249,6 +1543,7 @@ app.get('/api/admin/config', requireAdmin, (_req, res) => {
     ok: true,
     config: feedbackState.config,
     collections: feedbackState.collections,
+    communityHostRequests: feedbackState.communityHostRequests,
     storage: {
       configDatabaseConnected: Boolean(configDb)
     }
@@ -1283,7 +1578,54 @@ app.put('/api/admin/config', requireAdmin, async (req, res) => {
 
   scheduleFeedbackPersist();
   await persistConfigToDatabase();
-  res.json({ ok: true, config: feedbackState.config, collections: feedbackState.collections });
+  res.json({
+    ok: true,
+    config: feedbackState.config,
+    collections: feedbackState.collections,
+    communityHostRequests: feedbackState.communityHostRequests
+  });
+});
+
+app.patch('/api/admin/community-host-requests/:id', requireAdmin, async (req, res) => {
+  const request = feedbackState.communityHostRequests.find(item => item.id === req.params.id);
+  if (!request) {
+    res.status(404).json({ ok: false, error: 'Community host request not found' });
+    return;
+  }
+  const status = String(req.body?.status || request.status).trim().toLowerCase();
+  const adminNotes = String(req.body?.adminNotes ?? request.adminNotes).trim().slice(0, 400);
+  if (!['pending', 'approved', 'denied'].includes(status)) {
+    res.status(400).json({ ok: false, error: 'Invalid request status' });
+    return;
+  }
+
+  request.status = status;
+  request.adminNotes = adminNotes;
+  request.updatedAt = nowIso();
+  request.resolvedAt = status === 'pending' ? null : nowIso();
+
+  if (status === 'approved') {
+    const preferences = normalizePreferences(feedbackState.config.preferences);
+    const userName = String(request.userName || '').replace(/\s+/g, ' ').trim().slice(0, 32);
+    if (!userName) {
+      res.status(400).json({ ok: false, error: 'Approved request must include a valid user name' });
+      return;
+    }
+    feedbackState.config.preferences = {
+      ...preferences,
+      communityHostAllowlist: Array.from(new Set([...(preferences.communityHostAllowlist || []), userName]))
+    };
+  }
+
+  feedbackState.communityHostRequests = normalizeCommunityHostRequests(feedbackState.communityHostRequests);
+  scheduleFeedbackPersist();
+  await persistConfigToDatabase();
+  res.json({
+    ok: true,
+    request,
+    config: feedbackState.config,
+    communityHostRequests: feedbackState.communityHostRequests
+  });
 });
 
 io.on('connection', socket => {
