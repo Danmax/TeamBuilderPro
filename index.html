@@ -10902,7 +10902,13 @@ function renderVoiceDock() {
       active: isCurrentPlayerHandRaised()
     }
     : null;
-  const mobileDockStyle = `position:fixed;right:${APP.voiceDock.mobileRight}px;top:${APP.voiceDock.mobileTop}px;z-index:10010;pointer-events:auto;`;
+  const playlistDocked = APP.showSpotifyPlaylistDocked && !APP.showSpotifyPlaylistModal && Boolean(APP.room?.sharedSpotifyPlaylist?.embedUrl);
+  const voiceDockOnRight = (APP.voiceDock.mobileRight || 0) < 80;
+  const playlistDockedBottom = 88 + 280 + 8; // playlist top + height + gap
+  const effectiveTop = (playlistDocked && voiceDockOnRight && APP.voiceDock.mobileTop < playlistDockedBottom)
+    ? playlistDockedBottom
+    : APP.voiceDock.mobileTop;
+  const mobileDockStyle = `position:fixed;right:${APP.voiceDock.mobileRight}px;top:${effectiveTop}px;z-index:10010;pointer-events:auto;`;
   const micToggleLabel = APP.voice.micEnabled ? 'Disable microphone' : 'Enable microphone';
   const talkButtonLabel = openMicMode
     ? (APP.voice.isTransmitting ? 'Mute live mic' : 'Open live mic')

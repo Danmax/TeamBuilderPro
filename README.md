@@ -6,7 +6,7 @@ Team Builder is a realtime facilitation app for host-led team sessions. It combi
 
 - Realtime rooms with host-created room codes, join links, QR join, and optional private access tokens.
 - Public community lobbies with a server-backed directory for browsing and joining open drop-in rooms.
-- Host controls for room settings, activity queue, moderation, and AI-assisted content generation.
+- Host controls for room settings, activity queue, moderation, AI-assisted content generation, and Admin Console access (host-only).
 - Voice chat with push-to-talk or open-mic room modes, host moderation, participant approval, raise-hand flow, 1:1 voice focus, mute controls, and compact floating controls.
 - Session planning and saved session plans with shareable links, launch-into-room flow, downloadable calendar invites, timed-run support, and session-scoped content planning.
 - Two presentation modes:
@@ -86,7 +86,7 @@ Voice controls support both participant and host moderation flows:
 - Raise-hand indicator for participants.
 - Host-side hand alerts in the lobby and moderation panels.
 - Per-user allow voice, mute/unmute, lower hand, and 1:1 conversation controls.
-- Movable/collapsible voice dock similar to the playlist dock.
+- Movable/collapsible voice dock similar to the playlist dock; automatically stacks below the playlist dock when both are positioned on the right side.
 
 ## Slides Studio
 

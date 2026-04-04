@@ -45,7 +45,7 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
     <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:8px;">
       <button class="btn-secondary" data-action="edit-profile">✏️ Edit Profile</button>
       ${showFeedback ? '<button class="btn-secondary" data-action="open-feedback">🗣️ Feedback</button>' : ''}
-      <button class="btn-secondary" data-action="open-admin-console">🛠️ Admin Console</button>
+      ${isHost ? '<button class="btn-secondary" data-action="open-admin-console">🛠️ Admin Console</button>' : ''}
       <button class="btn-secondary" data-action="leave-session">🚪 Leave Session</button>
       ${(isHost && APP.preferences.enableActivityQueue !== false) ? '<button class="btn-secondary" data-action="go-screen" data-screen="activity-queue" aria-keyshortcuts="Alt+Q">🗂️ Activity Queue</button>' : ''}
       ${isHost ? `<button class="btn-secondary" data-action="toggle-host-voice" aria-label="${voiceSettings.enabled ? 'Turn off room voice' : 'Turn on room voice'}" title="${voiceSettings.enabled ? 'Turn off room voice' : 'Turn on room voice'}" style="border-color:${voiceSettings.enabled ? 'rgba(122,245,159,0.45)' : 'var(--border)'};color:${voiceSettings.enabled ? '#7af59f' : 'var(--text)'};">${voiceSettings.enabled ? '🎙️ Voice On' : '🔇 Voice Off'}</button>` : ''}
