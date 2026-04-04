@@ -2144,6 +2144,7 @@
         margin-left: auto;
         margin-right: auto;
       }
+
     .kahoot-answer {
       padding: 18px;
       font-size: 1rem;
@@ -2411,6 +2412,18 @@
 <div class="app" id="app"></div>
 
 <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" crossorigin="anonymous"></script>
+<script src="/assets/js/static-data.js"></script>
+<script src="/assets/js/runtime-utils.js"></script>
+<script src="/assets/js/storage-api.js"></script>
+<script src="/assets/js/navigation-core.js"></script>
+<script src="/assets/js/socket-core.js"></script>
+<script src="/assets/js/storage-runtime.js"></script>
+<script src="/assets/js/room-session-core.js"></script>
+<script src="/assets/js/domain-managers.js"></script>
+<script src="/assets/js/session-plans-core.js"></script>
+<script src="/assets/js/admin-runtime-core.js"></script>
+<script src="/assets/js/screen-renderers-core.js"></script>
+<script src="/assets/js/room-renderers-core.js"></script>
 <script>
 // Particle system
 const canvas = document.getElementById('particles');
@@ -2446,118 +2459,116 @@ function drawParticles() {
 }
 drawParticles();
 
-const AVATAR_OPTIONS = [
-  '😀','😎','🤓','🧠','🚀','🔥','⚡','💡','🎯','🏆',
-  '👨‍💼','👩‍💼','🧑‍💻','👨‍🎨','👩‍🔬','🧑‍🚀',
-  '👨‍🏫','👩‍⚕️','🧑‍🍳','👨‍🌾','👩‍🎤','🧑‍✈️',
-  '👨‍🎓','👩‍🚒','🧑‍⚖️','👨‍🔧','🧑‍🔬','🧑‍🏫',
-  '🧑‍🚒','🧑‍🎨','🧑‍⚕️','🧑‍🔧','🧑‍💼','🧑‍🌾',
-  '🐼','🦊','🐯','🦁','🐸','🦄','🐙','🐧','🐨','🦉',
-  '🍕','🍩','🍟','☕','🎮','🎧','📚','🧩','🌟','🎉'
-];
+const STATIC_DATA = window.TEAM_BUILDER_STATIC_DATA || {};
+const TEAM_BUILDER_STORAGE_KEYS = window.TEAM_BUILDER_STORAGE_KEYS || {};
+const TEAM_BUILDER_ENDPOINTS = window.TEAM_BUILDER_ENDPOINTS || {};
 
-const LIGHTNING_REACTIONS = ['👍','👏','🔥','😄','🤯','🎉','⚡','💯'];
+const FEEDBACK_USER_TOKEN_KEY = TEAM_BUILDER_STORAGE_KEYS.FEEDBACK_USER_TOKEN_KEY || 'feedback-user-token';
+const ROOM_ACCESS_TOKEN_KEY_PREFIX = TEAM_BUILDER_STORAGE_KEYS.ROOM_ACCESS_TOKEN_KEY_PREFIX || 'room-access-token:';
+const ACTIVE_SESSION_STORAGE_KEY = TEAM_BUILDER_STORAGE_KEYS.ACTIVE_SESSION_STORAGE_KEY || 'active-session';
+const SESSION_PLANS_STORAGE_KEY = TEAM_BUILDER_STORAGE_KEYS.SESSION_PLANS_STORAGE_KEY || 'session-plans';
+const SOCKET_SERVER_OVERRIDE = TEAM_BUILDER_ENDPOINTS.SOCKET_SERVER_OVERRIDE || '';
+const SOCKET_SERVER_URL = TEAM_BUILDER_ENDPOINTS.SOCKET_SERVER_URL || window.location.origin;
+const API_BASE_URL = TEAM_BUILDER_ENDPOINTS.API_BASE_URL || window.location.origin;
+const normalizeRoomAccessToken = window.normalizeRoomAccessToken;
+const getRoomAccessStorageKey = window.getRoomAccessStorageKey;
+const getStoredRoomAccessToken = window.getStoredRoomAccessToken;
+const setStoredRoomAccessToken = window.setStoredRoomAccessToken;
+const getRoomAccessTokenForKey = window.getRoomAccessTokenForKey;
+const getFeedbackUserToken = window.getFeedbackUserToken;
+const loadActiveSessionSnapshot = window.loadActiveSessionSnapshot;
+const getAbsoluteApiUrl = window.getAbsoluteApiUrl;
+const apiRequest = window.apiRequest;
+const goToScreen = window.goToScreen;
+const openAdminConsole = window.openAdminConsole;
+const switchAdminConsoleTab = window.switchAdminConsoleTab;
+const toggleShortcutHelp = window.toggleShortcutHelp;
+const isEditableTarget = window.isEditableTarget;
+const getModifierLabel = window.getModifierLabel;
+const formatModifierShortcut = window.formatModifierShortcut;
+const getShortcutHelpItems = window.getShortcutHelpItems;
+const handleEscapeNavigation = window.handleEscapeNavigation;
+const handleGlobalKeyboardShortcuts = window.handleGlobalKeyboardShortcuts;
+const socketEmitAck = window.socketEmitAck;
+const waitForSocketConnection = window.waitForSocketConnection;
+const getSocketClient = window.getSocketClient;
+const getSupabaseClient = window.getSupabaseClient;
+const Storage = window.TeamBuilderStorage;
+const persistActiveSessionSnapshot = window.persistActiveSessionSnapshot;
+const clearActiveSessionSnapshot = window.clearActiveSessionSnapshot;
+const exitUnavailableRoom = window.exitUnavailableRoom;
+const startRoomRealtime = window.startRoomRealtime;
+const stopRoomRealtime = window.stopRoomRealtime;
+const stopRoomSync = window.stopRoomSync;
+const restoreActiveSession = window.restoreActiveSession;
+const createRoomAndNavigate = window.createRoomAndNavigate;
+const createCommunityRoomAndNavigate = window.createCommunityRoomAndNavigate;
+const createRoomFromSessionPlan = window.createRoomFromSessionPlan;
+const joinRoom = window.joinRoom;
+const joinRoomByCode = window.joinRoomByCode;
+const leaveSession = window.leaveSession;
+const startRoomSync = window.startRoomSync;
+const PlayerManager = window.PlayerManager;
+const awardParticipationInput = window.awardParticipationInput;
+const RoomManager = window.RoomManager;
+const normalizeSessionPlan = window.normalizeSessionPlan;
+const loadSessionPlans = window.loadSessionPlans;
+const persistSessionPlans = window.persistSessionPlans;
+const decodeSessionPlan = window.decodeSessionPlan;
+const buildSessionPlanShareUrl = window.buildSessionPlanShareUrl;
+const getSessionPlanById = window.getSessionPlanById;
+const applySessionPlanToRoom = window.applySessionPlanToRoom;
+const editSessionPlan = window.editSessionPlan;
+const clearSessionPlanEditor = window.clearSessionPlanEditor;
+const saveSessionPlan = window.saveSessionPlan;
+const deleteSessionPlan = window.deleteSessionPlan;
+const shareSessionPlan = window.shareSessionPlan;
+const exportSessionPlanIcs = window.exportSessionPlanIcs;
+const applyBranding = window.applyBranding;
+const normalizeClientCollections = window.normalizeClientCollections;
+const applyConfigPayload = window.applyConfigPayload;
+const loadHostLocalConfig = window.loadHostLocalConfig;
+const saveHostLocalConfig = window.saveHostLocalConfig;
+const loadCommunityRooms = window.loadCommunityRooms;
+const refreshCommunityHostAccessRequests = window.refreshCommunityHostAccessRequests;
+const loadCommunityDirectoryData = window.loadCommunityDirectoryData;
+const submitCommunityHostAccessRequest = window.submitCommunityHostAccessRequest;
+const saveCommunityHostAccessRequest = window.saveCommunityHostAccessRequest;
+const loadPublicConfig = window.loadPublicConfig;
+const loadGlobalConfig = window.loadGlobalConfig;
+const openFeedbackHub = window.openFeedbackHub;
+const refreshMyFeedback = window.refreshMyFeedback;
+const submitFeedback = window.submitFeedback;
+const adminLogin = window.adminLogin;
+const adminLogout = window.adminLogout;
+const refreshAdminConfig = window.refreshAdminConfig;
+const refreshAdminFeedback = window.refreshAdminFeedback;
+const saveAdminFeedbackItem = window.saveAdminFeedbackItem;
+const saveAdminConfig = window.saveAdminConfig;
+const renderDashboard = window.renderDashboard;
+const renderCommunityDirectory = window.renderCommunityDirectory;
+const renderAboutApp = window.renderAboutApp;
+const renderJoinRoom = window.renderJoinRoom;
+const renderFeedbackHub = window.renderFeedbackHub;
+const renderAdminConsole = window.renderAdminConsole;
+const renderLobby = window.renderLobby;
+const renderActivityQueue = window.renderActivityQueue;
+
+function cloneStaticData(key, fallback) {
+  if (!Object.prototype.hasOwnProperty.call(STATIC_DATA, key)) return fallback;
+  try {
+    return JSON.parse(JSON.stringify(STATIC_DATA[key]));
+  } catch (_error) {
+    return fallback;
+  }
+}
+
+const AVATAR_OPTIONS = cloneStaticData('AVATAR_OPTIONS', ['😀', '😎', '🤓']);
+
+const LIGHTNING_REACTIONS = cloneStaticData('LIGHTNING_REACTIONS', ['👍', '👏', '🔥']);
 
 function getRandomAvatar() {
   return AVATAR_OPTIONS[Math.floor(Math.random() * AVATAR_OPTIONS.length)] || '😀';
-}
-
-function safeParseJson(value) {
-  if (value === null || value === undefined) return null;
-  if (typeof value === 'string' && !value.trim()) return null;
-  try {
-    return JSON.parse(value);
-  } catch (e) {
-    console.error('Invalid JSON payload:', e.message);
-    return null;
-  }
-}
-
-function normalizeName(name) {
-  return name.replace(/\s+/g, ' ').trim().slice(0, 32);
-}
-
-function normalizeWord(word) {
-  return (word || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5);
-}
-
-function normalizeChainWord(word) {
-  return (word || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 16);
-}
-
-function normalizeCharadesAnswer(value) {
-  return String(value || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 80);
-}
-
-function getEmojiCharadesGuessOutcome(guess, answerKey, closeAccepted) {
-  const guessKey = normalizeCharadesAnswer(guess);
-  if (!guessKey) {
-    return { guessKey: '', isExact: false, isCloseAccepted: false, points: 0 };
-  }
-  if (guessKey === answerKey) {
-    return { guessKey, isExact: true, isCloseAccepted: false, points: 100 };
-  }
-  if (closeAccepted) {
-    return { guessKey, isExact: false, isCloseAccepted: true, points: 100 };
-  }
-  return { guessKey, isExact: false, isCloseAccepted: false, points: 0 };
-}
-
-function normalizeEmoji(value) {
-  return String(value || '').trim().slice(0, 8);
-}
-
-function isValidHexColor(value) {
-  return /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(String(value || '').trim());
-}
-
-function normalizeTopic(value) {
-  return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 80);
-}
-
-function normalizeRoomCode(value) {
-  return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
-}
-
-function normalizeTriviaOption(value) {
-  const raw = String(value || '').trim();
-  return raw
-    .replace(/^\s*[A-D]\s*[:\)\.\-]\s*/i, '')
-    .replace(/^\s*[A-D]\s+/i, '')
-    .trim();
-}
-
-function normalizeAnswerIndex(value) {
-  if (typeof value === 'number' && Number.isInteger(value)) return value;
-  const text = String(value || '').trim().toUpperCase();
-  const asNumber = Number.parseInt(text, 10);
-  if (!Number.isNaN(asNumber)) return asNumber;
-  if (/^[A-D]$/.test(text)) return text.charCodeAt(0) - 65;
-  return Number.NaN;
-}
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function extractFirstJson(text) {
-  if (!text) return null;
-  const trimmed = String(text).trim();
-  if (trimmed.startsWith('[') || trimmed.startsWith('{')) return trimmed;
-  const start = trimmed.indexOf('[');
-  const end = trimmed.lastIndexOf(']');
-  if (start >= 0 && end > start) return trimmed.slice(start, end + 1);
-  return null;
 }
 
 function validateAIQuestions(items) {
@@ -2748,37 +2759,6 @@ function randomAlphaNum(length) {
   return Array.from(bytes, b => chars[b % chars.length]).join('');
 }
 
-function normalizeRoomAccessToken(token) {
-  const normalized = String(token || '').trim();
-  return /^[A-Za-z0-9_-]{20,128}$/.test(normalized) ? normalized : '';
-}
-
-function getRoomAccessStorageKey(code) {
-  const normalizedCode = normalizeRoomCode(code || '');
-  return normalizedCode ? `${ROOM_ACCESS_TOKEN_KEY_PREFIX}${normalizedCode}` : '';
-}
-
-function getStoredRoomAccessToken(code) {
-  const storageKey = getRoomAccessStorageKey(code);
-  if (!storageKey) return '';
-  return normalizeRoomAccessToken(localStorage.getItem(storageKey) || '');
-}
-
-function setStoredRoomAccessToken(code, token) {
-  const storageKey = getRoomAccessStorageKey(code);
-  const normalizedToken = normalizeRoomAccessToken(token);
-  if (!storageKey || !normalizedToken) return;
-  localStorage.setItem(storageKey, normalizedToken);
-}
-
-function getRoomAccessTokenForKey(key, overrideToken = '') {
-  const normalizedOverride = normalizeRoomAccessToken(overrideToken);
-  if (normalizedOverride) return normalizedOverride;
-  const match = /^room:([A-Z0-9]{6})$/.exec(String(key || ''));
-  if (!match) return '';
-  return getStoredRoomAccessToken(match[1]);
-}
-
 function isRoomPrivateSession(room) {
   return room?.access?.privateSession === true || room?.hostSettings?.privateSession === true;
 }
@@ -2790,40 +2770,6 @@ function buildJoinUrl(code, accessToken = '', privateSession = false) {
   const normalizedToken = normalizeRoomAccessToken(accessToken);
   if (privateSession && normalizedToken) params.set('token', normalizedToken);
   return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
-}
-
-function getFeedbackUserToken() {
-  let token = localStorage.getItem(FEEDBACK_USER_TOKEN_KEY) || '';
-  if (!token) {
-    token = `u_${randomAlphaNum(18)}`;
-    localStorage.setItem(FEEDBACK_USER_TOKEN_KEY, token);
-  }
-  return token;
-}
-
-function loadActiveSessionSnapshot() {
-  const stored = safeParseJson(localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY) || '');
-  if (!stored || typeof stored !== 'object') return null;
-  const roomCode = normalizeRoomCode(stored.roomCode || '');
-  const accessToken = normalizeRoomAccessToken(stored.accessToken || '');
-  const playerId = String(stored.playerId || '').trim();
-  const playerName = normalizeName(stored.playerName || '');
-  if (!roomCode || !playerId || !playerName) return null;
-  return { roomCode, accessToken, playerId, playerName };
-}
-
-function persistActiveSessionSnapshot() {
-  if (!APP.player?.id || !APP.player?.name || !APP.roomCode) return;
-  localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, JSON.stringify({
-    roomCode: APP.roomCode,
-    accessToken: APP.roomAccessToken || '',
-    playerId: APP.player.id,
-    playerName: APP.player.name
-  }));
-}
-
-function clearActiveSessionSnapshot() {
-  localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
 }
 
 function normalizeContentBrief(raw) {
@@ -2869,110 +2815,6 @@ function normalizeQueueSchedule(rawSchedule, fallbackActivities = []) {
       activityId,
       durationMinutes: DEFAULT_QUEUE_ACTIVITY_DURATION_MINUTES
     }));
-}
-
-function normalizeSessionPlan(raw, idx = 0) {
-  if (!raw || typeof raw !== 'object') return null;
-  const title = normalizeTopic(raw.title || raw.name || '');
-  const idBase = String(raw.id || title || `session-plan-${idx + 1}`)
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48);
-  const queue = Array.isArray(raw.activityQueue)
-    ? raw.activityQueue.filter(activityId => ALL_ACTIVITY_IDS.includes(activityId))
-    : [];
-  const queueSchedule = normalizeQueueSchedule(raw.queueSchedule, queue);
-  return {
-    id: idBase || `session-plan-${Date.now()}-${idx}`,
-    title: title || `Session Plan ${idx + 1}`,
-    date: String(raw.date || '').trim().slice(0, 32),
-    time: String(raw.time || '').trim().slice(0, 32),
-    zoomLink: normalizeSlidesStudioUrl(raw.zoomLink || raw.link || ''),
-    details: String(raw.details || raw.description || '').replace(/\r/g, '').trim().slice(0, 2000),
-    activityQueue: queueSchedule.map(item => item.activityId),
-    queueSchedule,
-    timedSessionEnabled: raw.timedSessionEnabled === true,
-    contentBrief: normalizeContentBrief(raw.contentBrief),
-    contentCollections: normalizeClientCollections(raw.contentCollections),
-    createdAt: String(raw.createdAt || new Date().toISOString()),
-    updatedAt: String(raw.updatedAt || raw.createdAt || new Date().toISOString())
-  };
-}
-
-function loadSessionPlans() {
-  const stored = safeParseJson(localStorage.getItem(SESSION_PLANS_STORAGE_KEY) || '');
-  if (!Array.isArray(stored)) return [];
-  return stored
-    .map((plan, idx) => normalizeSessionPlan(plan, idx))
-    .filter(Boolean)
-    .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
-}
-
-function persistSessionPlans(plans) {
-  const normalized = Array.isArray(plans)
-    ? plans.map((plan, idx) => normalizeSessionPlan(plan, idx)).filter(Boolean)
-    : [];
-  localStorage.setItem(SESSION_PLANS_STORAGE_KEY, JSON.stringify(normalized));
-  APP.sessionManager.plans = normalized;
-}
-
-function encodeSessionPlan(plan) {
-  try {
-    return btoa(unescape(encodeURIComponent(JSON.stringify(plan))));
-  } catch (_error) {
-    return '';
-  }
-}
-
-function decodeSessionPlan(payload) {
-  try {
-    return safeParseJson(decodeURIComponent(escape(atob(payload))));
-  } catch (_error) {
-    return null;
-  }
-}
-
-function buildSessionPlanShareUrl(plan) {
-  const encoded = encodeSessionPlan(plan);
-  if (!encoded) return '';
-  const url = new URL(window.location.href);
-  url.searchParams.set('sessionPlan', encoded);
-  return url.toString();
-}
-
-function getSessionPlanById(planId) {
-  const id = String(planId || '').trim();
-  return (APP.sessionManager.plans || []).find(plan => plan.id === id) || null;
-}
-
-function applySessionPlanToRoom(room, plan) {
-  const normalizedPlan = normalizeSessionPlan(plan);
-  if (!room || !normalizedPlan) return room;
-  room.sessionPlan = {
-    id: normalizedPlan.id,
-    title: normalizedPlan.title,
-    date: normalizedPlan.date,
-    time: normalizedPlan.time,
-    zoomLink: normalizedPlan.zoomLink,
-    details: normalizedPlan.details,
-    contentBrief: normalizedPlan.contentBrief,
-    updatedAt: normalizedPlan.updatedAt
-  };
-  room.contentBrief = normalizedPlan.contentBrief;
-  room.contentCollections = normalizeClientCollections(normalizedPlan.contentCollections || []);
-  room.queueSchedule = normalizeQueueSchedule(normalizedPlan.queueSchedule, normalizedPlan.activityQueue);
-  room.activityQueue = room.queueSchedule.map(item => item.activityId);
-  room.queueIndex = 0;
-  room.queueActive = false;
-  room.queueTiming = {
-    enabled: normalizedPlan.timedSessionEnabled === true,
-    currentQueuePointer: -1,
-    currentStartedAt: 0,
-    currentEndsAt: 0
-  };
-  room.lastUpdate = Date.now();
-  return room;
 }
 
 function getDefaultAppPreferences() {
@@ -3040,28 +2882,6 @@ function normalizeAppPreferences(raw) {
   };
 }
 
-function applyBranding(config) {
-  const branding = config?.branding || {};
-  const preferences = normalizeAppPreferences(config?.preferences || {});
-  const appName = String(branding.appName || APP.branding.appName).trim();
-  const tagline = String(branding.tagline || APP.branding.tagline).trim();
-  const accent = /^#[0-9a-fA-F]{6}$/.test(String(branding.accent || '').trim())
-    ? String(branding.accent).trim()
-    : APP.branding.accent;
-
-  APP.branding = {
-    appName: appName || APP.branding.appName,
-    tagline: tagline || APP.branding.tagline,
-    accent
-  };
-  APP.preferences = {
-    ...APP.preferences,
-    ...preferences
-  };
-  document.documentElement.style.setProperty('--accent', APP.branding.accent);
-  syncFooterQuoteRotation();
-}
-
 function isActivityEnabled(activityId) {
   return APP.preferences?.enabledActivities?.[activityId] !== false;
 }
@@ -3078,20 +2898,6 @@ function canCurrentUserManageCommunityRoom(room) {
   if (!room || room.roomType !== 'community') return false;
   if (APP.admin?.authenticated) return true;
   return normalizeName(APP.player?.name || '') === normalizeName(room.host || '');
-}
-
-function exitUnavailableRoom(message = 'Room no longer available.') {
-  stopRoomSync();
-  ticTacToeFinalizePending = false;
-  APP.room = null;
-  APP.roomCode = null;
-  APP.roomAccessToken = null;
-  clearActiveSessionSnapshot();
-  APP.showHostSettings = false;
-  APP.screen = 'dashboard';
-  resetWordChainFocusState();
-  showError(message);
-  render();
 }
 
 function getEnabledActivityItems() {
@@ -3135,38 +2941,6 @@ function activityHasPlayableContent(activityId, room = APP.room) {
   return true;
 }
 
-function normalizeClientCollections(rawCollections) {
-  if (!Array.isArray(rawCollections)) return [];
-  const seen = new Set();
-  const normalized = [];
-  rawCollections.forEach((raw, idx) => {
-    if (!raw || typeof raw !== 'object') return;
-    const idBase = String(raw.id || raw.name || `collection_${idx + 1}`)
-      .toLowerCase()
-      .replace(/[^a-z0-9_-]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 48);
-    const id = idBase || `collection_${Date.now()}_${idx}`;
-    if (seen.has(id)) return;
-    seen.add(id);
-    const activities = raw.activities && typeof raw.activities === 'object' ? raw.activities : {};
-    const filtered = {};
-    Object.entries(activities).forEach(([activityId, items]) => {
-      if (!ALL_ACTIVITY_IDS.includes(activityId)) return;
-      if (!Array.isArray(items) || !items.length) return;
-      filtered[activityId] = items;
-    });
-    if (!Object.keys(filtered).length) return;
-    normalized.push({
-      id,
-      name: String(raw.name || id).trim().slice(0, 80) || id,
-      description: String(raw.description || '').trim().slice(0, 240),
-      activities: filtered
-    });
-  });
-  return normalized;
-}
-
 function getCollectionActivityKey(activityId) {
   if (activityId === 'regular-trivia' || activityId === 'lightning-trivia' || activityId === 'trivia-bank') {
     return 'lightning-trivia';
@@ -3198,17 +2972,6 @@ function mergeCollections(baseCollections, scopedCollections) {
   ];
 }
 
-function applyConfigPayload(data) {
-  const config = data?.config || {};
-  applyBranding(config);
-  const collections = normalizeClientCollections(data?.collections || []);
-  APP.admin.collections = collections;
-  APP.admin.communityHostRequests = normalizeCommunityHostRequests(data?.communityHostRequests || APP.admin.communityHostRequests || []);
-  APP.admin.configDatabaseConnected = Boolean(data?.storage?.configDatabaseConnected);
-  APP.preferences = normalizeAppPreferences(config?.preferences || APP.preferences || {});
-  rehydrateActivityBanksFromConfig(collections);
-}
-
 function getPlanCollections(planId = '') {
   const plan = getSessionPlanById(planId || APP.sessionManager.editingPlanId);
   return normalizeClientCollections(plan?.contentCollections || []);
@@ -3236,25 +2999,6 @@ function syncActiveContentBanks() {
     ? getEffectiveCollectionsForContext({ scope: 'room' })
     : normalizeClientCollections(APP.admin.collections || []);
   rehydrateActivityBanksFromConfig(collections);
-}
-
-async function apiRequest(path, options = {}) {
-  const headers = { ...(options.headers || {}) };
-  if (options.withUserToken) headers['x-user-token'] = getFeedbackUserToken();
-  if (options.adminToken) headers['x-admin-token'] = options.adminToken;
-  if (options.roomToken) headers['x-room-token'] = options.roomToken;
-  if (options.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
-
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: options.method || 'GET',
-    headers,
-    body: options.body ? JSON.stringify(options.body) : undefined
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok || data?.ok === false) {
-    throw new Error(data?.error || `Request failed: ${response.status}`);
-  }
-  return data;
 }
 
 function getDefaultRoomHostSettings() {
@@ -3606,67 +3350,6 @@ function getDefaultHostLocalConfig() {
   };
 }
 
-function loadHostLocalConfig() {
-  const defaults = getDefaultHostLocalConfig();
-  const stored = safeParseJson(localStorage.getItem('host-local-config') || '');
-  if (!stored || typeof stored !== 'object') return defaults;
-  const merged = { ...defaults, ...stored };
-  merged.aiProvider = normalizeAIProvider(merged.aiProvider || defaults.aiProvider);
-  merged.aiEndpoint = String(merged.aiEndpoint || '').trim() || getDefaultAIEndpoint(merged.aiProvider);
-  merged.aiModel = String(merged.aiModel || '').trim() || getDefaultAIModel(merged.aiProvider);
-  const validActivities = new Set([
-    'lightning-trivia',
-    'emoji-charades',
-    'regular-trivia',
-    'icebreaker',
-    'pulse-check',
-    'values-vote',
-    'wordle',
-    'word-chain',
-    'brainstorm-canvas'
-  ]);
-  if (!validActivities.has(merged.aiDefaultActivity)) {
-    merged.aiDefaultActivity = defaults.aiDefaultActivity;
-  }
-  return merged;
-}
-
-function saveHostLocalConfig(config) {
-  localStorage.setItem('host-local-config', JSON.stringify(config));
-}
-
-const SOCKET_SERVER_OVERRIDE = window.SOCKET_SERVER_URL || localStorage.getItem('socket-server-url') || '';
-const SOCKET_SERVER_URL = (() => {
-  if (SOCKET_SERVER_OVERRIDE) return SOCKET_SERVER_OVERRIDE;
-  const host = String(window.location.hostname || '').toLowerCase();
-  const port = String(window.location.port || '');
-  const isLocalHost = host === 'localhost' || host === '127.0.0.1';
-  const isLikelyStaticLiveServerPort = /^55\d{2}$/.test(port);
-  if (isLocalHost && isLikelyStaticLiveServerPort) {
-    return `${window.location.protocol}//${window.location.hostname}:3000`;
-  }
-  return window.location.origin;
-})();
-const API_BASE_URL = (() => {
-  if (window.APP_API_BASE_URL) return window.APP_API_BASE_URL;
-  const host = String(window.location.hostname || '').toLowerCase();
-  const port = String(window.location.port || '');
-  const isLocalHost = host === 'localhost' || host === '127.0.0.1';
-  const isLikelyStaticLiveServerPort = /^55\d{2}$/.test(port);
-  if (isLocalHost && isLikelyStaticLiveServerPort) {
-    return `${window.location.protocol}//${window.location.hostname}:3000`;
-  }
-  return window.location.origin;
-})();
-function getAbsoluteApiUrl(value) {
-  const raw = String(value || '').trim();
-  if (!raw) return '';
-  try {
-    return new URL(raw, API_BASE_URL).toString();
-  } catch (_error) {
-    return raw;
-  }
-}
 const IS_LOCAL_DEV_CLIENT = (() => {
   const host = String(window.location.hostname || '').toLowerCase();
   return host === 'localhost' || host === '127.0.0.1';
@@ -3674,8 +3357,8 @@ const IS_LOCAL_DEV_CLIENT = (() => {
 const ENABLE_PRESENTATION_SHARE = true;
 const DEFAULT_SPOTIFY_PLAYLIST_URL = 'https://open.spotify.com/playlist/1spwwddGP1j6aaPy9IJ9zk?si=f33607c9ffa14144&pt=087efef975fd3cd17e88c9af035c57ee';
 const MAX_ROOM_PARTICIPANTS = 142;
-const DJ_BOOTH_DECK_KEYS = ['deckA', 'deckB'];
-const DJ_BOOTH_TONE_IDS = ['airhorn', 'laser', 'clap', 'chime', 'bass', 'siren', 'sparkle', 'hit'];
+const DJ_BOOTH_DECK_KEYS = cloneStaticData('DJ_BOOTH_DECK_KEYS', ['deckA', 'deckB']);
+const DJ_BOOTH_TONE_IDS = cloneStaticData('DJ_BOOTH_TONE_IDS', ['airhorn', 'laser']);
 const VOICE_RTC_CONFIG = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' }
@@ -3684,10 +3367,6 @@ const VOICE_RTC_CONFIG = {
 let socketClient = null;
 let socketRealtimeBound = false;
 let socketRoomKey = null;
-const FEEDBACK_USER_TOKEN_KEY = 'feedback-user-token';
-const ROOM_ACCESS_TOKEN_KEY_PREFIX = 'room-access-token:';
-const ACTIVE_SESSION_STORAGE_KEY = 'active-session';
-const SESSION_PLANS_STORAGE_KEY = 'session-plans';
 const VOICE_DOCK_UI_STORAGE_KEY = 'voice-dock-ui';
 let voiceClientBound = false;
 let voiceLocalStream = null;
@@ -3744,99 +3423,6 @@ function isValidSharedKey(key) {
 
 function isSocketConfigured() {
   return Boolean(window.io && SOCKET_SERVER_URL);
-}
-
-function socketEmitAck(eventName, payload, timeoutMs = 1500) {
-  return new Promise((resolve, reject) => {
-    if (!socketClient || !socketClient.connected) {
-      reject(new Error('Socket unavailable'));
-      return;
-    }
-    const timeout = setTimeout(() => reject(new Error('Socket timeout')), timeoutMs);
-    socketClient.emit(eventName, payload, response => {
-      clearTimeout(timeout);
-      if (!response || response.ok === false) {
-        reject(new Error(response?.error || `Socket ${eventName} failed`));
-        return;
-      }
-      resolve(response);
-    });
-  });
-}
-
-function waitForSocketConnection(timeoutMs = 1200) {
-  return new Promise(resolve => {
-    if (!socketClient) {
-      resolve(false);
-      return;
-    }
-    if (socketClient.connected) {
-      resolve(true);
-      return;
-    }
-    const done = connected => {
-      clearTimeout(timer);
-      socketClient.off('connect', onConnect);
-      resolve(connected);
-    };
-    const onConnect = () => done(true);
-    const timer = setTimeout(() => done(false), timeoutMs);
-    socketClient.on('connect', onConnect);
-  });
-}
-
-async function getSocketClient() {
-  if (!isSocketConfigured()) return null;
-  if (!socketClient) {
-    socketClient = window.io(SOCKET_SERVER_URL, {
-      transports: ['websocket', 'polling']
-    });
-    socketClient.on('connect', () => {
-      if (APP.roomCode) {
-        socketRoomKey = `room:${APP.roomCode}`;
-        const authToken = getRoomAccessTokenForKey(socketRoomKey, APP.roomAccessToken || '');
-        socketClient.emit('room:subscribe', authToken ? { key: socketRoomKey, authToken } : { key: socketRoomKey });
-        roomRealtimeEnabled = true;
-        void syncVoiceFeatureState();
-      }
-    });
-    socketClient.on('disconnect', () => {
-      roomRealtimeEnabled = false;
-      APP.voice.connected = false;
-      APP.voice.joining = false;
-      APP.voice.isTransmitting = false;
-      syncVoiceTrackEnabled();
-      render();
-    });
-  }
-  if (!socketRealtimeBound) {
-    socketClient.on('shared:update', payload => {
-      const key = payload?.key;
-      const value = payload?.value;
-      if (!key || key !== socketRoomKey || !APP.roomCode) return;
-      const room = normalizeRoom(safeParseJson(value));
-      if (!room) {
-        exitUnavailableRoom('This room has been removed.');
-        return;
-      }
-      APP.room = room;
-      void maybeClaimSpinWheelWinnerXp();
-      roomRealtimeEnabled = true;
-      void syncVoiceFeatureState();
-      render();
-    });
-    socketRealtimeBound = true;
-  }
-  if (!voiceClientBound) {
-    socketClient.on('voice:state', payload => {
-      syncVoiceStateFromServer(payload);
-    });
-    socketClient.on('voice:signal', payload => {
-      void handleIncomingVoiceSignal(payload);
-    });
-    voiceClientBound = true;
-  }
-  return socketClient;
 }
 
 function ensureVoiceAudioContainer() {
@@ -4607,294 +4193,7 @@ async function stopPushToTalk() {
   }
 }
 
-async function getSupabaseClient() {
-  if (!isSupabaseConfigured()) return null;
-  if (!supabaseClient) {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  }
-  return supabaseClient;
-}
-
-// Storage API wrapper
-const Storage = {
-  get: async function(key, shared = false, accessToken = '') {
-    try {
-      if (shared) {
-        if (!isValidSharedKey(key)) return null;
-        const authToken = getRoomAccessTokenForKey(key, accessToken);
-        const socket = await getSocketClient();
-        if (socket && (socket.connected || await waitForSocketConnection())) {
-          const response = await socketEmitAck('shared:get', authToken ? { key, authToken } : { key });
-          return response.value === null || response.value === undefined ? null : { value: response.value };
-        }
-        const client = await getSupabaseClient();
-        if (client) {
-          const { data, error } = await client
-            .from('shared_state')
-            .select('value')
-            .eq('key', key)
-            .maybeSingle();
-          if (error) throw error;
-          return data ? { value: data.value } : null;
-        }
-      }
-      if (window.storage?.get) {
-        return await window.storage.get(key, shared);
-      }
-      const value = localStorage.getItem(key);
-      return value === null ? null : { value };
-    } catch (e) {
-      console.log('Storage get failed:', e.message);
-      return null;
-    }
-  },
-  set: async function(key, value, shared = false, accessToken = '') {
-    try {
-      if (shared) {
-        if (!isValidSharedKey(key)) return null;
-        const authToken = getRoomAccessTokenForKey(key, accessToken);
-        const socket = await getSocketClient();
-        if (socket && (socket.connected || await waitForSocketConnection())) {
-          await socketEmitAck('shared:set', authToken ? { key, value, authToken } : { key, value });
-          return { key, value };
-        }
-        const client = await getSupabaseClient();
-        if (client) {
-          const { error } = await client
-            .from('shared_state')
-            .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
-          if (error) throw error;
-          return { key, value };
-        }
-      }
-      if (window.storage?.set) {
-        return await window.storage.set(key, value, shared);
-      }
-      localStorage.setItem(key, value);
-      return { key, value };
-    } catch (e) {
-      console.error('Storage set failed:', e.message);
-      return null;
-    }
-  },
-  remove: async function(key, shared = false, accessToken = '') {
-    try {
-      if (shared) {
-        if (!isValidSharedKey(key)) return null;
-        const authToken = getRoomAccessTokenForKey(key, accessToken);
-        const socket = await getSocketClient();
-        if (socket && (socket.connected || await waitForSocketConnection())) {
-          await socketEmitAck('shared:delete', authToken ? { key, authToken } : { key });
-          return { key };
-        }
-      }
-      if (window.storage?.remove) {
-        return await window.storage.remove(key, shared);
-      }
-      localStorage.removeItem(key);
-      return { key };
-    } catch (e) {
-      console.error('Storage remove failed:', e.message);
-      return null;
-    }
-  }
-};
-
 // Player Manager
-const PlayerManager = {
-  async createProfile(name, avatar) {
-    const profile = {
-      id: 'player-' + Date.now(),
-      name: normalizeName(name),
-      avatar: avatar,
-      level: 1,
-      xp: 0,
-      stats: {
-        gamesPlayed: 0,
-        activitiesCompleted: 0,
-        participationInputs: 0
-      },
-      badges: [],
-      created: Date.now()
-    };
-    
-    await Storage.set('player-profile', JSON.stringify(profile), false);
-    return profile;
-  },
-  
-  async loadProfile() {
-    const result = await Storage.get('player-profile', false);
-    return result ? safeParseJson(result.value) : null;
-  },
-  
-  async updateProfile(profile) {
-    await Storage.set('player-profile', JSON.stringify(profile), false);
-  },
-  
-  getXpForNextLevel(level) {
-    // Near-exponential curve: level 1=>1000, then grows by ~22% each level.
-    const base = 1000;
-    const growth = 1.22;
-    const safeLevel = Math.max(1, Number(level) || 1);
-    return Math.round(base * Math.pow(growth, safeLevel - 1));
-  },
-
-  async awardXP(amount, reason) {
-    const profile = await this.loadProfile();
-    if (!profile) return;
-    
-    profile.xp += amount;
-    
-    // Level up logic (supports multiple level jumps in one award)
-    let leveledUp = false;
-    while (profile.xp >= this.getXpForNextLevel(profile.level)) {
-      const xpForNextLevel = this.getXpForNextLevel(profile.level);
-      profile.level++;
-      profile.xp = profile.xp - xpForNextLevel;
-      leveledUp = true;
-    }
-    if (leveledUp) {
-      console.log('🎉 Level up!', profile.level);
-      showLevelUp(profile.level);
-    }
-    
-    await this.updateProfile(profile);
-    return profile;
-  },
-  
-  async incrementGames() {
-    const profile = await this.loadProfile();
-    if (!profile) return;
-    
-    profile.stats.gamesPlayed = (profile.stats.gamesPlayed || 0) + 1;
-    await this.updateProfile(profile);
-  }
-};
-
-async function awardParticipationInput(room, actionKey, points = 5) {
-  if (!room || !APP.player?.name || !actionKey) return;
-  room.activityState = room.activityState || {};
-  const awards = room.activityState.participationAwards || {};
-  if (awards[actionKey]) return;
-  awards[actionKey] = Date.now();
-  room.activityState.participationAwards = awards;
-
-  const updatedProfile = await PlayerManager.awardXP(points, `participation:${actionKey}`);
-  if (!updatedProfile) return;
-  updatedProfile.stats = updatedProfile.stats || {};
-  updatedProfile.stats.participationInputs = (updatedProfile.stats.participationInputs || 0) + 1;
-  await PlayerManager.updateProfile(updatedProfile);
-  APP.player = updatedProfile;
-}
-
-// Room Manager
-const RoomManager = {
-  generateCode() {
-    return randomAlphaNum(6);
-  },
-
-  generateAccessToken() {
-    return randomAlphaNum(24);
-  },
-  
-  async createRoom(hostId, hostName, hostAvatar, options = {}) {
-    const code = this.generateCode();
-    const accessToken = this.generateAccessToken();
-    const createdAt = Date.now();
-    const roomType = String(options.roomType || '').trim().toLowerCase() === 'community' ? 'community' : 'private';
-    const communityTitle = roomType === 'community'
-      ? String(options.communityTitle || `${normalizeName(hostName || 'Host') || 'Host'}'s Community Lobby`).replace(/\s+/g, ' ').trim().slice(0, 80)
-      : '';
-    const communityDescription = roomType === 'community'
-      ? String(options.communityDescription || 'Open lobby for drop-in games and social play.').replace(/\s+/g, ' ').trim().slice(0, 220)
-      : '';
-    const maxParticipants = Math.max(2, Math.min(MAX_ROOM_PARTICIPANTS, Number(options.maxParticipants) || 24));
-    const room = normalizeRoom({
-      code: code,
-      roomType,
-      communityTitle,
-      communityDescription,
-      maxParticipants,
-      host: hostName,
-      participants: [createRoomParticipant(hostId, hostName, hostAvatar, true)],
-      currentActivity: null,
-      activityState: {},
-      activityQueue: [],
-      queueSchedule: [],
-      queueIndex: 0,
-      queueActive: false,
-      queueTiming: {
-        enabled: false,
-        currentQueuePointer: -1,
-        currentStartedAt: 0,
-        currentEndsAt: 0
-      },
-      access: {
-        privateSession: false
-      },
-      sharedSpotifyPlaylist: getDefaultSharedSpotifyPlaylist(createdAt),
-      hostSettings: getDefaultRoomHostSettings(),
-      created: createdAt,
-      lastUpdate: createdAt
-    });
-    
-    await Storage.set(`room:${code}`, JSON.stringify(room), true, accessToken);
-    setStoredRoomAccessToken(code, accessToken);
-    return { room, accessToken };
-  },
-  
-  async joinRoom(code, playerId, playerName, playerAvatar, accessToken = '') {
-    const normalizedToken = normalizeRoomAccessToken(accessToken);
-    const result = await Storage.get(`room:${code}`, true, normalizedToken);
-    if (!result) return null;
-    
-    const room = normalizeRoom(safeParseJson(result.value));
-    if (!room) return null;
-    
-    const existingParticipant = room.participants.find(p => p.id === playerId || p.name === playerName);
-    if (!existingParticipant) {
-      const maxParticipants = Math.max(2, Math.min(MAX_ROOM_PARTICIPANTS, Number(room.maxParticipants) || 24));
-      if ((room.participants?.length || 0) >= maxParticipants) {
-        throw new Error(`This room is full (${maxParticipants} participants max).`);
-      }
-      room.participants.push(createRoomParticipant(playerId, playerName, playerAvatar, false));
-      room.participants = normalizeRoomParticipants(room.participants, room.host);
-      room.lastUpdate = Date.now();
-      await Storage.set(`room:${code}`, JSON.stringify(room), true, normalizedToken);
-    } else if (existingParticipant.id !== playerId || existingParticipant.avatar !== playerAvatar || existingParticipant.name !== playerName) {
-      room.participants = normalizeRoomParticipants(room.participants.map(participant => {
-        if (participant.id !== existingParticipant.id) return participant;
-        return {
-          ...participant,
-          id: normalizeParticipantId(playerId, playerName),
-          name: playerName,
-          avatar: playerAvatar
-        };
-      }), room.host);
-      room.lastUpdate = Date.now();
-      await Storage.set(`room:${code}`, JSON.stringify(room), true, normalizedToken);
-    }
-    
-    if (normalizedToken) {
-      setStoredRoomAccessToken(code, normalizedToken);
-    }
-    return room;
-  },
-  
-  async loadRoom(code, accessToken = '') {
-    const result = await Storage.get(`room:${code}`, true, accessToken);
-    return result ? normalizeRoom(safeParseJson(result.value)) : null;
-  },
-  
-  async updateRoom(code, room, accessToken = '') {
-    const normalizedRoom = normalizeRoom({
-      ...(room || {}),
-      lastUpdate: Date.now()
-    });
-    await Storage.set(`room:${code}`, JSON.stringify(normalizedRoom), true, accessToken);
-  }
-};
-
 // App State
 const ALL_ACTIVITY_IDS = [
   'lightning-trivia',
@@ -5075,6 +4374,7 @@ const APP = {
     authenticated: false,
     token: localStorage.getItem('admin-token') || '',
     activeTab: 'overview',
+    returnScreen: '',
     feedback: [],
     loading: false,
     collections: [],
@@ -5094,266 +4394,39 @@ const APP = {
   }
 };
 const APP_VERSION = '1.1.2';
-const TEAM_BUILDING_QUOTES = [
-  'Great teams do not just work side by side. They build trust out loud.',
-  'Momentum grows when everyone feels safe enough to contribute one honest idea.',
-  'Strong collaboration is usually a series of small helpful moves, repeated often.',
-  'The best team wins are shared before they are celebrated.',
-  'Progress gets faster when the room is curious, clear, and kind.',
-  'A team becomes resilient when people solve problems with each other, not around each other.',
-  'Good energy is contagious when everyone has a chance to bring something to the table.',
-  'Alignment is a competitive advantage when the whole team can see the same goal.',
-  'Better meetings start when every voice feels invited into the work.',
-  'Teams get stronger each time they turn participation into momentum.'
-];
+const TEAM_BUILDING_QUOTES = cloneStaticData('TEAM_BUILDING_QUOTES', []);
 let footerQuoteTimer = null;
 
-const TRIVIA_BANK = [
-  { q: "What is the capital of France?", opts: ["London", "Paris", "Berlin", "Rome"], ans: 1 },
-  { q: "How many continents are there?", opts: ["5", "6", "7", "8"], ans: 2 },
-  { q: "What is the largest ocean?", opts: ["Atlantic", "Indian", "Arctic", "Pacific"], ans: 3 },
-  { q: "Which planet is closest to the Sun?", opts: ["Venus", "Mercury", "Mars", "Earth"], ans: 1 },
-  { q: "What is the chemical symbol for gold?", opts: ["Go", "Gd", "Au", "Ag"], ans: 2 },
-  { q: "How many hearts does an octopus have?", opts: ["One", "Two", "Three", "Four"], ans: 2 },
-  { q: "What year did World War II end?", opts: ["1943", "1944", "1945", "1946"], ans: 2 },
-  { q: "What is the smallest country?", opts: ["Monaco", "Vatican City", "San Marino", "Malta"], ans: 1 },
-  { q: "Which element has atomic number 1?", opts: ["Helium", "Hydrogen", "Oxygen", "Carbon"], ans: 1 },
-  { q: "How many strings does a guitar have?", opts: ["4", "5", "6", "7"], ans: 2 }
-];
+const TRIVIA_BANK = cloneStaticData('TRIVIA_BANK', []);
 
-const TEAM_JEOPARDY_BOARD = [
-  {
-    category: 'Science',
-    clues: [
-      { value: 100, q: 'What gas do humans breathe in to survive?', opts: ['Nitrogen', 'Carbon Dioxide', 'Oxygen', 'Hydrogen'], ans: 2 },
-      { value: 200, q: 'How many planets are in our solar system?', opts: ['7', '8', '9', '10'], ans: 1 },
-      { value: 300, q: 'What force keeps us on the ground?', opts: ['Magnetism', 'Friction', 'Gravity', 'Pressure'], ans: 2 },
-      { value: 400, q: 'What part of the plant conducts photosynthesis most often?', opts: ['Root', 'Stem', 'Leaf', 'Seed'], ans: 2 },
-      { value: 500, q: 'What is the chemical symbol for sodium?', opts: ['S', 'So', 'Na', 'Sn'], ans: 2 }
-    ]
-  },
-  {
-    category: 'History',
-    clues: [
-      { value: 100, q: 'Who was the first president of the United States?', opts: ['Thomas Jefferson', 'George Washington', 'John Adams', 'Abraham Lincoln'], ans: 1 },
-      { value: 200, q: 'In what year did World War II end?', opts: ['1945', '1944', '1939', '1950'], ans: 0 },
-      { value: 300, q: 'The Great Wall is located in which country?', opts: ['Japan', 'India', 'China', 'Korea'], ans: 2 },
-      { value: 400, q: 'Which civilization built Machu Picchu?', opts: ['Maya', 'Aztec', 'Roman', 'Inca'], ans: 3 },
-      { value: 500, q: 'The Renaissance began in which country?', opts: ['France', 'Italy', 'England', 'Spain'], ans: 1 }
-    ]
-  },
-  {
-    category: 'Geography',
-    clues: [
-      { value: 100, q: 'What is the largest ocean on Earth?', opts: ['Atlantic', 'Pacific', 'Indian', 'Arctic'], ans: 1 },
-      { value: 200, q: 'Which continent is Egypt in?', opts: ['Asia', 'Europe', 'Africa', 'South America'], ans: 2 },
-      { value: 300, q: 'What is the capital city of Canada?', opts: ['Toronto', 'Vancouver', 'Montreal', 'Ottawa'], ans: 3 },
-      { value: 400, q: 'Mount Everest sits on the border of Nepal and what other country?', opts: ['China', 'India', 'Bhutan', 'Pakistan'], ans: 0 },
-      { value: 500, q: 'Which river runs through Egypt?', opts: ['Amazon', 'Nile', 'Danube', 'Mississippi'], ans: 1 }
-    ]
-  },
-  {
-    category: 'Pop Culture',
-    clues: [
-      { value: 100, q: 'What streaming platform is known for "Stranger Things"?', opts: ['Hulu', 'Disney+', 'Netflix', 'Prime Video'], ans: 2 },
-      { value: 200, q: 'Which movie features a young lion named Simba?', opts: ['Madagascar', 'The Lion King', 'Tarzan', 'Kung Fu Panda'], ans: 1 },
-      { value: 300, q: 'What is Spider-Man\'s first name?', opts: ['Peter', 'Bruce', 'Clark', 'Tony'], ans: 0 },
-      { value: 400, q: 'Which artist is known as the "Queen of Pop"?', opts: ['Madonna', 'Beyonce', 'Adele', 'Rihanna'], ans: 0 },
-      { value: 500, q: 'In "The Office" (US), what company does the Scranton branch belong to?', opts: ['Sabre Corp', 'Dunder Mifflin', 'Vance Refrigeration', 'Athlead'], ans: 1 }
-    ]
-  },
-  {
-    category: 'Workplace',
-    clues: [
-      { value: 100, q: 'What does KPI stand for?', opts: ['Key Performance Indicator', 'Known Process Input', 'Key Product Initiative', 'Knowledge Practice Index'], ans: 0 },
-      { value: 200, q: 'Which meeting format is usually 10-15 minutes, daily, and focused on blockers?', opts: ['Retrospective', 'Town hall', 'Standup', 'Kickoff'], ans: 2 },
-      { value: 300, q: 'What is the main purpose of a retrospective?', opts: ['Set salaries', 'Review and improve team process', 'Announce layoffs', 'Write job descriptions'], ans: 1 },
-      { value: 400, q: 'What is a common meaning of "MVP" in product work?', opts: ['Most Valuable Professional', 'Minimum Viable Product', 'Managed Version Plan', 'Main Value Program'], ans: 1 },
-      { value: 500, q: 'What is "scope creep"?', opts: ['Hiring too fast', 'A project timeline moving earlier', 'Uncontrolled expansion of project requirements', 'Losing source control history'], ans: 2 }
-    ]
-  }
-];
+const TEAM_JEOPARDY_BOARD = cloneStaticData('TEAM_JEOPARDY_BOARD', []);
 
-const SPIN_WHEEL_DEFAULT_OPTIONS = [
-  { label: 'Mini Lightning Trivia', action: { type: 'activity', activityId: 'lightning-trivia' } },
-  { label: 'Mini Trivia Battle', action: { type: 'activity', activityId: 'regular-trivia' } },
-  { label: 'Mini Emoji Charades', action: { type: 'activity', activityId: 'emoji-charades' } },
-  { label: 'Mini Icebreaker', action: { type: 'activity', activityId: 'icebreaker' } },
-  { label: 'Mini Team Wordle', action: { type: 'activity', activityId: 'wordle' } },
-  { label: 'Mini Word Chain', action: { type: 'activity', activityId: 'word-chain' } },
-  { label: 'Mini Brainstorm', action: { type: 'activity', activityId: 'brainstorm-canvas' } },
-  { label: 'Mini Team Jeopardy', action: { type: 'activity', activityId: 'team-jeopardy' } },
-  { label: 'Bonus 50 Points', action: { type: 'points', points: 50 } },
-  { label: 'Bonus 100 Points', action: { type: 'points', points: 100 } },
-  { label: 'Jackpot 150 Points', action: { type: 'points', points: 150 } },
-  { label: 'Team Shoutout', prompt: 'Give a teammate a 10-second shoutout before the next spin.' },
-  { label: 'Mini Break', prompt: 'Everybody take a 20-second stretch break and reset.' },
-  { label: 'Wildcard Prompt', prompt: 'The spinner chooses any teammate to answer a fun one-line question.' }
-];
+const SPIN_WHEEL_DEFAULT_OPTIONS = cloneStaticData('SPIN_WHEEL_DEFAULT_OPTIONS', []);
 const SPIN_WHEEL_DEFAULT_TITLE = 'Spin Wheel';
 const BRAINSTORM_DEFAULT_TITLE = 'Brainstorm Canvas';
 const SPIN_WHEEL_SESSION_OPTION_LIMIT = 8;
 const SPIN_WHEEL_FAVORITES_KEY = 'spin-wheel-favorites';
 const SPIN_WHEEL_FUN_TITLE = 'The Wheel of Doom... I mean Fun!';
-const SPIN_WHEEL_FUN_PROMPTS = [
-  { label: 'Truth: Theme Song', prompt: 'What song would play when you join a meeting?' },
-  { label: 'Dare: Pep Talk', prompt: 'Give the team a 10-second hype speech.' },
-  { label: 'Truth: Work Quirk', prompt: 'Share a harmless habit you always do while working.' },
-  { label: 'Dare: Product Pitch', prompt: 'Pitch your favorite snack or drink like a luxury brand.' },
-  { label: 'Truth: Hidden Talent', prompt: 'Tell the group one skill or talent teammates may not know about.' },
-  { label: 'Dare: Emoji Recap', prompt: 'Summarize your week using only three spoken emoji names.' },
-  { label: 'Truth: Desk MVP', prompt: 'What item on your desk or in your bag saves your day most often?' },
-  { label: 'Dare: Movie Trailer', prompt: 'Describe your job like a dramatic movie trailer voice-over.' }
-];
+const SPIN_WHEEL_FUN_PROMPTS = cloneStaticData('SPIN_WHEEL_FUN_PROMPTS', []);
 const SPIN_WHEEL_FUN_OPTIONS = SPIN_WHEEL_FUN_PROMPTS.map(item => item.label);
 const SPIN_WHEEL_FUN_PROMPT_MAP = Object.fromEntries(SPIN_WHEEL_FUN_PROMPTS.map(item => [item.label, item.prompt]));
 const ADMIN_GENERATED_COLLECTION_ID = 'admin-generated-content';
 const ADMIN_GENERATED_COLLECTION_NAME = 'Admin Generated Content';
-const ADMIN_GENERATION_TARGETS = [
-  { id: 'lightning-trivia', label: 'Trivia Bank (Lightning + Trivia Battle)' },
-  { id: 'emoji-charades', label: 'Emoji Charades' },
-  { id: 'icebreaker', label: 'Icebreaker Roulette' },
-  { id: 'pulse-check', label: 'Team Pulse Check' },
-  { id: 'values-vote', label: 'Values Vote' },
-  { id: 'wordle', label: 'Team Wordle' },
-  { id: 'word-chain', label: 'Word Chain' },
-  { id: 'team-jeopardy', label: 'Team Jeopardy' },
-  { id: 'spin-wheel', label: 'Spin Wheel' }
-];
+const ADMIN_GENERATION_TARGETS = cloneStaticData('ADMIN_GENERATION_TARGETS', []);
 
 let HOST_LOCAL_CONFIG = loadHostLocalConfig();
 
-const ICEBREAKER_QUESTIONS = [
-  "If you could have dinner with anyone, living or dead, who would it be?",
-  "What's a skill you'd love to master?",
-  "What's your favorite way to spend a weekend?",
-  "If you could live anywhere for a year, where would you go?",
-  "What's the best advice you've ever received?",
-  "What's your go-to karaoke song?",
-  "What's something you're proud of that might surprise people?",
-  "If you could instantly become an expert in something, what would it be?",
-  "What's a book, movie, or show that changed your perspective?",
-  "What's your favorite childhood memory?",
-  "What's one small thing that always improves your day?",
-  "What's your most-used productivity hack?",
-  "What hobby would you pick up if time wasn't a constraint?",
-  "What's a place you'd love to visit next and why?",
-  "What's a recent win you had, big or small?",
-  "What's a food you could eat every week and not get bored?",
-  "What's one thing people often misunderstand about your role?",
-  "If your life had a theme song this week, what would it be?",
-  "What's a challenge you've overcome that shaped you?",
-  "What's your favorite way to recharge after a long day?",
-  "What's one app or tool you couldn't live without?",
-  "What was your first job, and what did it teach you?",
-  "If you could swap roles for a day with anyone, who and why?",
-  "What's your favorite tradition (family, cultural, or personal)?",
-  "What's a goal you're currently working toward?",
-  "What's your ideal remote-work setup?",
-  "What's one skill from outside work that helps you at work?",
-  "What's a random fun fact about you?",
-  "If you could mentor your younger self, what would you say?"
-];
+const ICEBREAKER_QUESTIONS = cloneStaticData('ICEBREAKER_QUESTIONS', []);
 
-const PULSE_QUESTIONS = [
-  { q: "How energized are you feeling today?", opts: ["🔥 Super charged", "😊 Pretty good", "😐 Neutral", "😴 Need coffee"] },
-  { q: "What's our team's biggest strength?", opts: ["Communication", "Innovation", "Collaboration", "Problem-solving"] },
-  { q: "Ideal team lunch?", opts: ["🍕 Pizza", "🌮 Tacos", "🍝 Italian", "🍱 Sushi"] },
-  { q: "How clear are current priorities?", opts: ["Crystal clear", "Mostly clear", "Somewhat unclear", "Need alignment"] },
-  { q: "How manageable is workload this week?", opts: ["Very manageable", "Balanced", "A bit heavy", "Overloaded"] },
-  { q: "How confident are we in our sprint goals?", opts: ["Very confident", "Mostly confident", "Mixed", "Low confidence"] },
-  { q: "Biggest blocker right now?", opts: ["Dependencies", "Scope", "Time", "Communication"] },
-  { q: "How effective are our meetings lately?", opts: ["Very effective", "Mostly useful", "Could improve", "Too many meetings"] },
-  { q: "Team collaboration this week feels...", opts: ["Excellent", "Good", "Inconsistent", "Needs support"] },
-  { q: "How safe do you feel sharing concerns?", opts: ["Very safe", "Mostly safe", "Sometimes", "Not enough"] },
-  { q: "Current team morale?", opts: ["High", "Steady", "Mixed", "Low"] },
-  { q: "How well are we handling context switching?", opts: ["Great", "Okay", "Challenging", "Very hard"] },
-  { q: "How likely are we to hit our deadline?", opts: ["Very likely", "Likely", "Unsure", "At risk"] },
-  { q: "What should we prioritize improving first?", opts: ["Planning", "Execution", "Communication", "Quality"] },
-  { q: "How supported do you feel by teammates?", opts: ["Strongly supported", "Supported", "Somewhat", "Need more support"] },
-  { q: "How healthy is our feedback culture?", opts: ["Excellent", "Good", "Needs work", "Weak"] },
-  { q: "How often are we celebrating wins?", opts: ["Consistently", "Sometimes", "Rarely", "Almost never"] }
-];
+const PULSE_QUESTIONS = cloneStaticData('PULSE_QUESTIONS', []);
 
-const TEAM_VALUES = [
-  { name: 'Innovation', icon: '💡' },
-  { name: 'Collaboration', icon: '🤝' },
-  { name: 'Integrity', icon: '✨' },
-  { name: 'Excellence', icon: '🎯' },
-  { name: 'Growth', icon: '🌱' },
-  { name: 'Balance', icon: '⚖️' },
-  { name: 'Creativity', icon: '🎨' },
-  { name: 'Trust', icon: '🛡️' },
-  { name: 'Planning', icon: '📋' }
-];
+const TEAM_VALUES = cloneStaticData('TEAM_VALUES', []);
 
-const WORDLE_WORDS = [
-  'AGILE', 'BOOST', 'CLOUD', 'DEBUG', 'EMAIL', 'FOCUS', 'GRAPH', 'HABIT',
-  'INBOX', 'LEARN', 'MERIT', 'PIVOT', 'QUEST', 'REACH', 'SCALE', 'TRUST',
-  'UNITE', 'VALUE', 'WORTH', 'YIELD'
-];
+const WORDLE_WORDS = cloneStaticData('WORDLE_WORDS', []);
 
-const WORD_CHAIN_PUZZLES = [
-  {
-    title: 'Chain A',
-    words: ['RAIN', 'BOW', 'TIE', 'BREAK', 'DOWN', 'LOAD', 'BEARING', 'WALL']
-  },
-  {
-    title: 'Chain B',
-    words: ['STAR', 'FISH', 'BOWL', 'GAME', 'PLAN', 'B', 'MOVIE', 'NIGHT']
-  },
-  {
-    title: 'Chain C',
-    words: ['HAND', 'SHAKE', 'DOWN', 'TIME', 'LINE', 'UP', 'GRADE', 'SCHOOL']
-  },
-  {
-    title: 'Chain D',
-    words: ['BOOK', 'SHELF', 'LIFE', 'CYCLE', 'TRACK', 'SUIT', 'CASE', 'STUDY']
-  },
-  {
-    title: 'Chain E',
-    words: ['SUN', 'FLOWER', 'POT', 'LUCK', 'CHARM', 'BRACELET', 'CASE', 'FILE']
-  },
-  {
-    title: 'Chain F',
-    words: ['NEWS', 'PAPER', 'CLIP', 'BOARD', 'GAME', 'PLAN', 'B', 'MOVIE']
-  },
-  {
-    title: 'Chain G',
-    words: ['TOOTH', 'BRUSH', 'STROKE', 'OF', 'COURSE', 'WORK', 'SPACE', 'BAR']
-  },
-  {
-    title: 'Chain H',
-    words: ['EAR', 'RING', 'TONE', 'DEAF', 'LEAF', 'BLOWER', 'MOTOR', 'BIKE']
-  },
-  {
-    title: 'Chain I',
-    words: ['WATER', 'FALL', 'BACK', 'PACK', 'RAT', 'RACE', 'TRACK', 'SUIT']
-  },
-  {
-    title: 'Chain J',
-    words: ['BLACK', 'BOARD', 'ROOM', 'SERVICE', 'DOG', 'HOUSE', 'PLANT', 'FOOD']
-  },
-  {
-    title: 'Chain K',
-    words: ['MAIL', 'BOX', 'OFFICE', 'HOUR', 'GLASS', 'DOOR', 'BELL', 'HOP']
-  }
-];
+const WORD_CHAIN_PUZZLES = cloneStaticData('WORD_CHAIN_PUZZLES', []);
 
-const EMOJI_CHARADES_BANK = [
-  { emojis: '🌮🔔', answer: 'Taco Bell' },
-  { emojis: '🧊☕', answer: 'Iced coffee' },
-  { emojis: '🕷️👨', answer: 'Spider-Man' },
-  { emojis: '🦁👑', answer: 'Lion King' },
-  { emojis: '🚀👨‍🚀', answer: 'Astronaut' },
-  { emojis: '📱🔋', answer: 'Phone battery' },
-  { emojis: '🎸⭐', answer: 'Rock star' },
-  { emojis: '🍕🎉', answer: 'Pizza party' },
-  { emojis: '🌧️🌈', answer: 'Rainbow' },
-  { emojis: '🧠⚡', answer: 'Brainstorm' },
-  { emojis: '🐟🍟', answer: 'Fish and chips' },
-  { emojis: '🍿🎬', answer: 'Movie night' }
-];
+const EMOJI_CHARADES_BANK = cloneStaticData('EMOJI_CHARADES_BANK', []);
 
 const SAMPLE_TRIVIA_BANK = safeParseJson(JSON.stringify(TRIVIA_BANK)) || [];
 const SAMPLE_ICEBREAKER_QUESTIONS = [...ICEBREAKER_QUESTIONS];
@@ -5441,124 +4514,28 @@ function buildBrainstormSeedNotesFromCollections(collections = []) {
   }));
 }
 
-const ACTIVITY_QUEUE_ITEMS = [
-  { id: 'lightning-trivia', icon: '⚡', label: 'Lightning Trivia' },
-  { id: 'emoji-charades', icon: '🎭', label: 'Emoji Charades' },
-  { id: 'icebreaker', icon: '🎲', label: 'Icebreaker Roulette' },
-  { id: 'pulse-check', icon: '📊', label: 'Team Pulse Check' },
-  { id: 'values-vote', icon: '⭐', label: 'Values Vote' },
-  { id: 'wordle', icon: '🎯', label: 'Team Wordle' },
-  { id: 'word-chain', icon: '🔗', label: 'Word Chain' },
-  { id: 'brainstorm-canvas', icon: '🧩', label: 'Brainstorm Canvas' },
-  { id: 'uno', icon: '🃏', label: 'UNO Showdown' },
-  { id: 'regular-trivia', icon: '🧠', label: 'Trivia Battle' },
-  { id: 'tic-tac-toe-blitz', icon: '❌', label: 'Tic-Tac-Toe Blitz Arena' },
-  { id: 'team-jeopardy', icon: '🏆', label: 'Team Jeopardy' },
-  { id: 'spin-wheel', icon: '🎡', label: 'Spin Wheel' },
-  { id: 'presentation', icon: '📽️', label: 'Presentation' },
-  { id: 'slides-studio', icon: '🎞️', label: 'Slides Studio' },
-  { id: 'dj-booth', icon: '🎚️', label: 'DJ Booth' },
-  { id: 'battleship', icon: '🚢', label: 'Battleship' },
-  { id: 'bingo', icon: '🎟️', label: 'Bingo' },
-  { id: 'backgammon', icon: '🎲', label: 'Backgammon' },
-  { id: 'connect-4', icon: '🟡', label: 'Connect 4' }
-];
+const ACTIVITY_QUEUE_ITEMS = cloneStaticData('ACTIVITY_QUEUE_ITEMS', []);
 const ACTIVITY_QUEUE_ITEM_MAP = Object.fromEntries(ACTIVITY_QUEUE_ITEMS.map(item => [item.id, item]));
-const GAME_ACTIVITY_IDS = new Set([
-  'lightning-trivia',
-  'regular-trivia',
-  'wordle',
-  'word-chain',
-  'uno',
-  'emoji-charades',
-  'tic-tac-toe-blitz',
-  'team-jeopardy',
-  'spin-wheel',
-  'battleship',
-  'bingo',
-  'backgammon',
-  'connect-4'
-]);
-const BATTLESHIP_BOARD_SIZE = 10;
-const BATTLESHIP_SHIP_SET = [
-  { id: 'carrier', label: 'Carrier', length: 5, role: 'Command ship', accent: '#8af1ff' },
-  { id: 'battleship', label: 'Battleship', length: 4, role: 'Heavy assault', accent: '#ff8fa3' },
-  { id: 'cruiser', label: 'Cruiser', length: 3, role: 'Mid-range striker', accent: '#ffd166' },
-  { id: 'submarine', label: 'Submarine', length: 3, role: 'Stealth hunter', accent: '#7af59f' },
-  { id: 'destroyer', label: 'Destroyer', length: 2, role: 'Fast interceptor', accent: '#c4a1ff' }
-];
-const BATTLESHIP_COLUMN_LABELS = 'ABCDEFGHIJ'.split('');
-const BINGO_COLUMN_LABELS = ['B', 'I', 'N', 'G', 'O'];
-const BINGO_NUMBER_RANGES = [
-  [1, 15],
-  [16, 30],
-  [31, 45],
-  [46, 60],
-  [61, 75]
-];
-const BINGO_PATTERN_OPTIONS = [
-  { id: 'line', label: 'Line Bingo', description: 'Any row, column, or diagonal' },
-  { id: 'four_corners', label: 'Four Corners', description: 'Mark all four corner spaces' },
-  { id: 'full_card', label: 'Full Card', description: 'Mark every space on the card' }
-];
-const BINGO_MARKER_OPTIONS = [
-  { id: 'classic-cover', label: 'Classic Gold', icon: '▣', kind: 'cover', accent: '#7c2d12', fill: 'rgba(253,224,71,0.84)', border: 'rgba(217,119,6,0.82)', glow: 'rgba(251,191,36,0.34)' },
-  { id: 'classic-cover-blue', label: 'Classic Blue', icon: '▣', kind: 'cover', accent: '#1d4ed8', fill: 'rgba(96,165,250,0.74)', border: 'rgba(29,78,216,0.78)', glow: 'rgba(59,130,246,0.3)' },
-  { id: 'classic-cover-green', label: 'Classic Green', icon: '▣', kind: 'cover', accent: '#166534', fill: 'rgba(110,231,183,0.7)', border: 'rgba(22,101,52,0.74)', glow: 'rgba(16,185,129,0.28)' },
-  { id: 'classic-cover-rose', label: 'Classic Rose', icon: '▣', kind: 'cover', accent: '#9f1239', fill: 'rgba(251,113,133,0.68)', border: 'rgba(190,24,93,0.74)', glow: 'rgba(244,63,94,0.28)' },
-  { id: 'dauber-red', label: 'Red Dauber', icon: '●', kind: 'dauber', accent: '#ef4444', fill: 'rgba(239,68,68,0.54)', border: 'rgba(185,28,28,0.68)', glow: 'rgba(239,68,68,0.32)' },
-  { id: 'dauber-blue', label: 'Blue Dauber', icon: '●', kind: 'dauber', accent: '#2563eb', fill: 'rgba(37,99,235,0.5)', border: 'rgba(30,64,175,0.64)', glow: 'rgba(37,99,235,0.28)' },
-  { id: 'chip-gold', label: 'Gold Chip', icon: '◉', kind: 'chip', accent: '#f59e0b', fill: 'rgba(245,158,11,0.28)', border: 'rgba(180,83,9,0.58)', glow: 'rgba(245,158,11,0.26)' },
-  { id: 'star-violet', label: 'Lucky Star', icon: '★', kind: 'icon', accent: '#a855f7', fill: 'rgba(168,85,247,0.14)', border: 'rgba(126,34,206,0.38)', glow: 'rgba(168,85,247,0.26)' },
-  { id: 'heart-pink', label: 'Heart Charm', icon: '♥', kind: 'icon', accent: '#ec4899', fill: 'rgba(236,72,153,0.14)', border: 'rgba(190,24,93,0.38)', glow: 'rgba(236,72,153,0.24)' }
-];
-const BACKGAMMON_COLORS = ['white', 'black'];
-const BACKGAMMON_COLOR_META = {
-  white: { label: 'Ivory', accent: '#f8ead3', glow: 'rgba(255,232,196,0.48)', pipColor: '#6d3b22', icon: '⚪' },
-  black: { label: 'Onyx', accent: '#432b24', glow: 'rgba(255,143,163,0.4)', pipColor: '#ffe8c4', icon: '⚫' }
-};
-const BACKGAMMON_INITIAL_POINTS = [
-  -2, 0, 0, 0, 0, 5,
-  0, 3, 0, 0, 0, -5,
-  5, 0, 0, 0, -3, 0,
-  -5, 0, 0, 0, 0, 2
-];
-const BACKGAMMON_TOP_POINTS = [12, 13, 14, 15, 16, 17, null, 18, 19, 20, 21, 22, 23];
-const BACKGAMMON_BOTTOM_POINTS = [11, 10, 9, 8, 7, 6, null, 5, 4, 3, 2, 1, 0];
-const CONNECT4_ROWS = 6;
-const CONNECT4_COLS = 7;
-const CONNECT4_COLORS = ['red', 'yellow'];
-const CONNECT4_COLOR_META = {
-  red: { label: 'Red', accent: '#ff6b87', glow: 'rgba(255,107,135,0.46)', dark: '#7f1237' },
-  yellow: { label: 'Yellow', accent: '#ffe066', glow: 'rgba(255,224,102,0.42)', dark: '#7c5d00' }
-};
-const AI_GENERATION_TARGETS = [
-  { id: 'lightning-trivia', label: 'Lightning Trivia' },
-  { id: 'emoji-charades', label: 'Emoji Charades' },
-  { id: 'regular-trivia', label: 'Trivia Battle' },
-  { id: 'icebreaker', label: 'Icebreaker Roulette' },
-  { id: 'pulse-check', label: 'Team Pulse Check' },
-  { id: 'values-vote', label: 'Values Vote' },
-  { id: 'wordle', label: 'Team Wordle' },
-  { id: 'word-chain', label: 'Word Chain' },
-  { id: 'team-jeopardy', label: 'Team Jeopardy' },
-  { id: 'brainstorm-canvas', label: 'Brainstorm Canvas' },
-  { id: 'spin-wheel', label: 'Spin Wheel' }
-];
+const GAME_ACTIVITY_IDS = new Set(cloneStaticData('GAME_ACTIVITY_IDS', []));
+const BATTLESHIP_BOARD_SIZE = Number(cloneStaticData('BATTLESHIP_BOARD_SIZE', 10)) || 10;
+const BATTLESHIP_SHIP_SET = cloneStaticData('BATTLESHIP_SHIP_SET', []);
+const BATTLESHIP_COLUMN_LABELS = cloneStaticData('BATTLESHIP_COLUMN_LABELS', 'ABCDEFGHIJ'.split(''));
+const BINGO_COLUMN_LABELS = cloneStaticData('BINGO_COLUMN_LABELS', ['B', 'I', 'N', 'G', 'O']);
+const BINGO_NUMBER_RANGES = cloneStaticData('BINGO_NUMBER_RANGES', []);
+const BINGO_PATTERN_OPTIONS = cloneStaticData('BINGO_PATTERN_OPTIONS', []);
+const BINGO_MARKER_OPTIONS = cloneStaticData('BINGO_MARKER_OPTIONS', []);
+const BACKGAMMON_COLORS = cloneStaticData('BACKGAMMON_COLORS', ['white', 'black']);
+const BACKGAMMON_COLOR_META = cloneStaticData('BACKGAMMON_COLOR_META', {});
+const BACKGAMMON_INITIAL_POINTS = cloneStaticData('BACKGAMMON_INITIAL_POINTS', []);
+const BACKGAMMON_TOP_POINTS = cloneStaticData('BACKGAMMON_TOP_POINTS', []);
+const BACKGAMMON_BOTTOM_POINTS = cloneStaticData('BACKGAMMON_BOTTOM_POINTS', []);
+const CONNECT4_ROWS = Number(cloneStaticData('CONNECT4_ROWS', 6)) || 6;
+const CONNECT4_COLS = Number(cloneStaticData('CONNECT4_COLS', 7)) || 7;
+const CONNECT4_COLORS = cloneStaticData('CONNECT4_COLORS', ['red', 'yellow']);
+const CONNECT4_COLOR_META = cloneStaticData('CONNECT4_COLOR_META', {});
+const AI_GENERATION_TARGETS = cloneStaticData('AI_GENERATION_TARGETS', []);
 const AI_GENERATION_TARGET_LABELS = Object.fromEntries(AI_GENERATION_TARGETS.map(item => [item.id, item.label]));
-const ACTIVITY_QUEUE_THEME_OPTIONS = [
-  'Marvel',
-  'ServiceNow',
-  'General Knowledge',
-  'Disney',
-  'Pop Culture',
-  'History',
-  'Science',
-  'Movies',
-  'Music',
-  'Did you Know?',
-  'Random'
-];
+const ACTIVITY_QUEUE_THEME_OPTIONS = cloneStaticData('ACTIVITY_QUEUE_THEME_OPTIONS', []);
 
 function getAIGenerationTargetCount(activityId) {
   if (activityId === 'lightning-trivia' || activityId === 'regular-trivia') return TRIVIA_BANK.length;
@@ -6332,14 +5309,9 @@ function downloadQueuePromptTemplate(activityQueue = []) {
   triggerTextFileDownload('activity-queue-ai-prompt-template.txt', 'text/plain', content);
 }
 
-const BRAINSTORM_LANES = [
-  { id: 'start', label: 'Start', icon: '🚀' },
-  { id: 'stop', label: 'Stop', icon: '🛑' },
-  { id: 'improve', label: 'Improve', icon: '🛠️' },
-  { id: 'create', label: 'Create', icon: '✨' }
-];
+const BRAINSTORM_LANES = cloneStaticData('BRAINSTORM_LANES', []);
 const BRAINSTORM_LANE_INDEX = Object.fromEntries(BRAINSTORM_LANES.map((lane, idx) => [lane.id, idx]));
-const BRAINSTORM_NOTE_COLORS = ['#fef3a7', '#bfdbfe', '#fecdd3', '#bbf7d0', '#ddd6fe', '#fdba74'];
+const BRAINSTORM_NOTE_COLORS = cloneStaticData('BRAINSTORM_NOTE_COLORS', ['#fef3a7']);
 
 let syncInterval = null;
 let roomChannel = null;
@@ -6353,25 +5325,10 @@ let wordChainFocusCueTimer = null;
 let brainstormDraggedNoteId = null;
 const ROOM_SYNC_MS = 300;
 const TTT_BLITZ_ROUND_MS = 120000;
-const TTT_WIN_LINES = [
-  [0, 1, 2],
-  [3, 4, 5],
-  [6, 7, 8],
-  [0, 3, 6],
-  [1, 4, 7],
-  [2, 5, 8],
-  [0, 4, 8],
-  [2, 4, 6]
-];
+const TTT_WIN_LINES = cloneStaticData('TTT_WIN_LINES', []);
 let ticTacToeFinalizePending = false;
-const UNO_COLORS = ['red', 'yellow', 'green', 'blue'];
-const UNO_COLOR_META = {
-  red: { label: 'Red', bg: 'linear-gradient(135deg, #ff6767, #c92f43)', border: '#6c1020', text: '#fff7f7' },
-  yellow: { label: 'Yellow', bg: 'linear-gradient(135deg, #ffe27a, #f0b429)', border: '#8c5b00', text: '#452600' },
-  green: { label: 'Green', bg: 'linear-gradient(135deg, #39d98a, #0e9f6e)', border: '#075a41', text: '#f3fff9' },
-  blue: { label: 'Blue', bg: 'linear-gradient(135deg, #4da3ff, #2563eb)', border: '#173c9d', text: '#f4f9ff' },
-  wild: { label: 'Wild', bg: 'linear-gradient(135deg, #ff6767 0 25%, #ffe27a 25% 50%, #39d98a 50% 75%, #4da3ff 75% 100%)', border: '#f3e6c9', text: '#ffffff' }
-};
+const UNO_COLORS = cloneStaticData('UNO_COLORS', ['red', 'yellow', 'green', 'blue']);
+const UNO_COLOR_META = cloneStaticData('UNO_COLOR_META', {});
 const UNO_DRAW_LIMIT = 1;
 
 // Activity Start Functions (must be before render functions)
@@ -8120,17 +7077,7 @@ function normalizeHexColor(value, fallback = '#0f172a') {
   return /^#[0-9a-fA-F]{6}$/.test(normalized) ? normalized.toLowerCase() : fallback;
 }
 
-const SLIDES_STUDIO_TEMPLATE_OPTIONS = [
-  { id: 'title', label: 'Title', badge: 'Title Slide', accent: '#f59e0b' },
-  { id: 'two-column', label: 'Two Column', badge: 'Two Column', accent: '#38bdf8' },
-  { id: 'hero', label: 'Hero', badge: 'Hero', accent: '#8b5cf6' },
-  { id: 'about', label: 'About', badge: 'About', accent: '#14b8a6' },
-  { id: 'features', label: 'Features', badge: 'Features', accent: '#06b6d4' },
-  { id: 'problem', label: 'Problem', badge: 'Problem', accent: '#ef4444' },
-  { id: 'resolution', label: 'Resolution', badge: 'Resolution', accent: '#22c55e' },
-  { id: 'looking-forward', label: 'Looking Forward', badge: 'Looking Forward', accent: '#a855f7' },
-  { id: 'did-you-know', label: 'Did You Know?', badge: 'Did You Know?', accent: '#f97316' }
-];
+const SLIDES_STUDIO_TEMPLATE_OPTIONS = cloneStaticData('SLIDES_STUDIO_TEMPLATE_OPTIONS', []);
 
 function normalizeSlidesStudioTemplate(value) {
   const normalized = String(value || '').trim().toLowerCase();
@@ -12083,103 +11030,6 @@ function render() {
   syncCommunityChatScroll();
 }
 
-async function loadCommunityRooms() {
-  APP.community.loading = true;
-  render();
-  try {
-    const data = await apiRequest('/api/community/rooms');
-    APP.community.rooms = Array.isArray(data?.rooms) ? data.rooms : [];
-  } catch (_error) {
-    APP.community.rooms = [];
-    showError('Unable to load community lobbies right now.');
-  } finally {
-    APP.community.loading = false;
-    render();
-  }
-}
-
-async function refreshCommunityHostAccessRequests() {
-  APP.community.requestsLoading = true;
-  render();
-  try {
-    const data = await apiRequest('/api/community/host-access-request/mine', { withUserToken: true });
-    APP.community.requests = normalizeCommunityHostRequests(data?.requests || []);
-  } catch (_error) {
-    APP.community.requests = [];
-  } finally {
-    APP.community.requestsLoading = false;
-    render();
-  }
-}
-
-async function loadCommunityDirectoryData() {
-  void loadGlobalConfig();
-  await Promise.all([
-    loadCommunityRooms(),
-    refreshCommunityHostAccessRequests()
-  ]);
-}
-
-async function submitCommunityHostAccessRequest() {
-  if (APP.community.requestSubmitting) return;
-  const playerName = normalizeName(APP.player?.name || '');
-  if (!playerName) {
-    showError('Set your player name before requesting host access.');
-    return;
-  }
-  const reason = String(document.getElementById('communityHostAccessReason')?.value || '').replace(/\s+/g, ' ').trim().slice(0, 400);
-  if (!reason) {
-    showError('Add a short reason for requesting community host access.');
-    return;
-  }
-  APP.community.requestSubmitting = true;
-  render();
-  try {
-    await apiRequest('/api/community/host-access-request', {
-      method: 'POST',
-      withUserToken: true,
-      body: {
-        userName: playerName,
-        userId: APP.player?.id || '',
-        reason
-      }
-    });
-    const input = document.getElementById('communityHostAccessReason');
-    if (input) input.value = '';
-    await refreshCommunityHostAccessRequests();
-    await loadGlobalConfig();
-    showError('Community host access request sent.');
-  } catch (e) {
-    showError(e.message);
-  } finally {
-    APP.community.requestSubmitting = false;
-    render();
-  }
-}
-
-async function saveCommunityHostAccessRequest(requestId, status) {
-  if (!APP.admin.authenticated || !requestId) return;
-  const normalizedStatus = ['pending', 'approved', 'denied'].includes(String(status || '').trim().toLowerCase())
-    ? String(status).trim().toLowerCase()
-    : 'pending';
-  const adminNotes = String(document.getElementById(`community-request-notes-${requestId}`)?.value || '').trim();
-  try {
-    const data = await apiRequest(`/api/admin/community-host-requests/${requestId}`, {
-      method: 'PATCH',
-      adminToken: APP.admin.token,
-      body: {
-        status: normalizedStatus,
-        adminNotes
-      }
-    });
-    applyConfigPayload(data);
-    APP.admin.communityHostRequests = normalizeCommunityHostRequests(data?.communityHostRequests || APP.admin.communityHostRequests || []);
-    render();
-  } catch (e) {
-    showError(e.message);
-  }
-}
-
 function renderWelcome() {
   const safeAppName = escapeHtml(APP.branding.appName);
   const safeTagline = escapeHtml(APP.branding.tagline);
@@ -12212,262 +11062,6 @@ function renderWelcome() {
       </div>
       
       <button class="btn-primary" data-action="create-player">Continue</button>
-    </div>
-  `;
-}
-
-function renderDashboard() {
-  const safePlayerName = escapeHtml(APP.player.name);
-  const safeAppName = escapeHtml(APP.branding.appName);
-  const showFeedback = APP.preferences.enableFeedbackHub !== false;
-  const scheduleEnabled = APP.preferences.enableScheduleMeeting !== false;
-  const loadEnabled = APP.preferences.enableLoadSession !== false;
-  const communityEnabled = APP.preferences.enableCommunityLobby !== false;
-  const savedPlans = (APP.sessionManager?.plans?.length ? APP.sessionManager.plans : loadSessionPlans()) || [];
-  const hasSavedPlans = savedPlans.length > 0;
-  const sessionSetupTitle = hasSavedPlans ? 'Plan Session' : 'Session Setup';
-  const sessionSetupDescription = hasSavedPlans
-    ? 'Set up a session ahead of time with title, agenda, link, and activity queue'
-    : 'Create your first session plan with agenda, theme, link, and activity queue';
-  return `
-    <div class="header">
-      <h1 class="logo">${safeAppName}</h1>
-    </div>
-    
-    <div class="player-card">
-      <div class="avatar-circle">${APP.player.avatar}</div>
-      <div class="player-info">
-        <div class="player-name">${safePlayerName}</div>
-        <div class="player-stats">
-          <span class="stat">⭐ Level ${APP.player.level}</span>
-          <span class="stat">✦ ${APP.player.xp} XP</span>
-          <span class="stat">🎮 ${APP.player.stats.gamesPlayed} games</span>
-        </div>
-      </div>
-      <div class="level-badge">Level ${APP.player.level}</div>
-    </div>
-    
-    <div class="grid-2">
-      <button type="button" class="card" data-action="go-screen" data-screen="create-room" aria-label="Host Session" aria-keyshortcuts="Alt+N">
-        <div class="card-icon">👑</div>
-        <h3 class="card-title">Host Session</h3>
-        <p class="card-desc">Create a room and choose activities for your team</p>
-      </button>
-      
-      <button type="button" class="card" data-action="go-screen" data-screen="join-room" aria-label="Join Session" aria-keyshortcuts="Alt+J">
-        <div class="card-icon">🎮</div>
-        <h3 class="card-title">Join Session</h3>
-        <p class="card-desc">Enter a room code to join your team</p>
-      </button>
-
-      ${communityEnabled ? `
-        <button type="button" class="card" data-action="go-screen" data-screen="community" aria-label="Community Lobby">
-          <div class="card-icon">🌐</div>
-          <h3 class="card-title">Community Lobby</h3>
-          <p class="card-desc">Browse open public lobbies, join drop-in games, or host a community room</p>
-        </button>
-      ` : ''}
-
-      ${scheduleEnabled ? `
-        <button type="button" class="card" data-action="go-screen" data-screen="schedule-meeting" aria-label="Plan Session">
-          <div class="card-icon">🗓️</div>
-          <h3 class="card-title">${sessionSetupTitle}</h3>
-          <p class="card-desc">${sessionSetupDescription}</p>
-        </button>
-      ` : ''}
-
-      ${loadEnabled && hasSavedPlans ? `
-        <button type="button" class="card" data-action="go-screen" data-screen="load-session" aria-label="Manage Sessions">
-          <div class="card-icon">🗂️</div>
-          <h3 class="card-title">Manage Sessions</h3>
-          <p class="card-desc">Open, share, edit, or launch a saved session plan into a new room</p>
-        </button>
-      ` : ''}
-
-    </div>
-    
-    <div style="text-align:center;margin-top:40px;">
-      <button class="btn-secondary" data-action="view-stats">ℹ️ About App</button>
-      <button class="btn-secondary" data-action="edit-profile" style="margin-left:10px;">✏️ Edit Profile</button>
-      ${showFeedback ? '<button class="btn-secondary" data-action="open-feedback" style="margin-left:10px;" aria-keyshortcuts="Alt+F">🗣️ Feedback Hub</button>' : ''}
-      <button class="btn-secondary" data-action="open-admin-console" style="margin-left:10px;" aria-keyshortcuts="Alt+A">🛠️ Admin Console</button>
-    </div>
-    <div style="text-align:center;margin-top:14px;color:var(--text-dim);font-size:0.85rem;">
-      Keyboard: <strong>${escapeHtml(formatModifierShortcut('N'))}</strong> host, <strong>${escapeHtml(formatModifierShortcut('J'))}</strong> join, <strong>?</strong> shortcuts
-    </div>
-  `;
-}
-
-function renderCommunityDirectory() {
-  const rooms = Array.isArray(APP.community.rooms) ? APP.community.rooms : [];
-  const canCreate = canCurrentUserCreateCommunityRooms();
-  const communityEnabled = APP.preferences.enableCommunityLobby !== false;
-  const latestRequest = normalizeCommunityHostRequests(APP.community.requests || [])[0] || null;
-  const latestRequestStatus = latestRequest?.status || '';
-  const requestStatusColor = latestRequestStatus === 'approved'
-    ? 'var(--success)'
-    : latestRequestStatus === 'denied'
-      ? 'var(--danger)'
-      : 'var(--warning)';
-  return `
-    <div class="header">
-      <h1 class="logo">Community Lobby</h1>
-      <p class="tagline">Public drop-in rooms built on the same lobby flow as hosted sessions</p>
-    </div>
-
-    <button class="btn-secondary" data-action="go-screen" data-screen="dashboard">← Back</button>
-
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
-      <button class="btn-primary" data-action="create-community-room" style="width:auto;" ${(communityEnabled && canCreate) ? '' : 'disabled'}>🌐 Host Community Lobby</button>
-      <button class="btn-secondary" data-action="refresh-community-rooms" style="width:auto;">↻ Refresh</button>
-    </div>
-
-    ${!communityEnabled ? `
-      <div style="background:rgba(255,209,102,0.08);border:1px solid rgba(255,209,102,0.24);border-radius:16px;padding:14px 16px;margin-top:16px;color:#ffd166;">
-        Community Lobby is currently disabled by admin.
-      </div>
-    ` : !canCreate ? `
-      <div style="background:rgba(138,241,255,0.08);border:1px solid rgba(138,241,255,0.22);border-radius:16px;padding:14px 16px;margin-top:16px;color:var(--text-mid);">
-        Admin access or host allowlist approval is required to create community rooms. You can still browse and join open lobbies, or request community host access below.
-      </div>
-    ` : ''}
-
-    ${communityEnabled && !canCreate ? `
-      <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-top:16px;">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
-          <div>
-            <h3 style="font-family:'Fraunces',serif;font-size:1.2rem;margin-bottom:4px;">Request Community Host Access</h3>
-            <div style="font-size:0.84rem;color:var(--text-dim);">Ask an admin to allow your player profile to create public community lobbies.</div>
-          </div>
-          ${latestRequest ? `
-            <span style="padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.06);border:1px solid var(--border);font-size:0.76rem;font-weight:800;color:${requestStatusColor};text-transform:uppercase;">
-              ${escapeHtml(latestRequestStatus || 'pending')}
-            </span>
-          ` : ''}
-        </div>
-        ${latestRequest ? `
-          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:12px;">
-            <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:6px;">
-              Latest request • ${escapeHtml(latestRequest.updatedAt || latestRequest.createdAt || '')}
-            </div>
-            <div style="color:var(--text-mid);margin-bottom:${latestRequest.adminNotes ? '8px' : '0'};">${escapeHtml(latestRequest.reason || '')}</div>
-            ${latestRequest.adminNotes ? `<div style="font-size:0.84rem;color:var(--text-dim);">Admin notes: ${escapeHtml(latestRequest.adminNotes)}</div>` : ''}
-          </div>
-        ` : ''}
-        ${APP.community.requestsLoading ? `
-          <div style="font-size:0.84rem;color:var(--text-dim);margin-bottom:10px;">Loading your request status...</div>
-        ` : ''}
-        ${latestRequestStatus === 'pending' ? `
-          <div style="font-size:0.84rem;color:var(--text-dim);">Your request is pending admin review.</div>
-        ` : latestRequestStatus === 'approved' ? `
-          <div style="font-size:0.84rem;color:var(--success);">Your profile is approved. Refreshing config or reopening this screen should enable community hosting for you.</div>
-        ` : `
-          <div class="form-group" style="margin-bottom:10px;">
-            <label class="form-label" for="communityHostAccessReason">Why do you want community host access?</label>
-            <textarea id="communityHostAccessReason" class="form-input" rows="4" maxlength="400" placeholder="Example: I run weekly drop-in game rooms and need to host public lobbies for the team."></textarea>
-          </div>
-          <button class="btn-secondary" data-action="submit-community-host-access-request" ${APP.community.requestSubmitting ? 'disabled aria-busy="true"' : ''} style="width:auto;">
-            ${APP.community.requestSubmitting ? 'Sending...' : (latestRequestStatus === 'denied' ? 'Request Access Again' : 'Request Access')}
-          </button>
-        `}
-      </div>
-    ` : ''}
-
-    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:20px;">
-      <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:10px;">How It Works</h3>
-      <div style="display:grid;gap:8px;color:var(--text-mid);line-height:1.5;">
-        <div>• Join an open community lobby and hang out in the shared room.</div>
-        <div>• Hosts can launch full-room games like Bingo, Trivia, Brainstorm, and Spin Wheel.</div>
-        <div>• When a game ends, everyone returns to the same lobby.</div>
-      </div>
-    </div>
-
-    <div style="margin-top:20px;display:grid;gap:14px;">
-      ${APP.community.loading ? `
-        <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:24px;color:var(--text-dim);text-align:center;">
-          Loading public lobbies...
-        </div>
-      ` : rooms.length ? rooms.map(room => {
-        const activityLabel = room.currentActivity
-          ? (ACTIVITY_QUEUE_ITEM_MAP[room.currentActivity]?.label || room.currentActivity)
-          : 'Lobby Open';
-        const presenceLabel = room.presenceStatus === 'full'
-          ? 'Full'
-          : room.presenceStatus === 'in_game'
-            ? 'In Game'
-            : 'Open';
-        const canManage = canCurrentUserManageCommunityRoom(room);
-        return `
-          <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:18px;padding:18px;display:grid;gap:12px;">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
-              <div>
-                <div style="font-family:'Fraunces',serif;font-size:1.2rem;">${escapeHtml(room.title || `${room.host || 'Host'}'s Community Lobby`)}</div>
-                <div style="font-size:0.84rem;color:var(--text-dim);margin-top:4px;">Host: ${escapeHtml(room.host || 'Unknown')} • Code: ${escapeHtml(room.code || '')}</div>
-              </div>
-              <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
-                <span style="padding:6px 10px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border);font-size:0.76rem;font-weight:800;">${escapeHtml(presenceLabel)}</span>
-                <span style="padding:6px 10px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border);font-size:0.76rem;font-weight:800;">${escapeHtml(activityLabel)}</span>
-                ${room.voiceEnabled ? '<span style="padding:6px 10px;border-radius:999px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.24);font-size:0.76rem;font-weight:800;color:#86efac;">Voice On</span>' : ''}
-              </div>
-            </div>
-            ${room.description ? `<div style="color:var(--text-mid);line-height:1.5;">${escapeHtml(room.description)}</div>` : ''}
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
-              <div style="font-size:0.84rem;color:var(--text-dim);">${escapeHtml(String(room.participantCount || 0))}/${escapeHtml(String(room.maxParticipants || 24))} players • ${escapeHtml(String(room.queueLength || 0))} queued activities</div>
-              <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
-                <button class="btn-primary" data-action="join-community-room" data-room-code="${escapeHtml(room.code || '')}" style="width:auto;" ${room.presenceStatus === 'full' ? 'disabled' : ''}>Join Lobby</button>
-                ${canManage ? `<button class="btn-secondary" data-action="edit-community-room" data-room-code="${escapeHtml(room.code || '')}" style="width:auto;">Edit</button>` : ''}
-                ${canManage ? `<button class="btn-secondary" data-action="remove-community-room" data-room-code="${escapeHtml(room.code || '')}" style="width:auto;border-color:rgba(255,107,107,0.3);color:#ff9c9c;">Remove</button>` : ''}
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('') : `
-        <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:24px;color:var(--text-dim);text-align:center;">
-          No public community lobbies are open right now. Start one and it will appear here.
-        </div>
-      `}
-    </div>
-  `;
-}
-
-function renderAboutApp() {
-  const safeAppName = escapeHtml(APP.branding.appName || 'Team Builder');
-  const safeVersion = escapeHtml(APP_VERSION);
-  return `
-    <div class="header">
-      <h1 class="logo">About App</h1>
-      <p class="tagline">${safeAppName} • Version ${safeVersion}</p>
-    </div>
-
-    <button class="btn-secondary" data-action="go-screen" data-screen="dashboard">← Back</button>
-
-    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:20px;">
-      <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:10px;">General Purpose</h3>
-      <p style="color:var(--text-mid);line-height:1.6;">
-        A host-led team facilitation app for running collaborative sessions in one shared room, with realtime activities, voice, presentations, and lightweight planning tools.
-      </p>
-    </div>
-
-    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:16px;">
-      <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:10px;">Core Features</h3>
-      <div style="display:grid;gap:10px;color:var(--text-mid);line-height:1.5;">
-        <div>• Activity library with trivia, charades, brainstorming, card and board games, presentation tools, and queue-based facilitation.</div>
-        <div>• Moderated room voice with push-to-talk, open mic, raise hand, and host controls.</div>
-        <div>• Session planning with saved session plans, shareable plan links, launch-into-room flow, and downloadable calendar invites.</div>
-        <div>• Presentation support through shared slide-deck URLs and the native Slides Studio slide builder.</div>
-        <div>• AI generation for supported activities and prompt-based slide creation inside Slides Studio.</div>
-        <div>• Export and reporting tools for activities like Brainstorm Canvas and Team Pulse Check.</div>
-      </div>
-    </div>
-
-    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:16px;">
-      <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:10px;">Current Experiences</h3>
-      <div style="display:grid;gap:10px;color:var(--text-mid);line-height:1.5;">
-        <div>• Team play: Lightning Trivia, Trivia Battle, Emoji Charades, Icebreaker Roulette, Team Pulse Check, Values Vote, Team Wordle, Word Chain, Brainstorm Canvas, Team Jeopardy, and Spin Wheel.</div>
-        <div>• Competitive games: UNO Showdown, Tic-Tac-Toe Blitz Arena, Battleship, Bingo, Backgammon, and Connect 4.</div>
-        <div>• Presentation flow: shared presentation viewer plus Slides Studio with templates, gradients, images, CTA links, and AI-generated slides.</div>
-        <div>• Session UX: editable profile, secure room join flow, keyboard shortcuts, shortcut help, admin controls, and feedback capture.</div>
-      </div>
     </div>
   `;
 }
@@ -12549,866 +11143,6 @@ function renderCreateRoom() {
       <div class="spinner" style="width:48px;height:48px;margin:0 auto;border:4px solid var(--surface-2);
         border-top:4px solid var(--accent);border-radius:50%;animation:spin 1s linear infinite;"></div>
     </div>
-  `;
-}
-
-function renderJoinRoom() {
-  const prefillCode = escapeHtml(normalizeRoomCode(APP.pendingJoinCode || ''));
-  const prefillToken = escapeHtml(normalizeRoomAccessToken(APP.pendingJoinToken || getStoredRoomAccessToken(APP.pendingJoinCode || '')));
-  return `
-    <div class="header">
-      <h1 class="logo">Join Session</h1>
-    </div>
-    
-    <button class="btn-secondary" data-action="go-screen" data-screen="dashboard">← Back</button>
-    
-    <div class="form-container" style="margin-top:20px;">
-      <div class="form-group">
-        <label class="form-label" for="joinCode">Room Code</label>
-        <input type="text" id="joinCode" class="form-input" 
-          style="text-align:center;font-size:2rem;letter-spacing:8px;text-transform:uppercase;"
-          maxlength="6" value="${prefillCode}" placeholder="ABC123" autocapitalize="characters" inputmode="text">
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="joinToken">Private Access Token (Optional)</label>
-        <input type="password" id="joinToken" class="form-input" value="${prefillToken}" placeholder="Only needed for private sessions or full invite links" autocomplete="off" spellcheck="false">
-      </div>
-      ${prefillCode ? `<div style="color:var(--text-dim);font-size:0.9rem;margin-bottom:10px;">Invite link detected. Tap <strong>Join Room</strong>.</div>` : '<div style="color:var(--text-dim);font-size:0.9rem;margin-bottom:10px;">Public sessions only need the room code. Private sessions also require the token.</div>'}
-      
-      <button class="btn-primary" data-action="join-room">Join Room</button>
-    </div>
-  `;
-}
-
-function renderFeedbackHub() {
-  const entries = APP.feedback || [];
-  const loading = APP.feedbackLoading;
-  const statusColor = {
-    open: 'var(--warning)',
-    in_review: 'var(--accent)',
-    resolved: 'var(--success)'
-  };
-
-  return `
-    <div class="header">
-      <h1 class="logo">Feedback Hub</h1>
-      <p class="tagline">Report UI issues and share ideas. You only see your own submissions.</p>
-    </div>
-    <button class="btn-secondary" data-action="go-screen" data-screen="dashboard">← Back</button>
-
-    <div class="form-container" style="margin-top:20px;">
-      <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:14px;">Submit Feedback</h3>
-      <div class="form-group">
-        <label class="form-label" for="feedbackType">Type</label>
-        <select id="feedbackType" class="form-input">
-          <option value="ui">UI Issue</option>
-          <option value="idea">Idea</option>
-          <option value="bug">Bug</option>
-          <option value="general">General</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="feedbackTitle">Title</label>
-        <input id="feedbackTitle" class="form-input" maxlength="120" placeholder="Short title">
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="feedbackDetails">Details</label>
-        <textarea id="feedbackDetails" class="form-input" rows="4" maxlength="2000" placeholder="Describe the issue or idea"></textarea>
-      </div>
-      <button class="btn-primary" data-action="submit-feedback">Submit</button>
-      <button class="btn-secondary" data-action="refresh-feedback" style="margin-top:10px;">Refresh My Feedback</button>
-    </div>
-
-    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:20px;">
-      <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:14px;">My Feedback</h3>
-      ${loading ? '<div style="color:var(--text-dim);">Loading...</div>' : ''}
-      ${!loading && entries.length === 0 ? '<div style="color:var(--text-dim);">No feedback submitted yet.</div>' : ''}
-      ${entries.map(item => `
-        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;">
-          <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:8px;">
-            <strong>${escapeHtml(item.title || '')}</strong>
-            <span style="font-size:0.8rem;text-transform:uppercase;color:${statusColor[item.status] || 'var(--text-mid)'};">${escapeHtml((item.status || 'open').replace('_', ' '))}</span>
-          </div>
-          <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:8px;">
-            ${escapeHtml((item.type || 'general').toUpperCase())} • ${escapeHtml(item.createdAt || '')}
-          </div>
-          <div style="margin-bottom:8px;color:var(--text-mid);">${escapeHtml(item.details || '')}</div>
-          ${item.adminNotes ? `<div style="padding:10px;border-radius:8px;background:rgba(0,210,211,0.06);border:1px solid var(--accent);font-size:0.9rem;"><strong>Admin Notes:</strong> ${escapeHtml(item.adminNotes)}</div>` : ''}
-        </div>
-      `).join('')}
-    </div>
-  `;
-}
-
-function renderAdminConsole() {
-  const admin = APP.admin || {};
-  const safeToken = escapeHtml(admin.token || '');
-  const safeAppName = escapeHtml(APP.branding.appName || '');
-  const safeTagline = escapeHtml(APP.branding.tagline || '');
-  const safeAccent = escapeHtml(APP.branding.accent || '#00d2d3');
-  const preferences = normalizeAppPreferences(APP.preferences || {});
-  const enabledActivities = preferences.enabledActivities || {};
-  const collections = Array.isArray(admin.collections) ? admin.collections : [];
-  const dbConnected = Boolean(admin.configDatabaseConnected);
-  const feedback = admin.feedback || [];
-  const communityHostRequests = normalizeCommunityHostRequests(admin.communityHostRequests || []);
-  const pendingCommunityHostRequests = communityHostRequests.filter(item => item.status === 'pending');
-  const statusColor = {
-    open: 'var(--warning)',
-    in_review: 'var(--accent)',
-    resolved: 'var(--success)'
-  };
-
-  if (!admin.authenticated) {
-    return `
-      <div class="header">
-        <h1 class="logo">Admin Console</h1>
-        <p class="tagline">${IS_LOCAL_DEV_CLIENT ? 'Sign in with the admin credentials configured for this environment.' : 'Sign in with the admin token from your server environment.'}</p>
-      </div>
-      <button class="btn-secondary" data-action="go-screen" data-screen="dashboard">← Back</button>
-      <div class="form-container" style="margin-top:20px;">
-        <div class="form-group">
-          <label class="form-label" for="adminToken">Admin Token</label>
-          <input id="adminToken" class="form-input" value="${safeToken}" type="password" placeholder="${IS_LOCAL_DEV_CLIENT ? 'Enter admin token or password' : 'x-admin-token'}">
-        </div>
-        <button class="btn-primary" data-action="admin-login">Login</button>
-      </div>
-    `;
-  }
-
-  const activeTab = ['overview', 'features', 'ai', 'feedback'].includes(admin.activeTab) ? admin.activeTab : 'overview';
-  return `
-    <div class="header">
-      <h1 class="logo">Admin Console</h1>
-      <p class="tagline">Manage branding, feature controls, datasets, and facilitator feedback from one place.</p>
-    </div>
-    <button class="btn-secondary" data-action="go-screen" data-screen="dashboard">← Back</button>
-    <button class="btn-secondary" data-action="admin-logout" style="margin-left:10px;">Log Out</button>
-
-    <div class="form-container" style="margin-top:20px;">
-      <div class="host-tabs" role="tablist" aria-label="Admin console sections" style="margin-bottom:18px;">
-        <button class="host-tab-btn ${activeTab === 'overview' ? 'active' : ''}" data-action="admin-console-tab" data-tab="overview" role="tab" aria-selected="${activeTab === 'overview' ? 'true' : 'false'}">Overview</button>
-        <button class="host-tab-btn ${activeTab === 'features' ? 'active' : ''}" data-action="admin-console-tab" data-tab="features" role="tab" aria-selected="${activeTab === 'features' ? 'true' : 'false'}">Features</button>
-        <button class="host-tab-btn ${activeTab === 'ai' ? 'active' : ''}" data-action="admin-console-tab" data-tab="ai" role="tab" aria-selected="${activeTab === 'ai' ? 'true' : 'false'}">AI Studio</button>
-        <button class="host-tab-btn ${activeTab === 'feedback' ? 'active' : ''}" data-action="admin-console-tab" data-tab="feedback" role="tab" aria-selected="${activeTab === 'feedback' ? 'true' : 'false'}">Feedback</button>
-      </div>
-      <div data-tab-panel="overview" class="host-tab-panel" ${activeTab !== 'overview' ? 'hidden' : ''}>
-        <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:14px;">Branding & Overview</h3>
-        <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:12px;">
-          Config storage: <strong>${dbConnected ? 'Database connected' : 'Local file fallback'}</strong>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="adminBrandAppName">App Name</label>
-          <input id="adminBrandAppName" class="form-input" value="${safeAppName}" maxlength="64">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="adminBrandTagline">Tagline</label>
-          <input id="adminBrandTagline" class="form-input" value="${safeTagline}" maxlength="140">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="adminBrandAccent">Accent Color (#RRGGBB)</label>
-          <input id="adminBrandAccent" class="form-input" value="${safeAccent}" maxlength="7" placeholder="#00d2d3">
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">
-          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px;">
-            <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:6px;">Collections</div>
-            <div style="font-size:1.28rem;font-weight:800;">${collections.length}</div>
-          </div>
-          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px;">
-            <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:6px;">Enabled Activities</div>
-            <div style="font-size:1.28rem;font-weight:800;">${Object.values(enabledActivities).filter(Boolean).length}</div>
-          </div>
-          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px;">
-            <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:6px;">Open Feedback Items</div>
-            <div style="font-size:1.28rem;font-weight:800;">${feedback.filter(item => (item.status || 'open') !== 'resolved').length}</div>
-          </div>
-          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px;">
-            <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:6px;">Pending Host Requests</div>
-            <div style="font-size:1.28rem;font-weight:800;">${pendingCommunityHostRequests.length}</div>
-          </div>
-        </div>
-      </div>
-
-      <div data-tab-panel="features" class="host-tab-panel" ${activeTab !== 'features' ? 'hidden' : ''}>
-        <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:14px;">Feature Flags & Rules</h3>
-        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-          <input id="adminEnableFeedbackHub" type="checkbox" ${preferences.enableFeedbackHub !== false ? 'checked' : ''}>
-          Enable user Feedback Hub
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-          <input id="adminEnableActivityQueue" type="checkbox" ${preferences.enableActivityQueue !== false ? 'checked' : ''}>
-          Enable Activity Queue
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-          <input id="adminEnableScheduleMeeting" type="checkbox" ${preferences.enableScheduleMeeting !== false ? 'checked' : ''}>
-          Enable Plan Session
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-          <input id="adminEnableLoadSession" type="checkbox" ${preferences.enableLoadSession !== false ? 'checked' : ''}>
-          Enable Manage Sessions
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-          <input id="adminEnableCommunityLobby" type="checkbox" ${preferences.enableCommunityLobby !== false ? 'checked' : ''}>
-          Enable Community Lobby
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-          <input id="adminEnableAIGenerator" type="checkbox" ${preferences.enableAIGenerator !== false ? 'checked' : ''}>
-          Enable AI Content Generator
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-          <input id="adminEnableSampleQuestions" type="checkbox" ${preferences.enableSampleQuestions !== false ? 'checked' : ''}>
-          Include built-in sample question sets
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-          <input id="adminEnableFooterQuotes" type="checkbox" ${preferences.enableFooterQuotes === true ? 'checked' : ''}>
-          Enable inspiring team quote footer
-        </label>
-        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-          <div style="font-weight:700;margin-bottom:10px;">Global Game Rules</div>
-          <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-            <input id="adminAutoRevealLightning" type="checkbox" ${preferences.autoRevealLightning !== false ? 'checked' : ''}>
-            Auto-reveal Lightning answers when everyone answers or the timer ends
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-            <input id="adminAllowAnswerChanges" type="checkbox" ${preferences.allowAnswerChanges !== false ? 'checked' : ''}>
-            Allow answer changes before reveal
-          </label>
-          <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-            <input id="adminDynamicScoring" type="checkbox" ${preferences.dynamicScoring !== false ? 'checked' : ''}>
-            Use dynamic time-based scoring
-          </label>
-        </div>
-        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-          <div style="font-weight:700;margin-bottom:8px;">Community Room Creators</div>
-          <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:8px;">
-            Admins can always create community rooms. Add approved host names below, one per line.
-          </div>
-          <textarea id="adminCommunityHostAllowlist" class="form-input" rows="5" placeholder="Alex Smith&#10;Jordan Lee">${escapeHtml((preferences.communityHostAllowlist || []).join('\n'))}</textarea>
-        </div>
-        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
-            <div style="font-weight:700;">Community Host Access Requests</div>
-            <div style="font-size:0.82rem;color:var(--text-dim);">${pendingCommunityHostRequests.length} pending</div>
-          </div>
-          ${communityHostRequests.length ? communityHostRequests.map(item => `
-            <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;">
-              <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
-                <div>
-                  <div style="font-weight:700;">${escapeHtml(item.userName)}</div>
-                  <div style="font-size:0.82rem;color:var(--text-dim);">${escapeHtml(item.createdAt || '')}${item.userId ? ` • ${escapeHtml(item.userId)}` : ''}</div>
-                </div>
-                <span style="padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.05);border:1px solid var(--border);font-size:0.76rem;font-weight:800;color:${item.status === 'approved' ? 'var(--success)' : item.status === 'denied' ? 'var(--danger)' : 'var(--warning)'};text-transform:uppercase;">
-                  ${escapeHtml(item.status)}
-                </span>
-              </div>
-              <div style="color:var(--text-mid);margin-bottom:10px;">${escapeHtml(item.reason || '')}</div>
-              <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center;">
-                <input id="community-request-notes-${item.id}" class="form-input" value="${escapeHtml(item.adminNotes || '')}" maxlength="400" placeholder="Admin notes">
-                <button class="btn-secondary" data-action="review-community-host-request" data-request-id="${item.id}" data-request-status="pending" style="width:auto;">Mark Pending</button>
-                <button class="btn-secondary" data-action="review-community-host-request" data-request-id="${item.id}" data-request-status="denied" style="width:auto;border-color:rgba(255,107,107,0.3);color:#ff9c9c;">Deny</button>
-                <button class="btn-primary" data-action="review-community-host-request" data-request-id="${item.id}" data-request-status="approved" style="width:auto;">Approve</button>
-              </div>
-            </div>
-          `).join('') : `
-            <div style="font-size:0.84rem;color:var(--text-dim);">No community host access requests yet.</div>
-          `}
-        </div>
-        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-          <div style="font-weight:700;margin-bottom:8px;">Enable Activities in Main Menu</div>
-          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
-            ${ACTIVITY_QUEUE_ITEMS.map(item => `
-              <label style="display:flex;align-items:center;gap:8px;">
-                <input id="adminActivityEnabled-${item.id}" type="checkbox" ${enabledActivities[item.id] !== false ? 'checked' : ''}>
-                <span>${escapeHtml(item.icon)} ${escapeHtml(item.label)}</span>
-              </label>
-            `).join('')}
-          </div>
-        </div>
-      </div>
-
-      <div data-tab-panel="ai" class="host-tab-panel" ${activeTab !== 'ai' ? 'hidden' : ''}>
-        ${renderAIContentStudioSection('admin')}
-      </div>
-
-      <div data-tab-panel="feedback" class="host-tab-panel" ${activeTab !== 'feedback' ? 'hidden' : ''}>
-        <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:12px;">All Feedback</h3>
-        <button class="btn-secondary" data-action="refresh-admin-feedback" style="margin-bottom:12px;">Refresh</button>
-        ${admin.loading ? '<div style="color:var(--text-dim);">Loading...</div>' : ''}
-        ${!admin.loading && feedback.length === 0 ? '<div style="color:var(--text-dim);">No feedback available.</div>' : ''}
-        ${feedback.map(item => `
-          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;">
-            <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:8px;">
-              <strong>${escapeHtml(item.title || '')}</strong>
-              <span style="font-size:0.8rem;color:${statusColor[item.status] || 'var(--text-mid)'};text-transform:uppercase;">${escapeHtml((item.status || 'open').replace('_', ' '))}</span>
-            </div>
-            <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:8px;">
-              ${escapeHtml(item.userName || 'Anonymous')} • ${escapeHtml(item.type || 'general')} • ${escapeHtml(item.createdAt || '')}
-            </div>
-            <div style="color:var(--text-mid);margin-bottom:10px;">${escapeHtml(item.details || '')}</div>
-            <div style="display:grid;grid-template-columns:180px 1fr auto;gap:10px;">
-              <select id="admin-status-${item.id}" class="form-input">
-                <option value="open" ${(item.status || '') === 'open' ? 'selected' : ''}>Open</option>
-                <option value="in_review" ${(item.status || '') === 'in_review' ? 'selected' : ''}>In Review</option>
-                <option value="resolved" ${(item.status || '') === 'resolved' ? 'selected' : ''}>Resolved</option>
-              </select>
-              <input id="admin-notes-${item.id}" class="form-input" value="${escapeHtml(item.adminNotes || '')}" maxlength="2000" placeholder="Admin notes">
-              <button class="btn-primary" data-action="save-admin-feedback-item" data-feedback-id="${item.id}">Save</button>
-            </div>
-          </div>
-        `).join('')}
-      </div>
-
-      <button class="btn-primary" data-action="save-admin-config" ${admin.savingConfig ? 'disabled aria-busy="true"' : ''} style="margin-top:18px;">
-        ${admin.savingConfig ? 'Saving...' : 'Save Admin Settings'}
-      </button>
-    </div>
-  `;
-}
-
-function renderLobby() {
-  const isHost = APP.room.host === APP.player.name;
-  const voiceSettings = getRoomVoiceSettings(APP.room);
-  const connectedVoiceIds = new Set((APP.voice.members || []).map(member => member?.playerId).filter(Boolean));
-  const approvedVoiceIds = new Set(APP.voice.approvedSpeakerIds || []);
-  const raisedVoiceIds = new Set(APP.voice.raisedHands || []);
-  const liveVoiceIds = new Set(APP.voice.liveSpeakerIds || []);
-  const raisedHandParticipants = (APP.room?.participants || []).filter(participant => Array.isArray(APP.voice.raisedHands) && APP.voice.raisedHands.includes(participant?.id));
-  const raisedHandCount = raisedHandParticipants.length;
-  const focusedVoiceParticipant = getVoiceFocusParticipant(APP.room);
-  const focusedVoiceParticipantId = String(focusedVoiceParticipant?.id || '').trim();
-  const showFeedback = APP.preferences.enableFeedbackHub !== false;
-  const safeRoomCode = escapeHtml(APP.roomCode);
-  const privateSession = isRoomPrivateSession(APP.room);
-  const joinUrl = buildJoinUrl(APP.roomCode || '', APP.roomAccessToken || '', privateSession);
-  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(joinUrl)}`;
-  const safeJoinUrl = escapeHtml(joinUrl);
-  const sharedSpotifyPlaylist = APP.room.sharedSpotifyPlaylist || null;
-  const safeSpotifyTitle = escapeHtml(sharedSpotifyPlaylist?.title || 'Session Playlist');
-  const safeSpotifyUrl = escapeHtml(sharedSpotifyPlaylist?.url || '');
-  const safeSpotifySharedBy = escapeHtml(sharedSpotifyPlaylist?.sharedBy || '');
-  const spotifySharedAtLabel = sharedSpotifyPlaylist?.updatedAt ? new Date(sharedSpotifyPlaylist.updatedAt).toLocaleString() : '';
-  const showLobbyPlaylistSection = APP.showLobbyPlaylistSection === true;
-  const enabledActivities = APP.preferences?.enabledActivities || {};
-  const voicePolicyLabel = voiceSettings.participantMicPolicy === 'open'
-    ? 'Everyone can speak'
-    : voiceSettings.participantMicPolicy === 'host_only'
-      ? 'Host only'
-      : 'Host-approved participants';
-  const voiceModeLabel = voiceSettings.transmissionMode === 'open' ? 'Open mic' : 'Push to talk';
-  const isCommunityRoom = APP.room?.roomType === 'community';
-  const canManageCommunity = isCommunityRoom && canCurrentUserManageCommunityRoom(APP.room);
-  const communityChat = Array.isArray(APP.room?.communityChat) ? APP.room.communityChat.slice(-50) : [];
-  const lobbyTitle = isCommunityRoom
-    ? escapeHtml(APP.room.communityTitle || `${APP.room.host || 'Host'}'s Community Lobby`)
-    : 'Session Lobby';
-  
-  if (APP.room.currentActivity) {
-    return renderActivity();
-  }
-  
-  return `
-    <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:8px;">
-      <button class="btn-secondary" data-action="edit-profile">✏️ Edit Profile</button>
-      ${showFeedback ? '<button class="btn-secondary" data-action="open-feedback">🗣️ Feedback</button>' : ''}
-      <button class="btn-secondary" data-action="leave-session">🚪 Leave Session</button>
-      ${(isHost && APP.preferences.enableActivityQueue !== false) ? '<button class="btn-secondary" data-action="go-screen" data-screen="activity-queue" aria-keyshortcuts="Alt+Q">🗂️ Activity Queue</button>' : ''}
-      ${isHost ? `<button class="btn-secondary" data-action="toggle-host-voice" aria-label="${voiceSettings.enabled ? 'Turn off room voice' : 'Turn on room voice'}" title="${voiceSettings.enabled ? 'Turn off room voice' : 'Turn on room voice'}" style="border-color:${voiceSettings.enabled ? 'rgba(122,245,159,0.45)' : 'var(--border)'};color:${voiceSettings.enabled ? '#7af59f' : 'var(--text)'};">${voiceSettings.enabled ? '🎙️ Voice On' : '🔇 Voice Off'}</button>` : ''}
-      ${isHost ? `<button class="btn-secondary" data-action="open-host-settings" aria-keyshortcuts="Alt+S" style="border-color:${raisedHandCount ? 'rgba(255,209,102,0.45)' : 'var(--border)'};color:${raisedHandCount ? '#ffd166' : 'var(--text)'};">⚙️ Host Settings${raisedHandCount ? ` (${raisedHandCount} ✋)` : ''}</button>` : ''}
-    </div>
-
-    <div class="header">
-      <h1 class="logo">${lobbyTitle}</h1>
-      <p class="tagline">Room: ${safeRoomCode}${isCommunityRoom ? ' • Community Lobby' : ''}</p>
-    </div>
-
-    ${canManageCommunity ? `
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
-        <button class="btn-secondary" data-action="edit-community-room" style="width:auto;">✏️ Edit Community</button>
-        <button class="btn-secondary" data-action="remove-community-room" style="width:auto;border-color:rgba(255,107,107,0.3);color:#ff9c9c;">🗑️ Remove Community</button>
-      </div>
-    ` : ''}
-
-    ${isHost && voiceSettings.enabled && (raisedHandCount || focusedVoiceParticipant) ? `
-      <div style="background:rgba(255,209,102,0.08);border:1px solid rgba(255,209,102,0.32);border-radius:var(--radius);padding:14px 16px;margin-bottom:18px;">
-        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;">
-          <div>
-            <div style="font-weight:800;margin-bottom:4px;">${raisedHandCount ? `${raisedHandCount} participant${raisedHandCount === 1 ? '' : 's'} raised a hand` : '1:1 conversation is active'}</div>
-            <div style="font-size:0.84rem;color:var(--text-dim);">
-              ${raisedHandCount
-                ? `${escapeHtml(raisedHandParticipants.map(participant => participant?.name || '').filter(Boolean).join(', '))} ${raisedHandCount === 1 ? 'is' : 'are'} waiting for host attention.`
-                : ''}
-              ${focusedVoiceParticipant ? `${raisedHandCount ? ' ' : ''}Current 1:1 focus: ${escapeHtml(focusedVoiceParticipant.name || 'selected participant')}.` : ''}
-            </div>
-          </div>
-          <button class="btn-secondary" data-action="open-host-settings" style="width:auto;padding:10px 14px;border-color:rgba(255,209,102,0.45);color:#ffd166;">
-            Open Voice Moderation
-          </button>
-        </div>
-      </div>
-    ` : ''}
-    
-    <div style="background:rgba(0,210,211,0.05);border:2px solid var(--accent);
-      border-radius:var(--radius);padding:24px;margin-bottom:24px;">
-      <div class="qr-grid" style="display:grid;grid-template-columns:${isHost ? '1.4fr 1fr' : '1fr'};gap:18px;align-items:center;">
-        <div style="text-align:center;">
-          <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">
-            Room Code
-          </div>
-          <div style="font-family:'IBM Plex Mono',monospace;font-size:3rem;font-weight:700;
-            letter-spacing:12px;color:var(--accent);margin:10px 0;">
-            ${safeRoomCode}
-          </div>
-          <div style="font-size:0.85rem;color:var(--text-dim);">Share with your team</div>
-          ${isHost ? `
-            <div style="margin-top:10px;color:var(--text-dim);font-size:0.82rem;word-break:break-all;">
-              ${safeJoinUrl}
-            </div>
-            <div style="margin-top:8px;color:var(--text-dim);font-size:0.82rem;">
-              Access: <strong>${privateSession ? 'Private session (token required)' : 'Open session (room code only)'}</strong>
-            </div>
-            <button class="btn-secondary" data-action="copy-join-link" style="margin-top:10px;">Copy Join Link</button>
-          ` : ''}
-        </div>
-        ${isHost ? `
-          <div style="text-align:center;">
-            <div style="font-weight:700;margin-bottom:10px;">Scan to Join</div>
-            <img src="${qrImageUrl}" alt="QR code to join session" width="220" height="220"
-              style="width:220px;height:220px;max-width:100%;border-radius:12px;border:1px solid var(--border);background:#fff;padding:8px;">
-          </div>
-        ` : ''}
-      </div>
-    </div>
-    <div style="text-align:center;margin:-10px 0 22px;color:var(--text-dim);font-size:0.84rem;">
-      Keyboard: <strong>${escapeHtml(formatModifierShortcut('L'))}</strong> lobby, <strong>${escapeHtml(formatModifierShortcut('P'))}</strong> presentation, <strong>${escapeHtml(formatModifierShortcut('S'))}</strong> host settings, <strong>?</strong> shortcuts
-    </div>
-
-    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:24px;">
-      <button
-        type="button"
-        data-action="toggle-lobby-playlist-section"
-        aria-expanded="${showLobbyPlaylistSection ? 'true' : 'false'}"
-        style="width:100%;display:flex;justify-content:space-between;align-items:center;gap:14px;background:transparent;border:none;color:inherit;padding:0;text-align:left;cursor:pointer;">
-        <div style="min-width:0;">
-          <div style="font-weight:700;">🎵 Session Playlist</div>
-          <div style="font-size:0.84rem;color:var(--text-dim);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-            ${sharedSpotifyPlaylist ? `${safeSpotifyTitle}${safeSpotifySharedBy ? ` • shared by ${safeSpotifySharedBy}` : ''}` : (isHost ? 'Add a playlist for the room' : 'No Spotify playlist added yet')}
-          </div>
-        </div>
-        <div style="font-size:0.9rem;color:var(--text-dim);flex-shrink:0;">
-          ${showLobbyPlaylistSection ? 'Hide ▲' : 'Open ▼'}
-        </div>
-      </button>
-
-      ${showLobbyPlaylistSection ? `
-        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-          ${sharedSpotifyPlaylist ? `
-            <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;">
-              <div style="font-size:0.96rem;font-weight:600;margin-bottom:4px;">${safeSpotifyTitle}</div>
-              <div style="font-size:0.84rem;color:var(--text-mid);word-break:break-all;">${safeSpotifyUrl}</div>
-              <div style="font-size:0.78rem;color:var(--text-dim);margin-top:6px;">
-                Shared by ${safeSpotifySharedBy || 'host'}${spotifySharedAtLabel ? ` • ${escapeHtml(spotifySharedAtLabel)}` : ''}
-              </div>
-            </div>
-          ` : `
-            <div style="font-size:0.84rem;color:var(--text-dim);margin-bottom:10px;">No Spotify playlist added yet.</div>
-          `}
-
-          ${sharedSpotifyPlaylist ? `
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:${isHost ? '12px' : '0'};">
-              <button class="btn-primary" data-action="open-shared-spotify-playlist" style="width:auto;padding:10px 16px;">Open Player</button>
-              <button class="btn-secondary" data-action="open-spotify-playlist-external" style="width:auto;padding:10px 16px;">Open in Spotify</button>
-              ${isHost ? '<button class="btn-secondary" data-action="clear-shared-spotify-playlist" style="width:auto;padding:10px 16px;">Remove</button>' : ''}
-            </div>
-          ` : ''}
-
-          ${isHost ? `
-            <div style="display:grid;grid-template-columns:1fr 1.4fr auto;gap:10px;align-items:end;">
-              <div class="form-group" style="margin:0;">
-                <label class="form-label" for="spotifyPlaylistTitle">Title (optional)</label>
-                <input id="spotifyPlaylistTitle" class="form-input" maxlength="120" value="${escapeHtml(sharedSpotifyPlaylist?.title || '')}" placeholder="Warm-up Mix">
-              </div>
-              <div class="form-group" style="margin:0;">
-                <label class="form-label" for="spotifyPlaylistUrl">Spotify playlist URL</label>
-                <input id="spotifyPlaylistUrl" class="form-input" maxlength="1000" value="${escapeHtml(sharedSpotifyPlaylist?.url || '')}" placeholder="https://open.spotify.com/playlist/...">
-              </div>
-              <button class="btn-secondary" data-action="save-shared-spotify-playlist" style="width:auto;padding:10px 16px;">${sharedSpotifyPlaylist ? 'Update Playlist' : 'Add Playlist'}</button>
-            </div>
-            <div style="font-size:0.78rem;color:var(--text-dim);margin-top:8px;">
-              Quick lobby controls for the host. Full playlist management is also available in Host Settings.
-            </div>
-          ` : ''}
-        </div>
-      ` : ''}
-    </div>
-    
-    <div style="background:var(--surface-solid);border:1px solid var(--border);
-      border-radius:var(--radius);padding:24px;margin-bottom:30px;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
-        <h3 style="font-weight:600;display:flex;align-items:center;gap:10px;">
-          <div style="width:8px;height:8px;background:var(--success);border-radius:50%;animation:pulse 2s ease-in-out infinite;"></div>
-          ${APP.room.participants.length} ${APP.room.participants.length === 1 ? 'person' : 'people'} in room
-        </h3>
-        ${isHost ? `
-          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
-            <span style="padding:6px 10px;border-radius:999px;background:${voiceSettings.enabled ? 'rgba(122,245,159,0.12)' : 'rgba(255,255,255,0.06)'};border:1px solid ${voiceSettings.enabled ? 'rgba(122,245,159,0.28)' : 'rgba(255,255,255,0.08)'};font-size:0.74rem;font-weight:700;color:${voiceSettings.enabled ? '#7af59f' : 'var(--text-dim)'};">
-              ${voiceSettings.enabled ? 'Voice Enabled' : 'Voice Off'}
-            </span>
-            ${voiceSettings.enabled ? `
-              <span style="padding:6px 10px;border-radius:999px;background:rgba(0,210,211,0.08);border:1px solid rgba(0,210,211,0.22);font-size:0.74rem;font-weight:700;color:var(--accent);">
-                Session default: ${escapeHtml(voiceModeLabel)}
-              </span>
-              <span style="padding:6px 10px;border-radius:999px;background:rgba(255,209,102,0.08);border:1px solid rgba(255,209,102,0.22);font-size:0.74rem;font-weight:700;color:#ffd166;">
-                ${escapeHtml(voicePolicyLabel)}
-              </span>
-            ` : ''}
-          </div>
-        ` : ''}
-      </div>
-      
-      ${APP.room.participants.map(p => `
-        <div style="display:flex;justify-content:space-between;align-items:center;
-          background:${isHost && focusedVoiceParticipantId === p.id ? 'rgba(0,210,211,0.08)' : 'var(--surface-2)'};border:${isHost && focusedVoiceParticipantId === p.id ? '1px solid rgba(0,210,211,0.26)' : '1px solid transparent'};border-radius:10px;padding:14px;margin-bottom:10px;gap:12px;flex-wrap:wrap;">
-          <div style="display:flex;align-items:center;gap:12px;min-width:0;">
-            <div style="font-size:1.8rem;">${escapeHtml(p.avatar)}</div>
-            <div>
-              <div style="font-weight:600;">${escapeHtml(p.name)}</div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
-                ${p.isHost ? '<span style="background:var(--accent);color:var(--bg);padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;">HOST</span>' : ''}
-                ${voiceSettings.enabled && connectedVoiceIds.has(p.id) ? '<span style="background:rgba(122,245,159,0.12);color:#7af59f;padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;">VOICE</span>' : ''}
-                ${voiceSettings.enabled && raisedVoiceIds.has(p.id) ? '<span style="background:rgba(255,209,102,0.12);color:#ffd166;padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;">HAND RAISED</span>' : ''}
-                ${voiceSettings.enabled && !p.isHost && approvedVoiceIds.has(p.id) ? '<span style="background:rgba(0,210,211,0.1);color:var(--accent);padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;">MIC ALLOWED</span>' : ''}
-                ${voiceSettings.enabled && liveVoiceIds.has(p.id) ? '<span style="background:rgba(255,64,96,0.12);color:var(--danger);padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;">LIVE MIC</span>' : ''}
-                ${isHost && focusedVoiceParticipantId === p.id ? '<span style="background:rgba(0,210,211,0.12);color:var(--accent);padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;">1:1 FOCUS</span>' : ''}
-              </div>
-            </div>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto;">
-            ${isHost && voiceSettings.enabled && !p.isHost ? `
-              ${raisedVoiceIds.has(p.id) ? `
-                <button class="btn-secondary" data-action="voice-lower-hand" data-player-id="${escapeHtml(p.id)}" style="width:auto;padding:8px 12px;border-color:rgba(255,209,102,0.45);color:#ffd166;">
-                  Lower Hand
-                </button>
-              ` : ''}
-              <button class="btn-secondary" data-action="${focusedVoiceParticipantId === p.id ? 'voice-end-focus' : 'voice-start-focus'}" data-player-id="${escapeHtml(p.id)}" style="width:auto;padding:8px 12px;border-color:${focusedVoiceParticipantId === p.id ? 'rgba(0,210,211,0.45)' : 'var(--border)'};color:${focusedVoiceParticipantId === p.id ? 'var(--accent)' : 'var(--text)'};">
-                ${focusedVoiceParticipantId === p.id ? 'End 1:1' : 'Talk 1:1'}
-              </button>
-              ${liveVoiceIds.has(p.id) ? `
-                <button class="btn-secondary" data-action="voice-force-stop" data-player-id="${escapeHtml(p.id)}" style="width:auto;padding:8px 12px;border-color:var(--danger);color:var(--danger);">
-                  Mute Live
-                </button>
-              ` : ''}
-              <button class="btn-secondary" data-action="${approvedVoiceIds.has(p.id) ? 'voice-revoke-talk' : 'voice-grant-talk'}" data-player-id="${escapeHtml(p.id)}" style="width:auto;padding:8px 12px;">
-                ${approvedVoiceIds.has(p.id) ? 'Mute Person' : 'Allow Voice'}
-              </button>
-            ` : ''}
-            <div style="color:var(--success);">✓</div>
-          </div>
-        </div>
-      `).join('')}
-    </div>
-
-    ${isCommunityRoom ? `
-      <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:30px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
-          <h3 style="font-weight:700;">Community Chat</h3>
-          <div style="font-size:0.82rem;color:var(--text-dim);">Lobby-wide messages and emoji reactions</div>
-        </div>
-
-        <div data-community-chat-list="1" style="display:grid;gap:10px;max-height:420px;overflow:auto;padding-right:4px;">
-          ${communityChat.length ? communityChat.map(message => {
-            const isOwnMessage = message.playerId === APP.player?.id || normalizeName(message.playerName || '') === normalizeName(APP.player?.name || '');
-            return `
-              <div style="display:flex;justify-content:${isOwnMessage ? 'flex-end' : 'flex-start'};">
-                <div style="background:${isOwnMessage ? 'rgba(0,210,211,0.12)' : 'var(--surface-2)'};border:1px solid ${isOwnMessage ? 'rgba(0,210,211,0.24)' : 'var(--border)'};border-radius:14px;padding:12px 14px;max-width:min(82%, 620px);">
-                  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
-                    <div style="display:flex;align-items:flex-start;gap:10px;min-width:0;flex-direction:${isOwnMessage ? 'row-reverse' : 'row'};">
-                      ${isOwnMessage ? '' : `<div style="font-size:1.3rem;line-height:1;">${escapeHtml(message.avatar || '💬')}</div>`}
-                      <div style="min-width:0;text-align:${isOwnMessage ? 'right' : 'left'};">
-                        <div style="font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:${isOwnMessage ? 'flex-end' : 'flex-start'};">
-                          <span>${escapeHtml(message.playerName || 'Guest')}</span>
-                          <span style="font-size:0.75rem;color:var(--text-dim);font-weight:600;">${escapeHtml(formatCommunityChatTime(message.ts))}</span>
-                        </div>
-                        <div style="color:var(--text-mid);line-height:1.5;word-break:break-word;margin-top:4px;">${escapeHtml(message.text || '')}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            `;
-          }).join('') : `
-            <div style="background:var(--surface-2);border:1px dashed var(--border);border-radius:14px;padding:18px;color:var(--text-dim);text-align:center;">
-              No messages yet. Start the conversation or drop an emoji.
-            </div>
-          `}
-        </div>
-
-        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-          <div class="form-group" style="margin:0 0 10px;">
-            <label class="form-label" for="communityChatInput">Message</label>
-            <input id="communityChatInput" class="form-input" maxlength="280" placeholder="Say hi, react, or coordinate the next game">
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
-            <div style="position:relative;">
-              <details style="position:relative;">
-                <summary class="btn-secondary" style="list-style:none;width:auto;padding:10px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
-                  <span style="font-size:1rem;">😊</span>
-                  <span>React</span>
-                </summary>
-                <div style="position:absolute;left:0;bottom:calc(100% + 10px);z-index:4;min-width:220px;padding:10px;border-radius:16px;background:rgba(8,12,29,0.96);border:1px solid var(--border);box-shadow:0 18px 36px rgba(0,0,0,0.32);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;">
-                  ${COMMUNITY_CHAT_QUICK_EMOJIS.map(emoji => `
-                    <button class="btn-secondary" data-action="community-chat-emoji" data-emoji="${escapeHtml(emoji)}" style="width:auto;padding:10px 0;font-size:1rem;">${escapeHtml(emoji)}</button>
-                  `).join('')}
-                </div>
-              </details>
-            </div>
-            <button class="btn-primary" data-action="send-community-chat" style="width:auto;padding:12px 18px;">Send</button>
-          </div>
-        </div>
-      </div>
-    ` : ''}
-
-    ${isHost ? `
-      <h3 style="text-align:center;font-family:'Fraunces',serif;font-size:1.5rem;margin-bottom:20px;">
-        Choose Activity
-      </h3>
-      
-      <div class="grid-2">
-        <button type="button" class="card" data-action="start-lightning-trivia" aria-label="Start Lightning Trivia" style="${enabledActivities['lightning-trivia'] === false ? 'display:none;' : ''}">
-          <div class="card-icon">⚡</div>
-          <h3 class="card-title">Lightning Trivia</h3>
-          <p class="card-desc">Kahoot-style quiz with 20s timer & speed scoring</p>
-        </button>
-
-        <button type="button" class="card" data-action="start-emoji-charades" aria-label="Start Emoji Charades" style="${enabledActivities['emoji-charades'] === false ? 'display:none;' : ''}">
-          <div class="card-icon">🎭</div>
-          <h3 class="card-title">Emoji Charades</h3>
-          <p class="card-desc">Guess the phrase behind each emoji clue</p>
-        </button>
-        
-        <button type="button" class="card" data-action="start-icebreaker" aria-label="Start Icebreaker Roulette" style="${enabledActivities['icebreaker'] === false ? 'display:none;' : ''}">
-          <div class="card-icon">🎲</div>
-          <h3 class="card-title">Icebreaker Roulette</h3>
-          <p class="card-desc">Fun questions to spark great conversations</p>
-        </button>
-        
-        <button type="button" class="card" data-action="start-pulse-check" aria-label="Start Team Pulse Check" style="${enabledActivities['pulse-check'] === false ? 'display:none;' : ''}">
-          <div class="card-icon">📊</div>
-          <h3 class="card-title">Team Pulse Check</h3>
-          <p class="card-desc">Quick polls to gauge team sentiment</p>
-        </button>
-        
-        <button type="button" class="card" data-action="start-values-vote" aria-label="Start Values Vote" style="${enabledActivities['values-vote'] === false ? 'display:none;' : ''}">
-          <div class="card-icon">⭐</div>
-          <h3 class="card-title">Values Vote</h3>
-          <p class="card-desc">Discover what matters most to your team</p>
-        </button>
-        
-        <button type="button" class="card" data-action="start-wordle" aria-label="Start Team Wordle" style="${enabledActivities['wordle'] === false ? 'display:none;' : ''}">
-          <div class="card-icon">🎯</div>
-          <h3 class="card-title">Team Wordle</h3>
-          <p class="card-desc">Guess the 5-letter word together</p>
-        </button>
-
-        <button type="button" class="card" data-action="start-word-chain" aria-label="Start Word Chain" style="${enabledActivities['word-chain'] === false ? 'display:none;' : ''}">
-          <div class="card-icon">🔗</div>
-          <h3 class="card-title">Word Chain</h3>
-          <p class="card-desc">Solve 5 hidden compound words with the fewest tries</p>
-        </button>
-
-        <button type="button" class="card" data-action="start-brainstorm-canvas" aria-label="Start Brainstorm Canvas" style="${enabledActivities['brainstorm-canvas'] === false ? 'display:none;' : ''}">
-          <div class="card-icon">🧩</div>
-          <h3 class="card-title">Brainstorm Canvas</h3>
-          <p class="card-desc">Add sticky notes and vote in Start / Stop / Improve / Create</p>
-        </button>
-
-        <button type="button" class="card" data-action="start-uno" aria-label="Start UNO Showdown" style="${enabledActivities.uno === false ? 'display:none;' : ''}">
-          <div class="card-icon">🃏</div>
-          <h3 class="card-title">UNO Showdown</h3>
-          <p class="card-desc">Match colors and numbers, play action cards, and race to clear your hand</p>
-        </button>
-
-        <!-- Activity Queue button removed from Choose Activity menu -->
-        
-        <button type="button" class="card" data-action="start-regular-trivia" aria-label="Start Trivia Battle" style="${enabledActivities['regular-trivia'] === false ? 'display:none;' : ''}">
-          <div class="card-icon">🧠</div>
-          <h3 class="card-title">Trivia Battle</h3>
-          <p class="card-desc">Compete with classic trivia questions</p>
-        </button>
-
-        <button type="button" class="card" data-action="start-tic-tac-toe-blitz" aria-label="Start Tic-Tac-Toe Blitz Arena" style="${enabledActivities['tic-tac-toe-blitz'] === false ? 'display:none;' : ''}">
-          <div class="card-icon">❌</div>
-          <h3 class="card-title">Tic-Tac-Toe Blitz Arena</h3>
-          <p class="card-desc">Auto-matched 1v1 games with a 2-minute round timer</p>
-        </button>
-
-        <button type="button" class="card" data-action="start-team-jeopardy" aria-label="Start Team Jeopardy" style="${enabledActivities['team-jeopardy'] === false ? 'display:none;' : ''}">
-          <div class="card-icon">🏆</div>
-          <h3 class="card-title">Team Jeopardy</h3>
-          <p class="card-desc">Pick a category and value, then race to answer and score points</p>
-        </button>
-
-        <button type="button" class="card" data-action="start-spin-wheel" aria-label="Start Spin Wheel" style="${enabledActivities['spin-wheel'] === false ? 'display:none;' : ''}">
-          <div class="card-icon">🎡</div>
-          <h3 class="card-title">Spin Wheel</h3>
-          <p class="card-desc">Customize options, spin the wheel, and let chance pick the next move</p>
-        </button>
-
-        <button type="button" class="card" data-action="start-presentation" aria-label="Start Presentation" style="${enabledActivities.presentation === false ? 'display:none;' : ''}">
-          <div class="card-icon">📽️</div>
-          <h3 class="card-title">Presentation</h3>
-          <p class="card-desc">Display a shared PowerPoint or slide deck inside the room for everyone to follow along</p>
-        </button>
-
-        <button type="button" class="card" data-action="start-slides-studio" aria-label="Start Slides Studio" style="${enabledActivities['slides-studio'] === false ? 'display:none;' : ''}">
-          <div class="card-icon">🎞️</div>
-          <h3 class="card-title">Slides Studio</h3>
-          <p class="card-desc">Create live slides with gradients, images, rounded cards, and presenter controls directly inside the room</p>
-        </button>
-
-        <button type="button" class="card" data-action="start-dj-booth" aria-label="Start DJ Booth" style="${enabledActivities['dj-booth'] === false ? 'display:none;' : ''}">
-          <div class="card-icon">🎚️</div>
-          <h3 class="card-title">DJ Booth</h3>
-          <p class="card-desc">Load two YouTube decks, blend them live, fire sound pads, and broadcast a scrolling DJ banner</p>
-        </button>
-
-        <button type="button" class="card" data-action="start-battleship" aria-label="Start Battleship" style="${enabledActivities.battleship === false ? 'display:none;' : ''}">
-          <div class="card-icon">🚢</div>
-          <h3 class="card-title">Battleship</h3>
-          <p class="card-desc">Place ships on a 10x10 ocean, take turns firing, and sink the other fleet first</p>
-        </button>
-
-        <button type="button" class="card" data-action="start-bingo" aria-label="Start Bingo" style="${enabledActivities.bingo === false ? 'display:none;' : ''}">
-          <div class="card-icon">🎟️</div>
-          <h3 class="card-title">Bingo</h3>
-          <p class="card-desc">Get a unique 5x5 card, mark called numbers, and race to complete a line</p>
-        </button>
-
-        <button type="button" class="card" data-action="start-backgammon" aria-label="Start Backgammon" style="${enabledActivities.backgammon === false ? 'display:none;' : ''}">
-          <div class="card-icon">🎲</div>
-          <h3 class="card-title">Backgammon</h3>
-          <p class="card-desc">Roll dice, move around the board, hit blots, and bear off all fifteen checkers first</p>
-        </button>
-
-        <button type="button" class="card" data-action="start-connect-4" aria-label="Start Connect 4" style="${enabledActivities['connect-4'] === false ? 'display:none;' : ''}">
-          <div class="card-icon">🟡</div>
-          <h3 class="card-title">Connect 4</h3>
-          <p class="card-desc">Drop glowing discs into a neon grid and connect four before your opponent does</p>
-        </button>
-      </div>
-    ` : `
-      <div style="text-align:center;padding:60px 20px;">
-        <div style="width:48px;height:48px;margin:0 auto 20px;border:4px solid var(--surface-2);
-          border-top:4px solid var(--accent);border-radius:50%;animation:spin 1s linear infinite;"></div>
-        <p style="color:var(--text-dim);">Waiting for host to start an activity...</p>
-      </div>
-    `}
-  `;
-}
-
-function renderActivityQueue() {
-  const isHost = APP.room.host === APP.player.name;
-  const safeRoomCode = escapeHtml(APP.roomCode);
-  const queueFeatureEnabled = APP.preferences.enableActivityQueue !== false;
-  const availableQueueItems = getEnabledActivityItems();
-  const activityQueue = Array.isArray(APP.room.activityQueue) ? APP.room.activityQueue : [];
-  const queueAiActivities = getQueueEligibleAIActivityIds(activityQueue);
-  const localCollections = normalizeClientCollections(APP.admin.collections || []);
-  const queueIndex = Number.isInteger(APP.room.queueIndex) ? APP.room.queueIndex : 0;
-  const queueActive = Boolean(APP.room.queueActive);
-  const queueRemaining = activityQueue.slice(queueIndex);
-  const queueSchedule = normalizeQueueSchedule(APP.room.queueSchedule, activityQueue);
-  const timedQueueEnabled = APP.room.queueTiming?.enabled === true;
-  const timedRemainingMs = getTimedQueueRemainingMs(APP.room);
-  const timedEntry = getCurrentQueuedScheduleEntry(APP.room);
-
-  if (!queueFeatureEnabled) {
-    return `
-      <div class="header">
-        <h1 class="logo">Activity Queue</h1>
-        <p class="tagline">Room: ${safeRoomCode}</p>
-      </div>
-      <button class="btn-secondary" data-action="go-screen" data-screen="lobby">← Back to Lobby</button>
-      <div style="margin-top:20px;color:var(--text-dim);">Activity Queue is disabled by admin.</div>
-    `;
-  }
-
-  return `
-    <div class="header">
-      <h1 class="logo">Activity Queue</h1>
-      <p class="tagline">Room: ${safeRoomCode}</p>
-    </div>
-
-    <button class="btn-secondary" data-action="go-screen" data-screen="lobby">← Back to Lobby</button>
-
-    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:16px;">
-      <h3 style="font-weight:700;margin-bottom:12px;">Queued Activities</h3>
-      ${activityQueue.length ? `
-        <div style="margin-bottom:12px;">
-          ${activityQueue.map((activityId, idx) => {
-            const item = ACTIVITY_QUEUE_ITEM_MAP[activityId];
-            if (!item) return '';
-            const isCurrentPointer = queueActive && idx === queueIndex;
-            const isDone = idx < queueIndex;
-            const bg = isDone ? 'rgba(0,210,106,0.06)' : (isCurrentPointer ? 'rgba(0,210,211,0.08)' : 'var(--surface-2)');
-            const border = isCurrentPointer ? 'var(--accent)' : 'var(--border)';
-            return `
-              <div style="display:flex;justify-content:space-between;align-items:center;background:${bg};
-                border:1px solid ${border};border-radius:10px;padding:10px 12px;margin-bottom:8px;">
-                <div style="display:flex;align-items:center;gap:10px;">
-                  <span style="font-weight:700;min-width:20px;">${idx + 1}.</span>
-                  <span>${item.icon}</span>
-                  <span>${escapeHtml(item.label)}</span>
-                  <span style="font-size:0.75rem;color:var(--text-dim);">${queueSchedule[idx]?.durationMinutes || DEFAULT_QUEUE_ACTIVITY_DURATION_MINUTES} min</span>
-                  ${isCurrentPointer ? '<span style="font-size:0.75rem;color:var(--accent);font-weight:700;">UP NEXT</span>' : ''}
-                  ${isDone ? '<span style="font-size:0.75rem;color:var(--success);font-weight:700;">DONE</span>' : ''}
-                </div>
-                ${isHost ? `<button class="btn-secondary" data-action="queue-remove" data-queue-index="${idx}" style="padding:6px 10px;">Remove</button>` : ''}
-              </div>
-            `;
-          }).join('')}
-        </div>
-      ` : `
-        <div style="color:var(--text-dim);margin-bottom:12px;">No activities queued yet.</div>
-      `}
-      <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:10px;">
-        ${queueActive
-          ? (queueRemaining.length ? `${queueRemaining.length} remaining in queue` : 'Queue will complete after this activity')
-          : 'Queue is paused'}
-      </div>
-      ${timedQueueEnabled ? `
-        <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:12px;">
-          ${timedEntry
-            ? `Timed run active: ${escapeHtml(ACTIVITY_QUEUE_ITEM_MAP[timedEntry.activityId]?.label || timedEntry.activityId)} ends in ${escapeHtml(formatClockFromMs(timedRemainingMs))}`
-            : 'Timed run is enabled for this queue.'}
-        </div>
-      ` : ''}
-
-      ${isHost ? `
-        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px;">
-          ${availableQueueItems.map(item => `
-            <button class="btn-secondary" data-action="queue-add" data-activity="${item.id}" style="padding:10px 12px;">
-              ${item.icon} ${escapeHtml(item.label)}
-            </button>
-          `).join('')}
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn-primary" data-action="queue-start" style="width:auto;padding:10px 14px;">Start Queue</button>
-          <button class="btn-secondary" data-action="queue-toggle-timed" style="width:auto;padding:10px 14px;">${timedQueueEnabled ? 'Timed Run On' : 'Timed Run Off'}</button>
-          <button class="btn-secondary" data-action="queue-next">Next in Queue</button>
-          <button class="btn-secondary" data-action="queue-clear">Clear Queue</button>
-        </div>
-      ` : ''}
-    </div>
-
-    ${isHost ? `
-      ${queueAiActivities.length
-        ? renderAIContentStudioSection('queue')
-        : `
-          <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:16px;color:var(--text-dim);font-size:0.9rem;">
-            Add AI-supported activities like Trivia, Icebreaker, Team Jeopardy, Spin Wheel, or Word Chain to unlock queue content generation.
-          </div>
-        `}
-    ` : ''}
   `;
 }
 
@@ -13728,182 +11462,6 @@ async function copyJoinLink() {
   showError('Join link copied.');
 }
 
-function goToScreen(screen) {
-  if (screen === 'community' && APP.preferences.enableCommunityLobby === false) {
-    showError('Community Lobby is disabled by admin.');
-    return;
-  }
-  if (screen === 'schedule-meeting' && APP.preferences.enableScheduleMeeting === false) {
-    showError('Schedule Team Meeting is disabled by admin.');
-    return;
-  }
-  if (screen === 'load-session' && APP.preferences.enableLoadSession === false) {
-    showError('Load Saved Session is disabled by admin.');
-    return;
-  }
-  if (screen === 'activity-queue' && APP.preferences.enableActivityQueue === false) {
-    showError('Activity Queue is disabled by admin.');
-    return;
-  }
-  if (screen === 'schedule-meeting' || screen === 'load-session') {
-    APP.sessionManager.plans = loadSessionPlans();
-  }
-  const roomScreens = new Set(['lobby', 'activity-queue']);
-  if (!roomScreens.has(screen)) {
-    stopRoomSync();
-    APP.showHostSettings = false;
-    resetWordChainFocusState();
-  }
-  APP.showShortcutHelp = false;
-  APP.screen = screen;
-  
-  if (screen === 'create-room') {
-    createRoomAndNavigate();
-  } else if (screen === 'community') {
-    render();
-    void loadCommunityDirectoryData();
-  } else {
-    render();
-  }
-}
-
-async function startRoomRealtime() {
-  roomRealtimeEnabled = false;
-  if (!APP.roomCode) return false;
-
-  const sharedKey = `room:${APP.roomCode}`;
-
-  const socket = await getSocketClient();
-  if (socket && socket.connected) {
-    socketRoomKey = sharedKey;
-    const authToken = getRoomAccessTokenForKey(sharedKey, APP.roomAccessToken || '');
-    socket.emit('room:subscribe', authToken ? { key: sharedKey, authToken } : { key: sharedKey });
-    roomRealtimeEnabled = true;
-    return true;
-  }
-
-  const client = await getSupabaseClient();
-  if (!client) return false;
-
-  if (roomChannel) {
-    await client.removeChannel(roomChannel);
-    roomChannel = null;
-  }
-
-  roomChannel = client
-    .channel(`room-sync-${APP.roomCode}`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'shared_state',
-        filter: `key=eq.${sharedKey}`
-      },
-      payload => {
-        const value = payload.new?.value || payload.old?.value;
-        const room = normalizeRoom(safeParseJson(value));
-        if (room) {
-          APP.room = room;
-          void syncVoiceFeatureState();
-          render();
-        }
-      }
-    )
-    .subscribe(status => {
-      roomRealtimeEnabled = status === 'SUBSCRIBED';
-    });
-
-  return true;
-}
-
-async function stopRoomRealtime() {
-  await leaveVoiceSession();
-  const socket = socketClient;
-  if (socket && socket.connected && socketRoomKey) {
-    socket.emit('room:unsubscribe', { key: socketRoomKey });
-    socketRoomKey = null;
-  }
-
-  const client = await getSupabaseClient();
-  if (client && roomChannel) {
-    await client.removeChannel(roomChannel);
-    roomChannel = null;
-  }
-  roomRealtimeEnabled = false;
-}
-
-function stopRoomSync() {
-  if (syncInterval) {
-    clearInterval(syncInterval);
-    syncInterval = null;
-  }
-  stopRoomRealtime();
-}
-
-async function restoreActiveSession() {
-  const snapshot = loadActiveSessionSnapshot();
-  if (!snapshot || !APP.player?.id || !APP.player?.name) return false;
-  if (snapshot.playerId !== APP.player.id || snapshot.playerName !== APP.player.name) {
-    clearActiveSessionSnapshot();
-    return false;
-  }
-
-  const accessToken = snapshot.accessToken || getStoredRoomAccessToken(snapshot.roomCode);
-  const room = await RoomManager.loadRoom(snapshot.roomCode, accessToken);
-  if (!room) {
-    clearActiveSessionSnapshot();
-    return false;
-  }
-
-  const participantMatch = Array.isArray(room.participants)
-    && room.participants.some(player => player?.id === APP.player.id || player?.name === APP.player.name);
-  const hostMatch = room.host === APP.player.name;
-  if (!participantMatch && !hostMatch) {
-    clearActiveSessionSnapshot();
-    return false;
-  }
-
-  APP.room = room;
-  APP.roomCode = snapshot.roomCode;
-  APP.roomAccessToken = isRoomPrivateSession(room) ? accessToken : '';
-  APP.screen = 'lobby';
-  persistActiveSessionSnapshot();
-  startRoomSync();
-  return true;
-}
-
-async function createRoomAndNavigate(options = {}) {
-  render();
-  
-  const { room, accessToken } = await RoomManager.createRoom(APP.player.id, APP.player.name, APP.player.avatar, options);
-  APP.room = room;
-  APP.roomCode = room.code;
-  APP.roomAccessToken = isRoomPrivateSession(room) ? accessToken : '';
-  APP.screen = 'lobby';
-  persistActiveSessionSnapshot();
-  
-  startRoomSync();
-  render();
-}
-
-async function createCommunityRoomAndNavigate() {
-  if (APP.preferences.enableCommunityLobby === false) {
-    showError('Community Lobby is disabled by admin.');
-    return;
-  }
-  if (!canCurrentUserCreateCommunityRooms()) {
-    showError('Admin access or host allowlist approval is required to create community rooms.');
-    return;
-  }
-  await createRoomAndNavigate({
-    roomType: 'community',
-    communityTitle: `${APP.player?.name || 'Host'}'s Community Lobby`,
-    communityDescription: 'Open lobby for drop-in games and social play.',
-    maxParticipants: 24
-  });
-}
-
 async function editCommunityRoom(code = APP.roomCode) {
   const normalizedCode = normalizeRoomCode(code);
   if (!normalizedCode) return;
@@ -13996,204 +11554,6 @@ async function removeCommunityRoom(code = APP.roomCode) {
   }
 }
 
-async function createRoomFromSessionPlan(planId) {
-  const plan = getSessionPlanById(planId);
-  if (!plan || !APP.player?.id) return;
-  render();
-  const created = await RoomManager.createRoom(APP.player.id, APP.player.name, APP.player.avatar);
-  const room = applySessionPlanToRoom(created.room, plan);
-  await RoomManager.updateRoom(room.code, room, created.accessToken);
-  APP.room = normalizeRoom(room);
-  APP.roomCode = room.code;
-  APP.roomAccessToken = created.accessToken;
-  APP.screen = 'lobby';
-  persistActiveSessionSnapshot();
-  startRoomSync();
-  render();
-}
-
-function editSessionPlan(planId) {
-  APP.sessionManager.editingPlanId = String(planId || '').trim();
-  APP.screen = 'schedule-meeting';
-  render();
-}
-
-function clearSessionPlanEditor() {
-  APP.sessionManager.editingPlanId = '';
-  render();
-}
-
-async function saveSessionPlan() {
-  const title = normalizeTopic(document.getElementById('meetingTitle')?.value || '');
-  const date = String(document.getElementById('meetingDate')?.value || '').trim().slice(0, 32);
-  const time = String(document.getElementById('meetingTime')?.value || '').trim().slice(0, 32);
-  const zoomLink = normalizeSlidesStudioUrl(document.getElementById('zoomLink')?.value || '');
-  const details = String(document.getElementById('meetingDetails')?.value || '').replace(/\r/g, '').trim().slice(0, 2000);
-  const contentBrief = normalizeContentBrief({
-    themePreset: document.getElementById('meetingThemePreset')?.value || 'Team Collaboration',
-    customTopic: document.getElementById('meetingCustomTopic')?.value || '',
-    audience: document.getElementById('meetingAudience')?.value || '',
-    tone: document.getElementById('meetingTone')?.value || '',
-    difficulty: document.getElementById('meetingDifficulty')?.value || 'mixed',
-    count: document.getElementById('meetingContentCount')?.value || '8'
-  });
-  const activityQueue = Array.from(
-    document.querySelectorAll('.activity-queue-checkbox:checked')
-  ).map(cb => cb.value).filter(activityId => ALL_ACTIVITY_IDS.includes(activityId));
-  const queueSchedule = activityQueue.map(activityId => ({
-    activityId,
-    durationMinutes: normalizeQueueDurationMinutes(
-      document.querySelector(`.activity-queue-duration[data-activity-id="${activityId}"]`)?.value || `${DEFAULT_QUEUE_ACTIVITY_DURATION_MINUTES}`
-    )
-  }));
-  const timedSessionEnabled = Boolean(document.getElementById('meetingTimedSessionEnabled')?.checked);
-  if (!title) {
-    showError('Please add a session title.');
-    return;
-  }
-  const nowIso = new Date().toISOString();
-  const editingId = String(APP.sessionManager.editingPlanId || '').trim();
-  const existing = editingId ? getSessionPlanById(editingId) : null;
-  const plan = normalizeSessionPlan({
-    id: existing?.id || '',
-    title,
-    date,
-    time,
-    zoomLink,
-    details,
-    contentBrief,
-    contentCollections: existing?.contentCollections || [],
-    activityQueue,
-    queueSchedule,
-    timedSessionEnabled,
-    createdAt: existing?.createdAt || nowIso,
-    updatedAt: nowIso
-  });
-  const plans = loadSessionPlans().filter(item => item.id !== plan.id);
-  plans.unshift(plan);
-  persistSessionPlans(plans);
-  APP.sessionManager.editingPlanId = plan.id;
-  showError(existing ? 'Session plan updated.' : 'Session plan saved.');
-  render();
-}
-
-function deleteSessionPlan(planId) {
-  const id = String(planId || '').trim();
-  if (!id) return;
-  const plan = getSessionPlanById(id);
-  if (!plan) return;
-  const confirmed = window.confirm(`Delete "${plan.title}"?`);
-  if (!confirmed) return;
-  const plans = loadSessionPlans().filter(item => item.id !== id);
-  persistSessionPlans(plans);
-  if (APP.sessionManager.editingPlanId === id) APP.sessionManager.editingPlanId = '';
-  showError('Session plan deleted.');
-  render();
-}
-
-async function shareSessionPlan(planId) {
-  const plan = getSessionPlanById(planId);
-  if (!plan) return;
-  const shareUrl = buildSessionPlanShareUrl(plan);
-  if (!shareUrl) {
-    showError('Unable to build session share link.');
-    return;
-  }
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(shareUrl);
-      showError('Session plan link copied.');
-      return;
-    }
-  } catch (_error) {
-    // fallback below
-  }
-  const fallback = document.createElement('textarea');
-  fallback.value = shareUrl;
-  fallback.setAttribute('readonly', 'true');
-  fallback.style.position = 'fixed';
-  fallback.style.left = '-9999px';
-  document.body.appendChild(fallback);
-  fallback.select();
-  document.execCommand('copy');
-  fallback.remove();
-  showError('Session plan link copied.');
-}
-
-function exportSessionPlanIcs(planId) {
-  const plan = getSessionPlanById(planId);
-  if (!plan) return;
-  const icsContent = generateMeetingICS({
-    date: plan.date,
-    time: plan.time,
-    zoomLink: plan.zoomLink,
-    details: plan.details,
-    activityQueue: plan.activityQueue
-  });
-  triggerTextFileDownload(`${plan.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'team-session'}.ics`, 'text/calendar;charset=utf-8', icsContent);
-  showError('Calendar invite downloaded.');
-}
-
-async function joinRoom() {
-  const code = normalizeRoomCode(document.getElementById('joinCode')?.value || '');
-  const accessToken = normalizeRoomAccessToken(
-    document.getElementById('joinToken')?.value
-    || APP.pendingJoinToken
-    || getStoredRoomAccessToken(code)
-  );
-  if (!/^[A-Z0-9]{6}$/.test(code || '')) {
-    showError('Please enter a valid 6-digit room code');
-    return;
-  }
-  
-  let room = null;
-  try {
-    room = await RoomManager.joinRoom(code, APP.player.id, APP.player.name, APP.player.avatar, accessToken);
-  } catch (e) {
-    showError(e.message || 'Unable to join this room.');
-    return;
-  }
-  if (!room) {
-    showError('Room not found, or this private session requires a valid access token.');
-    return;
-  }
-  
-  APP.room = room;
-  APP.roomCode = code;
-  APP.roomAccessToken = isRoomPrivateSession(room) ? accessToken : '';
-  APP.pendingJoinCode = '';
-  APP.pendingJoinToken = '';
-  APP.screen = 'lobby';
-  persistActiveSessionSnapshot();
-  
-  startRoomSync();
-  render();
-}
-
-async function joinRoomByCode(code, accessToken = '') {
-  const normalizedCode = normalizeRoomCode(code);
-  let room = null;
-  try {
-    room = await RoomManager.joinRoom(normalizedCode, APP.player.id, APP.player.name, APP.player.avatar, normalizeRoomAccessToken(accessToken));
-  } catch (e) {
-    showError(e.message || 'Unable to join that lobby.');
-    return;
-  }
-  if (!room) {
-    showError('Unable to join that lobby.');
-    return;
-  }
-  APP.room = room;
-  APP.roomCode = normalizedCode;
-  APP.roomAccessToken = isRoomPrivateSession(room) ? normalizeRoomAccessToken(accessToken) : '';
-  APP.pendingJoinCode = '';
-  APP.pendingJoinToken = '';
-  APP.screen = 'lobby';
-  persistActiveSessionSnapshot();
-  startRoomSync();
-  render();
-}
-
 async function sendCommunityChatMessage(content = '') {
   if (!APP.roomCode || !APP.room || APP.room.roomType !== 'community' || !APP.player?.id) return;
   const input = document.getElementById('communityChatInput');
@@ -14225,114 +11585,6 @@ async function sendCommunityChatMessage(content = '') {
     input.focus();
   }
   render();
-}
-
-async function leaveSession() {
-  if (!APP.roomCode || !APP.player?.name) {
-    APP.room = null;
-    APP.roomCode = null;
-    APP.roomAccessToken = null;
-    clearActiveSessionSnapshot();
-    APP.showHostSettings = false;
-    APP.screen = 'dashboard';
-    stopRoomSync();
-    resetWordChainFocusState();
-    render();
-    return;
-  }
-
-  const room = await RoomManager.loadRoom(APP.roomCode);
-  if (room) {
-    room.participants = (room.participants || []).filter(p => p.id !== APP.player.id && p.name !== APP.player.name);
-    if (room.participants.length > 0) {
-      if (room.host === APP.player.name) {
-        room.host = room.participants[0].name;
-      }
-      room.participants = normalizeRoomParticipants(room.participants.map(p => ({
-        ...p,
-        isHost: p.name === room.host
-      })), room.host);
-    } else {
-      room.host = null;
-      room.currentActivity = null;
-      room.activityState = {};
-    }
-    await RoomManager.updateRoom(APP.roomCode, room);
-  }
-
-  stopRoomSync();
-  ticTacToeFinalizePending = false;
-  APP.room = null;
-  APP.roomCode = null;
-  APP.roomAccessToken = null;
-  clearActiveSessionSnapshot();
-  APP.showHostSettings = false;
-  APP.screen = 'dashboard';
-  resetWordChainFocusState();
-  render();
-}
-
-function startRoomSync() {
-  if (syncInterval) clearInterval(syncInterval);
-  startRoomRealtime();
-  syncInterval = setInterval(async () => {
-    if (!APP.roomCode) return;
-    if (!roomRealtimeEnabled) {
-      const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
-      if (!room) {
-        exitUnavailableRoom('This room has been removed.');
-        return;
-      }
-      if (room.lastUpdate !== APP.room?.lastUpdate) {
-        APP.room = room;
-        void maybeClaimSpinWheelWinnerXp();
-        void syncVoiceFeatureState();
-        render();
-      }
-    }
-    
-    // Update timer during active questions
-    if (APP.room?.currentActivity === 'lightning-trivia' && !APP.room?.activityState?.revealed) {
-      const state = APP.room.activityState || {};
-      const hostSettings = getRoomHostSettings(APP.room);
-      const answersCount = Object.keys(state.answers || {}).length;
-      const participantCount = APP.room.participants?.length || 0;
-      const allAnswered = participantCount > 0 && answersCount >= participantCount;
-      const startTime = state.startTime || Date.now();
-      const timedOut = Date.now() - startTime >= 20000;
-      const isHost = APP.room.host === APP.player?.name;
-
-      if (hostSettings.autoRevealLightning && isHost && !lightningAutoRevealPending && (allAnswered || timedOut)) {
-        lightningAutoRevealPending = true;
-        try {
-          await revealAnswer();
-        } finally {
-          lightningAutoRevealPending = false;
-        }
-      }
-      render();
-    }
-
-    if (APP.room?.currentActivity === 'tic-tac-toe-blitz') {
-      const state = APP.room.activityState || {};
-      const isHost = APP.room.host === APP.player?.name;
-      const timedOut = !state.roundClosed && Date.now() >= (Number(state.roundEndsAt) || 0);
-      if (timedOut && isHost && !ticTacToeFinalizePending) {
-        ticTacToeFinalizePending = true;
-        try {
-          await closeTicTacToeRound();
-        } finally {
-          ticTacToeFinalizePending = false;
-        }
-      }
-      render();
-    }
-
-    if (APP.room?.queueActive && APP.room?.queueTiming?.enabled) {
-      await maybeAdvanceTimedQueue();
-      render();
-    }
-  }, ROOM_SYNC_MS);
 }
 
 function showError(msg) {
@@ -14744,164 +11996,6 @@ function viewStats() {
   render();
 }
 
-async function loadPublicConfig() {
-  try {
-    const data = await apiRequest('/api/config');
-    applyConfigPayload(data);
-  } catch (e) {
-    console.warn('Failed to load config:', e.message);
-  }
-}
-
-async function openFeedbackHub() {
-  if (APP.preferences.enableFeedbackHub === false) {
-    showError('Feedback Hub is currently disabled by admin.');
-    return;
-  }
-  APP.showShortcutHelp = false;
-  APP.screen = 'feedback';
-  APP.feedbackLoading = true;
-  APP.feedback = [];
-  render();
-  await refreshMyFeedback();
-}
-
-async function refreshMyFeedback() {
-  APP.feedbackLoading = true;
-  render();
-  try {
-    const data = await apiRequest('/api/feedback/mine', { withUserToken: true });
-    APP.feedback = Array.isArray(data.feedback) ? data.feedback : [];
-  } catch (e) {
-    showError(e.message);
-  } finally {
-    APP.feedbackLoading = false;
-    render();
-  }
-}
-
-async function submitFeedback() {
-  const type = String(document.getElementById('feedbackType')?.value || 'general');
-  const title = String(document.getElementById('feedbackTitle')?.value || '').trim();
-  const details = String(document.getElementById('feedbackDetails')?.value || '').trim();
-  if (!title || !details) {
-    showError('Title and details are required.');
-    return;
-  }
-  try {
-    await apiRequest('/api/feedback', {
-      method: 'POST',
-      withUserToken: true,
-      body: {
-        type,
-        title,
-        details,
-        userName: APP.player?.name || 'Anonymous',
-        userId: APP.player?.id || ''
-      }
-    });
-    const titleInput = document.getElementById('feedbackTitle');
-    const detailsInput = document.getElementById('feedbackDetails');
-    if (titleInput) titleInput.value = '';
-    if (detailsInput) detailsInput.value = '';
-    await refreshMyFeedback();
-  } catch (e) {
-    showError(e.message);
-  }
-}
-
-function openAdminConsole() {
-  APP.showShortcutHelp = false;
-  APP.screen = 'admin';
-  render();
-}
-
-function switchAdminConsoleTab(tabId) {
-  const allowed = new Set(['overview', 'features', 'ai', 'feedback']);
-  APP.admin.activeTab = allowed.has(tabId) ? tabId : 'overview';
-  render();
-}
-
-async function adminLogin() {
-  const tokenInput = document.getElementById('adminToken');
-  const token = String(tokenInput?.value || APP.admin.token || '').trim();
-  if (!token) {
-    showError('Admin token is required.');
-    return;
-  }
-  APP.admin.token = token;
-  if (token) localStorage.setItem('admin-token', token);
-  else localStorage.removeItem('admin-token');
-  try {
-    await apiRequest('/api/admin/login', {
-      method: 'POST',
-      adminToken: token
-    });
-    APP.admin.authenticated = true;
-    await refreshAdminConfig();
-    await refreshAdminFeedback();
-  } catch (e) {
-    APP.admin.authenticated = false;
-    showError(e.message);
-    render();
-  }
-}
-
-function adminLogout() {
-  APP.admin.authenticated = false;
-  APP.admin.activeTab = 'overview';
-  APP.admin.feedback = [];
-  APP.admin.loading = false;
-  APP.admin.savingConfig = false;
-  APP.admin.generatingContent = false;
-  APP.admin.generationStatus = null;
-  localStorage.removeItem('admin-token');
-  APP.admin.token = '';
-  render();
-}
-
-async function refreshAdminConfig() {
-  if (!APP.admin.authenticated) return;
-  try {
-    const data = await apiRequest('/api/admin/config', { adminToken: APP.admin.token });
-    applyConfigPayload(data);
-    render();
-  } catch (e) {
-    showError(e.message);
-  }
-}
-
-async function refreshAdminFeedback() {
-  if (!APP.admin.authenticated) return;
-  APP.admin.loading = true;
-  render();
-  try {
-    const data = await apiRequest('/api/admin/feedback', { adminToken: APP.admin.token });
-    APP.admin.feedback = Array.isArray(data.feedback) ? data.feedback : [];
-  } catch (e) {
-    showError(e.message);
-  } finally {
-    APP.admin.loading = false;
-    render();
-  }
-}
-
-async function saveAdminFeedbackItem(feedbackId) {
-  if (!feedbackId || !APP.admin.authenticated) return;
-  const status = String(document.getElementById(`admin-status-${feedbackId}`)?.value || 'open');
-  const adminNotes = String(document.getElementById(`admin-notes-${feedbackId}`)?.value || '');
-  try {
-    await apiRequest(`/api/admin/feedback/${feedbackId}`, {
-      method: 'PATCH',
-      adminToken: APP.admin.token,
-      body: { status, adminNotes }
-    });
-    await refreshAdminFeedback();
-  } catch (e) {
-    showError(e.message);
-  }
-}
-
 function adminAddCollectionFromInput() {
   const input = document.getElementById('adminCollectionJson');
   const raw = String(input?.value || '').trim();
@@ -15036,69 +12130,6 @@ async function generateAdminActivityContent(activityIds) {
   }
 }
 
-async function saveAdminConfig() {
-  if (!APP.admin.authenticated || APP.admin.savingConfig) return;
-  const appName = String(document.getElementById('adminBrandAppName')?.value || '').trim();
-  const tagline = String(document.getElementById('adminBrandTagline')?.value || '').trim();
-  const accent = String(document.getElementById('adminBrandAccent')?.value || '').trim();
-  const enableFeedbackHub = Boolean(document.getElementById('adminEnableFeedbackHub')?.checked);
-  const enableActivityQueue = Boolean(document.getElementById('adminEnableActivityQueue')?.checked);
-  const enableScheduleMeeting = Boolean(document.getElementById('adminEnableScheduleMeeting')?.checked);
-  const enableLoadSession = Boolean(document.getElementById('adminEnableLoadSession')?.checked);
-  const enableCommunityLobby = Boolean(document.getElementById('adminEnableCommunityLobby')?.checked);
-  const enableAIGenerator = Boolean(document.getElementById('adminEnableAIGenerator')?.checked);
-  const enableSampleQuestions = Boolean(document.getElementById('adminEnableSampleQuestions')?.checked);
-  const enableFooterQuotes = Boolean(document.getElementById('adminEnableFooterQuotes')?.checked);
-  const autoRevealLightning = Boolean(document.getElementById('adminAutoRevealLightning')?.checked);
-  const allowAnswerChanges = Boolean(document.getElementById('adminAllowAnswerChanges')?.checked);
-  const dynamicScoring = Boolean(document.getElementById('adminDynamicScoring')?.checked);
-  const communityHostAllowlist = String(document.getElementById('adminCommunityHostAllowlist')?.value || '')
-    .split('\n')
-    .map(name => normalizeName(name))
-    .filter(Boolean)
-    .filter((name, index, arr) => arr.indexOf(name) === index)
-    .slice(0, 100);
-  const enabledActivities = Object.fromEntries(
-    ACTIVITY_QUEUE_ITEMS.map(item => [item.id, Boolean(document.getElementById(`adminActivityEnabled-${item.id}`)?.checked)])
-  );
-  const saveButton = document.querySelector('[data-action="save-admin-config"]');
-  APP.admin.savingConfig = true;
-  setAsyncButtonState(saveButton, true, 'Save Branding & Preferences', 'Saving...');
-
-  try {
-    const data = await apiRequest('/api/admin/config', {
-      method: 'PUT',
-      adminToken: APP.admin.token,
-      body: {
-        branding: { appName, tagline, accent },
-        preferences: {
-          enableFeedbackHub,
-          enableActivityQueue,
-          enableScheduleMeeting,
-          enableLoadSession,
-          enableCommunityLobby,
-          enableAIGenerator,
-          enableSampleQuestions,
-          enableFooterQuotes,
-          autoRevealLightning,
-          allowAnswerChanges,
-          dynamicScoring,
-          communityHostAllowlist,
-          enabledActivities
-        },
-        collections: normalizeClientCollections(APP.admin.collections || [])
-      }
-    });
-    APP.admin.savingConfig = false;
-    applyConfigPayload(data);
-    render();
-  } catch (e) {
-    APP.admin.savingConfig = false;
-    setAsyncButtonState(saveButton, false, 'Save Branding & Preferences', 'Saving...');
-    showError(e.message);
-  }
-}
-
 function openHostSettings() {
   if (!APP.room || APP.room.host !== APP.player?.name) return;
   APP.hostSettingsTab = 'game';
@@ -15130,58 +12161,6 @@ function dockSpotifyPlaylistModal() {
   APP.showSpotifyPlaylistModal = false;
   APP.showSpotifyPlaylistDocked = true;
   render();
-}
-
-function toggleShortcutHelp(forceOpen = null) {
-  APP.showShortcutHelp = typeof forceOpen === 'boolean' ? forceOpen : !APP.showShortcutHelp;
-  render();
-}
-
-function isEditableTarget(target) {
-  if (!(target instanceof HTMLElement)) return false;
-  if (target.isContentEditable) return true;
-  const tag = target.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
-}
-
-function isMacPlatform() {
-  const platform = String(navigator.platform || '');
-  const userAgent = String(navigator.userAgent || '');
-  return /Mac|iPhone|iPad|iPod/i.test(platform) || /Mac OS|iPhone|iPad|iPod/i.test(userAgent);
-}
-
-function getModifierLabel() {
-  return isMacPlatform() ? 'Option' : 'Alt';
-}
-
-function formatModifierShortcut(key) {
-  return `${getModifierLabel()}+${key}`;
-}
-
-function getShortcutHelpItems() {
-  const items = [
-    { keys: '?', label: 'Open keyboard shortcuts' },
-    { keys: 'Esc', label: 'Close dialog or go back' }
-  ];
-  if (!APP.player) return items;
-  items.push({ keys: formatModifierShortcut('H'), label: 'Go to dashboard' });
-  items.push({ keys: formatModifierShortcut('N'), label: 'Host session' });
-  items.push({ keys: formatModifierShortcut('J'), label: 'Join session' });
-  if (APP.preferences.enableFeedbackHub !== false) {
-    items.push({ keys: formatModifierShortcut('F'), label: 'Open Feedback Hub' });
-  }
-  items.push({ keys: formatModifierShortcut('A'), label: 'Open Admin Console' });
-  if (APP.roomCode) {
-    items.push({ keys: formatModifierShortcut('L'), label: 'Go to lobby' });
-    items.push({ keys: formatModifierShortcut('P'), label: 'Toggle presentation mode' });
-    if (APP.preferences.enableActivityQueue !== false && APP.room?.host === APP.player?.name) {
-      items.push({ keys: formatModifierShortcut('Q'), label: 'Open Activity Queue' });
-    }
-    if (APP.room?.host === APP.player?.name) {
-      items.push({ keys: formatModifierShortcut('S'), label: 'Open Host Settings' });
-    }
-  }
-  return items;
 }
 
 function renderShortcutHelpModal() {
@@ -15264,100 +12243,6 @@ function renderSpotifyPlaylistModal() {
       </div>
     </div>
   `;
-}
-
-function handleEscapeNavigation() {
-  if (APP.showSpotifyPlaylistModal) {
-    dockSpotifyPlaylistModal();
-    return true;
-  }
-  if (APP.showShortcutHelp) {
-    toggleShortcutHelp(false);
-    return true;
-  }
-  if (APP.showHostSettings) {
-    closeHostSettings();
-    return true;
-  }
-  if (APP.editingProfile) {
-    cancelEditProfile();
-    return true;
-  }
-  if (APP.screen === 'about' || APP.screen === 'join-room' || APP.screen === 'feedback' || APP.screen === 'admin' || APP.screen === 'schedule-meeting' || APP.screen === 'load-session') {
-    goToScreen('dashboard');
-    return true;
-  }
-  if (APP.screen === 'activity-queue' && APP.roomCode) {
-    goToScreen('lobby');
-    return true;
-  }
-  return false;
-}
-
-async function handleGlobalKeyboardShortcuts(event) {
-  const activeElement = document.activeElement;
-  const isEditing = isEditableTarget(activeElement);
-
-  if (event.key === 'Escape') {
-    if (handleEscapeNavigation()) {
-      event.preventDefault();
-    }
-    return;
-  }
-
-  if (!event.altKey && !event.ctrlKey && !event.metaKey && event.key === '?' && !isEditing) {
-    event.preventDefault();
-    toggleShortcutHelp();
-    return;
-  }
-
-  if (isEditing || event.ctrlKey || event.metaKey || !event.altKey) return;
-
-  const code = String(event.code || '');
-  if (code === 'KeyH' && APP.player) {
-    event.preventDefault();
-    goToScreen('dashboard');
-    return;
-  }
-  if (code === 'KeyN' && APP.player) {
-    event.preventDefault();
-    goToScreen('create-room');
-    return;
-  }
-  if (code === 'KeyJ' && APP.player) {
-    event.preventDefault();
-    goToScreen('join-room');
-    return;
-  }
-  if (code === 'KeyF' && APP.player && APP.preferences.enableFeedbackHub !== false) {
-    event.preventDefault();
-    await openFeedbackHub();
-    return;
-  }
-  if (code === 'KeyA' && APP.player) {
-    event.preventDefault();
-    openAdminConsole();
-    return;
-  }
-  if (code === 'KeyL' && APP.player && APP.roomCode) {
-    event.preventDefault();
-    goToScreen('lobby');
-    return;
-  }
-  if (code === 'KeyQ' && APP.player && APP.roomCode && APP.room?.host === APP.player?.name && APP.preferences.enableActivityQueue !== false) {
-    event.preventDefault();
-    goToScreen('activity-queue');
-    return;
-  }
-  if (code === 'KeyS' && APP.room?.host === APP.player?.name) {
-    event.preventDefault();
-    openHostSettings();
-    return;
-  }
-  if (code === 'KeyP' && APP.roomCode) {
-    event.preventDefault();
-    togglePresentation();
-  }
 }
 
 function switchHostSettingsTab(tabId) {
@@ -17449,6 +14334,7 @@ function renderActivity() {
 
   return `
     <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:8px;">
+      <button class="btn-secondary" data-action="open-admin-console">🛠️ Admin Console</button>
       <button class="btn-secondary" data-action="leave-session">🚪 Leave Session</button>
     </div>
     ${showTimedBanner ? `

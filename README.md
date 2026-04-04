@@ -197,7 +197,20 @@ Open:
 
 ## Repository Structure
 
-- `index.html` - main frontend application
+- `index.html` - main frontend application shell and markup
+- `assets/js/` - modular frontend JavaScript (extracted from `index.html`)
+  - `admin-runtime-core.js` - admin console logic
+  - `domain-managers.js` - domain/state managers
+  - `navigation-core.js` - screen navigation
+  - `room-renderers-core.js` - room UI rendering
+  - `room-session-core.js` - room and session logic
+  - `runtime-utils.js` - shared runtime utilities
+  - `screen-renderers-core.js` - screen-level rendering
+  - `session-plans-core.js` - session planning logic
+  - `socket-core.js` - Socket.IO client handling
+  - `static-data.js` - static app data
+  - `storage-api.js` - API storage layer
+  - `storage-runtime.js` - local runtime storage
 - `server.js` - realtime and API backend
 - `package.json` - scripts and backend dependencies
 - `.runtime-data/` - local persistence created at runtime

@@ -402,6 +402,7 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
 });
 app.use('/api/', apiLimiter);
+app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
 function sendFrontendFile(filename) {
   return (_req, res) => {
