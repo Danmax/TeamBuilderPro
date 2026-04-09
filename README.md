@@ -6,13 +6,13 @@ Team Builder is a realtime facilitation app for host-led team sessions. It combi
 
 - Realtime rooms with host-created room codes, join links, QR join, and optional private access tokens.
 - Public community lobbies with a server-backed directory for browsing and joining open drop-in rooms.
-- Host controls for room settings, activity queue, moderation, AI-assisted content generation, and Admin Console access (host-only).
+- Host controls for room settings, activity queue, moderation, and Admin Console access (host-only).
 - Voice chat with push-to-talk or open-mic room modes, host moderation, participant approval, raise-hand flow, 1:1 voice focus, mute controls, and compact floating controls.
 - Session planning and saved session plans with shareable links, launch-into-room flow, downloadable calendar invites, timed-run support, and session-scoped content planning.
 - Two presentation modes:
   - URL-based shared presentation viewer for slide decks and embeddable presentations.
-  - `Slides Studio` for native in-app slide creation with templates, gradients, solid backgrounds, images, CTA links, source links, and AI slide generation from prompts.
-- Admin Console tabs for overview, feature flags, AI Studio, and feedback review.
+  - `Slides Studio` for native in-app slide creation with templates, gradients, solid backgrounds, images, CTA links, and source links.
+- Admin Console tabs for overview, feature flags, content prompt studio, and feedback review.
 
 ## Activity Library
 
@@ -36,6 +36,7 @@ Team Builder is a realtime facilitation app for host-led team sessions. It combi
 - Bingo
 - Backgammon
 - Connect 4
+- Cosmos Bound
 
 ## Notable Features
 
@@ -43,8 +44,7 @@ Team Builder is a realtime facilitation app for host-led team sessions. It combi
 - Activity Queue for preloading and running activities in sequence.
 - Timed session mode for auto-advancing queued activities on a countdown.
 - Feedback Hub plus Admin Console workflow.
-- Shared AI content workflow across Admin, Host Settings, Activity Queue, and Session Planning.
-- Theme-aware AI generation for reusable activity content and planned sessions.
+- Content Prompt Generator for building AI prompts with expected output formats, then manually importing generated JSON as activity collections.
 - Brainstorm Canvas note add/edit/delete from the board, with host moderation and creator-owned editing.
 - Export support for Brainstorm Canvas and Team Pulse Check.
 - Keyboard shortcuts for hosting, joining, navigation, presentation mode, queue access, and host settings.
@@ -53,9 +53,24 @@ Team Builder is a realtime facilitation app for host-led team sessions. It combi
 - Bingo cards with multiple marker styles, colorable classic cover tokens, local Bingo voice announcements, live-ball draw interaction, and win celebration.
 - DJ Booth with two deck sources, YouTube playlist/video support, local file decks, room-shared uploaded tracks, mic clip recording, crossfader/master controls, deck playheads, sound pads, broadcast banner, and animated booth lights.
 
+## Cosmos Bound
+
+Cosmos Bound is a collaborative space mission activity where crew members work together to pilot a spacecraft.
+
+- 7 crew roles: Commander (CDR), Pilot (PLT), Engineer (ENG), Navigator (NAV), Science Officer (SCI), Comms Officer (COM), Medical Officer (MED).
+- Each role controls specific cockpit subsystems — toggles, throttle lever, coordinates, heading dial, vitals, comms, and scan.
+- 3 destinations with scaling difficulty: The Moon (Easy), Mars (Advanced), Epsilon Eridani (Extreme).
+- 7-phase mission: Pre-flight, Ignition, Launch (with countdown), Orbit, Navigate, Landing, Complete.
+- Animated space viewport with starfield, Earth, destination planet (color-coded per destination), engine exhaust, and landing approach.
+- Contextual step-by-step helper guide showing each player what to do next based on their role.
+- Sound effects: ambient bridge hum, rocket launch, countdown beeps, warp transition, system toggles, and info chimes.
+- Drop resilience: if a crew member disconnects, their roles are automatically redistributed to remaining members.
+- Multi-crew mode for 8+ participants: auto-splits into racing crews (Alpha, Beta, Gamma, Delta) with a live scoreboard.
+- Destination-specific target coordinates that the Navigator must enter.
+
 ## Session Planning
 
-Team Builder now supports planning sessions ahead of time:
+Team Builder supports planning sessions ahead of time:
 
 - Save a session plan with title, date, time, meeting link, notes, activity queue, and content brief details.
 - Add per-activity durations for timed queue runs.
@@ -86,7 +101,7 @@ Voice controls support both participant and host moderation flows:
 - Raise-hand indicator for participants.
 - Host-side hand alerts in the lobby and moderation panels.
 - Per-user allow voice, mute/unmute, lower hand, and 1:1 conversation controls.
-- Movable/collapsible voice dock similar to the playlist dock; automatically stacks below the playlist dock when both are positioned on the right side.
+- Movable/collapsible voice dock.
 
 ## Slides Studio
 
@@ -102,7 +117,6 @@ It supports:
 - Optional tag placement at the top or bottom
 - Text positioning controls
 - CTA button links and source links
-- AI-generated slide decks from a prompt
 
 ## DJ Booth
 
@@ -127,38 +141,16 @@ Notes:
 - Shared uploaded tracks are the preferred path when you want participants to load the same audio source in the room.
 - Browser autoplay policies may still require participant interaction before audio starts on some devices.
 
-## AI
+## Content Prompt Generator
 
-AI generation uses the existing backend endpoint:
+The app includes a prompt generator for creating activity content using your preferred AI tool:
 
-- `POST /api/ai/generate`
+1. Select activities and configure topic, difficulty, and count.
+2. Click "Copy Prompt" to get a ready-to-use prompt with example output formats for each activity.
+3. Paste the prompt into any AI tool of your choice.
+4. Copy the JSON output and import it as a collection in the app.
 
-Supported providers:
-
-- OpenAI-compatible chat completion APIs
-- Anthropic Messages API
-- Google Gemini Generate Content API
-
-Supported workflows:
-
-- Global content generation from Admin AI Studio.
-- Room-level generation from Host Settings.
-- Queue-aware generation for selected activities.
-- Session-plan generation tied to a saved content brief.
-
-Preferred auth mode:
-
-- Server-side provider config via `AI_PROVIDER`, `AI_API_KEY`, `AI_ENDPOINT`, and `AI_MODEL`
-
-Fallback mode:
-
-- Host-provided browser API key stored locally in host settings
-- Host-local provider selection for direct fallback requests
-
-Notes:
-
-- The server keeps backward compatibility with `CHAT_GPT_MINI_KEY`, `AI_QUESTION_ENDPOINT`, and `AI_QUESTION_MODEL`.
-- Browser fallback is best for providers that support direct API-key requests. Providers that require OAuth or custom server-side auth should use the server configuration path.
+Each prompt includes concrete example outputs showing the exact data structure expected, plus a final import wrapper format.
 
 ## Tech Stack
 
@@ -174,13 +166,6 @@ Notes:
 - `ADMIN_TOKEN`
 - `DEV_ADMIN_PASSWORD`
 - `ADMIN_TEMP_PASSWORD`
-- `AI_PROVIDER`
-- `AI_API_KEY`
-- `AI_ENDPOINT`
-- `AI_MODEL`
-- `CHAT_GPT_MINI_KEY` (legacy fallback)
-- `AI_QUESTION_ENDPOINT` (legacy fallback)
-- `AI_QUESTION_MODEL` (legacy fallback)
 - `DATABASE_URL`
 - `PGSSL`
 
@@ -211,7 +196,7 @@ Open:
   - `static-data.js` - static app data
   - `storage-api.js` - API storage layer
   - `storage-runtime.js` - local runtime storage
+- `sounds/` - mission sound effects for Cosmos Bound activity
 - `server.js` - realtime and API backend
 - `package.json` - scripts and backend dependencies
 - `.runtime-data/` - local persistence created at runtime
-- `DEPLOYMENT.md` - deployment notes

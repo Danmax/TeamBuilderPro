@@ -105,10 +105,6 @@ TEAM_BUILDER_NAV_CORE.getShortcutHelpItems = function getShortcutHelpItems() {
 };
 
 TEAM_BUILDER_NAV_CORE.handleEscapeNavigation = function handleEscapeNavigation() {
-  if (APP.showSpotifyPlaylistModal) {
-    dockSpotifyPlaylistModal();
-    return true;
-  }
   if (APP.showShortcutHelp) {
     toggleShortcutHelp(false);
     return true;

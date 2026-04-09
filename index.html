@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Team Builder - Team Building & Games Platform</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='50' font-size='50'%3E%F0%9F%8E%AF%3C/text%3E%3C/svg%3E">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;800&family=Outfit:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;800&family=Outfit:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;600&family=Orbitron:wght@400;500;600;700;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #07070d;
@@ -2402,6 +2402,761 @@
       min-width: 270px;
     }
   }
+
+  /* ═══════════════════════════════════════════ */
+  /* COSMOS BOUND — MISSION CONTROL ACTIVITY    */
+  /* ═══════════════════════════════════════════ */
+  .cosmos-bound {
+    --cb-hull: #0a0e1a;
+    --cb-panel: #0d1225;
+    --cb-panel-edge: #1a2340;
+    --cb-glow-blue: #00d4ff;
+    --cb-glow-green: #00ff88;
+    --cb-glow-orange: #ff6b2b;
+    --cb-glow-red: #ff2244;
+    --cb-glow-yellow: #ffd700;
+    --cb-glow-purple: #b44dff;
+    --cb-text-dim: #4a5580;
+    --cb-text-mid: #8090b0;
+    --cb-text-bright: #c0d0f0;
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--cb-text-bright);
+  }
+
+  /* Crew Assignment Screen */
+  .cb-assign-shell {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 24px;
+    background: var(--cb-hull);
+    border: 1px solid var(--cb-panel-edge);
+    border-radius: 16px;
+  }
+  .cb-assign-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 4px;
+    text-align: center;
+    background: linear-gradient(90deg, var(--cb-glow-blue), var(--cb-glow-green));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 6px;
+  }
+  .cb-assign-sub {
+    text-align: center;
+    font-size: 11px;
+    color: var(--cb-text-dim);
+    letter-spacing: 2px;
+    margin-bottom: 20px;
+  }
+  .cb-crew-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .cb-crew-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--cb-panel);
+    border: 1px solid var(--cb-panel-edge);
+    border-radius: 8px;
+  }
+  .cb-crew-row.is-me {
+    border-color: var(--cb-glow-blue);
+    box-shadow: inset 0 0 20px rgba(0, 212, 255, 0.05);
+  }
+  .cb-crew-name {
+    flex: 1;
+    font-size: 13px;
+    color: var(--cb-text-bright);
+  }
+  .cb-role-badge {
+    display: inline-block;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid;
+  }
+  .cb-role-CDR { color: var(--cb-glow-orange); border-color: var(--cb-glow-orange); background: rgba(255,107,43,.08); }
+  .cb-role-PLT { color: var(--cb-glow-purple); border-color: var(--cb-glow-purple); background: rgba(180,77,255,.08); }
+  .cb-role-ENG { color: var(--cb-glow-green); border-color: var(--cb-glow-green); background: rgba(0,255,136,.08); }
+  .cb-role-NAV { color: var(--cb-glow-blue); border-color: var(--cb-glow-blue); background: rgba(0,212,255,.08); }
+  .cb-role-SCI { color: var(--cb-glow-yellow); border-color: var(--cb-glow-yellow); background: rgba(255,215,0,.08); }
+  .cb-role-COM { color: #ff8fa3; border-color: #ff8fa3; background: rgba(255,143,163,.08); }
+  .cb-role-MED { color: #7af59f; border-color: #7af59f; background: rgba(122,245,159,.08); }
+  .cb-role-select {
+    background: var(--cb-hull);
+    border: 1px solid var(--cb-panel-edge);
+    color: var(--cb-text-bright);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 9px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .cb-begin-btn {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    border: 2px solid var(--cb-glow-blue);
+    background: transparent;
+    color: var(--cb-glow-blue);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: .3s;
+  }
+  .cb-begin-btn:hover {
+    background: rgba(0, 212, 255, .1);
+    box-shadow: 0 0 25px rgba(0, 212, 255, .3);
+  }
+
+  /* Cockpit Layout */
+  .cb-cockpit {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    grid-template-columns: 240px 1fr 240px;
+    grid-template-areas: "chdr chdr chdr" "cleft cview cright" "ccon ccon ccon";
+    gap: 0;
+    background: var(--cb-hull);
+    border: 1px solid var(--cb-panel-edge);
+    border-radius: 12px;
+    overflow: hidden;
+    min-height: 520px;
+    max-height: 80vh;
+  }
+
+  /* Cockpit Header */
+  .cb-hdr {
+    grid-area: chdr;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: linear-gradient(180deg, #0f1530 0%, var(--cb-hull) 100%);
+    border-bottom: 1px solid var(--cb-panel-edge);
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .cb-hdr-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(12px, 1.8vw, 18px);
+    font-weight: 800;
+    letter-spacing: 3px;
+    background: linear-gradient(90deg, var(--cb-glow-blue), var(--cb-glow-green));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .cb-mission-badge {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--cb-glow-orange);
+    border: 1px solid var(--cb-glow-orange);
+    padding: 2px 8px;
+    border-radius: 3px;
+  }
+  .cb-crew-dots {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .cb-crew-dot {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 8px;
+    font-weight: 700;
+    padding: 3px 7px;
+    border-radius: 10px;
+    border: 1px solid var(--cb-panel-edge);
+    color: var(--cb-text-dim);
+  }
+  .cb-crew-dot.me {
+    border-color: var(--cb-glow-blue);
+    color: var(--cb-glow-blue);
+    background: rgba(0, 212, 255, .1);
+  }
+  .cb-status-bar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .cb-status-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 9px;
+    color: var(--cb-text-dim);
+  }
+  .cb-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--cb-text-dim);
+  }
+  .cb-dot.on {
+    background: var(--cb-glow-green);
+    box-shadow: 0 0 6px var(--cb-glow-green);
+  }
+
+  /* Left Panel */
+  .cb-left {
+    grid-area: cleft;
+    background: var(--cb-panel);
+    border-right: 1px solid var(--cb-panel-edge);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+  }
+  .cb-panel-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 8px;
+    letter-spacing: 3px;
+    color: var(--cb-text-dim);
+    text-transform: uppercase;
+  }
+
+  /* Switch Rows */
+  .cb-switch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 10px;
+    background: var(--cb-hull);
+    border: 1px solid var(--cb-panel-edge);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: .2s;
+  }
+  .cb-switch:hover:not(.disabled) { border-color: var(--cb-glow-blue); }
+  .cb-switch.on { border-color: var(--cb-glow-green); box-shadow: inset 0 0 20px rgba(0,255,136,.05); }
+  .cb-switch.disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
+  .cb-switch-label { font-size: 10px; color: var(--cb-text-mid); }
+  .cb-switch.on .cb-switch-label { color: var(--cb-glow-green); }
+  .cb-switch-status { font-family: 'Orbitron', sans-serif; font-size: 7px; letter-spacing: 1px; margin-top: 1px; }
+  .cb-toggle {
+    width: 36px;
+    height: 18px;
+    border-radius: 9px;
+    background: #1a1f35;
+    border: 1px solid var(--cb-panel-edge);
+    position: relative;
+    transition: .3s;
+    flex-shrink: 0;
+  }
+  .cb-toggle::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--cb-text-dim);
+    top: 1px;
+    left: 1px;
+    transition: .3s;
+  }
+  .cb-switch.on .cb-toggle { background: rgba(0,255,136,.15); border-color: var(--cb-glow-green); }
+  .cb-switch.on .cb-toggle::after { left: 19px; background: var(--cb-glow-green); box-shadow: 0 0 8px var(--cb-glow-green); }
+  .cb-switch-owner {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 7px;
+    letter-spacing: 1px;
+    color: var(--cb-text-dim);
+    margin-top: 1px;
+  }
+
+  /* Throttle Lever */
+  .cb-lever-container {
+    background: var(--cb-hull);
+    border: 1px solid var(--cb-panel-edge);
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+  }
+  .cb-lever-track {
+    width: 20px;
+    height: 90px;
+    background: var(--cb-panel);
+    border: 1px solid var(--cb-panel-edge);
+    border-radius: 10px;
+    margin: 6px auto;
+    position: relative;
+    cursor: pointer;
+  }
+  .cb-lever-track.disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
+  .cb-lever-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-radius: 0 0 10px 10px;
+    transition: height .3s;
+    background: linear-gradient(0deg, var(--cb-glow-orange), var(--cb-glow-red));
+  }
+  .cb-lever-handle {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30px;
+    height: 12px;
+    background: linear-gradient(180deg, #555, #333);
+    border: 1px solid #666;
+    border-radius: 4px;
+    cursor: grab;
+    transition: bottom .3s;
+    box-shadow: 0 2px 6px rgba(0,0,0,.5);
+  }
+  .cb-lever-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--cb-glow-orange);
+    margin-top: 4px;
+  }
+  .cb-lever-label {
+    font-size: 9px;
+    color: var(--cb-text-dim);
+    margin-top: 2px;
+  }
+
+  /* Right Panel */
+  .cb-right {
+    grid-area: cright;
+    background: var(--cb-panel);
+    border-left: 1px solid var(--cb-panel-edge);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+  }
+
+  /* Coordinate Group */
+  .cb-coord-group {
+    background: var(--cb-hull);
+    border: 1px solid var(--cb-panel-edge);
+    border-radius: 8px;
+    padding: 10px;
+  }
+  .cb-coord-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 5px;
+  }
+  .cb-coord-row label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 9px;
+    color: var(--cb-glow-orange);
+    width: 14px;
+  }
+  .cb-coord-input {
+    flex: 1;
+    background: var(--cb-panel);
+    border: 1px solid var(--cb-panel-edge);
+    border-radius: 4px;
+    padding: 5px 6px;
+    color: var(--cb-glow-blue);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    text-align: center;
+    outline: none;
+  }
+  .cb-coord-input:focus { border-color: var(--cb-glow-blue); box-shadow: 0 0 8px rgba(0,212,255,.2); }
+  .cb-coord-input.locked { color: var(--cb-glow-green); border-color: var(--cb-glow-green); pointer-events: none; }
+  .cb-coord-input:disabled { opacity: .45; cursor: not-allowed; }
+  .cb-coord-lock-btn {
+    width: 100%;
+    margin-top: 6px;
+    padding: 7px;
+    border: 1px solid var(--cb-glow-orange);
+    background: transparent;
+    color: var(--cb-glow-orange);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 9px;
+    letter-spacing: 2px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: .3s;
+  }
+  .cb-coord-lock-btn:hover { background: rgba(255,107,43,.1); }
+  .cb-coord-lock-btn.locked { border-color: var(--cb-glow-green); color: var(--cb-glow-green); background: rgba(0,255,136,.05); pointer-events: none; }
+  .cb-coord-lock-btn:disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
+
+  /* Dial */
+  .cb-dial-container {
+    background: var(--cb-hull);
+    border: 1px solid var(--cb-panel-edge);
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+  }
+  .cb-dial {
+    width: 80px;
+    height: 80px;
+    margin: 6px auto;
+    position: relative;
+  }
+  .cb-dial svg { width: 100%; height: 100%; }
+  .cb-dial-value {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--cb-glow-blue);
+  }
+  .cb-dial-label { font-size: 9px; color: var(--cb-text-dim); margin-top: 3px; }
+  .cb-dial-buttons { display: flex; gap: 6px; justify-content: center; margin-top: 6px; }
+  .cb-dial-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid var(--cb-panel-edge);
+    background: var(--cb-panel);
+    color: var(--cb-text-mid);
+    font-size: 14px;
+    cursor: pointer;
+    transition: .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .cb-dial-btn:hover:not(:disabled) { border-color: var(--cb-glow-blue); color: var(--cb-glow-blue); }
+  .cb-dial-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  /* Data Display */
+  .cb-data-display {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 4px 0;
+  }
+
+  /* Viewport */
+  .cb-viewport {
+    grid-area: cview;
+    position: relative;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 80%, #0a1628 0%, #050810 60%, #000 100%);
+    border-left: 1px solid var(--cb-panel-edge);
+    border-right: 1px solid var(--cb-panel-edge);
+    min-height: 300px;
+  }
+  .cb-viewport-frame {
+    position: absolute;
+    inset: 0;
+    border: 2px solid var(--cb-panel-edge);
+    border-radius: 8px;
+    pointer-events: none;
+    z-index: 5;
+    box-shadow: inset 0 0 60px rgba(0,0,0,.8);
+  }
+  .cb-viewport-hud {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 6;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--cb-glow-blue);
+    opacity: .6;
+    text-shadow: 0 0 10px var(--cb-glow-blue);
+  }
+  .cb-viewport canvas { width: 100%; height: 100%; display: block; }
+
+  /* Phase Banner */
+  .cb-phase-banner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 8;
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(16px, 3vw, 32px);
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: #fff;
+    text-shadow: 0 0 30px var(--cb-glow-blue), 0 0 60px var(--cb-glow-blue);
+    opacity: 0;
+    pointer-events: none;
+    text-align: center;
+    line-height: 1.4;
+    transition: opacity .5s;
+  }
+  .cb-phase-banner.show { opacity: 1; animation: cbBannerPulse 2.5s ease-in-out; }
+  .cb-phase-sub { font-size: clamp(9px, 1.2vw, 12px); letter-spacing: 3px; color: var(--cb-glow-green); margin-top: 6px; }
+
+  /* Countdown */
+  .cb-countdown-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.6);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .3s;
+  }
+  .cb-countdown-overlay.show { opacity: 1; }
+  .cb-countdown-num {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(60px, 12vw, 140px);
+    font-weight: 900;
+    color: var(--cb-glow-orange);
+    text-shadow: 0 0 40px var(--cb-glow-orange), 0 0 80px var(--cb-glow-red);
+    animation: cbCountPulse 1s ease-in-out infinite;
+  }
+
+  /* Log Strip */
+  .cb-log-strip {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 7;
+    background: linear-gradient(0deg, rgba(10,14,26,.95) 0%, transparent 100%);
+    padding: 6px 12px;
+  }
+  .cb-log-line {
+    font-size: 10px;
+    color: var(--cb-glow-green);
+    opacity: .8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    animation: cbFadeInLog .4s ease;
+  }
+
+  /* Bottom Console */
+  .cb-console {
+    grid-area: ccon;
+    background: linear-gradient(0deg, #0f1530 0%, var(--cb-hull) 100%);
+    border-top: 1px solid var(--cb-panel-edge);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* Progress Bar */
+  .cb-progress { width: 100%; max-width: 500px; margin: 0 auto; }
+  .cb-progress-track { height: 4px; background: var(--cb-panel-edge); border-radius: 2px; overflow: hidden; }
+  .cb-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--cb-glow-blue), var(--cb-glow-green));
+    border-radius: 2px;
+    transition: width .8s ease;
+  }
+  .cb-progress-labels { display: flex; justify-content: space-between; margin-top: 3px; }
+  .cb-progress-labels span {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 6px;
+    letter-spacing: 1px;
+    color: var(--cb-text-dim);
+  }
+  .cb-progress-labels span.done { color: var(--cb-glow-green); }
+  .cb-progress-labels span.current { color: var(--cb-glow-blue); }
+
+  /* Action Buttons */
+  .cb-action-btn {
+    position: relative;
+    padding: 10px 20px;
+    border: 2px solid;
+    border-radius: 8px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(9px, 1.1vw, 11px);
+    font-weight: 700;
+    letter-spacing: 2px;
+    cursor: pointer;
+    background: transparent;
+    transition: .3s;
+    text-transform: uppercase;
+    min-width: 120px;
+  }
+  .cb-action-btn:disabled { opacity: .3; cursor: not-allowed; }
+  .cb-btn-ignite { color: var(--cb-glow-orange); border-color: var(--cb-glow-orange); }
+  .cb-btn-ignite:hover:not(:disabled) { background: rgba(255,107,43,.1); box-shadow: 0 0 25px rgba(255,107,43,.3); }
+  .cb-btn-launch { color: var(--cb-glow-red); border-color: var(--cb-glow-red); }
+  .cb-btn-launch:hover:not(:disabled) { background: rgba(255,34,68,.1); box-shadow: 0 0 25px rgba(255,34,68,.3); }
+  .cb-btn-navigate { color: var(--cb-glow-purple); border-color: var(--cb-glow-purple); }
+  .cb-btn-navigate:hover:not(:disabled) { background: rgba(180,77,255,.1); box-shadow: 0 0 25px rgba(180,77,255,.3); }
+  .cb-btn-land { color: var(--cb-glow-green); border-color: var(--cb-glow-green); }
+  .cb-btn-land:hover:not(:disabled) { background: rgba(0,255,136,.1); box-shadow: 0 0 25px rgba(0,255,136,.3); }
+  .cb-btn-glow { animation: cbBtnGlow 1.5s ease-in-out infinite alternate; }
+
+  /* COM Broadcast */
+  .cb-broadcast-input {
+    flex: 1;
+    background: var(--cb-hull);
+    border: 1px solid var(--cb-panel-edge);
+    border-radius: 4px;
+    padding: 6px 8px;
+    color: var(--cb-text-bright);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    outline: none;
+  }
+  .cb-broadcast-input:focus { border-color: #ff8fa3; }
+  .cb-broadcast-btn {
+    padding: 6px 12px;
+    border: 1px solid #ff8fa3;
+    background: transparent;
+    color: #ff8fa3;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 8px;
+    letter-spacing: 1px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: .2s;
+  }
+  .cb-broadcast-btn:hover { background: rgba(255,143,163,.1); }
+
+  /* MED Vitals */
+  .cb-vitals-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 8px;
+    background: var(--cb-hull);
+    border: 1px solid var(--cb-panel-edge);
+    border-radius: 4px;
+    margin-top: 4px;
+  }
+  .cb-vital-name { font-size: 10px; color: var(--cb-text-mid); }
+  .cb-vital-status { font-family: 'Orbitron', sans-serif; font-size: 8px; letter-spacing: 1px; }
+  .cb-vital-status.nominal { color: var(--cb-glow-green); }
+  .cb-vital-status.caution { color: var(--cb-glow-orange); }
+  .cb-med-confirm-btn {
+    width: 100%;
+    margin-top: 6px;
+    padding: 7px;
+    border: 1px solid #7af59f;
+    background: transparent;
+    color: #7af59f;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 9px;
+    letter-spacing: 2px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: .3s;
+  }
+  .cb-med-confirm-btn:hover { background: rgba(122,245,159,.1); }
+  .cb-med-confirm-btn.confirmed { background: rgba(122,245,159,.08); pointer-events: none; }
+  .cb-med-confirm-btn:disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
+
+  /* SCI Scan */
+  .cb-sci-scan-btn {
+    width: 100%;
+    margin-top: 6px;
+    padding: 7px;
+    border: 1px solid var(--cb-glow-yellow);
+    background: transparent;
+    color: var(--cb-glow-yellow);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 9px;
+    letter-spacing: 2px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: .3s;
+  }
+  .cb-sci-scan-btn:hover { background: rgba(255,215,0,.1); }
+  .cb-sci-scan-btn.scanned { background: rgba(255,215,0,.08); pointer-events: none; }
+  .cb-sci-scan-btn:disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
+  .cb-sci-checklist { font-size: 10px; margin-top: 4px; }
+  .cb-sci-checklist div { padding: 2px 0; color: var(--cb-text-dim); }
+  .cb-sci-checklist div.ok { color: var(--cb-glow-green); }
+
+  /* Mission Complete Overlay */
+  .cb-complete-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.85);
+    border-radius: 12px;
+  }
+  .cb-mc-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(20px, 4vw, 40px);
+    font-weight: 900;
+    background: linear-gradient(90deg, var(--cb-glow-blue), var(--cb-glow-green), var(--cb-glow-yellow));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 5px;
+    animation: cbMcGlow 2s ease-in-out infinite alternate;
+  }
+  .cb-mc-sub {
+    font-size: clamp(10px, 1.5vw, 14px);
+    color: var(--cb-text-mid);
+    margin-top: 8px;
+    letter-spacing: 3px;
+  }
+  .cb-mc-stats { display: flex; gap: 24px; margin-top: 20px; }
+  .cb-mc-stat { text-align: center; }
+  .cb-mc-stat-val { font-family: 'Orbitron', sans-serif; font-size: 20px; font-weight: 700; color: var(--cb-glow-blue); }
+  .cb-mc-stat-lbl { font-size: 9px; color: var(--cb-text-dim); margin-top: 3px; letter-spacing: 2px; }
+
+  /* Rumble */
+  .cb-rumble { animation: cbRumble .15s linear infinite; }
+
+  /* Keyframes */
+  @keyframes cbBannerPulse {
+    0% { transform: translate(-50%,-50%) scale(.8); opacity: 0; }
+    20% { transform: translate(-50%,-50%) scale(1.05); opacity: 1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  @keyframes cbCountPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+  @keyframes cbBtnGlow { 0% { box-shadow: 0 0 5px currentColor; } 100% { box-shadow: 0 0 25px currentColor, 0 0 50px currentColor; } }
+  @keyframes cbRumble {
+    0% { transform: translate(1px,1px); }
+    25% { transform: translate(-1px,0); }
+    50% { transform: translate(0,-1px); }
+    75% { transform: translate(1px,0); }
+    100% { transform: translate(-1px,1px); }
+  }
+  @keyframes cbFadeInLog { from { opacity: 0; transform: translateY(6px); } to { opacity: .8; transform: none; } }
+  @keyframes cbMcGlow { 0% { filter: brightness(1); } 100% { filter: brightness(1.3); } }
+
+  /* Responsive */
+  @media (max-width: 960px) {
+    .cb-cockpit {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto auto auto auto auto;
+      grid-template-areas: "chdr" "cview" "ccon" "cleft" "cright";
+      max-height: none;
+    }
+    .cb-left, .cb-right {
+      border: none;
+      border-top: 1px solid var(--cb-panel-edge);
+    }
+    .cb-viewport { min-height: 250px; }
+  }
 </style>
 </head>
 <body>
@@ -3355,7 +4110,6 @@ const IS_LOCAL_DEV_CLIENT = (() => {
   return host === 'localhost' || host === '127.0.0.1';
 })();
 const ENABLE_PRESENTATION_SHARE = true;
-const DEFAULT_SPOTIFY_PLAYLIST_URL = 'https://open.spotify.com/playlist/1spwwddGP1j6aaPy9IJ9zk?si=f33607c9ffa14144&pt=087efef975fd3cd17e88c9af035c57ee';
 const MAX_ROOM_PARTICIPANTS = 142;
 const DJ_BOOTH_DECK_KEYS = cloneStaticData('DJ_BOOTH_DECK_KEYS', ['deckA', 'deckB']);
 const DJ_BOOTH_TONE_IDS = cloneStaticData('DJ_BOOTH_TONE_IDS', ['airhorn', 'laser']);
@@ -4329,8 +5083,6 @@ const APP = {
   editingProfile: false,
   showHostSettings: false,
   showShortcutHelp: false,
-  showSpotifyPlaylistModal: false,
-  showSpotifyPlaylistDocked: false,
   showLobbyPlaylistSection: false,
   brainstormAddingNote: false,
   brainstormModal: {
@@ -4386,6 +5138,7 @@ const APP = {
   },
   contentStudioStatus: null,
   contentStudioGenerating: false,
+  contentStudioLastPrompt: null,
   contentStudioDraft: null,
   sessionManager: {
     plans: [],
@@ -4898,14 +5651,9 @@ function captureContentStudioDraftFromInputs() {
     tone: normalizeTopic(document.getElementById('contentStudioTone')?.value || ''),
     difficulty: String(document.getElementById('contentStudioDifficulty')?.value || 'mixed'),
     count: Math.max(3, Math.min(20, Number.parseInt(document.getElementById('contentStudioCount')?.value || '8', 10) || 8)),
-    apiKey: String(document.getElementById('contentStudioApiKey')?.value || '').trim(),
+    apiKey: '',
     selectedActivityIds
   };
-  if (APP.contentStudioDraft.apiKey) {
-    HOST_LOCAL_CONFIG.aiApiKey = APP.contentStudioDraft.apiKey;
-    localStorage.setItem('ai-question-api-key', APP.contentStudioDraft.apiKey);
-    saveHostLocalConfig(HOST_LOCAL_CONFIG);
-  }
   return APP.contentStudioDraft;
 }
 
@@ -5049,14 +5797,13 @@ function renderAIContentStudioSection(scope, { planId = '', compact = false } = 
         <input id="contentStudioAudience" class="form-input" maxlength="120" value="${escapeHtml(draft.audience || '')}" placeholder="Audience (optional)">
         <input id="contentStudioTone" class="form-input" maxlength="120" value="${escapeHtml(draft.tone || '')}" placeholder="Tone (optional)">
       </div>
-      <div style="display:grid;grid-template-columns:1fr 0.7fr 1fr;gap:10px;margin-bottom:10px;">
+      <div style="display:grid;grid-template-columns:1fr 0.7fr;gap:10px;margin-bottom:10px;">
         <select id="contentStudioDifficulty" class="form-input">
           <option value="easy" ${draft.difficulty === 'easy' ? 'selected' : ''}>Easy</option>
           <option value="mixed" ${draft.difficulty !== 'easy' && draft.difficulty !== 'hard' ? 'selected' : ''}>Mixed</option>
           <option value="hard" ${draft.difficulty === 'hard' ? 'selected' : ''}>Hard</option>
         </select>
         <input id="contentStudioCount" class="form-input" type="number" min="3" max="20" value="${Math.max(3, Math.min(20, Number(draft.count) || 8))}">
-        <input id="contentStudioApiKey" class="form-input" type="password" value="${escapeHtml(draft.apiKey || '')}" placeholder="Optional fallback API key">
       </div>
 
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px;">
@@ -5068,14 +5815,24 @@ function renderAIContentStudioSection(scope, { planId = '', compact = false } = 
         `).join('')}
       </div>
 
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn-primary" data-action="content-studio-generate-selected" ${APP.contentStudioGenerating ? 'disabled' : ''}>
-          ${APP.contentStudioGenerating ? 'Generating...' : 'Generate Selected'}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+        <button class="btn-primary" data-action="content-studio-generate-selected">
+          Copy Prompt for Selected
         </button>
-        <button class="btn-secondary" data-action="content-studio-generate-all" ${APP.contentStudioGenerating ? 'disabled' : ''}>
-          Generate All Visible
+        <button class="btn-secondary" data-action="content-studio-generate-all">
+          Copy Prompt for All
         </button>
       </div>
+      <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:8px;">
+        Copy the generated prompt, paste it into your preferred AI tool, then import the JSON output in the <strong>Collections</strong> section below.
+      </div>
+      ${APP.contentStudioLastPrompt ? `
+        <div style="margin-bottom:12px;">
+          <div style="font-size:0.82rem;font-weight:700;margin-bottom:4px;">Generated Prompt:</div>
+          <textarea class="form-input" readonly style="min-height:140px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.78rem;">${escapeHtml(APP.contentStudioLastPrompt)}</textarea>
+          <button class="btn-secondary" style="margin-top:6px;" onclick="navigator.clipboard.writeText(document.querySelector('[readonly]').value).then(()=>this.textContent='Copied!').catch(()=>{})">Copy to Clipboard</button>
+        </div>
+      ` : ''}
 
       <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
         <h4 style="margin-bottom:10px;">Managed Dataset Editor</h4>
@@ -5196,46 +5953,49 @@ async function appendGeneratedBrainstormNotesToActiveRoom(items) {
 }
 
 async function generateContentStudioActivityContent(activityIds = null) {
+  // Prompt-generator mode: build prompts and copy to clipboard
   const draft = captureContentStudioDraftFromInputs();
   const context = getContentStudioContext(draft.scope, draft.planId);
   const selectedIds = Array.isArray(activityIds)
     ? activityIds.filter(activityId => context.availableTargets.some(item => item.id === activityId))
     : draft.selectedActivityIds.filter(activityId => context.availableTargets.some(item => item.id === activityId));
   if (!selectedIds.length) {
-    showError('Select at least one activity to generate.');
+    showError('Select at least one activity to generate a prompt for.');
     return;
   }
 
   const topic = buildContentStudioTopic(draft);
-  APP.contentStudioGenerating = true;
-  APP.contentStudioStatus = `Generating ${selectedIds.length} activit${selectedIds.length === 1 ? 'y' : 'ies'}...`;
-  render();
+  const prompts = [];
+  for (const activityId of selectedIds) {
+    const prompt = buildAIPromptForActivity(activityId, topic, draft.difficulty, draft.count);
+    if (prompt) {
+      prompts.push('--- ' + (AI_GENERATION_TARGET_LABELS[activityId] || activityId).toUpperCase() + ' ---\n' + prompt);
+    }
+  }
+
+  if (!prompts.length) {
+    showError('Could not build prompts for the selected activities.');
+    return;
+  }
+
+  const fullPrompt = prompts.join('\n\n');
+
+  // Build a concrete example of the final wrapper object using the selected activity IDs
+  const exampleKeys = selectedIds.map(id => '    "' + id + '": [ ... ]').join(',\n');
+  const importNote = 'IMPORTANT: To import into the app, wrap your output in a collection object like this:\n{\n  "name": "My Content Pack",\n  "activities": {\n' + exampleKeys + '\n  }\n}\n\nPaste that complete JSON into the "Collections" import box in the app.';
+
+  const wrapperPrompt = 'You create accurate facilitator game content. Output strict JSON only.\n\nFor each section below, generate the requested content following the exact format and examples shown.\n\n' + fullPrompt + '\n\n--- FINAL OUTPUT FORMAT ---\n' + importNote;
 
   try {
-    const completed = [];
-    for (const activityId of selectedIds) {
-      APP.contentStudioStatus = `Generating ${AI_GENERATION_TARGET_LABELS[activityId] || activityId}...`;
-      render();
-      const prompt = buildAIPromptForActivity(activityId, topic, draft.difficulty, draft.count);
-      if (!prompt) throw new Error(`Unsupported activity selected: ${activityId}`);
-      const items = await requestAIGeneratedArray(prompt, draft.apiKey);
-      const validated = validateGeneratedContentForActivity(activityId, items);
-      if ((activityId === 'spin-wheel' && validated.length < 2) || (!validated.length && activityId !== 'spin-wheel')) {
-        throw new Error(`AI returned invalid content for ${AI_GENERATION_TARGET_LABELS[activityId] || activityId}.`);
-      }
-      await upsertContentStudioGeneratedCollection(draft.scope, draft.planId, activityId, validated);
-      if ((draft.scope === 'room' || draft.scope === 'queue') && activityId === 'brainstorm-canvas') {
-        await appendGeneratedBrainstormNotesToActiveRoom(validated);
-      }
-      completed.push(`${AI_GENERATION_TARGET_LABELS[activityId] || activityId} (${validated.length})`);
-    }
-    APP.contentStudioStatus = `Generated content for ${completed.join(', ')}.`;
-  } catch (error) {
-    APP.contentStudioStatus = `Generation failed: ${error.message}`;
-  } finally {
-    APP.contentStudioGenerating = false;
-    render();
+    await navigator.clipboard.writeText(wrapperPrompt);
+    APP.contentStudioStatus = 'Prompt copied to clipboard! Paste into your preferred AI tool, then import the JSON output in the Collections section below.';
+    APP.contentStudioLastPrompt = wrapperPrompt;
+  } catch (_err) {
+    // Fallback: show in a textarea
+    APP.contentStudioStatus = 'Prompt ready — copy it from the text area below, paste into your preferred AI tool, then import the JSON output.';
+    APP.contentStudioLastPrompt = wrapperPrompt;
   }
+  render();
 }
 
 function buildQueueCollectionTemplate(activityIds = []) {
@@ -6759,6 +7519,507 @@ function createConnect4State(participants) {
     startedAt: Date.now(),
     updatedAt: Date.now()
   };
+}
+
+// ═══════════════════════════════════════════
+// COSMOS BOUND — STATE & HELPERS
+// ═══════════════════════════════════════════
+
+const COSMOS_BOUND_ROLES = ['CDR', 'PLT', 'ENG', 'NAV', 'SCI', 'COM', 'MED'];
+const COSMOS_BOUND_ROLE_LABELS = {
+  CDR: 'Commander', PLT: 'Pilot', ENG: 'Engineer', NAV: 'Navigator',
+  SCI: 'Science', COM: 'Comms', MED: 'Medical'
+};
+const COSMOS_BOUND_SYSTEM_OWNER = {
+  'life-support': 'ENG', gyro: 'ENG', fuel: 'ENG',
+  comms: 'COM', shields: 'MED'
+};
+const COSMOS_BOUND_PHASE_LABELS = ['PRE-FLIGHT', 'IGNITION', 'LAUNCH', 'ORBIT', 'NAVIGATE', 'LANDING', 'COMPLETE'];
+const COSMOS_BOUND_PHASE_PCT = [0, 14, 28, 43, 57, 71, 100];
+const COSMOS_BOUND_DESTINATIONS = {
+  moon: {
+    label: 'The Moon',
+    difficulty: 'Easy',
+    icon: '🌙',
+    color: '#c0c0c0',
+    orbitAlt: 250,
+    travelTime: 2500,
+    minThrottle: 50,
+    landThrottle: 40,
+    description: 'A short hop to our nearest neighbor',
+    coords: { x: '384.4', y: '0.0', z: '12.1' },
+    planet: { c1: '#d4d4d4', c2: '#a0a0a0', c3: '#808080', c4: '#555', ring: false }
+  },
+  mars: {
+    label: 'Mars',
+    difficulty: 'Advanced',
+    icon: '🔴',
+    color: '#e05030',
+    orbitAlt: 400,
+    travelTime: 4000,
+    minThrottle: 70,
+    landThrottle: 30,
+    description: 'The red planet awaits — a true test of coordination',
+    coords: { x: '227.9', y: '1.85', z: '49.6' },
+    planet: { c1: '#e8a070', c2: '#c0603a', c3: '#903020', c4: '#501810', ring: false }
+  },
+  eridani: {
+    label: 'Epsilon Eridani',
+    difficulty: 'Extreme',
+    icon: '🟣',
+    color: '#b44dff',
+    orbitAlt: 600,
+    travelTime: 6000,
+    minThrottle: 85,
+    landThrottle: 20,
+    description: 'A distant star system — only the best crews survive',
+    coords: { x: '653.7', y: '328.1', z: '871.4' },
+    planet: { c1: '#c9a0dc', c2: '#7b5ea7', c3: '#4a3072', c4: '#1a1040', ring: true }
+  }
+};
+
+function cosmosBoundAssignRoles(names) {
+  const roles = {};
+  const ROLES = COSMOS_BOUND_ROLES;
+  if (names.length >= 7) {
+    names.forEach((name, i) => {
+      const role = ROLES[i % ROLES.length];
+      if (!roles[name]) roles[name] = [];
+      roles[name].push(role);
+    });
+  } else {
+    const distributions = {
+      2: [['CDR','ENG','MED'], ['PLT','NAV','COM','SCI']],
+      3: [['CDR','MED'], ['PLT','ENG'], ['NAV','COM','SCI']],
+      4: [['CDR'], ['PLT','ENG'], ['NAV','COM'], ['SCI','MED']],
+      5: [['CDR'], ['PLT'], ['ENG','MED'], ['NAV'], ['COM','SCI']],
+      6: [['CDR'], ['PLT'], ['ENG'], ['NAV'], ['COM','SCI'], ['MED']]
+    };
+    const dist = distributions[names.length] || distributions[2];
+    names.forEach((name, i) => {
+      roles[name] = dist[i] || dist[dist.length - 1];
+    });
+  }
+  return roles;
+}
+
+function createCosmosBoundState(participants) {
+  const names = Array.from(new Set(
+    (participants || [])
+      .map(p => String(p?.name || '').trim())
+      .filter(Boolean)
+  ));
+  const roles = cosmosBoundAssignRoles(names);
+  const crewVitals = {};
+  names.forEach(n => { crewVitals[n] = 'nominal'; });
+  return {
+    phase: 0,
+    destination: 'mars',
+    roles,
+    systems: { 'life-support': false, comms: false, shields: false, gyro: false, fuel: false },
+    throttle: 0,
+    heading: 0,
+    coords: { x: '', y: '', z: '' },
+    coordsLocked: false,
+    altitude: 0,
+    velocity: 0,
+    maxAlt: 0,
+    maxVel: 0,
+    missionStartedAt: null,
+    targetCoords: COSMOS_BOUND_DESTINATIONS.mars.coords,
+    log: [],
+    countdownValue: null,
+    broadcast: '',
+    crewVitals,
+    medReady: false,
+    sciScanComplete: false,
+    starSpeed: 0,
+    planetPhase: 0,
+    planetSize: 0,
+    startedAt: Date.now(),
+    updatedAt: Date.now()
+  };
+}
+
+const COSMOS_BOUND_CREW_NAMES = ['ALPHA', 'BETA', 'GAMMA', 'DELTA'];
+const COSMOS_BOUND_CREW_COLORS = ['#00d4ff', '#ff6b2b', '#b44dff', '#00ff88'];
+
+function createCosmosBoundCrewMissionState(members, destId) {
+  const dest = COSMOS_BOUND_DESTINATIONS[destId] || COSMOS_BOUND_DESTINATIONS.mars;
+  const roles = cosmosBoundAssignRoles(members);
+  const crewVitals = {};
+  members.forEach(n => { crewVitals[n] = 'nominal'; });
+  return {
+    phase: 0,
+    roles,
+    systems: { 'life-support': false, comms: false, shields: false, gyro: false, fuel: false },
+    throttle: 0,
+    heading: 0,
+    coords: { x: '', y: '', z: '' },
+    coordsLocked: false,
+    altitude: 0,
+    velocity: 0,
+    maxAlt: 0,
+    maxVel: 0,
+    missionStartedAt: null,
+    targetCoords: dest.coords,
+    log: [],
+    countdownValue: null,
+    broadcast: '',
+    crewVitals,
+    medReady: false,
+    sciScanComplete: false,
+    starSpeed: 0,
+    planetPhase: 0,
+    planetSize: 0
+  };
+}
+
+function cosmosBoundAutoSplitCrews(names, destId) {
+  // Split into crews of 4-7
+  const crewSize = names.length <= 14 ? Math.ceil(names.length / 2) : Math.ceil(names.length / Math.ceil(names.length / 7));
+  const crews = {};
+  const crewAssignments = {};
+  let crewIdx = 0;
+  for (let i = 0; i < names.length; i++) {
+    if (i > 0 && i % crewSize === 0) crewIdx++;
+    const crewId = COSMOS_BOUND_CREW_NAMES[crewIdx] || ('CREW-' + (crewIdx + 1));
+    if (!crews[crewId]) crews[crewId] = { name: crewId, members: [], color: COSMOS_BOUND_CREW_COLORS[crewIdx] || '#00d4ff' };
+    crews[crewId].members.push(names[i]);
+    crewAssignments[names[i]] = crewId;
+  }
+  // Create mission state per crew
+  const crewStates = {};
+  for (const [crewId, crew] of Object.entries(crews)) {
+    crewStates[crewId] = { ...createCosmosBoundCrewMissionState(crew.members, destId), name: crew.name, color: crew.color, members: crew.members };
+  }
+  return { crewStates, crewAssignments };
+}
+
+function getCosmosBoundMyCrewId(state) {
+  if (!state?.multiCrew) return null;
+  return (state.crewAssignments || {})[APP.player?.name || ''] || null;
+}
+
+function getCosmosBoundMyCrewState(state) {
+  if (!state?.multiCrew) return state;
+  const crewId = getCosmosBoundMyCrewId(state);
+  return crewId ? (state.crews || {})[crewId] || state : state;
+}
+
+function getCosmosBoundRoles(state, playerName) {
+  const effectiveState = state?.multiCrew ? getCosmosBoundMyCrewState(state) : state;
+  const entry = effectiveState?.roles?.[playerName];
+  return Array.isArray(entry) ? entry : (typeof entry === 'string' ? [entry] : []);
+}
+
+function getCosmosBoundMyRoles(state) {
+  return getCosmosBoundRoles(state, APP.player?.name || '');
+}
+
+function cosmosBoundPlayerHasRole(state, playerName, role) {
+  return getCosmosBoundRoles(state, playerName).includes(role);
+}
+
+function canCosmosBoundInteract(state, role) {
+  return cosmosBoundPlayerHasRole(state, APP.player?.name || '', role);
+}
+
+function getCosmosBoundDest(state) {
+  const destId = state?.destination || APP.room?.activityState?.destination || 'mars';
+  return COSMOS_BOUND_DESTINATIONS[destId] || COSMOS_BOUND_DESTINATIONS.mars;
+}
+
+function cosmosBoundPreflightReady(state) {
+  const dest = getCosmosBoundDest(state);
+  const allSys = Object.values(state.systems || {}).every(v => v);
+  return allSys && (state.throttle || 0) >= dest.minThrottle && state.coordsLocked && state.medReady && state.sciScanComplete;
+}
+
+function getCosmosBoundNextSteps(state, myRoles) {
+  const phase = state.phase || 0;
+  const dest = getCosmosBoundDest(state);
+  const systems = state.systems || {};
+  const steps = [];
+
+  if (phase === 0) {
+    // Pre-flight: each role has tasks
+    if (myRoles.includes('ENG')) {
+      const offSystems = ['life-support', 'gyro', 'fuel'].filter(s => !systems[s]);
+      if (offSystems.length) steps.push({ role: 'ENG', text: 'Activate ' + offSystems.map(s => s.replace(/-/g, ' ').toUpperCase()).join(', '), urgent: true });
+      else steps.push({ role: 'ENG', text: 'All systems online', done: true });
+    }
+    if (myRoles.includes('COM')) {
+      if (!systems.comms) steps.push({ role: 'COM', text: 'Activate COMMS ARRAY', urgent: true });
+      else steps.push({ role: 'COM', text: 'Comms online — broadcast when ready', done: true });
+    }
+    if (myRoles.includes('MED')) {
+      if (!systems.shields) steps.push({ role: 'MED', text: 'Activate HEAT SHIELDS', urgent: true });
+      else if (!state.medReady) steps.push({ role: 'MED', text: 'Confirm crew vitals', urgent: true });
+      else steps.push({ role: 'MED', text: 'Crew cleared for launch', done: true });
+    }
+    if (myRoles.includes('PLT')) {
+      if ((state.throttle || 0) < dest.minThrottle) steps.push({ role: 'PLT', text: 'Set throttle to ' + dest.minThrottle + '%+', urgent: true });
+      else steps.push({ role: 'PLT', text: 'Throttle nominal at ' + (state.throttle || 0) + '%', done: true });
+    }
+    if (myRoles.includes('NAV')) {
+      if (!state.coordsLocked) steps.push({ role: 'NAV', text: 'Enter coordinates (' + dest.coords.x + ', ' + dest.coords.y + ', ' + dest.coords.z + ') and lock', urgent: true });
+      else steps.push({ role: 'NAV', text: 'Coordinates locked', done: true });
+    }
+    if (myRoles.includes('SCI')) {
+      if (!state.sciScanComplete) steps.push({ role: 'SCI', text: 'Run systems scan when checklist is ready', urgent: true });
+      else steps.push({ role: 'SCI', text: 'Scan complete — all nominal', done: true });
+    }
+    if (myRoles.includes('CDR')) {
+      if (cosmosBoundPreflightReady(state)) steps.push({ role: 'CDR', text: 'ALL SYSTEMS GO — press IGNITE ENGINES', urgent: true });
+      else steps.push({ role: 'CDR', text: 'Waiting for crew to complete pre-flight checks' });
+    }
+  } else if (phase === 1) {
+    if (myRoles.includes('CDR')) steps.push({ role: 'CDR', text: 'Engines firing — press LAUNCH when ready', urgent: true });
+    else steps.push({ text: 'Engines firing — awaiting CDR to launch' });
+  } else if (phase === 2) {
+    steps.push({ text: 'Ascending to orbit — hold steady' });
+  } else if (phase === 3) {
+    if (myRoles.includes('CDR')) steps.push({ role: 'CDR', text: 'Stable orbit — press SET COURSE for ' + dest.label, urgent: true });
+    else steps.push({ text: 'Stable orbit — awaiting CDR to set course' });
+  } else if (phase === 4) {
+    steps.push({ text: 'In transit to ' + dest.label + ' — hold steady' });
+  } else if (phase === 5) {
+    if (myRoles.includes('PLT') && (state.throttle || 0) > dest.landThrottle) {
+      steps.push({ role: 'PLT', text: 'Reduce throttle below ' + dest.landThrottle + '% for landing', urgent: true });
+    }
+    if (myRoles.includes('CDR')) {
+      if ((state.throttle || 0) <= dest.landThrottle) steps.push({ role: 'CDR', text: 'Throttle safe — press INITIATE LANDING', urgent: true });
+      else steps.push({ role: 'CDR', text: 'Waiting for PLT to reduce throttle below ' + dest.landThrottle + '%' });
+    }
+    if (!myRoles.includes('CDR') && !myRoles.includes('PLT')) {
+      steps.push({ text: 'Approaching ' + dest.label + ' — preparing for landing' });
+    }
+  } else if (phase >= 5.5 && phase < 6) {
+    steps.push({ text: 'Landing in progress — hold steady' });
+  } else if (phase === 6) {
+    steps.push({ text: 'Mission complete — ' + dest.label + ' reached!', done: true });
+  }
+  return steps;
+}
+
+function cosmosBoundAddLog(state, msg) {
+  const log = Array.isArray(state.log) ? state.log : [];
+  log.push({ t: Date.now(), msg });
+  if (log.length > 30) log.splice(0, log.length - 30);
+  state.log = log;
+}
+
+// Drop resilience: redistribute roles from disconnected crew to active members
+let cosmosBoundLastParticipantCheck = 0;
+
+function cosmosBoundCheckCrewIntegrity() {
+  if (APP.room?.host !== APP.player?.name) return; // only host checks
+  if (APP.room?.currentActivity !== 'cosmos-bound') return;
+  const now = Date.now();
+  if (now - cosmosBoundLastParticipantCheck < 3000) return; // throttle to every 3s
+  cosmosBoundLastParticipantCheck = now;
+
+  const state = APP.room.activityState;
+  if (!state || !state.roles) return;
+  const currentNames = new Set((APP.room.participants || []).map(p => String(p?.name || '').trim()).filter(Boolean));
+  const roleNames = Object.keys(state.roles);
+  const orphanedRoles = [];
+
+  // Find roles belonging to disconnected players
+  for (const name of roleNames) {
+    if (!currentNames.has(name)) {
+      const roles = getCosmosBoundRoles(state, name);
+      orphanedRoles.push(...roles);
+    }
+  }
+  if (orphanedRoles.length === 0) return;
+
+  // Redistribute orphaned roles to active players
+  cosmosBoundUpdateState(s => {
+    const active = Object.keys(s.roles).filter(n => currentNames.has(n));
+    if (active.length === 0) return;
+    // Remove disconnected players
+    for (const name of Object.keys(s.roles)) {
+      if (!currentNames.has(name)) {
+        cosmosBoundAddLog(s, name.toUpperCase() + ' DISCONNECTED — REDISTRIBUTING ROLES');
+        delete s.roles[name];
+      }
+    }
+    // Distribute orphaned roles round-robin to active players (fewest roles first)
+    for (const role of orphanedRoles) {
+      const activeList = Object.keys(s.roles).filter(n => currentNames.has(n));
+      activeList.sort((a, b) => (s.roles[a]?.length || 0) - (s.roles[b]?.length || 0));
+      const target = activeList[0];
+      if (target) {
+        if (!Array.isArray(s.roles[target])) s.roles[target] = [];
+        if (!s.roles[target].includes(role)) {
+          s.roles[target].push(role);
+          cosmosBoundAddLog(s, role + ' ROLE REASSIGNED TO ' + target.toUpperCase());
+        }
+      }
+    }
+    // Also update crewVitals
+    const vitals = s.crewVitals || {};
+    for (const name of Object.keys(vitals)) {
+      if (!currentNames.has(name)) delete vitals[name];
+    }
+    s.crewVitals = vitals;
+  });
+}
+
+// Also handle new participants joining mid-mission
+function cosmosBoundCheckNewMembers() {
+  if (APP.room?.host !== APP.player?.name) return;
+  if (APP.room?.currentActivity !== 'cosmos-bound') return;
+  const state = APP.room.activityState;
+  if (!state || !state.roles) return;
+  const currentNames = (APP.room.participants || []).map(p => String(p?.name || '').trim()).filter(Boolean);
+  const roleNames = new Set(Object.keys(state.roles));
+  const newMembers = currentNames.filter(n => !roleNames.has(n));
+  if (newMembers.length === 0) return;
+
+  cosmosBoundUpdateState(s => {
+    for (const name of newMembers) {
+      // Assign them the role with fewest holders
+      const roleCounts = {};
+      COSMOS_BOUND_ROLES.forEach(r => { roleCounts[r] = 0; });
+      for (const roles of Object.values(s.roles)) {
+        if (Array.isArray(roles)) roles.forEach(r => { roleCounts[r] = (roleCounts[r] || 0) + 1; });
+      }
+      const leastRole = COSMOS_BOUND_ROLES.reduce((a, b) => (roleCounts[a] || 0) <= (roleCounts[b] || 0) ? a : b);
+      s.roles[name] = [leastRole];
+      if (!s.crewVitals) s.crewVitals = {};
+      s.crewVitals[name] = 'nominal';
+      cosmosBoundAddLog(s, name.toUpperCase() + ' JOINED CREW AS ' + leastRole);
+    }
+  });
+}
+
+// Module-level canvas/simulation state
+let cosmosBoundAnimFrame = null;
+let cosmosBoundCanvasCtx = null;
+let cosmosBoundBgStars = [];
+let cosmosBoundSimInterval = null;
+let cosmosBoundLeverDragging = false;
+let cosmosBoundLocalThrottle = 0;
+let cosmosBoundBannerTimeout = null;
+let cosmosBoundLocalPlanetSize = 0;
+let cosmosBoundAudioAmbient = null;
+let cosmosBoundAudioLaunch = null;
+let cosmosBoundLastAudioPhase = -1;
+const cosmosBoundSfxCache = {};
+
+function cosmosBoundInitAudio() {
+  if (!cosmosBoundAudioAmbient) {
+    cosmosBoundAudioAmbient = new Audio('/sounds/space-ship-bridge-loop-104525.mp3');
+    cosmosBoundAudioAmbient.loop = true;
+    cosmosBoundAudioAmbient.volume = 0.25;
+  }
+  if (!cosmosBoundAudioLaunch) {
+    cosmosBoundAudioLaunch = new Audio('/sounds/Rocket-launch-306441.mp3');
+    cosmosBoundAudioLaunch.loop = false;
+    cosmosBoundAudioLaunch.volume = 0.5;
+  }
+}
+
+// Play a one-shot sound effect
+function cosmosBoundPlaySfx(name, volume = 0.4) {
+  const paths = {
+    beep: '/sounds/beep-sound-short-237619.mp3',
+    beep1: '/sounds/eaglaxle-electronic-beep-1-453381.mp3',
+    beep2: '/sounds/eaglaxle-electronic-beep-2-453382.mp3',
+    beep3: '/sounds/eaglaxle-electronic-beep-3-453383.mp3',
+    warp: '/sounds/freesound_community-cinematic-glitch-transition-sfx-27806.mp3',
+    info: '/sounds/lubecin123-info-computer-sound-299367.mp3'
+  };
+  const path = paths[name];
+  if (!path) return;
+  // Reuse or create audio element
+  if (!cosmosBoundSfxCache[name]) {
+    cosmosBoundSfxCache[name] = new Audio(path);
+  }
+  const sfx = cosmosBoundSfxCache[name];
+  sfx.currentTime = 0;
+  sfx.volume = volume;
+  sfx.play().catch(() => {});
+}
+
+function cosmosBoundSyncAudio(phase) {
+  const p = Math.floor(phase);
+  if (p === cosmosBoundLastAudioPhase) return;
+  const prevPhase = cosmosBoundLastAudioPhase;
+  cosmosBoundLastAudioPhase = p;
+  cosmosBoundInitAudio();
+
+  // Ambient bridge hum: plays during pre-flight and orbit+
+  if (p >= 0 && p !== 2) {
+    if (cosmosBoundAudioAmbient.paused) {
+      cosmosBoundAudioAmbient.currentTime = 0;
+      cosmosBoundAudioAmbient.play().catch(() => {});
+    }
+    cosmosBoundAudioAmbient.volume = p === 0 ? 0.15 : p >= 4 ? 0.3 : 0.25;
+  }
+  // Duck ambient during launch ascent
+  if (p === 2) {
+    cosmosBoundAudioAmbient.volume = 0.08;
+  }
+
+  // Phase transition SFX
+  if (p === 1 && prevPhase === 0) {
+    // Ignition
+    cosmosBoundPlaySfx('beep3', 0.5);
+    cosmosBoundAudioLaunch.currentTime = 0;
+    cosmosBoundAudioLaunch.volume = 0.5;
+    cosmosBoundAudioLaunch.play().catch(() => {});
+  }
+  if (p === 2 && prevPhase === 1) {
+    // Launch — countdown beeps handled separately
+    cosmosBoundPlaySfx('beep3', 0.5);
+  }
+  if (p === 3 && prevPhase <= 2) {
+    // Orbit achieved
+    cosmosBoundPlaySfx('info', 0.5);
+    // Fade out rocket
+    if (!cosmosBoundAudioLaunch.paused) {
+      cosmosBoundAudioLaunch.volume = 0.1;
+      setTimeout(() => { cosmosBoundAudioLaunch.pause(); cosmosBoundAudioLaunch.currentTime = 0; }, 1500);
+    }
+  }
+  if (p === 4 && prevPhase === 3) {
+    // Warp / navigate
+    cosmosBoundPlaySfx('warp', 0.6);
+  }
+  if (p === 5 && prevPhase === 4) {
+    // Arrived at destination
+    cosmosBoundPlaySfx('info', 0.5);
+    cosmosBoundAudioLaunch.currentTime = 0;
+    cosmosBoundAudioLaunch.volume = 0.25;
+    cosmosBoundAudioLaunch.play().catch(() => {});
+  }
+  if (p === 6) {
+    // Mission complete
+    cosmosBoundPlaySfx('info', 0.6);
+    if (cosmosBoundAudioAmbient) {
+      cosmosBoundAudioAmbient.volume = 0.1;
+      setTimeout(() => { cosmosBoundAudioAmbient.pause(); }, 2000);
+    }
+    if (cosmosBoundAudioLaunch && !cosmosBoundAudioLaunch.paused) {
+      cosmosBoundAudioLaunch.pause();
+    }
+  }
+}
+
+function cosmosBoundStopAudio() {
+  cosmosBoundLastAudioPhase = -1;
+  if (cosmosBoundAudioAmbient) {
+    cosmosBoundAudioAmbient.pause();
+    cosmosBoundAudioAmbient.currentTime = 0;
+  }
+  if (cosmosBoundAudioLaunch) {
+    cosmosBoundAudioLaunch.pause();
+    cosmosBoundAudioLaunch.currentTime = 0;
+  }
 }
 
 function getConnect4Seat(state, color) {
@@ -8810,6 +10071,9 @@ function getInitialActivityState(room, activityId) {
   if (activityId === 'connect-4') {
     return createConnect4State(room?.participants || []);
   }
+  if (activityId === 'cosmos-bound') {
+    return createCosmosBoundState(room?.participants || []);
+  }
   if (activityId === 'uno') {
     return createUnoGameState(room?.participants || []);
   }
@@ -8839,6 +10103,9 @@ function activityMeetsRoomRequirements(room, activityId) {
   if (activityId === 'connect-4') {
     return (room?.participants || []).length >= 2;
   }
+  if (activityId === 'cosmos-bound') {
+    return (room?.participants || []).length >= 2;
+  }
   if (activityId === 'uno') {
     return (room?.participants || []).length >= 2;
   }
@@ -8862,6 +10129,10 @@ async function startActivityById(activityId) {
     }
     if (activityId === 'connect-4') {
       showError('Connect 4 needs 2 players in the room.');
+      return false;
+    }
+    if (activityId === 'cosmos-bound') {
+      showError('Cosmos Bound needs at least 2 crew members.');
       return false;
     }
     showError('UNO needs at least 2 players.');
@@ -9034,6 +10305,645 @@ async function startBattleship() { await startActivityById('battleship'); }
 async function startBingo() { await startActivityById('bingo'); }
 async function startBackgammon() { await startActivityById('backgammon'); }
 async function startConnect4() { await startActivityById('connect-4'); }
+async function startCosmosBound() { await startActivityById('cosmos-bound'); }
+
+// ═══════════════════════════════════════════
+// COSMOS BOUND — ACTION HANDLERS
+// ═══════════════════════════════════════════
+
+async function cosmosBoundUpdateState(mutator) {
+  if (!APP.roomCode || !APP.room) return null;
+  const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
+  if (!room || room.currentActivity !== 'cosmos-bound') return null;
+  const state = room.activityState && typeof room.activityState === 'object' ? room.activityState : {};
+  if (typeof mutator === 'function') mutator(state);
+  state.updatedAt = Date.now();
+  room.activityState = state;
+  await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
+  APP.room = room;
+  render();
+  return room;
+}
+
+// Crew-aware update: mutator receives the player's crew sub-state in multi-crew mode
+async function cosmosBoundUpdateCrewState(mutator) {
+  return cosmosBoundUpdateState(state => {
+    if (state.multiCrew) {
+      const crewId = (state.crewAssignments || {})[APP.player?.name || ''];
+      const crew = crewId && state.crews ? state.crews[crewId] : null;
+      if (crew && typeof mutator === 'function') mutator(crew);
+    } else {
+      if (typeof mutator === 'function') mutator(state);
+    }
+  });
+}
+
+async function cosmosBoundBeginMission() {
+  if (APP.room?.host !== APP.player?.name) return;
+  await cosmosBoundUpdateState(state => {
+    state.missionStartedAt = Date.now();
+    if (state.multiCrew && state.crews) {
+      for (const crew of Object.values(state.crews)) {
+        crew.missionStartedAt = Date.now();
+        cosmosBoundAddLog(crew, 'CREW ' + (crew.name || '?') + ' — MISSION CONTROL ONLINE');
+        cosmosBoundAddLog(crew, 'ACTIVATE ALL SYSTEMS TO BEGIN');
+      }
+    } else {
+      cosmosBoundAddLog(state, 'COSMOS BOUND MISSION CONTROL ONLINE');
+      cosmosBoundAddLog(state, 'CREW OF ' + Object.keys(state.roles || {}).length + ' STANDING BY');
+      cosmosBoundAddLog(state, 'ACTIVATE ALL SYSTEMS TO BEGIN');
+    }
+  });
+}
+
+async function cosmosBoundSetDestination(destId) {
+  if (APP.room?.host !== APP.player?.name) return;
+  const dest = COSMOS_BOUND_DESTINATIONS[destId];
+  if (!dest) return;
+  await cosmosBoundUpdateState(state => {
+    state.destination = destId;
+    state.targetCoords = dest.coords;
+    state.coords = { x: '', y: '', z: '' };
+    state.coordsLocked = false;
+    // Update multi-crew states too
+    if (state.multiCrew && state.crews) {
+      for (const crew of Object.values(state.crews)) {
+        crew.targetCoords = dest.coords;
+        crew.coords = { x: '', y: '', z: '' };
+        crew.coordsLocked = false;
+      }
+    }
+  });
+}
+
+async function cosmosBoundToggleMultiCrew() {
+  if (APP.room?.host !== APP.player?.name) return;
+  await cosmosBoundUpdateState(state => {
+    if (state.multiCrew) {
+      // Disable multi-crew — revert to single crew
+      state.multiCrew = false;
+      delete state.crews;
+      delete state.crewAssignments;
+      // Re-assign roles for all participants
+      const allNames = (APP.room.participants || []).map(p => String(p?.name || '').trim()).filter(Boolean);
+      state.roles = cosmosBoundAssignRoles(allNames);
+      const crewVitals = {};
+      allNames.forEach(n => { crewVitals[n] = 'nominal'; });
+      state.crewVitals = crewVitals;
+    } else {
+      // Enable multi-crew — auto-split into teams
+      const allNames = (APP.room.participants || []).map(p => String(p?.name || '').trim()).filter(Boolean);
+      const destId = state.destination || 'mars';
+      const { crewStates, crewAssignments } = cosmosBoundAutoSplitCrews(allNames, destId);
+      state.multiCrew = true;
+      state.crews = crewStates;
+      state.crewAssignments = crewAssignments;
+    }
+  });
+}
+
+async function cosmosBoundAssignRoleTo(playerName, role) {
+  if (APP.room?.host !== APP.player?.name) return;
+  if (!playerName || !role || !COSMOS_BOUND_ROLES.includes(role)) return;
+  await cosmosBoundUpdateState(state => {
+    const roles = state.roles || {};
+    // Remove this role from whoever currently has it
+    for (const name of Object.keys(roles)) {
+      const arr = Array.isArray(roles[name]) ? roles[name] : [];
+      roles[name] = arr.filter(r => r !== role);
+    }
+    // Add to target player
+    if (!Array.isArray(roles[playerName])) roles[playerName] = [];
+    roles[playerName].push(role);
+    state.roles = roles;
+  });
+}
+
+async function cosmosBoundToggleSystem(systemId) {
+  const ownerRole = COSMOS_BOUND_SYSTEM_OWNER[systemId];
+  if (!ownerRole) return;
+  await cosmosBoundUpdateCrewState(cs => {
+    if (!canCosmosBoundInteract(APP.room?.activityState, ownerRole)) return;
+    if ((cs.phase || 0) >= 2) return;
+    const systems = cs.systems || {};
+    systems[systemId] = !systems[systemId];
+    cs.systems = systems;
+    cosmosBoundAddLog(cs, systemId.replace(/-/g, ' ').toUpperCase() + ': ' + (systems[systemId] ? 'ONLINE' : 'OFFLINE'));
+  });
+  cosmosBoundPlaySfx('beep', 0.35);
+}
+
+async function cosmosBoundLockCoordinates() {
+  const xEl = document.getElementById('cosmosBoundCoordX');
+  const yEl = document.getElementById('cosmosBoundCoordY');
+  const zEl = document.getElementById('cosmosBoundCoordZ');
+  const x = xEl ? xEl.value.trim() : '';
+  const y = yEl ? yEl.value.trim() : '';
+  const z = zEl ? zEl.value.trim() : '';
+  if (!x || !y || !z) {
+    showError('All three coordinates (X, Y, Z) are required.');
+    return;
+  }
+  await cosmosBoundUpdateCrewState(cs => {
+    if (!canCosmosBoundInteract(APP.room?.activityState, 'NAV')) return;
+    if (cs.coordsLocked) return;
+    cs.coords = { x, y, z };
+    cs.coordsLocked = true;
+    cosmosBoundAddLog(cs, 'COORDINATES LOCKED: [' + x + ', ' + y + ', ' + z + ']');
+  });
+  cosmosBoundPlaySfx('beep1', 0.4);
+}
+
+async function cosmosBoundAdjustHeading(degrees) {
+  await cosmosBoundUpdateCrewState(cs => {
+    if (!canCosmosBoundInteract(APP.room?.activityState, 'NAV')) return;
+    cs.heading = ((cs.heading || 0) + degrees + 360) % 360;
+  });
+  cosmosBoundPlaySfx('beep1', 0.25);
+}
+
+async function cosmosBoundBroadcast() {
+  const input = document.getElementById('cosmosBroadcastInput');
+  const msg = input ? input.value.trim() : '';
+  if (!msg) return;
+  await cosmosBoundUpdateCrewState(cs => {
+    if (!canCosmosBoundInteract(APP.room?.activityState, 'COM')) return;
+    cs.broadcast = msg;
+    cosmosBoundAddLog(cs, 'COM BROADCAST: ' + msg);
+  });
+  cosmosBoundPlaySfx('beep2', 0.3);
+}
+
+async function cosmosBoundConfirmVitals() {
+  await cosmosBoundUpdateCrewState(cs => {
+    if (!canCosmosBoundInteract(APP.room?.activityState, 'MED')) return;
+    if (cs.medReady) return;
+    cs.medReady = true;
+    cosmosBoundAddLog(cs, 'MED: CREW VITALS NOMINAL — ALL CLEAR');
+  });
+  cosmosBoundPlaySfx('info', 0.4);
+}
+
+async function cosmosBoundSciScan() {
+  await cosmosBoundUpdateCrewState(cs => {
+    if (!canCosmosBoundInteract(APP.room?.activityState, 'SCI')) return;
+    if (cs.sciScanComplete) return;
+    cs.sciScanComplete = true;
+    cosmosBoundAddLog(cs, 'SCI: SYSTEMS SCAN COMPLETE — ALL NOMINAL');
+  });
+  cosmosBoundPlaySfx('info', 0.4);
+}
+
+async function cosmosBoundIgnite() {
+  await cosmosBoundUpdateCrewState(cs => {
+    if (!canCosmosBoundInteract(APP.room?.activityState, 'CDR')) return;
+    if ((cs.phase || 0) !== 0) return;
+    if (!cosmosBoundPreflightReady(cs)) return;
+    cs.phase = 1;
+    cs.starSpeed = 0.3;
+    cosmosBoundAddLog(cs, 'ENGINE IGNITION SEQUENCE INITIATED');
+  });
+  // After 2s, update to allow launch
+  if (APP.room?.host === APP.player?.name) {
+    setTimeout(async () => {
+      await cosmosBoundUpdateCrewState(cs => {
+        if (cs.phase !== 1) return;
+        cosmosBoundAddLog(cs, 'ENGINE THRUST NOMINAL — LAUNCH AUTHORIZED');
+      });
+    }, 2000);
+  }
+}
+
+async function cosmosBoundLaunch() {
+  await cosmosBoundUpdateCrewState(cs => {
+    if (!canCosmosBoundInteract(APP.room?.activityState, 'CDR')) return;
+    if (cs.phase !== 1) return;
+    cs.phase = 2;
+    cs.countdownValue = 5;
+    cosmosBoundAddLog(cs, 'COUNTDOWN INITIATED: T-5');
+  });
+  // Host drives countdown
+  if (APP.room?.host === APP.player?.name) {
+    cosmosBoundRunCountdown();
+  }
+}
+
+async function cosmosBoundRunCountdown() {
+  let count = 4;
+  const tick = async () => {
+    await cosmosBoundUpdateCrewState(cs => {
+      if (cs.phase !== 2) return;
+      cs.countdownValue = count;
+      if (count > 0) {
+        cosmosBoundAddLog(cs, 'T-' + count);
+        cosmosBoundPlaySfx(count <= 2 ? 'beep3' : 'beep2', count <= 2 ? 0.55 : 0.45);
+      }
+    });
+    count--;
+    if (count >= 0) {
+      setTimeout(tick, 1000);
+    } else {
+      cosmosBoundActualLaunch();
+    }
+  };
+  setTimeout(tick, 1000);
+}
+
+async function cosmosBoundActualLaunch() {
+  await cosmosBoundUpdateCrewState(cs => {
+    cs.countdownValue = null;
+    cs.starSpeed = 3;
+    cosmosBoundAddLog(cs, 'LIFTOFF! WE HAVE LIFTOFF!');
+  });
+  cosmosBoundPlaySfx('beep3', 0.6);
+  // Start ascent simulation (host only)
+  cosmosBoundStartAscent();
+}
+
+function cosmosBoundStartAscent() {
+  if (APP.room?.host !== APP.player?.name) return;
+  cosmosBoundClearSimInterval();
+  cosmosBoundSimInterval = setInterval(async () => {
+    const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
+    if (!room || room.currentActivity !== 'cosmos-bound') { cosmosBoundClearSimInterval(); return; }
+    const rootState = room.activityState;
+    // Get the crew state to simulate (multi-crew: find the CDR's crew, single: use root)
+    const cs = rootState.multiCrew
+      ? (rootState.crews || {})[getCosmosBoundMyCrewId(rootState)] || null
+      : rootState;
+    if (!cs || cs.phase !== 2) { cosmosBoundClearSimInterval(); return; }
+    cs.altitude = (cs.altitude || 0) + Math.random() * 15 + 5;
+    cs.velocity = (cs.velocity || 0) + Math.random() * 200 + 100;
+    cs.maxAlt = Math.max(cs.maxAlt || 0, cs.altitude);
+    cs.maxVel = Math.max(cs.maxVel || 0, cs.velocity);
+    const orbitAlt = getCosmosBoundDest(rootState).orbitAlt;
+    if (cs.altitude >= orbitAlt) {
+      cs.phase = 3;
+      cs.starSpeed = 0.8;
+      cosmosBoundAddLog(cs, 'STABLE ORBIT ACHIEVED — ALT ' + Math.round(cs.altitude) + ' km');
+      cosmosBoundClearSimInterval();
+    }
+    rootState.updatedAt = Date.now();
+    room.activityState = rootState;
+    await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
+    APP.room = room;
+    render();
+  }, 300);
+}
+
+async function cosmosBoundNavigate() {
+  await cosmosBoundUpdateCrewState(cs => {
+    if (!canCosmosBoundInteract(APP.room?.activityState, 'CDR')) return;
+    if (cs.phase !== 3) return;
+    cs.phase = 4;
+    cs.starSpeed = 6;
+    cs.planetPhase = 1;
+    cs.planetSize = 0;
+    cosmosBoundAddLog(cs, 'COURSE SET FOR ' + getCosmosBoundDest(APP.room?.activityState).label.toUpperCase() + ' — HEADING ' + (cs.heading || 0) + ' DEG');
+  });
+  if (APP.room?.host === APP.player?.name) {
+    cosmosBoundStartTravel();
+  }
+}
+
+function cosmosBoundStartTravel() {
+  if (APP.room?.host !== APP.player?.name) return;
+  cosmosBoundClearSimInterval();
+  let travelTime = 0;
+  cosmosBoundSimInterval = setInterval(async () => {
+    const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
+    if (!room || room.currentActivity !== 'cosmos-bound') { cosmosBoundClearSimInterval(); return; }
+    const rootState = room.activityState;
+    const cs = rootState.multiCrew
+      ? (rootState.crews || {})[getCosmosBoundMyCrewId(rootState)] || null
+      : rootState;
+    if (!cs || cs.phase !== 4) { cosmosBoundClearSimInterval(); return; }
+    travelTime += 300;
+    cs.altitude = (cs.altitude || 0) + Math.random() * 100;
+    cs.velocity = (cs.velocity || 0) + Math.random() * 500;
+    cs.maxAlt = Math.max(cs.maxAlt || 0, cs.altitude);
+    cs.maxVel = Math.max(cs.maxVel || 0, cs.velocity);
+    rootState.updatedAt = Date.now();
+    const dest = getCosmosBoundDest(rootState);
+    if (travelTime >= dest.travelTime) {
+      cs.phase = 5;
+      cs.starSpeed = 0.5;
+      cs.planetPhase = 2;
+      cs.velocity = Math.max((cs.velocity || 0) - 3000, 800);
+      cosmosBoundAddLog(cs, dest.label.toUpperCase() + ' REACHED — PREPARE FOR LANDING');
+      cosmosBoundAddLog(cs, 'REDUCE THROTTLE TO <' + dest.landThrottle + '% FOR LANDING');
+      cosmosBoundClearSimInterval();
+    }
+    room.activityState = rootState;
+    await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
+    APP.room = room;
+    render();
+  }, 300);
+}
+
+async function cosmosBoundLand() {
+  const rootState = APP.room?.activityState;
+  if (!rootState) return;
+  const cs = getCosmosBoundMyCrewState(rootState);
+  if (!cs || cs.phase !== 5) return;
+  const landThrottle = getCosmosBoundDest(rootState).landThrottle;
+  if ((cs.throttle || 0) > landThrottle) {
+    showError('Throttle too high for landing — PLT must reduce to below ' + landThrottle + '%.');
+    return;
+  }
+  await cosmosBoundUpdateCrewState(crew => {
+    if (!canCosmosBoundInteract(APP.room?.activityState, 'CDR')) return;
+    crew.phase = 5.5;
+    crew.planetPhase = 3;
+    cosmosBoundAddLog(crew, 'LANDING SEQUENCE INITIATED — HOLD STEADY');
+  });
+  if (APP.room?.host === APP.player?.name) {
+    cosmosBoundStartDescent();
+  }
+}
+
+function cosmosBoundStartDescent() {
+  if (APP.room?.host !== APP.player?.name) return;
+  cosmosBoundClearSimInterval();
+  let landTime = 0;
+  cosmosBoundSimInterval = setInterval(async () => {
+    const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
+    if (!room || room.currentActivity !== 'cosmos-bound') { cosmosBoundClearSimInterval(); return; }
+    const rootState = room.activityState;
+    const cs = rootState.multiCrew
+      ? (rootState.crews || {})[getCosmosBoundMyCrewId(rootState)] || null
+      : rootState;
+    if (!cs || cs.phase !== 5.5) { cosmosBoundClearSimInterval(); return; }
+    landTime += 300;
+    cs.altitude = Math.max((cs.altitude || 0) - 50, 0);
+    cs.velocity = Math.max((cs.velocity || 0) - 100, 0);
+    rootState.updatedAt = Date.now();
+    if (landTime >= 4000) {
+      cs.phase = 6;
+      cs.altitude = 0;
+      cs.velocity = 0;
+      cs.starSpeed = 0;
+      const landDest = getCosmosBoundDest(rootState);
+      cosmosBoundAddLog(cs, 'TOUCHDOWN ON ' + landDest.label.toUpperCase() + ' — MISSION COMPLETE');
+      cosmosBoundClearSimInterval();
+    }
+    room.activityState = rootState;
+    await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
+    APP.room = room;
+    render();
+  }, 300);
+}
+
+async function cosmosBoundRestart() {
+  if (APP.room?.host !== APP.player?.name) return;
+  cosmosBoundClearSimInterval();
+  const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
+  if (!room || room.currentActivity !== 'cosmos-bound') return;
+  room.activityState = createCosmosBoundState(room.participants || []);
+  await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
+  APP.room = room;
+  cosmosBoundBgStars = [];
+  render();
+}
+
+async function cosmosBoundSyncThrottle() {
+  if (!APP.roomCode) return;
+  await cosmosBoundUpdateCrewState(cs => {
+    cs.throttle = cosmosBoundLocalThrottle;
+  });
+}
+
+function cosmosBoundClearSimInterval() {
+  if (cosmosBoundSimInterval) {
+    clearInterval(cosmosBoundSimInterval);
+    cosmosBoundSimInterval = null;
+  }
+}
+
+// ═══════════════════════════════════════════
+// COSMOS BOUND — CANVAS & POST-RENDER
+// ═══════════════════════════════════════════
+
+function teardownCosmosBoundSimulation() {
+  if (cosmosBoundAnimFrame) {
+    cancelAnimationFrame(cosmosBoundAnimFrame);
+    cosmosBoundAnimFrame = null;
+  }
+  cosmosBoundClearSimInterval();
+  cosmosBoundCanvasCtx = null;
+  cosmosBoundBgStars = [];
+  cosmosBoundLocalPlanetSize = 0;
+  if (cosmosBoundBannerTimeout) {
+    clearTimeout(cosmosBoundBannerTimeout);
+    cosmosBoundBannerTimeout = null;
+  }
+  cosmosBoundStopAudio();
+}
+
+function initCosmosBoundPostRender() {
+  if (APP.room?.currentActivity !== 'cosmos-bound') return;
+  // Check crew integrity (host only, throttled)
+  cosmosBoundCheckCrewIntegrity();
+  cosmosBoundCheckNewMembers();
+  // Sync audio to current phase
+  const crewState = getCosmosBoundMyCrewState(APP.room?.activityState) || APP.room?.activityState || {};
+  if (crewState.missionStartedAt) {
+    cosmosBoundSyncAudio(crewState.phase || 0);
+  }
+  const canvas = document.getElementById('cosmosBoundCanvas');
+  if (!canvas) return;
+
+  const container = canvas.parentElement;
+  if (container) {
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+  }
+
+  cosmosBoundCanvasCtx = canvas.getContext('2d');
+
+  if (cosmosBoundBgStars.length === 0) {
+    cosmosBoundBgStars = Array.from({ length: 200 }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      size: Math.random() * 1.5 + 0.3,
+      speed: Math.random() * 2 + 0.5,
+      brightness: Math.random() * 0.5 + 0.5
+    }));
+  }
+
+  if (cosmosBoundAnimFrame) cancelAnimationFrame(cosmosBoundAnimFrame);
+  drawCosmosBoundSpace();
+  attachCosmosBoundLeverListeners();
+}
+
+function drawCosmosBoundSpace() {
+  const ctx = cosmosBoundCanvasCtx;
+  if (!ctx) return;
+  const canvas = ctx.canvas;
+  const w = canvas.width;
+  const h = canvas.height;
+  const rootState = APP.room?.activityState || {};
+  const state = getCosmosBoundMyCrewState(rootState) || rootState;
+  const starSpeed = state.starSpeed || 0;
+  const phase = state.phase || 0;
+  const planetPhase = state.planetPhase || 0;
+  if (planetPhase === 0) cosmosBoundLocalPlanetSize = 0;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Stars
+  cosmosBoundBgStars.forEach(s => {
+    s.y += s.speed * starSpeed;
+    if (s.y > h) { s.y = 0; s.x = Math.random() * w; }
+    if (s.y < 0) { s.y = h; s.x = Math.random() * w; }
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(200,220,255,${s.brightness * (starSpeed > 0.5 ? 1 : 0.4)})`;
+    ctx.fill();
+  });
+
+  // Earth during launch
+  if (phase === 2 || phase === 3) {
+    const alt = state.altitude || 0;
+    const earthSize = phase === 2 ? Math.max(300 - alt * 0.5, 60) : 60;
+    const ey = phase === 2 ? h - earthSize * 0.3 + alt * 0.8 : h + 40;
+    ctx.beginPath();
+    ctx.arc(w / 2, ey, earthSize, 0, Math.PI * 2);
+    const eg = ctx.createRadialGradient(w / 2, ey, earthSize * 0.2, w / 2, ey, earthSize);
+    eg.addColorStop(0, '#1a5fb4');
+    eg.addColorStop(0.5, '#26a269');
+    eg.addColorStop(0.8, '#1a5fb4');
+    eg.addColorStop(1, '#0d2b5e');
+    ctx.fillStyle = eg;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(w / 2, ey, earthSize + 8, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(100,180,255,.15)';
+    ctx.lineWidth = 12;
+    ctx.stroke();
+  }
+
+  // Destination planet
+  if (planetPhase >= 1) {
+    if (planetPhase === 1) cosmosBoundLocalPlanetSize = Math.min(cosmosBoundLocalPlanetSize + 0.3, 120);
+    else if (planetPhase === 2 && cosmosBoundLocalPlanetSize < 120) cosmosBoundLocalPlanetSize = Math.min(cosmosBoundLocalPlanetSize + 0.5, 120);
+    else if (planetPhase === 3) cosmosBoundLocalPlanetSize = Math.min(cosmosBoundLocalPlanetSize + 1, Math.max(w, h) * 1.5);
+    const ps = Math.max(cosmosBoundLocalPlanetSize, 1);
+    const py = planetPhase === 3 ? h / 2 : h * 0.3;
+    ctx.beginPath();
+    ctx.arc(w / 2, py, ps, 0, Math.PI * 2);
+    const pg = ctx.createRadialGradient(w / 2 - ps * 0.3, py - ps * 0.3, ps * 0.1, w / 2, py, ps);
+    const destPlanet = (COSMOS_BOUND_DESTINATIONS[rootState.destination] || COSMOS_BOUND_DESTINATIONS.mars).planet;
+    pg.addColorStop(0, destPlanet.c1);
+    pg.addColorStop(0.3, destPlanet.c2);
+    pg.addColorStop(0.7, destPlanet.c3);
+    pg.addColorStop(1, destPlanet.c4);
+    ctx.fillStyle = pg;
+    ctx.fill();
+    if (destPlanet.ring && ps > 20) {
+      ctx.beginPath();
+      ctx.ellipse(w / 2, py, ps * 1.6, ps * 0.3, -0.2, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(180,140,220,.25)';
+      ctx.lineWidth = ps * 0.08;
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.arc(w / 2, py, ps + 6, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(180,140,255,.12)';
+    ctx.lineWidth = 10;
+    ctx.stroke();
+  }
+
+  // Engine exhaust during launch
+  if (phase === 2 && (state.throttle || 0) > 0) {
+    const ex = w / 2;
+    const ey2 = h - 40;
+    const throttle = state.throttle || 0;
+    for (let i = 0; i < 3; i++) {
+      const len = 30 + throttle * 1.5 + Math.random() * 20;
+      const spread = 8 + throttle * 0.15;
+      ctx.beginPath();
+      ctx.moveTo(ex - spread, ey2);
+      ctx.lineTo(ex + spread, ey2);
+      ctx.lineTo(ex + (Math.random() - 0.5) * spread * 0.5, ey2 + len);
+      ctx.closePath();
+      const fg = ctx.createLinearGradient(ex, ey2, ex, ey2 + len);
+      fg.addColorStop(0, `rgba(255,${150 + Math.random() * 100},50,.8)`);
+      fg.addColorStop(0.5, 'rgba(255,100,20,.4)');
+      fg.addColorStop(1, 'rgba(255,50,0,0)');
+      ctx.fillStyle = fg;
+      ctx.fill();
+    }
+  }
+
+  cosmosBoundAnimFrame = requestAnimationFrame(drawCosmosBoundSpace);
+}
+
+function attachCosmosBoundLeverListeners() {
+  const track = document.getElementById('cosmosBoundLeverTrack');
+  if (!track || track.dataset.cbBound === 'true') return;
+  track.dataset.cbBound = 'true';
+
+  const onStart = (e) => {
+    const state = APP.room?.activityState;
+    if (!state || !canCosmosBoundInteract(state, 'PLT')) return;
+    const phase = state.phase || 0;
+    if (phase >= 2 && phase !== 5 && phase !== 5.5) return;
+    cosmosBoundLeverDragging = true;
+    cosmosBoundLocalThrottle = state.throttle || 0;
+    cosmosBoundMoveLever(e);
+
+    const onMove = (ev) => { cosmosBoundMoveLever(ev); ev.preventDefault(); };
+    const onEnd = () => {
+      cosmosBoundLeverDragging = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onEnd);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+      cosmosBoundSyncThrottle();
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onEnd);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onEnd);
+  };
+
+  track.addEventListener('mousedown', onStart);
+  track.addEventListener('touchstart', onStart);
+}
+
+function cosmosBoundMoveLever(e) {
+  if (!cosmosBoundLeverDragging) return;
+  const track = document.getElementById('cosmosBoundLeverTrack');
+  if (!track) return;
+  const rect = track.getBoundingClientRect();
+  const clientY = (e.touches ? e.touches[0] : e).clientY;
+  let pct = 1 - (clientY - rect.top) / rect.height;
+  pct = Math.max(0, Math.min(1, pct));
+  cosmosBoundLocalThrottle = Math.round(pct * 100);
+
+  // Update DOM directly for responsiveness
+  const fill = track.querySelector('.cb-lever-fill');
+  const handle = track.querySelector('.cb-lever-handle');
+  const valEl = track.parentElement?.querySelector('.cb-lever-value');
+  if (fill) fill.style.height = cosmosBoundLocalThrottle + '%';
+  if (handle) handle.style.bottom = `calc(${cosmosBoundLocalThrottle}% - 6px)`;
+  if (valEl) valEl.textContent = cosmosBoundLocalThrottle + '%';
+}
+
+function cosmosBoundShowBanner(text, sub) {
+  const banner = document.getElementById('cosmosBoundBanner');
+  const textEl = document.getElementById('cosmosBoundBannerText');
+  const subEl = document.getElementById('cosmosBoundBannerSub');
+  if (!banner || !textEl) return;
+  textEl.textContent = text;
+  if (subEl) subEl.textContent = sub || '';
+  banner.classList.remove('show');
+  void banner.offsetWidth;
+  banner.classList.add('show');
+  if (cosmosBoundBannerTimeout) clearTimeout(cosmosBoundBannerTimeout);
+  cosmosBoundBannerTimeout = setTimeout(() => banner.classList.remove('show'), 2500);
+}
 
 function setBackgammonSelectedSource(source = null) {
   APP.backgammonUi.selectedSource = source === 'bar'
@@ -10037,8 +11947,11 @@ async function endActivity() {
     const score = room.activityState?.scores?.[APP.player.name] || 0;
     const won = room.activityState?.winner === APP.player.name;
     xpEarned = won ? Math.max(80, Math.round(score / 2)) : Math.max(30, Math.round(score / 4));
+  } else if (activity === 'cosmos-bound') {
+    const completed = (room.activityState?.phase || 0) >= 6;
+    xpEarned = completed ? 120 : 50;
   }
-  
+
   if (xpEarned > 0) {
     const updatedProfile = await PlayerManager.awardXP(xpEarned, activity);
     if (updatedProfile) {
@@ -10785,94 +12698,9 @@ function renderFooter() {
   `;
 }
 
-function ensureSpotifyPlaylistPlayerRoot() {
-  let root = document.getElementById('spotifyPlaylistFloatingPlayer');
-  if (root) return root;
+function ensureSpotifyPlaylistPlayerRoot() { return null; }
 
-  root = document.createElement('div');
-  root.id = 'spotifyPlaylistFloatingPlayer';
-  root.innerHTML = `
-    <div data-spotify-backdrop></div>
-    <div data-spotify-panel>
-      <button
-        class="btn-secondary"
-        data-action="open-shared-spotify-playlist"
-        data-spotify-docked-tab
-        aria-label="Open Spotify player">
-        ♪
-      </button>
-      <div data-spotify-modal-shell>
-        <div data-spotify-header>
-          <div>
-            <h3 id="spotifyPlaylistModalTitle" data-spotify-title style="font-family:'Fraunces',serif;font-size:1.4rem;margin-bottom:4px;"></h3>
-            <div data-spotify-url style="font-size:0.84rem;color:var(--text-dim);word-break:break-all;"></div>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
-            <button class="btn-secondary" data-action="dock-shared-spotify-playlist">Hide to Side</button>
-          </div>
-        </div>
-        <iframe
-          data-spotify-iframe
-          title="Spotify playlist player"
-          frameborder="0"
-          loading="lazy"
-          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture"
-          style="width:100%;border:1px solid var(--border);border-radius:14px;background:#121212;">
-        </iframe>
-        <div data-spotify-footer style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:14px;">
-          <button class="btn-secondary" data-action="open-spotify-playlist-external">Open in Spotify</button>
-          <button class="btn-primary" data-action="dock-shared-spotify-playlist" style="width:auto;padding:12px 18px;">Hide to Side</button>
-        </div>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(root);
-  return root;
-}
-
-function syncSpotifyPlaylistPlayer() {
-  const playlist = APP.room?.sharedSpotifyPlaylist || null;
-  const shouldShow = Boolean(playlist?.embedUrl && (APP.showSpotifyPlaylistModal || APP.showSpotifyPlaylistDocked));
-  const existingRoot = document.getElementById('spotifyPlaylistFloatingPlayer');
-  if (!shouldShow) {
-    existingRoot?.remove();
-    return;
-  }
-
-  const root = ensureSpotifyPlaylistPlayerRoot();
-  const backdrop = root.querySelector('[data-spotify-backdrop]');
-  const panel = root.querySelector('[data-spotify-panel]');
-  const modalShell = root.querySelector('[data-spotify-modal-shell]');
-  const dockedTab = root.querySelector('[data-spotify-docked-tab]');
-  const title = root.querySelector('[data-spotify-title]');
-  const url = root.querySelector('[data-spotify-url]');
-  const iframe = root.querySelector('[data-spotify-iframe]');
-  const footer = root.querySelector('[data-spotify-footer]');
-  const isDocked = APP.showSpotifyPlaylistDocked && !APP.showSpotifyPlaylistModal;
-
-  root.style.cssText = 'position:fixed;inset:0;z-index:10040;pointer-events:none;';
-  backdrop.style.cssText = isDocked
-    ? 'position:absolute;inset:0;background:rgba(0,0,0,0);opacity:0;pointer-events:none;transition:opacity 0.22s ease;'
-    : 'position:absolute;inset:0;background:rgba(0,0,0,0.72);opacity:1;pointer-events:auto;transition:opacity 0.22s ease;';
-  panel.style.cssText = isDocked
-    ? 'position:absolute;top:88px;right:0;left:auto;width:360px;max-width:calc(100vw - 12px);height:280px;transform:translateX(calc(100% - 60px));transition:transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);border-radius:18px 0 0 18px;background:var(--surface-solid);border:1px solid var(--border);box-shadow:0 18px 50px rgba(0,0,0,0.35);padding:16px;overflow:hidden;pointer-events:auto;'
-    : 'position:absolute;top:50%;left:50%;right:auto;width:min(720px, calc(100vw - 32px));max-height:90vh;transform:translate(-50%, -50%);transition:transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), width 0.22s ease; border-radius:18px;background:var(--surface-solid);border:1px solid var(--border);box-shadow:0 18px 50px rgba(0,0,0,0.35);padding:22px;overflow:auto;pointer-events:auto;';
-  modalShell.style.cssText = isDocked ? 'margin-left:52px;' : '';
-  dockedTab.style.cssText = isDocked
-    ? 'position:absolute;top:12px;left:12px;bottom:12px;width:40px;padding:0;border:none;border-radius:18px 0 0 18px;background:linear-gradient(180deg,var(--accent),rgba(0,210,211,0.68));color:var(--bg);font-size:1.2rem;font-weight:800;display:flex;align-items:center;justify-content:center;pointer-events:auto;'
-    : 'display:none;';
-  title.textContent = playlist.title || 'Session Playlist';
-  url.textContent = playlist.url || '';
-  if (iframe.getAttribute('src') !== playlist.embedUrl) {
-    iframe.setAttribute('src', playlist.embedUrl);
-  }
-  iframe.style.height = isDocked ? '248px' : 'min(56vh,420px)';
-  iframe.style.minHeight = isDocked ? '248px' : '320px';
-  iframe.style.marginLeft = isDocked ? '0' : '0';
-  const header = root.querySelector('[data-spotify-header]');
-  header.style.cssText = isDocked ? 'display:none;' : 'display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;';
-  footer.style.display = isDocked ? 'none' : 'flex';
-}
+function syncSpotifyPlaylistPlayer() { }
 
 function renderVoiceDock() {
   if (!APP.roomCode || !APP.room) return '';
@@ -10902,12 +12730,7 @@ function renderVoiceDock() {
       active: isCurrentPlayerHandRaised()
     }
     : null;
-  const playlistDocked = APP.showSpotifyPlaylistDocked && !APP.showSpotifyPlaylistModal && Boolean(APP.room?.sharedSpotifyPlaylist?.embedUrl);
-  const voiceDockOnRight = (APP.voiceDock.mobileRight || 0) < 80;
-  const playlistDockedBottom = 88 + 280 + 8; // playlist top + height + gap
-  const effectiveTop = (playlistDocked && voiceDockOnRight && APP.voiceDock.mobileTop < playlistDockedBottom)
-    ? playlistDockedBottom
-    : APP.voiceDock.mobileTop;
+  const effectiveTop = APP.voiceDock.mobileTop;
   const mobileDockStyle = `position:fixed;right:${APP.voiceDock.mobileRight}px;top:${effectiveTop}px;z-index:10010;pointer-events:auto;`;
   const micToggleLabel = APP.voice.micEnabled ? 'Disable microphone' : 'Enable microphone';
   const talkButtonLabel = openMicMode
@@ -11026,13 +12849,17 @@ function render() {
   app.innerHTML = html;
   restoreDjBoothPlayersAfterRender();
   updateVoiceMeterDom();
-  syncSpotifyPlaylistPlayer();
   if (APP.room?.currentActivity === 'dj-booth') {
     void syncDjBoothPlayers();
   } else {
     teardownDjBoothPlayers();
   }
   autoFocusWordChainActiveCell();
+  if (APP.room?.currentActivity === 'cosmos-bound') {
+    initCosmosBoundPostRender();
+  } else {
+    teardownCosmosBoundSimulation();
+  }
   syncCommunityChatScroll();
 }
 
@@ -11289,81 +13116,20 @@ function renderHostSettingsModal() {
             `}
           </div>
 
-          <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
-            <h4 style="margin-bottom:10px;">Spotify Playlist</h4>
-            ${spotifyPlaylist ? `
-              <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;">
-                <div style="font-weight:700;margin-bottom:4px;">${escapeHtml(spotifyPlaylist.title || 'Session Playlist')}</div>
-                <div style="font-size:0.82rem;color:var(--text-mid);word-break:break-all;">${escapeHtml(spotifyPlaylist.url || '')}</div>
-              </div>
-            ` : '<div style="font-size:0.84rem;color:var(--text-dim);margin-bottom:10px;">No Spotify playlist added yet.</div>'}
-            <div class="form-group" style="margin-bottom:10px;">
-              <label class="form-label" for="spotifyPlaylistTitle">Title (optional)</label>
-              <input id="spotifyPlaylistTitle" class="form-input" maxlength="120" value="${escapeHtml(spotifyPlaylist?.title || '')}" placeholder="Warm-up Mix">
-            </div>
-            <div class="form-group" style="margin-bottom:10px;">
-              <label class="form-label" for="spotifyPlaylistUrl">Spotify playlist URL</label>
-              <input id="spotifyPlaylistUrl" class="form-input" maxlength="1000" value="${escapeHtml(spotifyPlaylist?.url || '')}" placeholder="https://open.spotify.com/playlist/...">
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <button class="btn-secondary" data-action="save-shared-spotify-playlist">${spotifyPlaylist ? 'Update Playlist' : 'Add Playlist'}</button>
-              ${spotifyPlaylist ? '<button class="btn-secondary" data-action="open-shared-spotify-playlist">Open Player</button>' : ''}
-              ${spotifyPlaylist ? '<button class="btn-secondary" data-action="open-spotify-playlist-external">Open in Spotify</button>' : ''}
-              ${spotifyPlaylist ? '<button class="btn-secondary" data-action="clear-shared-spotify-playlist">Remove Playlist</button>' : ''}
-            </div>
+          <div style="display:none;">
           </div>
         </div>
 
         <div data-tab-panel="ai" class="host-tab-panel" ${activeTab !== 'ai' ? 'hidden' : ''} style="margin-bottom:18px;${globalAiEnabled ? '' : 'display:none;'}">
-          <h4 style="margin-bottom:10px;">AI Configuration (Host Local)</h4>
-          <div class="form-group">
-            <label class="form-label" for="hsAiProvider">Provider</label>
-            <select id="hsAiProvider" class="form-input">
-              <option value="openai-compatible" ${normalizeAIProvider(HOST_LOCAL_CONFIG.aiProvider) === 'openai-compatible' ? 'selected' : ''}>OpenAI-Compatible</option>
-              <option value="anthropic" ${normalizeAIProvider(HOST_LOCAL_CONFIG.aiProvider) === 'anthropic' ? 'selected' : ''}>Anthropic</option>
-              <option value="google-gemini" ${normalizeAIProvider(HOST_LOCAL_CONFIG.aiProvider) === 'google-gemini' ? 'selected' : ''}>Google Gemini</option>
-            </select>
+          <h4 style="margin-bottom:6px;">Content Prompt Generator</h4>
+          <div style="font-size:0.84rem;color:var(--text-dim);margin-bottom:14px;">
+            Generate prompts for your preferred AI tool, then import the JSON output as a collection.
           </div>
-          <div class="form-group">
-            <label class="form-label" for="hsAiEndpoint">Endpoint</label>
-            <input id="hsAiEndpoint" class="form-input" value="${escapeHtml(HOST_LOCAL_CONFIG.aiEndpoint)}" placeholder="${escapeHtml(getDefaultAIEndpoint(HOST_LOCAL_CONFIG.aiProvider))}">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="hsAiModel">Model</label>
-            <input id="hsAiModel" class="form-input" value="${escapeHtml(HOST_LOCAL_CONFIG.aiModel)}" placeholder="${escapeHtml(getDefaultAIModel(HOST_LOCAL_CONFIG.aiProvider))}">
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
-            <div class="form-group">
-              <label class="form-label" for="hsAiDefaultActivity">Default Activity</label>
-              <select id="hsAiDefaultActivity" class="form-input">
-                ${AI_GENERATION_TARGETS.map(item => `
-                  <option value="${item.id}" ${HOST_LOCAL_CONFIG.aiDefaultActivity === item.id ? 'selected' : ''}>${escapeHtml(getAIGenerationTargetLabelWithCount(item.id, item.label))}</option>
-                `).join('')}
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="hsAiDefaultDifficulty">Default Difficulty</label>
-              <select id="hsAiDefaultDifficulty" class="form-input">
-                <option value="easy" ${HOST_LOCAL_CONFIG.aiDefaultDifficulty === 'easy' ? 'selected' : ''}>Easy</option>
-                <option value="mixed" ${HOST_LOCAL_CONFIG.aiDefaultDifficulty === 'mixed' ? 'selected' : ''}>Mixed</option>
-                <option value="hard" ${HOST_LOCAL_CONFIG.aiDefaultDifficulty === 'hard' ? 'selected' : ''}>Hard</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="hsAiDefaultCount">Default Count</label>
-              <input id="hsAiDefaultCount" class="form-input" type="number" min="3" max="20" value="${HOST_LOCAL_CONFIG.aiDefaultCount}">
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="hsAiApiKey">API Key</label>
-            <input id="hsAiApiKey" class="form-input" type="password" value="${escapeHtml(HOST_LOCAL_CONFIG.aiApiKey)}" placeholder="Optional fallback. Preferred: server env AI_API_KEY">
-          </div>
-
           ${roomSettings.enableAIGenerator ? `
             ${renderAIContentStudioSection('room', { compact: true })}
           ` : `
             <div style="margin-top:10px;color:var(--text-dim);font-size:0.9rem;">
-              AI Content Generator is disabled. Enable it above to generate content here.
+              Content Generator is disabled. Enable it in preferences above.
             </div>
           `}
         </div>
@@ -11672,52 +13438,8 @@ function normalizeSharedPresentation(value) {
   };
 }
 
-function normalizeSpotifyPlaylist(value) {
-  const raw = String(value || '').trim();
-  if (!raw) return null;
-
-  let playlistId = '';
-  if (/^spotify:playlist:/i.test(raw)) {
-    const segments = raw.split(':');
-    playlistId = String(segments[2] || '').trim();
-  } else {
-    try {
-      const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-      const parsed = new URL(withProtocol);
-      if (!['http:', 'https:'].includes(parsed.protocol)) return null;
-      const host = parsed.hostname.toLowerCase();
-      if (host !== 'open.spotify.com' && host !== 'play.spotify.com' && host !== 'www.open.spotify.com') return null;
-      const parts = parsed.pathname.split('/').filter(Boolean);
-      if (parts[0] === 'playlist') {
-        playlistId = String(parts[1] || '').trim();
-      } else if (parts[0] === 'embed' && parts[1] === 'playlist') {
-        playlistId = String(parts[2] || '').trim();
-      }
-    } catch (_error) {
-      return null;
-    }
-  }
-
-  if (!/^[A-Za-z0-9]{10,64}$/.test(playlistId)) return null;
-  return {
-    playlistId,
-    url: `https://open.spotify.com/playlist/${playlistId}`,
-    embedUrl: `https://open.spotify.com/embed/playlist/${playlistId}?utm_source=generator`
-  };
-}
-
-function getDefaultSharedSpotifyPlaylist(updatedAt = Date.now()) {
-  const playlist = normalizeSpotifyPlaylist(DEFAULT_SPOTIFY_PLAYLIST_URL);
-  if (!playlist) return null;
-  return {
-    title: 'Session Playlist',
-    playlistId: playlist.playlistId,
-    url: playlist.url,
-    embedUrl: playlist.embedUrl,
-    sharedBy: 'Team Builder',
-    updatedAt
-  };
-}
+function normalizeSpotifyPlaylist() { return null; }
+function getDefaultSharedSpotifyPlaylist() { return null; }
 
 async function saveSharedPresentation() {
   if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
@@ -11767,69 +13489,10 @@ function openSharedPresentation() {
   window.open(url, '_blank', 'noopener,noreferrer');
 }
 
-async function saveSharedSpotifyPlaylist() {
-  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
-  const title = String(document.getElementById('spotifyPlaylistTitle')?.value || '').trim().slice(0, 120);
-  const playlist = normalizeSpotifyPlaylist(document.getElementById('spotifyPlaylistUrl')?.value || '');
-  if (!playlist) {
-    showError('Enter a valid Spotify playlist link.');
-    return;
-  }
-
-  const room = await RoomManager.loadRoom(APP.roomCode);
-  if (!room) {
-    showError('Room no longer available.');
-    return;
-  }
-  room.sharedSpotifyPlaylist = {
-    title: title || 'Session Playlist',
-    playlistId: playlist.playlistId,
-    url: playlist.url,
-    embedUrl: playlist.embedUrl,
-    sharedBy: APP.player.name,
-    updatedAt: Date.now()
-  };
-  await RoomManager.updateRoom(APP.roomCode, room);
-  APP.room = room;
-  APP.showLobbyPlaylistSection = true;
-  render();
-}
-
-async function clearSharedSpotifyPlaylist() {
-  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
-  const room = await RoomManager.loadRoom(APP.roomCode);
-  if (!room) {
-    showError('Room no longer available.');
-    return;
-  }
-  delete room.sharedSpotifyPlaylist;
-  await RoomManager.updateRoom(APP.roomCode, room);
-  APP.room = room;
-  APP.showSpotifyPlaylistModal = false;
-  APP.showSpotifyPlaylistDocked = false;
-  APP.showLobbyPlaylistSection = false;
-  render();
-}
-
-function openSharedSpotifyPlaylist() {
-  const embedUrl = APP.room?.sharedSpotifyPlaylist?.embedUrl;
-  if (!embedUrl) {
-    showError('No Spotify playlist is available.');
-    return;
-  }
-  APP.showSpotifyPlaylistModal = true;
-  APP.showSpotifyPlaylistDocked = false;
-  render();
-}
-
-function openSharedSpotifyPlaylistExternal() {
-  const url = APP.room?.sharedSpotifyPlaylist?.url;
-  if (!url) {
-    showError('No Spotify playlist is available.');
-    return;
-  }
-  window.open(url, '_blank', 'noopener,noreferrer');
-}
+async function saveSharedSpotifyPlaylist() { }
+async function clearSharedSpotifyPlaylist() { }
+function openSharedSpotifyPlaylist() { }
+function openSharedSpotifyPlaylistExternal() { }
 
 function toggleLobbyPlaylistSection(forceOpen = null) {
   APP.showLobbyPlaylistSection = typeof forceOpen === 'boolean' ? forceOpen : !APP.showLobbyPlaylistSection;
@@ -12153,21 +13816,8 @@ function closeHostSettings() {
   render();
 }
 
-function closeSpotifyPlaylistModal() {
-  if (APP.room?.sharedSpotifyPlaylist?.embedUrl) {
-    dockSpotifyPlaylistModal();
-    return;
-  }
-  APP.showSpotifyPlaylistModal = false;
-  APP.showSpotifyPlaylistDocked = false;
-  render();
-}
-
-function dockSpotifyPlaylistModal() {
-  APP.showSpotifyPlaylistModal = false;
-  APP.showSpotifyPlaylistDocked = true;
-  render();
-}
+function closeSpotifyPlaylistModal() { }
+function dockSpotifyPlaylistModal() { }
 
 function renderShortcutHelpModal() {
   const items = getShortcutHelpItems();
@@ -12194,62 +13844,7 @@ function renderShortcutHelpModal() {
   `;
 }
 
-function renderSpotifyPlaylistModal() {
-  const playlist = APP.room?.sharedSpotifyPlaylist || null;
-  if (!playlist?.embedUrl) return '';
-  const isDocked = APP.showSpotifyPlaylistDocked && !APP.showSpotifyPlaylistModal;
-  if (isDocked) {
-    return `
-      <div style="position:fixed;top:50%;right:0;transform:translateY(-50%);z-index:10040;width:108px;height:360px;pointer-events:none;">
-        <div style="position:absolute;top:0;right:0;width:360px;max-width:calc(100vw - 12px);height:360px;border-radius:18px 0 0 18px;background:var(--surface-solid);border:1px solid var(--border);box-shadow:0 18px 50px rgba(0,0,0,0.35);padding:16px;transform:translateX(calc(100% - 108px));transition:transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);overflow:hidden;pointer-events:auto;">
-          <button
-            class="btn-secondary"
-            data-action="open-shared-spotify-playlist"
-            style="position:absolute;top:12px;left:12px;bottom:12px;width:64px;padding:12px 8px;border:none;border-radius:18px 0 0 18px;background:linear-gradient(180deg,var(--accent),rgba(0,210,211,0.68));color:var(--bg);font-size:0.78rem;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;writing-mode:vertical-rl;transform:rotate(180deg);display:flex;align-items:center;justify-content:center;">
-            Open Player
-          </button>
-          <iframe
-            src="${escapeHtml(playlist.embedUrl)}"
-            title="Spotify playlist player"
-            frameborder="0"
-            loading="lazy"
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            style="margin-left:76px;width:calc(100% - 76px);height:100%;border:1px solid var(--border);border-radius:12px;background:#121212;">
-          </iframe>
-        </div>
-      </div>
-    `;
-  }
-  return `
-    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:10040;display:grid;place-items:center;padding:16px;">
-      <div role="dialog" aria-modal="true" aria-labelledby="spotifyPlaylistModalTitle" style="width:min(720px,100%);max-height:90vh;overflow:auto;background:var(--surface-solid);border:1px solid var(--border);border-radius:18px;padding:22px;box-shadow:0 18px 50px rgba(0,0,0,0.35);">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;">
-          <div>
-            <h3 id="spotifyPlaylistModalTitle" style="font-family:'Fraunces',serif;font-size:1.4rem;margin-bottom:4px;">${escapeHtml(playlist.title || 'Session Playlist')}</h3>
-            <div style="font-size:0.84rem;color:var(--text-dim);word-break:break-all;">${escapeHtml(playlist.url || '')}</div>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
-            <button class="btn-secondary" data-action="dock-shared-spotify-playlist">Hide to Side</button>
-            <button class="btn-secondary" data-action="close-shared-spotify-playlist" aria-keyshortcuts="Escape">Keep Playing</button>
-          </div>
-        </div>
-        <iframe
-          src="${escapeHtml(playlist.embedUrl)}"
-          title="Spotify playlist player"
-          frameborder="0"
-          loading="lazy"
-          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-          style="width:100%;height:min(56vh,420px);min-height:320px;border:1px solid var(--border);border-radius:14px;background:#121212;">
-        </iframe>
-        <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:14px;">
-          <button class="btn-secondary" data-action="dock-shared-spotify-playlist">Hide to Side</button>
-          <button class="btn-secondary" data-action="open-spotify-playlist-external">Open in Spotify</button>
-          <button class="btn-primary" data-action="close-shared-spotify-playlist" style="width:auto;padding:12px 18px;">Keep Playing</button>
-        </div>
-      </div>
-    </div>
-  `;
-}
+function renderSpotifyPlaylistModal() { return ''; }
 
 function switchHostSettingsTab(tabId) {
   if (!APP.showHostSettings) return;
@@ -12388,111 +13983,119 @@ function buildAIPromptForActivity(activityId, topic, difficulty, count) {
     case 'lightning-trivia':
     case 'regular-trivia':
       return `Generate ${count} multiple-choice trivia questions about "${targetTopic}" at ${difficulty} difficulty.
-Return only valid JSON as an array. Each item must be:
-{"q":"question text","opts":["A","B","C","D"],"ans":0}
-where ans is the zero-based index of the correct option.`;
+Return only valid JSON as an array. Each item must have: q (question), opts (array of 4 options), ans (zero-based index of correct option).
+
+Example output:
+[
+  {"q":"What is the largest planet in our solar system?","opts":["Earth","Mars","Jupiter","Saturn"],"ans":2},
+  {"q":"In what year did the internet become publicly available?","opts":["1983","1991","1995","2000"],"ans":1}
+]`;
     case 'icebreaker':
       return `Generate ${count} icebreaker prompts about "${targetTopic}" at ${difficulty} difficulty.
-Return only valid JSON as an array of strings.`;
+Return only valid JSON as an array of strings. Each string is a conversation-starter question.
+
+Example output:
+[
+  "If you could have any superpower for one work day, what would it be?",
+  "What's the most unexpected skill you bring to the team?"
+]`;
     case 'emoji-charades':
       return `Generate ${count} emoji charades prompts about "${targetTopic}" at ${difficulty} difficulty.
-Return only valid JSON as an array. Each item must be:
-{"emojis":"emoji sequence","answer":"short phrase answer"}`;
+Return only valid JSON as an array. Each item must have: emojis (emoji sequence as clue), answer (short phrase answer).
+
+Example output:
+[
+  {"emojis":"🎯📊📈","answer":"hitting targets"},
+  {"emojis":"🤝💡🚀","answer":"collaboration launch"}
+]`;
     case 'pulse-check':
       return `Generate ${count} pulse-check polls about "${targetTopic}" for a team session.
-Return only valid JSON as an array. Each item must be:
-{"q":"question text","opts":["Option 1","Option 2","Option 3","Option 4"]}`;
+Return only valid JSON as an array. Each item must have: q (question), opts (array of exactly 4 options).
+
+Example output:
+[
+  {"q":"How confident are you in our current sprint goals?","opts":["Very confident","Somewhat confident","Neutral","Not confident"]},
+  {"q":"How well is the team communicating this week?","opts":["Excellent","Good","Needs improvement","Poor"]}
+]`;
     case 'values-vote':
       return `Generate ${count} team values themed around "${targetTopic}".
-Return only valid JSON as an array. Each item must be:
-{"name":"short value name","icon":"emoji"}`;
+Return only valid JSON as an array. Each item must have: name (short value name, max 36 chars), icon (single emoji).
+
+Example output:
+[
+  {"name":"Radical Transparency","icon":"🔍"},
+  {"name":"Bias for Action","icon":"⚡"}
+]`;
     case 'wordle':
       return `Generate ${count} distinct single English words related to "${targetTopic}".
-Rules: exactly 5 letters, uppercase alphabetic only, no spaces, no punctuation.
-Return only valid JSON as an array of strings.`;
+Rules: exactly 5 letters, uppercase alphabetic only, no spaces, no punctuation, no duplicates.
+Return only valid JSON as an array of strings.
+
+Example output:
+["TEAMS","BUILD","CRAFT","SPARK","DRIVE"]`;
     case 'word-chain':
       return `Generate ${Math.max(1, Math.min(5, count))} word-chain puzzles themed around "${targetTopic}".
 Rules:
 - Each puzzle contains exactly 8 singular words.
 - Words use only letters A-Z and each word is 1 to 9 letters.
-- Adjacent words should form a common two-word phrase or compound expression.
-Return only valid JSON as an array. Each item must be:
-{"title":"Chain name","words":["WORD1","WORD2","WORD3","WORD4","WORD5","WORD6","WORD7","WORD8"]}`;
+- Adjacent words should form a common two-word phrase or compound expression (e.g. "BRAIN" + "STORM" = brainstorm).
+Return only valid JSON as an array. Each item must have: title (chain name), words (array of exactly 8 uppercase words).
+
+Example output:
+[
+  {"title":"Innovation Chain","words":["BRAIN","STORM","CLOUD","BURST","FIRE","WORK","SHOP","FLOOR"]}
+]`;
     case 'team-jeopardy':
       return `Generate a Team Jeopardy board about "${targetTopic}" at ${difficulty} difficulty.
 Rules:
 - Return ${Math.max(3, Math.min(6, count))} categories.
 - Each category must include exactly 5 clues with values 100, 200, 300, 400, and 500.
 - Each clue must be multiple choice with exactly 4 options.
-- ans must be the zero-based index of the correct option.
-Return only valid JSON as an array. Each item must be:
-{"category":"Category name","clues":[{"value":100,"q":"question text","opts":["A","B","C","D"],"ans":0},{"value":200,"q":"question text","opts":["A","B","C","D"],"ans":1},{"value":300,"q":"question text","opts":["A","B","C","D"],"ans":2},{"value":400,"q":"question text","opts":["A","B","C","D"],"ans":3},{"value":500,"q":"question text","opts":["A","B","C","D"],"ans":0}]}`;
+- ans must be the zero-based index of the correct option (0-3).
+Return only valid JSON as an array.
+
+Example output:
+[
+  {
+    "category":"Tech Basics",
+    "clues":[
+      {"value":100,"q":"What does HTML stand for?","opts":["Hyper Text Markup Language","High Tech Modern Language","Hyper Transfer Markup Language","Home Tool Markup Language"],"ans":0},
+      {"value":200,"q":"Which protocol is used for secure web browsing?","opts":["FTP","HTTP","HTTPS","SMTP"],"ans":2},
+      {"value":300,"q":"What does CSS stand for?","opts":["Computer Style Sheets","Cascading Style Sheets","Creative Style System","Coded Style Sheets"],"ans":1},
+      {"value":400,"q":"What is the main purpose of DNS?","opts":["File storage","Domain name resolution","Email routing","Data encryption"],"ans":1},
+      {"value":500,"q":"Which layer of the OSI model handles routing?","opts":["Transport","Network","Data Link","Session"],"ans":1}
+    ]
+  }
+]`;
     case 'spin-wheel':
       return `Generate ${Math.max(4, Math.min(12, count))} short spin wheel options themed around "${targetTopic}".
 Rules:
 - Each option should be 1 to 4 words.
 - Keep options distinct, upbeat, and suitable for a team session.
 - Do not number the options.
-Return only valid JSON as an array of strings.`;
+Return only valid JSON as an array of strings.
+
+Example output:
+["Share a Win","Team Shoutout","Quick Stretch","Fun Fact","Hot Take","Wildcard"]`;
     case 'brainstorm-canvas':
       return `Generate ${count} brainstorming sticky notes for a Start/Stop/Improve/Create retrospective about "${targetTopic}".
-Return only valid JSON as an array. Each item must be:
-{"text":"short sticky note","lane":"start|stop|improve|create"}`;
+Return only valid JSON as an array. Each item must have: text (short sticky note, max 200 chars), lane (one of: "start", "stop", "improve", "create").
+
+Example output:
+[
+  {"text":"Start doing weekly 1-on-1 check-ins","lane":"start"},
+  {"text":"Stop scheduling meetings during focus time","lane":"stop"},
+  {"text":"Improve our code review turnaround time","lane":"improve"},
+  {"text":"Create a shared knowledge base for onboarding","lane":"create"}
+]`;
     default:
       return '';
   }
 }
 
-async function requestAIGeneratedArray(prompt, apiKey = '') {
-  let textContent = '';
-  let serverError = '';
-  try {
-    const serverData = await apiRequest('/api/ai/generate', {
-      method: 'POST',
-      roomToken: APP.roomAccessToken || '',
-      body: {
-        prompt,
-        provider: HOST_LOCAL_CONFIG.aiProvider,
-        model: HOST_LOCAL_CONFIG.aiModel,
-        temperature: 0.7,
-        roomCode: APP.roomCode || ''
-      }
-    });
-    textContent = String(serverData?.content || '');
-  } catch (serverErr) {
-    serverError = serverErr?.message || 'Server AI generation failed.';
-  }
-
-  if (!textContent) {
-    if (!apiKey) {
-      throw new Error(`${serverError || 'Server AI generation failed.'} Add AI_API_KEY on the server or provide a fallback API key.`);
-    }
-
-    const requestConfig = buildAIProviderRequest(
-      HOST_LOCAL_CONFIG.aiProvider,
-      HOST_LOCAL_CONFIG.aiEndpoint,
-      apiKey,
-      HOST_LOCAL_CONFIG.aiModel,
-      prompt,
-      0.7
-    );
-    const response = await fetch(requestConfig.endpoint, {
-      method: 'POST',
-      headers: requestConfig.headers,
-      body: JSON.stringify(requestConfig.body)
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`AI request failed (${response.status}): ${errText.slice(0, 180)}`);
-    }
-    const data = await response.json();
-    textContent = extractAIProviderText(HOST_LOCAL_CONFIG.aiProvider, data);
-  }
-
-  const jsonText = extractFirstJson(textContent);
-  const parsed = safeParseJson(jsonText);
-  return coerceAIArrayPayload(parsed);
+async function requestAIGeneratedArray() {
+  // Direct AI generation disabled — use prompt-generator + manual import instead
+  throw new Error('Direct AI generation is disabled. Use "Copy Prompt" to generate a prompt, paste it into your AI tool, then import the JSON output as a collection.');
 }
 
 function validateGeneratedContentForActivity(activityId, parsed) {
@@ -13559,6 +15162,9 @@ document.addEventListener('click', async (event) => {
     case 'start-connect-4':
       await startConnect4();
       break;
+    case 'start-cosmos-bound':
+      await startCosmosBound();
+      break;
     case 'generate-ai-questions':
       await generateAIQuestions();
       break;
@@ -13878,6 +15484,52 @@ document.addEventListener('click', async (event) => {
       break;
     case 'connect4-restart':
       await restartConnect4Match();
+      break;
+    // Cosmos Bound actions
+    case 'cosmos-begin-mission':
+      await cosmosBoundBeginMission();
+      break;
+    case 'cosmos-set-destination':
+      if (target.dataset.destination) await cosmosBoundSetDestination(target.dataset.destination);
+      break;
+    case 'cosmos-toggle-multi':
+      await cosmosBoundToggleMultiCrew();
+      break;
+    case 'cosmos-assign-role':
+      if (player && target.dataset.role) await cosmosBoundAssignRoleTo(player, target.dataset.role);
+      break;
+    case 'cosmos-toggle-system':
+      if (target.dataset.system) await cosmosBoundToggleSystem(target.dataset.system);
+      break;
+    case 'cosmos-lock-coords':
+      await cosmosBoundLockCoordinates();
+      break;
+    case 'cosmos-adjust-heading':
+      if (direction) await cosmosBoundAdjustHeading(Number(direction));
+      break;
+    case 'cosmos-ignite':
+      await cosmosBoundIgnite();
+      break;
+    case 'cosmos-launch':
+      await cosmosBoundLaunch();
+      break;
+    case 'cosmos-navigate':
+      await cosmosBoundNavigate();
+      break;
+    case 'cosmos-land':
+      await cosmosBoundLand();
+      break;
+    case 'cosmos-restart':
+      await cosmosBoundRestart();
+      break;
+    case 'cosmos-broadcast':
+      await cosmosBoundBroadcast();
+      break;
+    case 'cosmos-confirm-vitals':
+      await cosmosBoundConfirmVitals();
+      break;
+    case 'cosmos-sci-scan':
+      await cosmosBoundSciScan();
       break;
     case 'uno-draw-card':
       await unoDrawCard();
@@ -14312,6 +15964,7 @@ function renderDjBooth() {
 
 function renderActivity() {
   const activity = APP.room.currentActivity;
+  const isHost = APP.room.host === APP.player?.name;
   let content = '<div>Activity loading...</div>';
   const timedEntry = getCurrentQueuedScheduleEntry(APP.room);
   const timedRemainingMs = getTimedQueueRemainingMs(APP.room);
@@ -14337,11 +15990,12 @@ function renderActivity() {
   else if (activity === 'bingo') content = renderBingo();
   else if (activity === 'backgammon') content = renderBackgammon();
   else if (activity === 'connect-4') content = renderConnect4();
+  else if (activity === 'cosmos-bound') content = renderCosmosBound();
 
   return `
-    <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:8px;">
-      <button class="btn-secondary" data-action="open-admin-console">🛠️ Admin Console</button>
-      <button class="btn-secondary" data-action="leave-session">🚪 Leave Session</button>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+      ${isHost ? '<button class="btn-secondary" data-action="open-admin-console" style="font-size:0.78rem;padding:6px 10px;">🛠️ Admin</button>' : ''}
+      <button class="btn-secondary" data-action="leave-session" style="font-size:0.78rem;padding:6px 10px;">🚪 Leave</button>
     </div>
     ${showTimedBanner ? `
       <div style="margin-bottom:12px;padding:12px 14px;border-radius:16px;background:linear-gradient(135deg,rgba(138,241,255,0.12),rgba(37,99,235,0.08));border:1px solid rgba(138,241,255,0.18);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
@@ -15656,6 +17310,474 @@ function renderConnect4() {
               </div>
             ` : ''}
           </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════
+// COSMOS BOUND — RENDER
+// ═══════════════════════════════════════════
+
+function renderCosmosBound() {
+  const isHost = APP.room.host === APP.player.name;
+  const state = APP.room.activityState && typeof APP.room.activityState === 'object'
+    ? APP.room.activityState
+    : createCosmosBoundState(APP.room.participants || []);
+  const me = APP.player?.name || '';
+  const participants = APP.room.participants || [];
+
+  // Multi-crew: show assignment or cockpit for player's crew
+  if (state.multiCrew) {
+    if (!state.missionStartedAt) {
+      const allNames = (participants).map(p => String(p?.name || '').trim()).filter(Boolean);
+      return renderCosmosBoundCrewAssignment(state, isHost, me, allNames, participants);
+    }
+    const crewState = getCosmosBoundMyCrewState(state);
+    const myRoles = getCosmosBoundMyRoles(state);
+    const names = Object.keys(crewState.roles || {});
+    const phase = crewState.phase || 0;
+    const cockpit = renderCosmosBoundCockpit(crewState, isHost, me, myRoles, phase, names,
+      myRoles.includes('CDR'), myRoles.includes('PLT'), myRoles.includes('ENG'),
+      myRoles.includes('NAV'), myRoles.includes('SCI'), myRoles.includes('COM'), myRoles.includes('MED'));
+    const scoreboard = renderCosmosBoundScoreboard(state);
+    return scoreboard + cockpit;
+  }
+
+  // Single crew mode
+  const myRoles = getCosmosBoundMyRoles(state);
+  const phase = state.phase || 0;
+  const names = Object.keys(state.roles || {});
+
+  if (phase === 0 && !state.missionStartedAt) {
+    return renderCosmosBoundCrewAssignment(state, isHost, me, names, participants);
+  }
+  return renderCosmosBoundCockpit(state, isHost, me, myRoles, phase, names,
+    myRoles.includes('CDR'), myRoles.includes('PLT'), myRoles.includes('ENG'),
+    myRoles.includes('NAV'), myRoles.includes('SCI'), myRoles.includes('COM'), myRoles.includes('MED'));
+}
+
+function renderCosmosBoundScoreboard(state) {
+  const crews = state.crews || {};
+  const myCrewId = getCosmosBoundMyCrewId(state);
+  const cards = Object.entries(crews).map(([crewId, crew]) => {
+    const isMe = crewId === myCrewId;
+    const phase = crew.phase || 0;
+    const phaseLbl = COSMOS_BOUND_PHASE_LABELS[Math.min(Math.floor(phase), 6)] || 'STANDBY';
+    const pct = COSMOS_BOUND_PHASE_PCT[Math.min(Math.floor(phase), 6)] || 0;
+    const color = crew.color || '#00d4ff';
+    return `
+      <div style="flex:1;min-width:120px;padding:8px 10px;background:${isMe ? 'rgba(255,255,255,.04)' : 'var(--cb-hull)'};
+        border:1px solid ${isMe ? color : 'var(--cb-panel-edge)'};border-radius:8px;text-align:center">
+        <div style="font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;color:${color}">
+          CREW ${crew.name || crewId}${isMe ? ' (YOU)' : ''}
+        </div>
+        <div style="font-size:9px;color:var(--cb-text-dim);margin:3px 0">${(crew.members || []).length} members</div>
+        <div style="height:3px;background:var(--cb-panel-edge);border-radius:2px;overflow:hidden;margin:4px 0">
+          <div style="height:100%;width:${pct}%;background:${color};border-radius:2px;transition:width .5s"></div>
+        </div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:7px;letter-spacing:1px;color:${phase >= 6 ? 'var(--cb-glow-green)' : 'var(--cb-text-mid)'}">
+          ${phase >= 6 ? 'MISSION COMPLETE' : phaseLbl}
+        </div>
+      </div>
+    `;
+  }).join('');
+  return `<div class="cosmos-bound" style="margin-bottom:8px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">${cards}</div>
+  </div>`;
+}
+
+function renderCosmosBoundCrewAssignment(state, isHost, me, names, participants) {
+  const roleOptions = COSMOS_BOUND_ROLES.map(r =>
+    `<option value="${r}">${r} — ${COSMOS_BOUND_ROLE_LABELS[r]}</option>`
+  ).join('');
+
+  const crewRows = names.map(name => {
+    const roles = getCosmosBoundRoles(state, name);
+    const isMe = name === me;
+    const badges = roles.map(r =>
+      `<span class="cb-role-badge cb-role-${r}">${r}</span>`
+    ).join(' ');
+    const avatar = (participants.find(p => p.name === name) || {}).avatar || '';
+    return `
+      <div class="cb-crew-row${isMe ? ' is-me' : ''}">
+        <span style="font-size:20px">${escapeHtml(avatar)}</span>
+        <span class="cb-crew-name">${escapeHtml(name)}${isMe ? ' <span style="color:var(--cb-glow-blue);font-size:9px">(YOU)</span>' : ''}</span>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">${badges}</div>
+        ${isHost ? `<select class="cb-role-select" data-action="cosmos-assign-role" data-player="${escapeHtml(name)}"
+          onchange="this.setAttribute('data-role', this.value); this.click()">
+          <option value="">+ Role</option>${roleOptions}</select>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  const currentDest = state.destination || 'mars';
+  const destCards = Object.entries(COSMOS_BOUND_DESTINATIONS).map(([id, dest]) => {
+    const selected = id === currentDest;
+    const diffColors = { Easy: 'var(--cb-glow-green)', Advanced: 'var(--cb-glow-orange)', Extreme: 'var(--cb-glow-red)' };
+    const diffColor = diffColors[dest.difficulty] || 'var(--cb-text-mid)';
+    return `
+      <div class="cb-dest-card${selected ? ' selected' : ''}" data-action="cosmos-set-destination" data-destination="${id}"
+        style="flex:1;min-width:140px;padding:12px;background:${selected ? 'rgba(255,255,255,.04)' : 'var(--cb-hull)'};
+        border:2px solid ${selected ? dest.color : 'var(--cb-panel-edge)'};border-radius:10px;cursor:${isHost ? 'pointer' : 'default'};
+        text-align:center;transition:.3s;${selected ? 'box-shadow:0 0 20px ' + dest.color + '33;' : ''}
+        ${!isHost ? 'pointer-events:none;' : ''}">
+        <div style="font-size:28px;margin-bottom:4px">${dest.icon}</div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;color:${selected ? dest.color : 'var(--cb-text-bright)'}">
+          ${dest.label.toUpperCase()}
+        </div>
+        <div style="font-family:'Orbitron',sans-serif;font-size:8px;letter-spacing:1px;color:${diffColor};margin-top:4px;
+          border:1px solid ${diffColor};display:inline-block;padding:2px 8px;border-radius:3px">
+          ${dest.difficulty.toUpperCase()}
+        </div>
+        <div style="font-size:10px;color:var(--cb-text-dim);margin-top:6px;line-height:1.4">${dest.description}</div>
+        <div style="font-size:8px;color:var(--cb-text-dim);margin-top:4px">
+          THROTTLE ${dest.minThrottle}% MIN &middot; LAND &lt;${dest.landThrottle}%
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Multi-crew section for 8+ participants
+  const isMulti = state.multiCrew;
+  const totalParticipants = participants.length;
+  const multiCrewToggle = totalParticipants >= 8 && isHost ? `
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px;padding:10px;background:var(--cb-hull);border:1px solid var(--cb-panel-edge);border-radius:8px">
+      <span style="font-family:'Orbitron',sans-serif;font-size:9px;letter-spacing:2px;color:var(--cb-text-mid)">
+        ${totalParticipants} CREW MEMBERS DETECTED
+      </span>
+      <button style="padding:6px 14px;border:1px solid ${isMulti ? 'var(--cb-glow-green)' : 'var(--cb-glow-blue)'};background:${isMulti ? 'rgba(0,255,136,.08)' : 'transparent'};
+        color:${isMulti ? 'var(--cb-glow-green)' : 'var(--cb-glow-blue)'};font-family:'Orbitron',sans-serif;font-size:8px;letter-spacing:1px;
+        border-radius:4px;cursor:pointer" data-action="cosmos-toggle-multi">
+        ${isMulti ? 'MULTI-CREW: ON — ' + Object.keys(state.crews || {}).length + ' CREWS' : 'ENABLE MULTI-CREW MODE'}
+      </button>
+    </div>
+  ` : '';
+
+  // In multi-crew mode, show crew assignments instead of individual roles
+  let crewSection = '';
+  if (isMulti && state.crews) {
+    crewSection = Object.entries(state.crews).map(([crewId, crew]) => {
+      const members = (crew.members || []).map(name => {
+        const isMe = name === me;
+        const roles = (crew.roles || {})[name] || [];
+        const badges = roles.map(r => `<span class="cb-role-badge cb-role-${r}">${r}</span>`).join(' ');
+        const avatar = (participants.find(p => p.name === name) || {}).avatar || '';
+        return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0">
+          <span style="font-size:16px">${escapeHtml(avatar)}</span>
+          <span style="font-size:11px;color:${isMe ? 'var(--cb-glow-blue)' : 'var(--cb-text-bright)'};flex:1">${escapeHtml(name)}${isMe ? ' (YOU)' : ''}</span>
+          <div style="display:flex;gap:3px">${badges}</div>
+        </div>`;
+      }).join('');
+      return `
+        <div style="background:var(--cb-panel);border:1px solid ${crew.color || 'var(--cb-panel-edge)'};border-radius:8px;padding:10px;margin-bottom:8px">
+          <div style="font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;color:${crew.color || 'var(--cb-glow-blue)'};margin-bottom:6px">
+            CREW ${crew.name} — ${(crew.members || []).length} MEMBERS
+          </div>
+          ${members}
+        </div>
+      `;
+    }).join('');
+  }
+
+  return `
+    <div class="cosmos-bound">
+      <div class="cb-assign-shell">
+        <div class="cb-assign-title">COSMOS BOUND</div>
+        <div class="cb-assign-sub">SELECT DESTINATION</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">${destCards}</div>
+        ${multiCrewToggle}
+        ${isMulti ? `<div class="cb-assign-sub">CREW ASSIGNMENTS</div>${crewSection}` : `<div class="cb-assign-sub">CREW ROLE ASSIGNMENT</div><div class="cb-crew-list">${crewRows}</div>`}
+        ${isHost
+          ? `<button class="cb-begin-btn" data-action="cosmos-begin-mission">COMMENCE MISSION${isMulti ? ' — ALL CREWS' : ''}</button>`
+          : `<div style="text-align:center;font-size:11px;color:var(--cb-text-dim);letter-spacing:2px;padding:10px">AWAITING COMMANDER TO BEGIN MISSION...</div>`
+        }
+      </div>
+    </div>
+  `;
+}
+
+function renderCosmosBoundCockpit(state, isHost, me, myRoles, phase, names, canCDR, canPLT, canENG, canNAV, canSCI, canCOM, canMED) {
+  const systems = state.systems || {};
+  const throttle = cosmosBoundLeverDragging ? cosmosBoundLocalThrottle : (state.throttle || 0);
+  const heading = state.heading || 0;
+  const coords = state.coords || { x: '', y: '', z: '' };
+  const targetCoords = state.targetCoords || { x: '0', y: '0', z: '0' };
+  const altitude = Math.round(state.altitude || 0);
+  const velocity = Math.round(state.velocity || 0);
+  const log = Array.isArray(state.log) ? state.log.slice(-4) : [];
+  const countdownValue = state.countdownValue;
+  const allSys = Object.values(systems).every(v => v);
+  const preflight = cosmosBoundPreflightReady(state);
+  const dest = getCosmosBoundDest(state);
+  const phaseLabel = COSMOS_BOUND_PHASE_LABELS[Math.min(Math.floor(phase), 6)] || 'STANDBY';
+  const phasePct = COSMOS_BOUND_PHASE_PCT[Math.min(Math.floor(phase), 6)] || 0;
+
+  // Header crew dots
+  const crewDots = names.map(name => {
+    const roles = getCosmosBoundRoles(state, name);
+    const isMe = name === me;
+    return `<span class="cb-crew-dot${isMe ? ' me' : ''}" title="${escapeHtml(name)}: ${roles.join(', ')}">${roles.join('/')}</span>`;
+  }).join('');
+
+  // Status dots
+  const commsOn = systems.comms ? 'on' : '';
+  const engOn = allSys ? 'on' : '';
+  const navOn = state.coordsLocked ? 'on' : '';
+
+  // Left panel: systems + throttle
+  const systemRows = Object.entries(COSMOS_BOUND_SYSTEM_OWNER).map(([sysId, ownerRole]) => {
+    const isOn = systems[sysId];
+    const canToggle = canCosmosBoundInteract(state, ownerRole) && phase < 2;
+    const label = sysId.replace(/-/g, ' ').toUpperCase();
+    return `
+      <div class="cb-switch${isOn ? ' on' : ''}${!canToggle ? ' disabled' : ''}"
+           data-action="cosmos-toggle-system" data-system="${sysId}">
+        <div>
+          <div class="cb-switch-label">${label}</div>
+          <div class="cb-switch-status" style="color:${isOn ? 'var(--cb-glow-green)' : 'var(--cb-text-dim)'}">${isOn ? 'ONLINE' : 'OFFLINE'}</div>
+          <div class="cb-switch-owner">${ownerRole} STATION</div>
+        </div>
+        <div class="cb-toggle"></div>
+      </div>
+    `;
+  }).join('');
+
+  const leverDisabled = !canPLT || (phase >= 2 && phase !== 5);
+
+  // Right panel: coordinates + heading + data
+  const coordsLocked = state.coordsLocked;
+  const coordDisabled = !canNAV || coordsLocked || phase >= 2;
+  const headingDisabled = !canNAV;
+  const dialPct = heading / 360;
+  const dialCircum = 276.46;
+  const dialOffset = dialCircum * (1 - dialPct);
+
+  // COM broadcast section
+  const comSection = `
+    <div class="cb-panel-title" style="margin-top:6px">COM STATION</div>
+    <div style="background:var(--cb-hull);border:1px solid var(--cb-panel-edge);border-radius:8px;padding:8px">
+      <div style="font-size:9px;color:var(--cb-text-mid);margin-bottom:4px">BROADCAST MESSAGE</div>
+      <div style="display:flex;gap:4px">
+        <input class="cb-broadcast-input" id="cosmosBroadcastInput" type="text" placeholder="${canCOM ? 'Enter message...' : 'COM only'}" maxlength="80" ${canCOM ? '' : 'disabled'}>
+        <button class="cb-broadcast-btn" data-action="cosmos-broadcast" ${canCOM ? '' : 'disabled'}>SEND</button>
+      </div>
+      ${state.broadcast ? `<div style="font-size:9px;color:#ff8fa3;margin-top:4px;opacity:.7">LAST: ${escapeHtml(state.broadcast)}</div>` : ''}
+    </div>
+  `;
+
+  // MED vitals section
+  const crewVitals = state.crewVitals || {};
+  const vitalsRows = names.map(name => {
+    const vital = crewVitals[name] || 'nominal';
+    return `
+      <div class="cb-vitals-row">
+        <span class="cb-vital-name">${escapeHtml(name)}</span>
+        <span class="cb-vital-status ${vital}">${vital.toUpperCase()}</span>
+      </div>
+    `;
+  }).join('');
+  const medSection = `
+    <div class="cb-panel-title" style="margin-top:6px">MED STATION</div>
+    <div style="background:var(--cb-hull);border:1px solid var(--cb-panel-edge);border-radius:8px;padding:8px">
+      <div style="font-size:9px;color:var(--cb-text-mid);margin-bottom:2px">CREW VITALS</div>
+      ${vitalsRows}
+      <button class="cb-med-confirm-btn${state.medReady ? ' confirmed' : ''}"
+        data-action="cosmos-confirm-vitals" ${canMED && !state.medReady && phase === 0 ? '' : 'disabled'}>
+        ${state.medReady ? 'CREW FIT — CONFIRMED' : 'CONFIRM CREW FIT'}
+      </button>
+    </div>
+  `;
+
+  // SCI scan section
+  const sciChecks = [
+    { label: 'SYSTEMS', ok: allSys },
+    { label: 'THROTTLE ≥' + dest.minThrottle + '%', ok: throttle >= dest.minThrottle },
+    { label: 'COORDS LOCKED', ok: coordsLocked },
+    { label: 'MED CLEARED', ok: state.medReady },
+    { label: 'SCI SCAN', ok: state.sciScanComplete }
+  ];
+  const sciSection = `
+    <div class="cb-panel-title" style="margin-top:6px">SCI STATION</div>
+    <div style="background:var(--cb-hull);border:1px solid var(--cb-panel-edge);border-radius:8px;padding:8px">
+      <div style="font-size:9px;color:var(--cb-text-mid);margin-bottom:2px">PRE-FLIGHT CHECKLIST</div>
+      <div class="cb-sci-checklist">
+        ${sciChecks.map(c => `<div class="${c.ok ? 'ok' : ''}">${c.ok ? '■' : '□'} ${c.label}</div>`).join('')}
+      </div>
+      <button class="cb-sci-scan-btn${state.sciScanComplete ? ' scanned' : ''}"
+        data-action="cosmos-sci-scan" ${canSCI && !state.sciScanComplete && phase === 0 ? '' : 'disabled'}>
+        ${state.sciScanComplete ? 'SCAN COMPLETE' : 'RUN SYSTEMS SCAN'}
+      </button>
+    </div>
+  `;
+
+  // Log lines
+  const logHtml = log.map(entry => {
+    const d = new Date(entry.t);
+    const ts = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+    return `<div class="cb-log-line">[${ts}] ${escapeHtml(entry.msg)}</div>`;
+  }).join('');
+
+  // Phase action buttons
+  const igniteReady = phase === 0 && preflight;
+  const launchReady = phase === 1;
+  const navReady = phase === 3;
+  const landReady = phase === 5;
+
+  // HUD label
+  const hudLabels = { 0: 'STANDBY', 1: 'IGNITION', 2: 'ASCENDING', 3: 'STABLE ORBIT', 4: 'IN TRANSIT', 5: 'DESTINATION', 6: 'LANDED' };
+  const hudText = hudLabels[Math.floor(phase)] || 'STANDBY';
+
+  // Progress labels
+  const progressLabels = COSMOS_BOUND_PHASE_LABELS.map((lbl, i) => {
+    const cls = i < Math.floor(phase) ? 'done' : i === Math.floor(phase) ? 'current' : '';
+    return `<span class="${cls}">${lbl}</span>`;
+  }).join('');
+
+  // Mission complete overlay
+  const missionCompleteHtml = phase === 6 ? `
+    <div class="cb-complete-overlay">
+      <div class="cb-mc-title">MISSION COMPLETE</div>
+      <div class="cb-mc-sub">${dest.icon} LANDED ON ${dest.label.toUpperCase()} — ${dest.difficulty.toUpperCase()} MODE</div>
+      <div class="cb-mc-stats">
+        <div class="cb-mc-stat">
+          <div class="cb-mc-stat-val">${state.missionStartedAt ? (() => { const e = Date.now() - state.missionStartedAt; const m = Math.floor(e/60000); const s = Math.floor((e%60000)/1000); return m + ':' + String(s).padStart(2,'0'); })() : '0:00'}</div>
+          <div class="cb-mc-stat-lbl">MISSION TIME</div>
+        </div>
+        <div class="cb-mc-stat">
+          <div class="cb-mc-stat-val">${Math.round(state.maxAlt || 0)} km</div>
+          <div class="cb-mc-stat-lbl">MAX ALTITUDE</div>
+        </div>
+        <div class="cb-mc-stat">
+          <div class="cb-mc-stat-val">${Math.round(state.maxVel || 0)} m/s</div>
+          <div class="cb-mc-stat-lbl">MAX VELOCITY</div>
+        </div>
+      </div>
+      ${isHost ? '<button class="cb-begin-btn" style="margin-top:24px;max-width:300px" data-action="cosmos-restart">FLY AGAIN</button>' : ''}
+    </div>
+  ` : '';
+
+  return `
+    <div class="cosmos-bound">
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:6px">
+        ${isHost ? '<button class="btn-secondary" data-action="end-activity" style="font-size:11px;padding:6px 12px">End Activity</button>' : ''}
+      </div>
+      <div class="cb-cockpit${phase >= 1 && phase < 3 ? ' cb-rumble' : ''}" style="position:relative">
+        <!-- HEADER -->
+        <div class="cb-hdr">
+          <span class="cb-hdr-title">COSMOS BOUND</span>
+          <span class="cb-mission-badge" style="border-color:${dest.color};color:${dest.color}">${dest.icon} ${dest.label.toUpperCase()} — ${dest.difficulty.toUpperCase()}</span>
+          <div class="cb-crew-dots">${crewDots}</div>
+          <div class="cb-status-bar">
+            <div class="cb-status-item"><span class="cb-dot ${commsOn}"></span>COMMS</div>
+            <div class="cb-status-item"><span class="cb-dot ${engOn}"></span>ENGINE</div>
+            <div class="cb-status-item"><span class="cb-dot ${navOn}"></span>NAV</div>
+          </div>
+        </div>
+
+        <!-- NEXT STEPS GUIDE -->
+        ${(() => {
+          const steps = getCosmosBoundNextSteps(state, myRoles);
+          if (!steps.length) return '';
+          return '<div style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;padding:6px 12px;background:rgba(0,212,255,.03);border-bottom:1px solid var(--cb-panel-edge)">' +
+            steps.map(s => {
+              const color = s.done ? 'var(--cb-glow-green)' : s.urgent ? 'var(--cb-glow-orange)' : 'var(--cb-text-mid)';
+              const icon = s.done ? '■' : s.urgent ? '▸' : '·';
+              const roleTag = s.role ? '<span style="font-family:Orbitron,sans-serif;font-size:7px;letter-spacing:1px;padding:1px 5px;border:1px solid ' + color + ';border-radius:3px;margin-right:4px;color:' + color + '">' + s.role + '</span>' : '';
+              return '<div style="font-size:10px;color:' + color + ';display:flex;align-items:center;gap:3px">' + icon + ' ' + roleTag + s.text + '</div>';
+            }).join('') +
+          '</div>';
+        })()}
+
+        <!-- LEFT PANEL -->
+        <div class="cb-left">
+          <div class="cb-panel-title">SYSTEMS CONTROL</div>
+          ${systemRows}
+
+          <div class="cb-panel-title" style="margin-top:6px">THROTTLE</div>
+          <div class="cb-lever-container">
+            <div class="cb-lever-track${leverDisabled ? ' disabled' : ''}" id="cosmosBoundLeverTrack">
+              <div class="cb-lever-fill" style="height:${throttle}%"></div>
+              <div class="cb-lever-handle" style="bottom:calc(${throttle}% - 6px)"></div>
+            </div>
+            <div class="cb-lever-value">${throttle}%</div>
+            <div class="cb-lever-label">MAIN THROTTLE · PLT</div>
+          </div>
+
+          ${comSection}
+        </div>
+
+        <!-- VIEWPORT -->
+        <div class="cb-viewport">
+          <div class="cb-viewport-frame"></div>
+          <div class="cb-viewport-hud">${hudText}</div>
+          <canvas id="cosmosBoundCanvas"></canvas>
+          <div class="cb-phase-banner" id="cosmosBoundBanner"><span id="cosmosBoundBannerText"></span><div class="cb-phase-sub" id="cosmosBoundBannerSub"></div></div>
+          <div class="cb-countdown-overlay${countdownValue != null ? ' show' : ''}" id="cosmosBoundCountdown">
+            <div class="cb-countdown-num">${countdownValue != null ? countdownValue : ''}</div>
+          </div>
+          <div class="cb-log-strip">${logHtml}</div>
+          ${missionCompleteHtml}
+        </div>
+
+        <!-- RIGHT PANEL -->
+        <div class="cb-right">
+          <div class="cb-panel-title">NAVIGATION · NAV</div>
+          <div class="cb-coord-group">
+            <div style="font-size:9px;color:var(--cb-text-mid);margin-bottom:3px">TARGET COORDINATES</div>
+            <div class="cb-coord-row"><label>X</label><input class="cb-coord-input${coordsLocked ? ' locked' : ''}" id="cosmosBoundCoordX" type="text" value="${escapeHtml(coords.x)}" placeholder="${targetCoords.x}" ${coordDisabled ? 'disabled' : ''}></div>
+            <div class="cb-coord-row"><label>Y</label><input class="cb-coord-input${coordsLocked ? ' locked' : ''}" id="cosmosBoundCoordY" type="text" value="${escapeHtml(coords.y)}" placeholder="${targetCoords.y}" ${coordDisabled ? 'disabled' : ''}></div>
+            <div class="cb-coord-row"><label>Z</label><input class="cb-coord-input${coordsLocked ? ' locked' : ''}" id="cosmosBoundCoordZ" type="text" value="${escapeHtml(coords.z)}" placeholder="${targetCoords.z}" ${coordDisabled ? 'disabled' : ''}></div>
+            <button class="cb-coord-lock-btn${coordsLocked ? ' locked' : ''}" data-action="cosmos-lock-coords" ${coordDisabled ? 'disabled' : ''}>
+              ${coordsLocked ? 'LOCKED' : 'LOCK COORDINATES'}
+            </button>
+          </div>
+
+          <div class="cb-panel-title" style="margin-top:6px">HEADING</div>
+          <div class="cb-dial-container">
+            <div class="cb-dial">
+              <svg viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="44" fill="none" stroke="#1a2340" stroke-width="4"/>
+                <circle cx="50" cy="50" r="44" fill="none" stroke="var(--cb-glow-blue)" stroke-width="4"
+                  stroke-dasharray="${dialCircum}" stroke-dashoffset="${dialOffset}" stroke-linecap="round"
+                  transform="rotate(-90 50 50)"/>
+              </svg>
+              <div class="cb-dial-value">${heading}°</div>
+            </div>
+            <div class="cb-dial-label">HEADING ANGLE</div>
+            <div class="cb-dial-buttons">
+              <button class="cb-dial-btn" data-action="cosmos-adjust-heading" data-direction="-15" ${headingDisabled ? 'disabled' : ''}>◁</button>
+              <button class="cb-dial-btn" data-action="cosmos-adjust-heading" data-direction="15" ${headingDisabled ? 'disabled' : ''}>▷</button>
+            </div>
+          </div>
+
+          <div class="cb-panel-title" style="margin-top:6px">ALTITUDE</div>
+          <div class="cb-dial-container">
+            <div class="cb-data-display" style="color:var(--cb-glow-yellow)">${altitude} km</div>
+            <div class="cb-dial-label">CURRENT ALTITUDE</div>
+          </div>
+
+          <div class="cb-panel-title" style="margin-top:6px">VELOCITY</div>
+          <div class="cb-dial-container">
+            <div class="cb-data-display" style="color:var(--cb-glow-purple)">${velocity} m/s</div>
+            <div class="cb-dial-label">ORBITAL VELOCITY</div>
+          </div>
+
+          ${medSection}
+          ${sciSection}
+        </div>
+
+        <!-- BOTTOM CONSOLE -->
+        <div class="cb-console">
+          <div class="cb-progress" style="width:100%;margin-bottom:6px">
+            <div class="cb-progress-track"><div class="cb-progress-fill" style="width:${phasePct}%"></div></div>
+            <div class="cb-progress-labels">${progressLabels}</div>
+          </div>
+          <button class="cb-action-btn cb-btn-ignite${igniteReady && canCDR ? ' cb-btn-glow' : ''}" data-action="cosmos-ignite" ${igniteReady && canCDR ? '' : 'disabled'}>IGNITE ENGINES</button>
+          <button class="cb-action-btn cb-btn-launch${launchReady && canCDR ? ' cb-btn-glow' : ''}" data-action="cosmos-launch" ${launchReady && canCDR ? '' : 'disabled'}>LAUNCH</button>
+          <button class="cb-action-btn cb-btn-navigate${navReady && canCDR ? ' cb-btn-glow' : ''}" data-action="cosmos-navigate" ${navReady && canCDR ? '' : 'disabled'}>SET COURSE</button>
+          <button class="cb-action-btn cb-btn-land${landReady && canCDR ? ' cb-btn-glow' : ''}" data-action="cosmos-land" ${landReady && canCDR ? '' : 'disabled'}>INITIATE LANDING</button>
         </div>
       </div>
     </div>

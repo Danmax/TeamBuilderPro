@@ -128,7 +128,6 @@ TEAM_BUILDER_DOMAIN_MANAGERS.RoomManager = {
       access: {
         privateSession: false
       },
-      sharedSpotifyPlaylist: getDefaultSharedSpotifyPlaylist(createdAt),
       hostSettings: getDefaultRoomHostSettings(),
       created: createdAt,
       lastUpdate: createdAt

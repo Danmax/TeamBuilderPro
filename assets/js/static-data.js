@@ -34,7 +34,7 @@ window.TEAM_BUILDER_STATIC_DATA = {
  TRIVIA_BANK: [
   // ServiceNow
   { q: 'What scripting language does ServiceNow primarily use?', opts: ['Python', 'JavaScript', 'Ruby', 'TypeScript'], ans: 1 },
-  { q: 'What is the name of ServiceNow\'s AI assistant product?', opts: ['Now Assist', 'ServiceBot', 'ITSM Copilot', 'GlideAI'], ans: 0 },
+  { q: 'What is the name of ServiceNow\'s AI assistant product?', opts: ['Now Assist', 'ServiceBot', 'ITSM Helper', 'GlideAI'], ans: 0 },
   { q: 'Which ServiceNow module manages incident tickets?', opts: ['CMDB', 'ITSM', 'HRSD', 'SecOps'], ans: 1 },
   { q: 'What is the ServiceNow database layer framework called?', opts: ['FlowBase', 'GlideRecord', 'NowDB', 'TableSync'], ans: 1 },
   { q: 'What does CMDB stand for in ServiceNow?', opts: ['Central Module Database', 'Configuration Management Database', 'Cloud Managed Data Bus', 'Change Management Dashboard'], ans: 1 },
@@ -46,12 +46,12 @@ window.TEAM_BUILDER_STATIC_DATA = {
   { q: 'What is the speed of light in a vacuum (approx)?', opts: ['186,000 mi/s', '200,000 mi/s', '250,000 mi/s', '300,000 mi/s'], ans: 0 },
   { q: 'Which planet has the most moons in our solar system?', opts: ['Jupiter', 'Saturn', 'Uranus', 'Neptune'], ans: 1 },
 
-  // AI
-  { q: 'What does "LLM" stand for in AI?', opts: ['Large Logic Model', 'Large Language Model', 'Linear Learning Machine', 'Layered Linguistic Module'], ans: 1 },
-  { q: 'Which company created the GPT series of models?', opts: ['Google', 'Meta', 'OpenAI', 'Anthropic'], ans: 2 },
-  { q: 'What technique trains AI using human preference rankings?', opts: ['RLHF', 'Backpropagation', 'Dropout', 'Batch Norm'], ans: 0 },
-  { q: 'What does the "T" in "Transformer" architecture stand for?', opts: ['Transfer', 'Token', 'Nothing — it\'s the full word', 'Tensor'], ans: 2 },
-  { q: 'Which AI model family is made by Anthropic?', opts: ['Gemini', 'LLaMA', 'Claude', 'Mistral'], ans: 2 },
+  // AI & Computing
+  { q: 'What does "API" stand for?', opts: ['Application Programming Interface', 'Automated Process Integration', 'Active Protocol Instance', 'Application Process Index'], ans: 0 },
+  { q: 'What does "RAM" stand for in computing?', opts: ['Readily Accessible Memory', 'Random Access Memory', 'Read And Modify', 'Rapid Action Module'], ans: 1 },
+  { q: 'What is the binary representation of the decimal number 10?', opts: ['1010', '1100', '1001', '1110'], ans: 0 },
+  { q: 'What technique in machine learning prevents overfitting by randomly disabling neurons?', opts: ['Pooling', 'Dropout', 'Batch Norm', 'Pruning'], ans: 1 },
+  { q: 'What year was the World Wide Web invented?', opts: ['1985', '1989', '1993', '1995'], ans: 1 },
 
   // Technology
   { q: 'What does "HTTP" stand for?', opts: ['HyperText Transfer Protocol', 'High Tech Transfer Process', 'HyperThread Text Protocol', 'Home Tool Transfer Platform'], ans: 0 },
@@ -329,7 +329,8 @@ window.TEAM_BUILDER_STATIC_DATA = {
     { id: 'battleship', icon: '🚢', label: 'Battleship' },
     { id: 'bingo', icon: '🎟️', label: 'Bingo' },
     { id: 'backgammon', icon: '🎲', label: 'Backgammon' },
-    { id: 'connect-4', icon: '🟡', label: 'Connect 4' }
+    { id: 'connect-4', icon: '🟡', label: 'Connect 4' },
+    { id: 'cosmos-bound', icon: '🚀', label: 'Cosmos Bound' }
   ],
   GAME_ACTIVITY_IDS: [
     'lightning-trivia',
@@ -344,7 +345,8 @@ window.TEAM_BUILDER_STATIC_DATA = {
     'battleship',
     'bingo',
     'backgammon',
-    'connect-4'
+    'connect-4',
+    'cosmos-bound'
   ],
   BATTLESHIP_BOARD_SIZE: 10,
   BATTLESHIP_SHIP_SET: [

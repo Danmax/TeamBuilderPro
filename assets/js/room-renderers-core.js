@@ -17,12 +17,7 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
   const joinUrl = buildJoinUrl(APP.roomCode || '', APP.roomAccessToken || '', privateSession);
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(joinUrl)}`;
   const safeJoinUrl = escapeHtml(joinUrl);
-  const sharedSpotifyPlaylist = APP.room.sharedSpotifyPlaylist || null;
-  const safeSpotifyTitle = escapeHtml(sharedSpotifyPlaylist?.title || 'Session Playlist');
-  const safeSpotifyUrl = escapeHtml(sharedSpotifyPlaylist?.url || '');
-  const safeSpotifySharedBy = escapeHtml(sharedSpotifyPlaylist?.sharedBy || '');
-  const spotifySharedAtLabel = sharedSpotifyPlaylist?.updatedAt ? new Date(sharedSpotifyPlaylist.updatedAt).toLocaleString() : '';
-  const showLobbyPlaylistSection = APP.showLobbyPlaylistSection === true;
+  const showLobbyPlaylistSection = false;
   const enabledActivities = APP.preferences?.enabledActivities || {};
   const voicePolicyLabel = voiceSettings.participantMicPolicy === 'open'
     ? 'Everyone can speak'
@@ -42,14 +37,14 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
   }
   
   return `
-    <div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:8px;">
-      <button class="btn-secondary" data-action="edit-profile">✏️ Edit Profile</button>
-      ${showFeedback ? '<button class="btn-secondary" data-action="open-feedback">🗣️ Feedback</button>' : ''}
-      ${isHost ? '<button class="btn-secondary" data-action="open-admin-console">🛠️ Admin Console</button>' : ''}
-      <button class="btn-secondary" data-action="leave-session">🚪 Leave Session</button>
-      ${(isHost && APP.preferences.enableActivityQueue !== false) ? '<button class="btn-secondary" data-action="go-screen" data-screen="activity-queue" aria-keyshortcuts="Alt+Q">🗂️ Activity Queue</button>' : ''}
-      ${isHost ? `<button class="btn-secondary" data-action="toggle-host-voice" aria-label="${voiceSettings.enabled ? 'Turn off room voice' : 'Turn on room voice'}" title="${voiceSettings.enabled ? 'Turn off room voice' : 'Turn on room voice'}" style="border-color:${voiceSettings.enabled ? 'rgba(122,245,159,0.45)' : 'var(--border)'};color:${voiceSettings.enabled ? '#7af59f' : 'var(--text)'};">${voiceSettings.enabled ? '🎙️ Voice On' : '🔇 Voice Off'}</button>` : ''}
-      ${isHost ? `<button class="btn-secondary" data-action="open-host-settings" aria-keyshortcuts="Alt+S" style="border-color:${raisedHandCount ? 'rgba(255,209,102,0.45)' : 'var(--border)'};color:${raisedHandCount ? '#ffd166' : 'var(--text)'};">⚙️ Host Settings${raisedHandCount ? ` (${raisedHandCount} ✋)` : ''}</button>` : ''}
+    <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+      <button class="btn-secondary" data-action="edit-profile" style="font-size:0.78rem;padding:6px 10px;">✏️ Profile</button>
+      ${showFeedback ? '<button class="btn-secondary" data-action="open-feedback" style="font-size:0.78rem;padding:6px 10px;">🗣️ Feedback</button>' : ''}
+      ${isHost ? '<button class="btn-secondary" data-action="open-admin-console" style="font-size:0.78rem;padding:6px 10px;">🛠️ Admin</button>' : ''}
+      <button class="btn-secondary" data-action="leave-session" style="font-size:0.78rem;padding:6px 10px;">🚪 Leave</button>
+      ${(isHost && APP.preferences.enableActivityQueue !== false) ? '<button class="btn-secondary" data-action="go-screen" data-screen="activity-queue" aria-keyshortcuts="Alt+Q" style="font-size:0.78rem;padding:6px 10px;">🗂️ Queue</button>' : ''}
+      ${isHost ? `<button class="btn-secondary" data-action="toggle-host-voice" aria-label="${voiceSettings.enabled ? 'Turn off room voice' : 'Turn on room voice'}" title="${voiceSettings.enabled ? 'Turn off room voice' : 'Turn on room voice'}" style="font-size:0.78rem;padding:6px 10px;border-color:${voiceSettings.enabled ? 'rgba(122,245,159,0.45)' : 'var(--border)'};color:${voiceSettings.enabled ? '#7af59f' : 'var(--text)'};">${voiceSettings.enabled ? '🎙️ Voice' : '🔇 Voice'}</button>` : ''}
+      ${isHost ? `<button class="btn-secondary" data-action="open-host-settings" aria-keyshortcuts="Alt+S" style="font-size:0.78rem;padding:6px 10px;border-color:${raisedHandCount ? 'rgba(255,209,102,0.45)' : 'var(--border)'};color:${raisedHandCount ? '#ffd166' : 'var(--text)'};">⚙️ Settings${raisedHandCount ? ` (${raisedHandCount} ✋)` : ''}</button>` : ''}
     </div>
 
     <div class="header">
@@ -118,63 +113,7 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
       Keyboard: <strong>${escapeHtml(formatModifierShortcut('L'))}</strong> lobby, <strong>${escapeHtml(formatModifierShortcut('P'))}</strong> presentation, <strong>${escapeHtml(formatModifierShortcut('S'))}</strong> host settings, <strong>?</strong> shortcuts
     </div>
 
-    <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:24px;">
-      <button
-        type="button"
-        data-action="toggle-lobby-playlist-section"
-        aria-expanded="${showLobbyPlaylistSection ? 'true' : 'false'}"
-        style="width:100%;display:flex;justify-content:space-between;align-items:center;gap:14px;background:transparent;border:none;color:inherit;padding:0;text-align:left;cursor:pointer;">
-        <div style="min-width:0;">
-          <div style="font-weight:700;">🎵 Session Playlist</div>
-          <div style="font-size:0.84rem;color:var(--text-dim);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-            ${sharedSpotifyPlaylist ? `${safeSpotifyTitle}${safeSpotifySharedBy ? ` • shared by ${safeSpotifySharedBy}` : ''}` : (isHost ? 'Add a playlist for the room' : 'No Spotify playlist added yet')}
-          </div>
-        </div>
-        <div style="font-size:0.9rem;color:var(--text-dim);flex-shrink:0;">
-          ${showLobbyPlaylistSection ? 'Hide ▲' : 'Open ▼'}
-        </div>
-      </button>
-
-      ${showLobbyPlaylistSection ? `
-        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-          ${sharedSpotifyPlaylist ? `
-            <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;">
-              <div style="font-size:0.96rem;font-weight:600;margin-bottom:4px;">${safeSpotifyTitle}</div>
-              <div style="font-size:0.84rem;color:var(--text-mid);word-break:break-all;">${safeSpotifyUrl}</div>
-              <div style="font-size:0.78rem;color:var(--text-dim);margin-top:6px;">
-                Shared by ${safeSpotifySharedBy || 'host'}${spotifySharedAtLabel ? ` • ${escapeHtml(spotifySharedAtLabel)}` : ''}
-              </div>
-            </div>
-          ` : `
-            <div style="font-size:0.84rem;color:var(--text-dim);margin-bottom:10px;">No Spotify playlist added yet.</div>
-          `}
-
-          ${sharedSpotifyPlaylist ? `
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:${isHost ? '12px' : '0'};">
-              <button class="btn-primary" data-action="open-shared-spotify-playlist" style="width:auto;padding:10px 16px;">Open Player</button>
-              <button class="btn-secondary" data-action="open-spotify-playlist-external" style="width:auto;padding:10px 16px;">Open in Spotify</button>
-              ${isHost ? '<button class="btn-secondary" data-action="clear-shared-spotify-playlist" style="width:auto;padding:10px 16px;">Remove</button>' : ''}
-            </div>
-          ` : ''}
-
-          ${isHost ? `
-            <div style="display:grid;grid-template-columns:1fr 1.4fr auto;gap:10px;align-items:end;">
-              <div class="form-group" style="margin:0;">
-                <label class="form-label" for="spotifyPlaylistTitle">Title (optional)</label>
-                <input id="spotifyPlaylistTitle" class="form-input" maxlength="120" value="${escapeHtml(sharedSpotifyPlaylist?.title || '')}" placeholder="Warm-up Mix">
-              </div>
-              <div class="form-group" style="margin:0;">
-                <label class="form-label" for="spotifyPlaylistUrl">Spotify playlist URL</label>
-                <input id="spotifyPlaylistUrl" class="form-input" maxlength="1000" value="${escapeHtml(sharedSpotifyPlaylist?.url || '')}" placeholder="https://open.spotify.com/playlist/...">
-              </div>
-              <button class="btn-secondary" data-action="save-shared-spotify-playlist" style="width:auto;padding:10px 16px;">${sharedSpotifyPlaylist ? 'Update Playlist' : 'Add Playlist'}</button>
-            </div>
-            <div style="font-size:0.78rem;color:var(--text-dim);margin-top:8px;">
-              Quick lobby controls for the host. Full playlist management is also available in Host Settings.
-            </div>
-          ` : ''}
-        </div>
-      ` : ''}
+    <div style="display:none;">
     </div>
     
     <div style="background:var(--surface-solid);border:1px solid var(--border);
@@ -429,6 +368,12 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
           <div class="card-icon">🟡</div>
           <h3 class="card-title">Connect 4</h3>
           <p class="card-desc">Drop glowing discs into a neon grid and connect four before your opponent does</p>
+        </button>
+
+        <button type="button" class="card" data-action="start-cosmos-bound" aria-label="Start Cosmos Bound" style="${enabledActivities['cosmos-bound'] === false ? 'display:none;' : ''}">
+          <div class="card-icon">🚀</div>
+          <h3 class="card-title">Cosmos Bound</h3>
+          <p class="card-desc">Crew up and pilot a spacecraft through a full mission — each role controls a different station</p>
         </button>
       </div>
     ` : `
