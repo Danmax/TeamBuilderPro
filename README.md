@@ -157,6 +157,7 @@ Each prompt includes concrete example outputs showing the exact data structure e
 - Frontend: HTML, CSS, Vanilla JavaScript
 - Backend: Node.js + Express
 - Realtime: Socket.IO
+- Optional realtime/storage fallback: Supabase in the browser when `window.SUPABASE_URL`, `window.SUPABASE_ANON_KEY`, and the Supabase client are injected
 - Persistence: local runtime JSON files in `.runtime-data/`
 - Security: `helmet` and `express-rate-limit`
 
@@ -168,6 +169,17 @@ Each prompt includes concrete example outputs showing the exact data structure e
 - `ADMIN_TEMP_PASSWORD`
 - `DATABASE_URL`
 - `PGSSL`
+
+Optional browser globals for the Supabase fallback path:
+
+- `window.SUPABASE_URL`
+- `window.SUPABASE_ANON_KEY`
+
+Notes:
+
+- Supabase is not a required backend dependency for local development.
+- The default realtime/storage path uses Socket.IO plus local runtime persistence.
+- Supabase code is present only as an optional browser-side fallback for shared room state and realtime sync.
 
 ## Local Development
 
