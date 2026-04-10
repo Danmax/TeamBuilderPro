@@ -5803,9 +5803,9 @@ function renderAIContentStudioSection(scope, { planId = '', compact = false } = 
             <option value="${escapeHtml(theme)}" ${draft.themePreset === theme ? 'selected' : ''}>${escapeHtml(theme)}</option>
           `).join('')}
         </select>
-        <input id="contentStudioCustomTopic" class="form-input" maxlength="160" value="${escapeHtml(draft.customTopic || '')}" placeholder="Custom topic or sub-theme">
-        <input id="contentStudioAudience" class="form-input" maxlength="120" value="${escapeHtml(draft.audience || '')}" placeholder="Audience (optional)">
-        <input id="contentStudioTone" class="form-input" maxlength="120" value="${escapeHtml(draft.tone || '')}" placeholder="Tone (optional)">
+        <input id="contentStudioCustomTopic" class="form-input" maxlength="160" value="${escapeHtml(draft.customTopic || '')}" placeholder="Custom topic or sub-theme" oninput="APP.contentStudioDraft&&(APP.contentStudioDraft.customTopic=this.value)" autocomplete="off">
+        <input id="contentStudioAudience" class="form-input" maxlength="120" value="${escapeHtml(draft.audience || '')}" placeholder="Audience (optional)" oninput="APP.contentStudioDraft&&(APP.contentStudioDraft.audience=this.value)" autocomplete="off">
+        <input id="contentStudioTone" class="form-input" maxlength="120" value="${escapeHtml(draft.tone || '')}" placeholder="Tone (optional)" oninput="APP.contentStudioDraft&&(APP.contentStudioDraft.tone=this.value)" autocomplete="off">
       </div>
       <div style="display:grid;grid-template-columns:1fr 0.7fr;gap:10px;margin-bottom:10px;">
         <select id="contentStudioDifficulty" class="form-input">
@@ -9556,7 +9556,8 @@ async function updateDjBoothState(mutator) {
 async function loadDjBoothDeckSource(deckKey, rawSource = '') {
   if (!DJ_BOOTH_DECK_KEYS.includes(deckKey)) return;
   const input = document.getElementById(`djBoothSource-${deckKey}`);
-  const parsed = parseYouTubeSource(rawSource || input?.value || '');
+  const parsed = parseYouTubeSource(rawSource || input?.value || draftDjBoothSource[deckKey] || '');
+  delete draftDjBoothSource[deckKey];
   if (parsed.sourceType === 'none') {
     showError('Enter a valid YouTube video or playlist URL.');
     return;
@@ -9800,8 +9801,8 @@ async function fadeDjBoothCrossfader(target) {
 
 async function saveDjBoothMarquee() {
   const input = document.getElementById('djBoothMarqueeInput');
-  if (!(input instanceof HTMLInputElement)) return;
-  const nextValue = String(input.value || '').replace(/\s+/g, ' ').trim().slice(0, 140);
+  const nextValue = String(input?.value || draftDjBoothMarquee || '').replace(/\s+/g, ' ').trim().slice(0, 140);
+  draftDjBoothMarquee = null;
   await updateDjBoothState(state => {
     state.marqueeText = nextValue || 'Broadcast live from the Team Builder DJ Booth';
   });
@@ -13879,8 +13880,11 @@ function render() {
   if (activeCosmosInput && APP.cosmosBoundUi?.allowImmediateRender !== true) {
     return;
   }
-  if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && activeEl.closest('.form-container, .form-group, [role="dialog"]')) {
-    return;
+  if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+    const inputType = (activeEl.type || 'text').toLowerCase();
+    if (!['checkbox', 'radio', 'range', 'file', 'color', 'hidden', 'submit', 'reset', 'button', 'image'].includes(inputType)) {
+      return;
+    }
   }
   let html = '';
   syncActiveContentBanks();
@@ -13993,12 +13997,12 @@ function renderEditProfile() {
       
       <div class="form-group">
         <label class="form-label" for="editName">Display Name</label>
-        <input type="text" id="editName" class="form-input" value="${safePlayerName}" placeholder="Enter your name" autocomplete="name">
+        <input type="text" id="editName" class="form-input" value="${escapeHtml(draftEditName || APP.player.name)}" placeholder="Enter your name" autocomplete="name" oninput="draftEditName=this.value">
       </div>
 
       <div class="form-group">
         <label class="form-label" for="editEmoji">Emoji</label>
-        <input type="text" id="editEmoji" class="form-input" value="${safeSelectedEmoji}" placeholder="😀" maxlength="8" autocomplete="off">
+        <input type="text" id="editEmoji" class="form-input" value="${escapeHtml(draftEditEmoji || selectedAv)}" placeholder="😀" maxlength="8" autocomplete="off" oninput="draftEditEmoji=this.value">
       </div>
       
       <div class="form-group">
@@ -14221,6 +14225,12 @@ function renderHostSettingsModal() {
 let selectedAvatar = getRandomAvatar();
 let selectedEditAvatar = null;
 let draftPlayerName = '';
+let draftEditName = '';
+let draftEditEmoji = '';
+let draftDjBoothMarquee = null;
+const draftDjBoothSource = {};
+let draftIcebreakerAnswer = '';
+let draftIcebreakerQuestion = '';
 
 function selectAvatar(av) {
   selectedAvatar = av;
@@ -14248,6 +14258,7 @@ function selectEditAvatar(av) {
   }
   const emojiInput = document.getElementById('editEmoji');
   if (emojiInput) emojiInput.value = av;
+  draftEditEmoji = av;
 }
 
 function togglePresentation() {
@@ -15399,6 +15410,8 @@ function showLevelUp(level) {
 
 function editProfile() {
   selectedEditAvatar = APP.player?.avatar || selectedAvatar;
+  draftEditName = APP.player?.name || '';
+  draftEditEmoji = APP.player?.avatar || selectedAvatar || '';
   APP.editingProfile = true;
   render();
 }
@@ -15406,6 +15419,8 @@ function editProfile() {
 function cancelEditProfile() {
   APP.editingProfile = false;
   selectedEditAvatar = null;
+  draftEditName = '';
+  draftEditEmoji = '';
   render();
 }
 
@@ -15510,8 +15525,8 @@ async function saveProfile() {
   if (!APP.player) return;
 
   const oldName = APP.player.name;
-  const updatedName = normalizeName(document.getElementById('editName')?.value || '');
-  const typedEmoji = normalizeEmoji(document.getElementById('editEmoji')?.value || '');
+  const updatedName = normalizeName(document.getElementById('editName')?.value || draftEditName || '');
+  const typedEmoji = normalizeEmoji(document.getElementById('editEmoji')?.value || draftEditEmoji || '');
   const updatedAvatar = typedEmoji || selectedEditAvatar || APP.player.avatar;
   if (!updatedName) {
     showError('Please enter a valid display name');
@@ -15547,6 +15562,8 @@ async function saveProfile() {
 
   APP.editingProfile = false;
   selectedEditAvatar = null;
+  draftEditName = '';
+  draftEditEmoji = '';
   render();
 }
 
@@ -16796,7 +16813,7 @@ function renderDjBoothDeck(state, deckKey, isHost) {
       <div style="margin-top:14px;display:grid;gap:12px;">
         ${isHost ? `
           <div style="display:flex;gap:10px;flex-wrap:wrap;">
-            <input id="djBoothSource-${deckKey}" class="form-input" value="${escapeHtml(deck.sourceUrl || '')}" placeholder="Paste YouTube playlist or video URL" style="flex:1;min-width:220px;">
+            <input id="djBoothSource-${deckKey}" class="form-input" value="${escapeHtml(draftDjBoothSource[deckKey] !== undefined ? draftDjBoothSource[deckKey] : (deck.sourceUrl || ''))}" placeholder="Paste YouTube playlist or video URL" style="flex:1;min-width:220px;" oninput="draftDjBoothSource[this.id.replace('djBoothSource-','')]=this.value" autocomplete="off">
             <button class="btn-primary" data-action="dj-booth-load-source" data-deck-key="${deckKey}" style="width:auto;padding:12px 16px;">Load</button>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;border-radius:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);">
@@ -16984,7 +17001,7 @@ function renderDjBooth() {
 
             <div class="dj-booth-status-card">
               <div style="font-size:0.76rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;">Broadcast Message</div>
-              <input id="djBoothMarqueeInput" class="form-input" maxlength="140" value="${bannerCopy}" ${isHost ? '' : 'disabled'} placeholder="Type a scrolling room message">
+              <input id="djBoothMarqueeInput" class="form-input" maxlength="140" value="${escapeHtml(draftDjBoothMarquee !== null ? draftDjBoothMarquee : (state.marqueeText || 'Broadcast live from the Team Builder DJ Booth'))}" ${isHost ? '' : 'disabled'} placeholder="Type a scrolling room message" oninput="draftDjBoothMarquee=this.value" autocomplete="off">
               <button class="btn-primary" data-action="dj-booth-save-marquee" ${isHost ? '' : 'disabled'} style="margin-top:10px;">Update Banner</button>
             </div>
           </div>
@@ -19251,17 +19268,19 @@ function renderSlidesStudio() {
 }
 
 async function submitIcebreakerAnswer() {
-  const answer = (document.getElementById('icebreakerAnswer')?.value || '').trim().slice(0, 280);
+  const answer = (document.getElementById('icebreakerAnswer')?.value || draftIcebreakerAnswer || '').trim().slice(0, 280);
   if (!answer) {
     showError('Please enter an answer');
     return;
   }
-  
+  draftIcebreakerAnswer = '';
+  draftIcebreakerQuestion = '';
+
   const room = await RoomManager.loadRoom(APP.roomCode);
   if (!room.activityState.answers) room.activityState.answers = {};
-  
+
   room.activityState.answers[APP.player.name] = answer;
-  
+
   await RoomManager.updateRoom(APP.roomCode, room);
 }
 
@@ -19282,6 +19301,11 @@ function renderIcebreaker() {
   const isHost = APP.room.host === APP.player.name;
   const safeRoomCode = escapeHtml(APP.roomCode);
   const safeQuestion = escapeHtml(question);
+  // Reset draft when question changes (host moved to next question)
+  if (draftIcebreakerQuestion !== question) {
+    draftIcebreakerAnswer = '';
+    draftIcebreakerQuestion = question;
+  }
   
   return `
     <div class="header">
@@ -19301,12 +19325,14 @@ function renderIcebreaker() {
     
     ${!hasAnswered ? `
       <div style="max-width:600px;margin:0 auto 20px;">
-        <textarea id="icebreakerAnswer" 
+        <textarea id="icebreakerAnswer"
           style="width:100%;background:var(--surface-2);border:1px solid var(--border);
           color:var(--text);padding:16px;border-radius:10px;font-size:1rem;
           font-family:'Outfit',sans-serif;outline:none;resize:vertical;min-height:100px;"
           aria-label="Icebreaker response"
-          placeholder="Type your answer..."></textarea>
+          placeholder="Type your answer..."
+          oninput="draftIcebreakerAnswer=this.value"
+          autocomplete="off" autocorrect="off" spellcheck="true">${escapeHtml(draftIcebreakerAnswer)}</textarea>
         <button class="btn-primary" data-action="submit-icebreaker-answer" style="margin-top:12px;">
           Submit Answer
         </button>
