@@ -5044,6 +5044,15 @@ function getDefaultDjBoothUiState() {
   };
 }
 
+function getDefaultCosmosBoundUiState() {
+  return {
+    contextKey: '',
+    coordDraft: { x: '', y: '', z: '' },
+    broadcastDraft: '',
+    allowImmediateRender: false
+  };
+}
+
 function getDefaultVoiceDockState() {
   return {
     mobileCollapsed: false,
@@ -5112,6 +5121,7 @@ const APP = {
   backgammonUi: getDefaultBackgammonUiState(),
   slidesStudioUi: getDefaultSlidesStudioUiState(),
   djBoothUi: getDefaultDjBoothUiState(),
+  cosmosBoundUi: getDefaultCosmosBoundUiState(),
   voiceDock: loadVoiceDockState(),
   community: {
     rooms: [],
@@ -7747,6 +7757,48 @@ function getCosmosBoundRoles(state, playerName) {
 
 function getCosmosBoundMyRoles(state) {
   return getCosmosBoundRoles(state, APP.player?.name || '');
+}
+
+function getCosmosBoundTextDraftContextKey(rootState = APP.room?.activityState) {
+  const state = rootState && typeof rootState === 'object' ? rootState : null;
+  const crewState = getCosmosBoundMyCrewState(state) || state || {};
+  const crewId = state?.multiCrew ? (getCosmosBoundMyCrewId(state) || 'solo') : 'solo';
+  return [
+    APP.roomCode || '',
+    APP.room?.currentActivity || '',
+    String(state?.startedAt || 0),
+    crewId,
+    state?.destination || 'mars',
+    crewState.coordsLocked ? 'locked' : 'open'
+  ].join(':');
+}
+
+function ensureCosmosBoundUiDraft(rootState = APP.room?.activityState) {
+  if (!APP.cosmosBoundUi || typeof APP.cosmosBoundUi !== 'object') {
+    APP.cosmosBoundUi = getDefaultCosmosBoundUiState();
+  }
+  const crewState = getCosmosBoundMyCrewState(rootState) || rootState || {};
+  const nextContextKey = getCosmosBoundTextDraftContextKey(rootState);
+  if (APP.cosmosBoundUi.contextKey !== nextContextKey) {
+    APP.cosmosBoundUi.contextKey = nextContextKey;
+    APP.cosmosBoundUi.coordDraft = {
+      x: String(crewState.coords?.x || ''),
+      y: String(crewState.coords?.y || ''),
+      z: String(crewState.coords?.z || '')
+    };
+    APP.cosmosBoundUi.broadcastDraft = '';
+  }
+  return APP.cosmosBoundUi;
+}
+
+function getActiveCosmosBoundTextInput() {
+  const activeEl = document.activeElement;
+  if (!(activeEl instanceof HTMLElement)) return null;
+  if (APP.room?.currentActivity !== 'cosmos-bound') return null;
+  if (activeEl.id === 'cosmosBoundCoordX' || activeEl.id === 'cosmosBoundCoordY' || activeEl.id === 'cosmosBoundCoordZ' || activeEl.id === 'cosmosBroadcastInput') {
+    return activeEl;
+  }
+  return null;
 }
 
 function cosmosBoundPlayerHasRole(state, playerName, role) {
@@ -10475,37 +10527,53 @@ async function cosmosBoundToggleSystem(systemId) {
 }
 
 async function cosmosBoundLockCoordinates() {
+  const cosmosUi = ensureCosmosBoundUiDraft(APP.room?.activityState);
   const xEl = document.getElementById('cosmosBoundCoordX');
   const yEl = document.getElementById('cosmosBoundCoordY');
   const zEl = document.getElementById('cosmosBoundCoordZ');
-  const x = xEl ? xEl.value.trim() : '';
-  const y = yEl ? yEl.value.trim() : '';
-  const z = zEl ? zEl.value.trim() : '';
+  const x = String(xEl ? xEl.value : cosmosUi.coordDraft?.x || '').trim();
+  const y = String(yEl ? yEl.value : cosmosUi.coordDraft?.y || '').trim();
+  const z = String(zEl ? zEl.value : cosmosUi.coordDraft?.z || '').trim();
   if (!x || !y || !z) {
+    cosmosUi.allowImmediateRender = true;
     showError('All three coordinates (X, Y, Z) are required.');
+    cosmosUi.allowImmediateRender = false;
     return;
   }
-  await cosmosBoundUpdateCrewState(cs => {
-    if (!canCosmosBoundInteract(APP.room?.activityState, 'NAV')) return;
-    if (cs.coordsLocked) return;
-    cs.coords = { x, y, z };
-    cs.coordsLocked = true;
-    cosmosBoundAddLog(cs, 'COORDINATES LOCKED: [' + x + ', ' + y + ', ' + z + ']');
-  });
-  cosmosBoundPlaySfx('beep1', 0.4);
+  cosmosUi.allowImmediateRender = true;
+  try {
+    await cosmosBoundUpdateCrewState(cs => {
+      if (!canCosmosBoundInteract(APP.room?.activityState, 'NAV')) return;
+      if (cs.coordsLocked) return;
+      cs.coords = { x, y, z };
+      cs.coordsLocked = true;
+      cosmosBoundAddLog(cs, 'COORDINATES LOCKED: [' + x + ', ' + y + ', ' + z + ']');
+    });
+    cosmosUi.coordDraft = { x, y, z };
+    cosmosBoundPlaySfx('beep1', 0.4);
+  } finally {
+    cosmosUi.allowImmediateRender = false;
+  }
 }
 
 
 async function cosmosBoundBroadcast() {
+  const cosmosUi = ensureCosmosBoundUiDraft(APP.room?.activityState);
   const input = document.getElementById('cosmosBroadcastInput');
-  const msg = input ? input.value.trim() : '';
+  const msg = String(input ? input.value : cosmosUi.broadcastDraft || '').trim();
   if (!msg) return;
-  await cosmosBoundUpdateCrewState(cs => {
-    if (!canCosmosBoundInteract(APP.room?.activityState, 'COM')) return;
-    cs.broadcast = msg;
-    cosmosBoundAddLog(cs, 'COM BROADCAST: ' + msg);
-  });
-  cosmosBoundPlaySfx('beep2', 0.3);
+  cosmosUi.allowImmediateRender = true;
+  try {
+    await cosmosBoundUpdateCrewState(cs => {
+      if (!canCosmosBoundInteract(APP.room?.activityState, 'COM')) return;
+      cs.broadcast = msg;
+      cosmosBoundAddLog(cs, 'COM BROADCAST: ' + msg);
+    });
+    cosmosUi.broadcastDraft = '';
+    cosmosBoundPlaySfx('beep2', 0.3);
+  } finally {
+    cosmosUi.allowImmediateRender = false;
+  }
 }
 
 async function cosmosBoundConfirmVitals() {
@@ -13807,6 +13875,10 @@ function render() {
   const app = document.getElementById('app');
   // Skip re-render if user is typing in a form input (prevents mobile keyboard dismissal)
   const activeEl = document.activeElement;
+  const activeCosmosInput = getActiveCosmosBoundTextInput();
+  if (activeCosmosInput && APP.cosmosBoundUi?.allowImmediateRender !== true) {
+    return;
+  }
   if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && activeEl.closest('.form-container, .form-group, [role="dialog"]')) {
     return;
   }
@@ -15653,6 +15725,17 @@ window.addEventListener('resize', () => {
 document.addEventListener('input', event => {
   const target = event.target;
   if (!(target instanceof HTMLInputElement)) return;
+  if (target.id === 'cosmosBoundCoordX' || target.id === 'cosmosBoundCoordY' || target.id === 'cosmosBoundCoordZ') {
+    const cosmosUi = ensureCosmosBoundUiDraft(APP.room?.activityState);
+    const axis = target.id.slice(-1).toLowerCase();
+    cosmosUi.coordDraft[axis] = target.value;
+    return;
+  }
+  if (target.id === 'cosmosBroadcastInput') {
+    const cosmosUi = ensureCosmosBoundUiDraft(APP.room?.activityState);
+    cosmosUi.broadcastDraft = target.value;
+    return;
+  }
   if (target.id === 'slidesStudioAICount') {
     APP.slidesStudioUi.aiCount = Math.max(3, Math.min(10, Number.parseInt(target.value || '5', 10) || 5));
     return;
@@ -15683,6 +15766,20 @@ document.addEventListener('input', event => {
     const next = document.querySelector(`.word-chain-letter-input[data-row="${row}"][data-pos="${pos + 1}"]`);
     if (next instanceof HTMLInputElement) next.focus();
   }
+});
+
+document.addEventListener('focusout', event => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+  if (target.id !== 'cosmosBoundCoordX' && target.id !== 'cosmosBoundCoordY' && target.id !== 'cosmosBoundCoordZ' && target.id !== 'cosmosBroadcastInput') {
+    return;
+  }
+  window.setTimeout(() => {
+    if (getActiveCosmosBoundTextInput()) return;
+    if (APP.room?.currentActivity !== 'cosmos-bound') return;
+    if (APP.cosmosBoundUi?.allowImmediateRender === true) return;
+    render();
+  }, 0);
 });
 
 document.addEventListener('input', event => {
@@ -18519,6 +18616,16 @@ function renderCosmosBoundCockpit(state, isHost, me, myRoles, phase, names, canC
   const systems = state.systems || {};
   const throttle = cosmosBoundLeverDragging ? cosmosBoundLocalThrottle : (state.throttle || 0);
   const coords = state.coords || { x: '', y: '', z: '' };
+  const cosmosUi = ensureCosmosBoundUiDraft(APP.room?.activityState);
+  const coordDraft = coordsLockedValue => coordsLockedValue ? {
+    x: String(coords.x || ''),
+    y: String(coords.y || ''),
+    z: String(coords.z || '')
+  } : {
+    x: String(cosmosUi.coordDraft?.x || ''),
+    y: String(cosmosUi.coordDraft?.y || ''),
+    z: String(cosmosUi.coordDraft?.z || '')
+  };
   const targetCoords = state.targetCoords || { x: '0', y: '0', z: '0' };
   const altitude = Math.round(state.altitude || 0);
   const velocity = Math.round(state.velocity || 0);
@@ -18565,6 +18672,8 @@ function renderCosmosBoundCockpit(state, isHost, me, myRoles, phase, names, canC
   // Right panel: coordinates + data
   const coordsLocked = state.coordsLocked;
   const coordDisabled = !canNAV || coordsLocked || phase >= 2;
+  const visibleCoords = coordDraft(coordsLocked);
+  const broadcastDraft = String(cosmosUi.broadcastDraft || '');
 
   // COM broadcast section
   const comSection = `
@@ -18572,7 +18681,7 @@ function renderCosmosBoundCockpit(state, isHost, me, myRoles, phase, names, canC
     <div style="background:var(--cb-hull);border:1px solid var(--cb-panel-edge);border-radius:8px;padding:8px">
       <div style="font-size:9px;color:var(--cb-text-mid);margin-bottom:4px">BROADCAST MESSAGE</div>
       <div style="display:flex;gap:4px">
-        <input class="cb-broadcast-input" id="cosmosBroadcastInput" type="text" placeholder="${canCOM ? 'Enter message...' : 'COM only'}" maxlength="80" ${canCOM ? '' : 'disabled'}>
+        <input class="cb-broadcast-input" id="cosmosBroadcastInput" type="text" value="${escapeHtml(broadcastDraft)}" placeholder="${canCOM ? 'Enter message...' : 'COM only'}" maxlength="80" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" ${canCOM ? '' : 'disabled'}>
         <button class="cb-broadcast-btn" data-action="cosmos-broadcast" ${canCOM ? '' : 'disabled'}>SEND</button>
       </div>
       ${state.broadcast ? `<div style="font-size:9px;color:#ff8fa3;margin-top:4px;opacity:.7">LAST: ${escapeHtml(state.broadcast)}</div>` : ''}
@@ -18774,9 +18883,9 @@ function renderCosmosBoundCockpit(state, isHost, me, myRoles, phase, names, canC
           <div class="cb-panel-title">NAVIGATION · NAV</div>
           <div class="cb-coord-group">
             <div style="font-size:9px;color:var(--cb-text-mid);margin-bottom:3px">TARGET COORDINATES</div>
-            <div class="cb-coord-row"><label>X</label><input class="cb-coord-input${coordsLocked ? ' locked' : ''}" id="cosmosBoundCoordX" type="text" value="${escapeHtml(coords.x)}" placeholder="${targetCoords.x}" ${coordDisabled ? 'disabled' : ''}></div>
-            <div class="cb-coord-row"><label>Y</label><input class="cb-coord-input${coordsLocked ? ' locked' : ''}" id="cosmosBoundCoordY" type="text" value="${escapeHtml(coords.y)}" placeholder="${targetCoords.y}" ${coordDisabled ? 'disabled' : ''}></div>
-            <div class="cb-coord-row"><label>Z</label><input class="cb-coord-input${coordsLocked ? ' locked' : ''}" id="cosmosBoundCoordZ" type="text" value="${escapeHtml(coords.z)}" placeholder="${targetCoords.z}" ${coordDisabled ? 'disabled' : ''}></div>
+            <div class="cb-coord-row"><label>X</label><input class="cb-coord-input${coordsLocked ? ' locked' : ''}" id="cosmosBoundCoordX" type="text" value="${escapeHtml(visibleCoords.x)}" placeholder="${targetCoords.x}" inputmode="decimal" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" ${coordDisabled ? 'disabled' : ''}></div>
+            <div class="cb-coord-row"><label>Y</label><input class="cb-coord-input${coordsLocked ? ' locked' : ''}" id="cosmosBoundCoordY" type="text" value="${escapeHtml(visibleCoords.y)}" placeholder="${targetCoords.y}" inputmode="decimal" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" ${coordDisabled ? 'disabled' : ''}></div>
+            <div class="cb-coord-row"><label>Z</label><input class="cb-coord-input${coordsLocked ? ' locked' : ''}" id="cosmosBoundCoordZ" type="text" value="${escapeHtml(visibleCoords.z)}" placeholder="${targetCoords.z}" inputmode="decimal" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" ${coordDisabled ? 'disabled' : ''}></div>
             <button class="cb-coord-lock-btn${coordsLocked ? ' locked' : ''}" data-action="cosmos-lock-coords" ${coordDisabled ? 'disabled' : ''}>
               ${coordsLocked ? 'LOCKED' : 'LOCK COORDINATES'}
             </button>
