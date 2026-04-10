@@ -13882,7 +13882,7 @@ function renderWelcome() {
       
       <div class="form-group">
         <label class="form-label" for="playerName">Your Name</label>
-        <input type="text" id="playerName" class="form-input" placeholder="Enter your name" autocomplete="name">
+        <input type="text" id="playerName" class="form-input" placeholder="Enter your name" autocomplete="name" value="${escapeHtml(draftPlayerName)}" oninput="draftPlayerName=this.value">
       </div>
       
       <div class="form-group">
@@ -14148,6 +14148,7 @@ function renderHostSettingsModal() {
 // UI Helper Functions
 let selectedAvatar = getRandomAvatar();
 let selectedEditAvatar = null;
+let draftPlayerName = '';
 
 function selectAvatar(av) {
   selectedAvatar = av;
@@ -14201,11 +14202,12 @@ function setAsyncButtonState(button, isBusy, idleLabel, busyLabel) {
 }
 
 async function createPlayer() {
-  const name = normalizeName(document.getElementById('playerName')?.value || '');
+  const name = normalizeName(document.getElementById('playerName')?.value || draftPlayerName || '');
   if (!name) {
     showError('Please enter your name');
     return;
   }
+  draftPlayerName = '';
   
   const avatar = AVATAR_OPTIONS.includes(selectedAvatar) ? selectedAvatar : getRandomAvatar();
   APP.player = await PlayerManager.createProfile(name, avatar);
