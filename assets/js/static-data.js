@@ -33,46 +33,46 @@ window.TEAM_BUILDER_STATIC_DATA = {
 ],
  TRIVIA_BANK: [
   // ServiceNow
-  { q: 'What scripting language does ServiceNow primarily use?', opts: ['Python', 'JavaScript', 'Ruby', 'TypeScript'], ans: 1 },
-  { q: 'What is the name of ServiceNow\'s AI assistant product?', opts: ['Now Assist', 'ServiceBot', 'ITSM Helper', 'GlideAI'], ans: 0 },
-  { q: 'Which ServiceNow module manages incident tickets?', opts: ['CMDB', 'ITSM', 'HRSD', 'SecOps'], ans: 1 },
-  { q: 'What is the ServiceNow database layer framework called?', opts: ['FlowBase', 'GlideRecord', 'NowDB', 'TableSync'], ans: 1 },
-  { q: 'What does CMDB stand for in ServiceNow?', opts: ['Central Module Database', 'Configuration Management Database', 'Cloud Managed Data Bus', 'Change Management Dashboard'], ans: 1 },
+  { q: 'What scripting language does ServiceNow primarily use?', opts: ['Python', 'JavaScript', 'Ruby', 'TypeScript'], ans: 1, tip: 'ServiceNow runs JavaScript server-side via the Rhino engine (Mozilla), and also supports ECMAScript 2021+ in scoped apps through the GraalVM runtime.' },
+  { q: 'What is the name of ServiceNow\'s AI assistant product?', opts: ['Now Assist', 'ServiceBot', 'ITSM Helper', 'GlideAI'], ans: 0, tip: 'Now Assist is powered by Now LLM, a large language model trained specifically on enterprise workflow data to generate text, summarize incidents, and automate tasks.' },
+  { q: 'Which ServiceNow module manages incident tickets?', opts: ['CMDB', 'ITSM', 'HRSD', 'SecOps'], ans: 1, tip: 'IT Service Management (ITSM) in ServiceNow follows ITIL best practices. Incident Management, Problem Management, and Change Management are its three core pillars.' },
+  { q: 'What is the ServiceNow database layer framework called?', opts: ['FlowBase', 'GlideRecord', 'NowDB', 'TableSync'], ans: 1, tip: 'GlideRecord is the ORM layer that lets developers query and manipulate the Now Platform database without writing raw SQL. Every table in ServiceNow can be accessed this way.' },
+  { q: 'What does CMDB stand for in ServiceNow?', opts: ['Central Module Database', 'Configuration Management Database', 'Cloud Managed Data Bus', 'Change Management Dashboard'], ans: 1, tip: 'The CMDB tracks Configuration Items (CIs) — everything from servers and apps to network devices. It\'s the backbone of visibility for IT operations in ServiceNow.' },
 
   // Science
-  { q: 'What is the powerhouse of the cell?', opts: ['Nucleus', 'Ribosome', 'Mitochondria', 'Golgi Body'], ans: 2 },
-  { q: 'What gas makes up roughly 78% of Earth\'s atmosphere?', opts: ['Oxygen', 'Carbon Dioxide', 'Nitrogen', 'Argon'], ans: 2 },
-  { q: 'How many bones are in the adult human body?', opts: ['186', '206', '226', '256'], ans: 1 },
-  { q: 'What is the speed of light in a vacuum (approx)?', opts: ['186,000 mi/s', '200,000 mi/s', '250,000 mi/s', '300,000 mi/s'], ans: 0 },
-  { q: 'Which planet has the most moons in our solar system?', opts: ['Jupiter', 'Saturn', 'Uranus', 'Neptune'], ans: 1 },
+  { q: 'What is the powerhouse of the cell?', opts: ['Nucleus', 'Ribosome', 'Mitochondria', 'Golgi Body'], ans: 2, tip: 'Mitochondria generate ATP through cellular respiration. They have their own DNA, suggesting they evolved from ancient bacteria absorbed by larger cells over 2 billion years ago.' },
+  { q: 'What gas makes up roughly 78% of Earth\'s atmosphere?', opts: ['Oxygen', 'Carbon Dioxide', 'Nitrogen', 'Argon'], ans: 2, tip: 'Nitrogen is largely inert in the atmosphere, but it\'s essential for life. Bacteria in soil "fix" nitrogen into forms plants can absorb — making them critical to the food chain.' },
+  { q: 'How many bones are in the adult human body?', opts: ['186', '206', '226', '256'], ans: 1, tip: 'Babies are born with around 270-300 bones. As we grow, many fuse together. By adulthood, the number stabilizes at 206, with the smallest being the stapes bone in the ear.' },
+  { q: 'What is the speed of light in a vacuum (approx)?', opts: ['186,000 mi/s', '200,000 mi/s', '250,000 mi/s', '300,000 mi/s'], ans: 0, tip: 'Light travels at exactly 299,792,458 meters per second in a vacuum. In 1983, the meter was officially redefined based on the speed of light, making it a fixed constant.' },
+  { q: 'Which planet has the most moons in our solar system?', opts: ['Jupiter', 'Saturn', 'Uranus', 'Neptune'], ans: 1, tip: 'Saturn overtook Jupiter in 2023 with over 140 confirmed moons. Most of Saturn\'s new moons are tiny (under 5km) and were discovered using advanced telescope techniques.' },
 
   // AI & Computing
-  { q: 'What does "API" stand for?', opts: ['Application Programming Interface', 'Automated Process Integration', 'Active Protocol Instance', 'Application Process Index'], ans: 0 },
-  { q: 'What does "RAM" stand for in computing?', opts: ['Readily Accessible Memory', 'Random Access Memory', 'Read And Modify', 'Rapid Action Module'], ans: 1 },
-  { q: 'What is the binary representation of the decimal number 10?', opts: ['1010', '1100', '1001', '1110'], ans: 0 },
-  { q: 'What technique in machine learning prevents overfitting by randomly disabling neurons?', opts: ['Pooling', 'Dropout', 'Batch Norm', 'Pruning'], ans: 1 },
-  { q: 'What year was the World Wide Web invented?', opts: ['1985', '1989', '1993', '1995'], ans: 1 },
+  { q: 'What does "API" stand for?', opts: ['Application Programming Interface', 'Automated Process Integration', 'Active Protocol Instance', 'Application Process Index'], ans: 0, tip: 'APIs are contracts between software systems. REST APIs became dominant in the 2000s, while GraphQL (2015) lets clients request only the data they need, reducing over-fetching.' },
+  { q: 'What does "RAM" stand for in computing?', opts: ['Readily Accessible Memory', 'Random Access Memory', 'Read And Modify', 'Rapid Action Module'], ans: 1, tip: '"Random Access" means any memory address can be read in the same time regardless of location — unlike tape drives where you had to rewind to reach earlier data.' },
+  { q: 'What is the binary representation of the decimal number 10?', opts: ['1010', '1100', '1001', '1110'], ans: 0, tip: 'Binary uses only 0s and 1s because digital circuits have two states: on and off. The number 10 in binary (1010) means 1×8 + 0×4 + 1×2 + 0×1 = 10.' },
+  { q: 'What technique in machine learning prevents overfitting by randomly disabling neurons?', opts: ['Pooling', 'Dropout', 'Batch Norm', 'Pruning'], ans: 1, tip: 'Dropout, introduced in 2014, randomly zeroes out neurons during training, forcing the network to learn multiple redundant representations and generalize better to new data.' },
+  { q: 'What year was the World Wide Web invented?', opts: ['1985', '1989', '1993', '1995'], ans: 1, tip: 'Tim Berners-Lee proposed the WWW in 1989 at CERN to help scientists share information. He intentionally kept it free and unpatented — a decision that changed the world.' },
 
   // Technology
-  { q: 'What does "HTTP" stand for?', opts: ['HyperText Transfer Protocol', 'High Tech Transfer Process', 'HyperThread Text Protocol', 'Home Tool Transfer Platform'], ans: 0 },
-  { q: 'In what year was the first iPhone released?', opts: ['2005', '2006', '2007', '2008'], ans: 2 },
-  { q: 'What programming language was created by Guido van Rossum?', opts: ['Java', 'Ruby', 'Python', 'Perl'], ans: 2 },
-  { q: 'What does "SaaS" stand for?', opts: ['Software and a Service', 'Software as a Service', 'System as a Solution', 'Scalable App and Service'], ans: 1 },
-  { q: 'Which company developed the Kubernetes container platform?', opts: ['Amazon', 'Microsoft', 'Google', 'IBM'], ans: 2 },
+  { q: 'What does "HTTP" stand for?', opts: ['HyperText Transfer Protocol', 'High Tech Transfer Process', 'HyperThread Text Protocol', 'Home Tool Transfer Platform'], ans: 0, tip: 'HTTP/1.1 (1997) supported persistent connections. HTTP/2 (2015) added multiplexing. HTTP/3 (2022) runs over QUIC instead of TCP, dramatically reducing latency.' },
+  { q: 'In what year was the first iPhone released?', opts: ['2005', '2006', '2007', '2008'], ans: 2, tip: 'Steve Jobs introduced the iPhone on January 9, 2007, calling it "an iPod, a phone, and an internet communicator" — three devices in one. It had no App Store at launch.' },
+  { q: 'What programming language was created by Guido van Rossum?', opts: ['Java', 'Ruby', 'Python', 'Perl'], ans: 2, tip: 'Guido van Rossum named Python after "Monty Python\'s Flying Circus," not the snake. He was reading scripts from the show while developing it in the late 1980s.' },
+  { q: 'What does "SaaS" stand for?', opts: ['Software and a Service', 'Software as a Service', 'System as a Solution', 'Scalable App and Service'], ans: 1, tip: 'Salesforce pioneered the SaaS model in 1999. Before SaaS, companies had to buy and install software on-premise — a process that could take months and cost millions.' },
+  { q: 'Which company developed the Kubernetes container platform?', opts: ['Amazon', 'Microsoft', 'Google', 'IBM'], ans: 2, tip: 'Kubernetes (K8s) was open-sourced by Google in 2014, based on their internal system "Borg." The name comes from Greek for "helmsman" — fitting for a container orchestrator.' },
 
   // Movies
-  { q: 'Who directed "Inception" (2010)?', opts: ['Ridley Scott', 'Christopher Nolan', 'Denis Villeneuve', 'Steven Spielberg'], ans: 1 },
-  { q: 'What fictional metal is Captain America\'s shield made of?', opts: ['Adamantium', 'Vibranium', 'Unobtanium', 'Carbonadium'], ans: 1 },
-  { q: 'Which film won Best Picture at the 2024 Oscars?', opts: ['Barbie', 'Oppenheimer', 'Killers of the Flower Moon', 'Poor Things'], ans: 1 },
-  { q: 'In "The Matrix," what color pill does Neo take?', opts: ['Blue', 'Red', 'Green', 'White'], ans: 1 },
-  { q: 'What is the highest-grossing film of all time (unadjusted)?', opts: ['Avengers: Endgame', 'Avatar', 'Titanic', 'Star Wars: The Force Awakens'], ans: 1 },
+  { q: 'Who directed "Inception" (2010)?', opts: ['Ridley Scott', 'Christopher Nolan', 'Denis Villeneuve', 'Steven Spielberg'], ans: 1, tip: 'Christopher Nolan wrote Inception\'s script over nearly a decade. The film\'s iconic "BRAAAM" horn sound, created by Hans Zimmer, became one of the most imitated sounds in movie trailers.' },
+  { q: 'What fictional metal is Captain America\'s shield made of?', opts: ['Adamantium', 'Vibranium', 'Unobtanium', 'Carbonadium'], ans: 1, tip: 'Vibranium is fictional and native to Wakanda in Marvel Comics. The shield was introduced in 1941 — originally circular for aerodynamic reasons — and has appeared in nearly every Cap story since.' },
+  { q: 'Which film won Best Picture at the 2024 Oscars?', opts: ['Barbie', 'Oppenheimer', 'Killers of the Flower Moon', 'Poor Things'], ans: 1, tip: 'Oppenheimer swept the 2024 Oscars with 7 wins including Best Picture and Best Director. It grossed over $952M worldwide, making it the highest-grossing biopic of all time.' },
+  { q: 'In "The Matrix," what color pill does Neo take?', opts: ['Blue', 'Red', 'Green', 'White'], ans: 1, tip: 'The red/blue pill metaphor became a cultural phenomenon. The Wachowskis have said the pills are a metaphor for truth vs. comfortable illusion — a theme rooted in Plato\'s Allegory of the Cave.' },
+  { q: 'What is the highest-grossing film of all time (unadjusted)?', opts: ['Avengers: Endgame', 'Avatar', 'Titanic', 'Star Wars: The Force Awakens'], ans: 1, tip: 'Avatar (2009) grossed $2.92B. James Cameron also directed Titanic (1997). A 2022 re-release of Avatar helped it reclaim the top spot after being briefly overtaken by Avengers: Endgame.' },
 
   // Pop Culture
-  { q: 'What is the name of Taylor Swift\'s 2024 concert tour?', opts: ['Reputation Tour', 'Eras Tour', 'Midnights Tour', 'Folklore Tour'], ans: 1 },
-  { q: 'Which video game franchise features a character named Master Chief?', opts: ['Gears of War', 'Destiny', 'Halo', 'Call of Duty'], ans: 2 },
-  { q: 'What social media platform was formerly known as Twitter?', opts: ['Threads', 'X', 'Bluesky', 'Mastodon'], ans: 1 },
-  { q: 'Which K-pop group performed at the 2023 FIFA World Cup?', opts: ['BLACKPINK', 'BTS', 'Stray Kids', 'Jung Kook (solo)'], ans: 3 },
-  { q: 'In "Stranger Things," what is Eleven\'s favorite food?', opts: ['Pizza', 'Eggo Waffles', 'Chicken Nuggets', 'French Fries'], ans: 1 }
+  { q: 'What is the name of Taylor Swift\'s 2024 concert tour?', opts: ['Reputation Tour', 'Eras Tour', 'Midnights Tour', 'Folklore Tour'], ans: 1, tip: 'The Eras Tour became the first concert tour to gross over $1 billion. Taylor Swift\'s economic impact on host cities was so significant it was dubbed the "Taylor Swift Effect" by economists.' },
+  { q: 'Which video game franchise features a character named Master Chief?', opts: ['Gears of War', 'Destiny', 'Halo', 'Call of Duty'], ans: 2, tip: 'Master Chief (John-117) debuted in Halo: Combat Evolved (2001) as the launch title for the original Xbox. The franchise essentially saved Microsoft\'s gaming division in its early years.' },
+  { q: 'What social media platform was formerly known as Twitter?', opts: ['Threads', 'X', 'Bluesky', 'Mastodon'], ans: 1, tip: 'Elon Musk renamed Twitter to "X" in 2023 as part of his vision for an "everything app." Twitter was founded in 2006; the first ever tweet was "just setting up my twttr."' },
+  { q: 'Which K-pop group performed at the 2023 FIFA World Cup?', opts: ['BLACKPINK', 'BTS', 'Stray Kids', 'Jung Kook (solo)'], ans: 3, tip: 'Jung Kook performed "Dreamers" at the 2022 FIFA World Cup opening ceremony in Qatar (broadcast in 2023). BTS took a hiatus in 2022 when its members began mandatory military service.' },
+  { q: 'In "Stranger Things," what is Eleven\'s favorite food?', opts: ['Pizza', 'Eggo Waffles', 'Chicken Nuggets', 'French Fries'], ans: 1, tip: 'The show\'s iconic Eggo product placement was unsponsored — the writers simply needed a food Eleven could hide and eat secretly. Kellogg\'s noticed the spike in Eggo sales and leaned in.' }
 ],
   TEAM_JEOPARDY_BOARD: [
     {

@@ -5,20 +5,32 @@ TEAM_BUILDER_ADMIN_RUNTIME.applyBranding = function applyBranding(config) {
   const preferences = normalizeAppPreferences(config?.preferences || {});
   const appName = String(branding.appName || APP.branding.appName).trim();
   const tagline = String(branding.tagline || APP.branding.tagline).trim();
-  const accent = /^#[0-9a-fA-F]{6}$/.test(String(branding.accent || '').trim())
-    ? String(branding.accent).trim()
-    : APP.branding.accent;
+  const isHex = (v) => /^#[0-9a-fA-F]{6}$/.test(String(v || '').trim());
+  const accent = isHex(branding.accent) ? String(branding.accent).trim() : (APP.branding.accent || '#00d2d3');
+  const accentAlt = isHex(branding.accentAlt) ? String(branding.accentAlt).trim() : (APP.branding.accentAlt || '');
+  const bgColor = isHex(branding.bgColor) ? String(branding.bgColor).trim() : (APP.branding.bgColor || '');
+  const validThemes = ['default', 'servicenow'];
+  const colorTheme = validThemes.includes(String(branding.colorTheme || '').toLowerCase())
+    ? String(branding.colorTheme).toLowerCase()
+    : (APP.branding.colorTheme || 'default');
 
   APP.branding = {
     appName: appName || APP.branding.appName,
     tagline: tagline || APP.branding.tagline,
-    accent
+    accent,
+    accentAlt,
+    bgColor,
+    colorTheme
   };
   APP.preferences = {
     ...APP.preferences,
     ...preferences
   };
-  document.documentElement.style.setProperty('--accent', APP.branding.accent);
+  if (typeof applyColorTheme === 'function') {
+    applyColorTheme(APP.branding);
+  } else {
+    document.documentElement.style.setProperty('--accent', APP.branding.accent);
+  }
   syncFooterQuoteRotation();
 };
 
@@ -60,6 +72,7 @@ TEAM_BUILDER_ADMIN_RUNTIME.applyConfigPayload = function applyConfigPayload(data
   const collections = TEAM_BUILDER_ADMIN_RUNTIME.normalizeClientCollections(data?.collections || []);
   APP.admin.collections = collections;
   APP.admin.communityHostRequests = normalizeCommunityHostRequests(data?.communityHostRequests || APP.admin.communityHostRequests || []);
+  APP.admin.sessions = Array.isArray(data?.sessions) ? data.sessions : (APP.admin.sessions || []);
   APP.admin.configDatabaseConnected = Boolean(data?.storage?.configDatabaseConnected);
   APP.preferences = normalizeAppPreferences(config?.preferences || APP.preferences || {});
   rehydrateActivityBanksFromConfig(collections);
@@ -291,6 +304,7 @@ TEAM_BUILDER_ADMIN_RUNTIME.adminLogin = async function adminLogin() {
     APP.admin.authenticated = true;
     await TEAM_BUILDER_ADMIN_RUNTIME.refreshAdminConfig();
     await TEAM_BUILDER_ADMIN_RUNTIME.refreshAdminFeedback();
+    await TEAM_BUILDER_ADMIN_RUNTIME.refreshAdminSessions();
   } catch (e) {
     APP.admin.authenticated = false;
     showError(e.message);
@@ -302,7 +316,10 @@ TEAM_BUILDER_ADMIN_RUNTIME.adminLogout = function adminLogout() {
   APP.admin.authenticated = false;
   APP.admin.activeTab = 'overview';
   APP.admin.feedback = [];
+  APP.admin.sessions = [];
   APP.admin.loading = false;
+  APP.admin.sessionsLoading = false;
+  APP.admin.sessionActionPending = '';
   APP.admin.savingConfig = false;
   APP.admin.generatingContent = false;
   APP.admin.generationStatus = null;
@@ -337,6 +354,57 @@ TEAM_BUILDER_ADMIN_RUNTIME.refreshAdminFeedback = async function refreshAdminFee
   }
 };
 
+TEAM_BUILDER_ADMIN_RUNTIME.refreshAdminSessions = async function refreshAdminSessions() {
+  if (!APP.admin.authenticated) return;
+  APP.admin.sessionsLoading = true;
+  render();
+  try {
+    const data = await apiRequest('/api/admin/sessions', { adminToken: APP.admin.token });
+    APP.admin.sessions = Array.isArray(data?.sessions) ? data.sessions : [];
+  } catch (e) {
+    showError(e.message);
+  } finally {
+    APP.admin.sessionsLoading = false;
+    render();
+  }
+};
+
+TEAM_BUILDER_ADMIN_RUNTIME.closeAdminSession = async function closeAdminSession(roomCode) {
+  if (!APP.admin.authenticated || !roomCode) return;
+  APP.admin.sessionActionPending = `close:${roomCode}`;
+  render();
+  try {
+    const data = await apiRequest(`/api/admin/sessions/${encodeURIComponent(roomCode)}`, {
+      method: 'DELETE',
+      adminToken: APP.admin.token
+    });
+    APP.admin.sessions = Array.isArray(data?.sessions) ? data.sessions : [];
+  } catch (e) {
+    showError(e.message);
+  } finally {
+    APP.admin.sessionActionPending = '';
+    render();
+  }
+};
+
+TEAM_BUILDER_ADMIN_RUNTIME.cleanupAbandonedAdminSessions = async function cleanupAbandonedAdminSessions() {
+  if (!APP.admin.authenticated) return;
+  APP.admin.sessionActionPending = 'cleanup-abandoned';
+  render();
+  try {
+    const data = await apiRequest('/api/admin/sessions/cleanup-abandoned', {
+      method: 'POST',
+      adminToken: APP.admin.token
+    });
+    APP.admin.sessions = Array.isArray(data?.sessions) ? data.sessions : [];
+  } catch (e) {
+    showError(e.message);
+  } finally {
+    APP.admin.sessionActionPending = '';
+    render();
+  }
+};
+
 TEAM_BUILDER_ADMIN_RUNTIME.saveAdminFeedbackItem = async function saveAdminFeedbackItem(feedbackId) {
   if (!feedbackId || !APP.admin.authenticated) return;
   const status = String(document.getElementById(`admin-status-${feedbackId}`)?.value || 'open');
@@ -358,6 +426,9 @@ TEAM_BUILDER_ADMIN_RUNTIME.saveAdminConfig = async function saveAdminConfig() {
   const appName = String(document.getElementById('adminBrandAppName')?.value || '').trim();
   const tagline = String(document.getElementById('adminBrandTagline')?.value || '').trim();
   const accent = String(document.getElementById('adminBrandAccent')?.value || '').trim();
+  const accentAlt = String(document.getElementById('adminBrandAccentAlt')?.value || '').trim();
+  const bgColor = String(document.getElementById('adminBrandBgColor')?.value || '').trim();
+  const colorTheme = String(document.getElementById('adminColorTheme')?.value || 'default').trim();
   const enableFeedbackHub = Boolean(document.getElementById('adminEnableFeedbackHub')?.checked);
   const enableActivityQueue = Boolean(document.getElementById('adminEnableActivityQueue')?.checked);
   const enableScheduleMeeting = Boolean(document.getElementById('adminEnableScheduleMeeting')?.checked);
@@ -369,6 +440,7 @@ TEAM_BUILDER_ADMIN_RUNTIME.saveAdminConfig = async function saveAdminConfig() {
   const autoRevealLightning = Boolean(document.getElementById('adminAutoRevealLightning')?.checked);
   const allowAnswerChanges = Boolean(document.getElementById('adminAllowAnswerChanges')?.checked);
   const dynamicScoring = Boolean(document.getElementById('adminDynamicScoring')?.checked);
+  const enableMessageBoard = Boolean(document.getElementById('adminEnableMessageBoard')?.checked);
   const communityHostAllowlist = String(document.getElementById('adminCommunityHostAllowlist')?.value || '')
     .split('\n')
     .map(name => normalizeName(name))
@@ -387,7 +459,7 @@ TEAM_BUILDER_ADMIN_RUNTIME.saveAdminConfig = async function saveAdminConfig() {
       method: 'PUT',
       adminToken: APP.admin.token,
       body: {
-        branding: { appName, tagline, accent },
+        branding: { appName, tagline, accent, accentAlt, bgColor, colorTheme },
         preferences: {
           enableFeedbackHub,
           enableActivityQueue,
@@ -400,6 +472,7 @@ TEAM_BUILDER_ADMIN_RUNTIME.saveAdminConfig = async function saveAdminConfig() {
           autoRevealLightning,
           allowAnswerChanges,
           dynamicScoring,
+          enableMessageBoard,
           communityHostAllowlist,
           enabledActivities
         },

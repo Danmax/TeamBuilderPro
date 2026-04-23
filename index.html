@@ -25,6 +25,23 @@
     --radius: 20px;
   }
 
+  html.theme-servicenow {
+    --bg: #00182D;
+    --surface: rgba(0,100,170,0.08);
+    --surface-solid: #002244;
+    --surface-2: rgba(0,100,170,0.14);
+    --border: rgba(255,255,255,0.09);
+    --border-hover: rgba(255,255,255,0.18);
+    --text: #E8EFF7;
+    --text-dim: #7A9CBF;
+    --text-mid: #A8C0D8;
+    --accent: #62D84E;
+    --accent-2: #00C7B1;
+    --success: #62D84E;
+    --warning: #F5A623;
+    --danger: #FF4D4D;
+  }
+
   * { margin:0; padding:0; box-sizing:border-box; }
 
   body {
@@ -3335,7 +3352,10 @@ function validateAIQuestions(items) {
       const opts = Array.isArray(item.opts) ? item.opts.map(v => normalizeTriviaOption(v)) : [];
       const ans = normalizeAnswerIndex(item.ans);
       if (!q || opts.length !== 4 || opts.some(v => !v) || Number.isNaN(ans) || ans < 0 || ans > 3) return null;
-      return { q, opts, ans };
+      const result = { q, opts, ans };
+      const tip = String(item.tip || '').trim();
+      if (tip) result.tip = tip.slice(0, 400);
+      return result;
     })
     .filter(Boolean);
 }
@@ -3572,6 +3592,50 @@ function normalizeQueueSchedule(rawSchedule, fallbackActivities = []) {
     }));
 }
 
+const COLOR_THEMES = {
+  default: null,
+  servicenow: {
+    '--bg': '#00182D',
+    '--surface': 'rgba(0,100,170,0.08)',
+    '--surface-solid': '#002244',
+    '--surface-2': 'rgba(0,100,170,0.14)',
+    '--border': 'rgba(255,255,255,0.09)',
+    '--border-hover': 'rgba(255,255,255,0.18)',
+    '--text': '#E8EFF7',
+    '--text-dim': '#7A9CBF',
+    '--text-mid': '#A8C0D8',
+    '--accent': '#62D84E',
+    '--accent-2': '#00C7B1',
+    '--success': '#62D84E',
+    '--warning': '#F5A623',
+    '--danger': '#FF4D4D'
+  }
+};
+
+const THEME_CSS_VARS = ['--bg','--surface','--surface-solid','--surface-2','--border','--border-hover','--text','--text-dim','--text-mid','--accent','--accent-2','--success','--warning','--danger'];
+
+function applyColorTheme(branding) {
+  const el = document.documentElement;
+  const theme = String(branding?.colorTheme || 'default').toLowerCase();
+  const base = COLOR_THEMES[theme] || {};
+
+  // Remove all previously set theme vars so :root defaults take over when switching back
+  THEME_CSS_VARS.forEach(v => el.style.removeProperty(v));
+
+  // Apply base theme vars
+  Object.entries(base).forEach(([key, val]) => el.style.setProperty(key, val));
+
+  // Apply individual custom color overrides on top of the theme
+  const isHex = (v) => /^#[0-9a-fA-F]{6}$/.test(String(v || '').trim());
+  if (isHex(branding?.accent)) el.style.setProperty('--accent', String(branding.accent).trim());
+  if (isHex(branding?.accentAlt)) el.style.setProperty('--accent-2', String(branding.accentAlt).trim());
+  if (isHex(branding?.bgColor)) el.style.setProperty('--bg', String(branding.bgColor).trim());
+
+  // Toggle theme class for CSS-level rules
+  el.classList.remove('theme-default', 'theme-servicenow');
+  if (theme !== 'default') el.classList.add(`theme-${theme}`);
+}
+
 function getDefaultAppPreferences() {
   const enabledByDefault = new Set([
     'lightning-trivia',
@@ -3596,6 +3660,7 @@ function getDefaultAppPreferences() {
     autoRevealLightning: true,
     allowAnswerChanges: true,
     dynamicScoring: true,
+    enableMessageBoard: true,
     communityHostAllowlist: [],
     enabledActivities: Object.fromEntries((ALL_ACTIVITY_IDS || []).map(activityId => [activityId, enabledByDefault.has(activityId)]))
   };
@@ -3626,6 +3691,7 @@ function normalizeAppPreferences(raw) {
     autoRevealLightning: Boolean(source.autoRevealLightning ?? defaults.autoRevealLightning),
     allowAnswerChanges: Boolean(source.allowAnswerChanges ?? defaults.allowAnswerChanges),
     dynamicScoring: Boolean(source.dynamicScoring ?? defaults.dynamicScoring),
+    enableMessageBoard: Boolean(source.enableMessageBoard ?? defaults.enableMessageBoard),
     communityHostAllowlist: Array.isArray(source.communityHostAllowlist)
       ? source.communityHostAllowlist
         .map(name => normalizeName(String(name || '')))
@@ -3928,7 +3994,7 @@ function normalizeRoom(room) {
     communityTitle: String(room.communityTitle || '').replace(/\s+/g, ' ').trim().slice(0, 80),
     communityDescription: String(room.communityDescription || '').replace(/\s+/g, ' ').trim().slice(0, 220),
     maxParticipants: Math.max(2, Math.min(MAX_ROOM_PARTICIPANTS, Number(room.maxParticipants) || 24)),
-    communityChat: roomType === 'community' ? normalizeCommunityChatMessages(room.communityChat) : [],
+    communityChat: normalizeCommunityChatMessages(room.communityChat),
     host: normalizedHost || room.host || '',
     participants,
     hostSettings,
@@ -5110,7 +5176,10 @@ const APP = {
   branding: {
     appName: 'Team Builder',
     tagline: 'Team building, games, and challenges - all in one place',
-    accent: '#00d2d3'
+    accent: '#00d2d3',
+    accentAlt: '',
+    bgColor: '',
+    colorTheme: 'default'
   },
   preferences: {
     ...normalizeAppPreferences({})
@@ -5138,7 +5207,10 @@ const APP = {
     activeTab: 'overview',
     returnScreen: '',
     feedback: [],
+    sessions: [],
     loading: false,
+    sessionsLoading: false,
+    sessionActionPending: '',
     collections: [],
     communityHostRequests: [],
     configDatabaseConnected: false,
@@ -14415,7 +14487,7 @@ async function removeCommunityRoom(code = APP.roomCode) {
 }
 
 async function sendCommunityChatMessage(content = '') {
-  if (!APP.roomCode || !APP.room || APP.room.roomType !== 'community' || !APP.player?.id) return;
+  if (!APP.roomCode || !APP.room || !APP.player?.id) return;
   const input = document.getElementById('communityChatInput');
   const text = String(content || input?.value || '').replace(/\s+/g, ' ').trim().slice(0, 280);
   if (!text) {
@@ -14423,8 +14495,8 @@ async function sendCommunityChatMessage(content = '') {
     return;
   }
   const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
-  if (!room || room.roomType !== 'community') {
-    showError('Community lobby not found.');
+  if (!room) {
+    showError('Session not found.');
     return;
   }
   room.communityChat = normalizeCommunityChatMessages([
@@ -15071,11 +15143,11 @@ function buildAIPromptForActivity(activityId, topic, difficulty, count) {
     case 'lightning-trivia':
     case 'regular-trivia':
       return `Generate ${count} multiple-choice trivia questions about "${targetTopic}" at ${difficulty} difficulty.
-Return only valid JSON as an array. Each item must have: q (question), opts (array of 4 options), ans (zero-based index of correct option).
+Return only valid JSON as an array. Each item must have: q (question), opts (array of 4 options), ans (zero-based index of correct option). Optionally include a "tip" field with a short, interesting "Did You Know?" fact related to the correct answer (1-2 sentences, max 300 characters).
 
 Example output:
 [
-  {"q":"What is the largest planet in our solar system?","opts":["Earth","Mars","Jupiter","Saturn"],"ans":2},
+  {"q":"What is the largest planet in our solar system?","opts":["Earth","Mars","Jupiter","Saturn"],"ans":2,"tip":"Jupiter is so massive it could fit all other planets inside it twice over. Its Great Red Spot storm has been raging for over 350 years."},
   {"q":"In what year did the internet become publicly available?","opts":["1983","1991","1995","2000"],"ans":1}
 ]`;
     case 'icebreaker':
@@ -16038,6 +16110,15 @@ document.addEventListener('click', async (event) => {
       break;
     case 'refresh-admin-feedback':
       await refreshAdminFeedback();
+      break;
+    case 'refresh-admin-sessions':
+      await refreshAdminSessions();
+      break;
+    case 'close-admin-session':
+      if (roomCode) await closeAdminSession(roomCode);
+      break;
+    case 'cleanup-admin-abandoned-sessions':
+      await cleanupAbandonedAdminSessions();
       break;
     case 'save-admin-feedback-item':
       if (feedbackId) await saveAdminFeedbackItem(feedbackId);
@@ -22363,8 +22444,17 @@ function renderLightningTrivia() {
         </h3>
         ${leaderboardHtml}
       </div>
+      ${question.tip ? `
+        <div style="background:linear-gradient(135deg,rgba(254,202,87,0.08),rgba(254,202,87,0.04));border:1px solid rgba(254,202,87,0.28);border-radius:var(--radius);padding:18px 22px;margin-bottom:20px;display:flex;align-items:flex-start;gap:14px;">
+          <span style="font-size:1.6rem;line-height:1;flex-shrink:0;">💡</span>
+          <div>
+            <div style="font-weight:800;font-size:0.78rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--warning);margin-bottom:6px;">Did You Know?</div>
+            <div style="color:var(--text-mid);line-height:1.6;font-size:0.96rem;">${escapeHtml(question.tip)}</div>
+          </div>
+        </div>
+      ` : ''}
     `}
-    
+
     ${isHost ? `
       <button class="btn-primary" data-action="${revealed ? 'next-question' : 'reveal-answer'}">
         ${revealed ? (currentQ < TRIVIA_BANK.length - 1 ? 'Next Question' : 'View Final Results') : 'Reveal Answer'}
