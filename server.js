@@ -75,6 +75,10 @@ let roomMetaPersistTimer = null;
 let configDb = null;
 const roomSecrets = new Map();
 const voiceRooms = new Map();
+const SESSION_TTL_MINUTES = 242;
+const SESSION_TTL_MS = SESSION_TTL_MINUTES * 60 * 1000;
+const SESSION_CLEANUP_INTERVAL_MS = 60 * 1000;
+let sessionCleanupInterval = null;
 
 
 function getAdminToken() {
@@ -658,6 +662,94 @@ function getRoomPrivacyFromState(key) {
   return extractRoomPrivacyFromValue(state.get(key));
 }
 
+function getRoomParticipantCount(room) {
+  if (!room || !Array.isArray(room.participants)) return 0;
+  return room.participants.filter(participant => participant && typeof participant === 'object' && String(participant.name || '').trim()).length;
+}
+
+function getRoomLastActivityAt(key, room) {
+  const metaCreatedAt = Number(roomSecrets.get(key)?.createdAt) || 0;
+  return Math.max(
+    Number(room?.lastUpdate) || 0,
+    Number(room?.created) || 0,
+    metaCreatedAt,
+    0
+  );
+}
+
+function isClosedRoomState(room) {
+  if (!room || typeof room !== 'object') return true;
+  const participantCount = getRoomParticipantCount(room);
+  const hasHost = Boolean(String(room.host || '').trim());
+  const hasActivity = Boolean(String(room.currentActivity || '').trim());
+  return participantCount === 0 && !hasHost && !hasActivity;
+}
+
+function getRoomCleanupReason(key, room, now = Date.now()) {
+  if (!room || typeof room !== 'object') return 'malformed';
+  if (isClosedRoomState(room)) return 'closed';
+  const lastActivityAt = getRoomLastActivityAt(key, room);
+  if (!lastActivityAt) return 'stale_missing_timestamp';
+  if (now - lastActivityAt >= SESSION_TTL_MS) return 'expired';
+  return '';
+}
+
+function formatTimestamp(value) {
+  const numeric = Number(value) || 0;
+  return numeric ? new Date(numeric).toISOString() : null;
+}
+
+function getAdminRoomSummary(key, room, now = Date.now()) {
+  if (!isRoomKey(key) || !room || typeof room !== 'object') return null;
+  const participants = Array.isArray(room.participants)
+    ? room.participants.filter(participant => participant && typeof participant === 'object' && String(participant.name || '').trim())
+    : [];
+  const roomType = String(room.roomType || '').trim().toLowerCase() === 'community' ? 'community' : 'private';
+  const participantCount = participants.length;
+  const maxParticipants = Math.max(2, Number(room.maxParticipants) || 24);
+  const currentActivity = String(room.currentActivity || '').trim() || null;
+  const lastActivityAt = getRoomLastActivityAt(key, room);
+  const cleanupReason = getRoomCleanupReason(key, room, now);
+  const isClosed = isClosedRoomState(room);
+  const isExpired = cleanupReason === 'expired';
+  const isAbandoned = isClosed || isExpired;
+  return {
+    key,
+    code: String(room.code || key.replace(/^room:/, '')).trim(),
+    roomType,
+    title: roomType === 'community'
+      ? String(room.communityTitle || `${room.host || 'Host'}'s Community Lobby`).trim().slice(0, 80)
+      : String(room.title || room.sessionTitle || `${room.host || 'Host'}'s Session`).trim().slice(0, 80),
+    host: String(room.host || '').trim(),
+    participantCount,
+    maxParticipants,
+    participants: participants.map(participant => ({
+      id: String(participant.id || '').trim().slice(0, 64),
+      name: String(participant.name || '').trim().slice(0, 32),
+      isHost: participant.name === room.host
+    })),
+    currentActivity,
+    privateSession: room?.access?.privateSession === true || room?.hostSettings?.privateSession === true,
+    createdAt: formatTimestamp(room.created),
+    lastActivityAt: formatTimestamp(lastActivityAt),
+    expiresAt: lastActivityAt ? formatTimestamp(lastActivityAt + SESSION_TTL_MS) : null,
+    cleanupReason: cleanupReason || null,
+    isClosed,
+    isAbandoned
+  };
+}
+
+function listAdminRooms() {
+  const now = Date.now();
+  return Array.from(state.entries())
+    .map(([key, value]) => getAdminRoomSummary(key, safeParseJsonObject(value), now))
+    .filter(Boolean)
+    .sort((a, b) => {
+      if (a.isAbandoned !== b.isAbandoned) return a.isAbandoned ? -1 : 1;
+      return (Number(new Date(b.lastActivityAt || 0)) || 0) - (Number(new Date(a.lastActivityAt || 0)) || 0);
+    });
+}
+
 function getCommunityRoomSummary(key, room) {
   if (!isRoomKey(key) || !room || typeof room !== 'object') return null;
   const roomType = String(room.roomType || '').trim().toLowerCase();
@@ -722,6 +814,66 @@ function deleteRoomState(key) {
     scheduleRoomMetaPersist();
   }
   return existed;
+}
+
+function removeRoomSession(key, reason = 'deleted') {
+  const deleted = deleteRoomState(key);
+  if (!deleted) return false;
+  io.to(key).emit('shared:update', { key, value: null, reason });
+  io.in(key).socketsLeave(key);
+  return true;
+}
+
+function sweepExpiredRooms(options = {}) {
+  const {
+    log = false
+  } = options;
+  const now = Date.now();
+  const removedKeys = [];
+  let removedMetaEntries = 0;
+
+  Array.from(state.entries()).forEach(([key, value]) => {
+    if (!isRoomKey(key)) return;
+    const room = safeParseJsonObject(value);
+    const reason = getRoomCleanupReason(key, room, now);
+    if (!reason) return;
+    if (removeRoomSession(key, reason)) {
+      removedKeys.push(`${key}:${reason}`);
+    }
+  });
+
+  Array.from(roomSecrets.keys()).forEach(key => {
+    if (state.has(key)) return;
+    roomSecrets.delete(key);
+    removedMetaEntries += 1;
+  });
+
+  if (removedKeys.length) {
+    schedulePersist();
+    scheduleRoomMetaPersist();
+    if (log) {
+      // eslint-disable-next-line no-console
+      console.log(`Session cleanup removed ${removedKeys.length} room(s): ${removedKeys.join(', ')}`);
+    }
+  } else if (removedMetaEntries > 0) {
+    scheduleRoomMetaPersist();
+    if (log) {
+      // eslint-disable-next-line no-console
+      console.log(`Session cleanup removed ${removedMetaEntries} orphaned room metadata entr${removedMetaEntries === 1 ? 'y' : 'ies'}.`);
+    }
+  } else if (log) {
+    // eslint-disable-next-line no-console
+    console.log('Session cleanup found no expired or closed rooms.');
+  }
+
+  return removedKeys;
+}
+
+function startSessionCleanupLoop() {
+  if (sessionCleanupInterval) clearInterval(sessionCleanupInterval);
+  sessionCleanupInterval = setInterval(() => {
+    sweepExpiredRooms();
+  }, SESSION_CLEANUP_INTERVAL_MS);
 }
 
 function getRoomAccessMeta(key) {
@@ -1352,9 +1504,47 @@ app.get('/api/admin/config', requireAdmin, (_req, res) => {
     config: feedbackState.config,
     collections: feedbackState.collections,
     communityHostRequests: feedbackState.communityHostRequests,
+    sessions: listAdminRooms(),
     storage: {
       configDatabaseConnected: Boolean(configDb)
     }
+  });
+});
+
+app.get('/api/admin/sessions', requireAdmin, (_req, res) => {
+  res.json({
+    ok: true,
+    sessions: listAdminRooms(),
+    sessionTtlMinutes: SESSION_TTL_MINUTES
+  });
+});
+
+app.delete('/api/admin/sessions/:roomCode', requireAdmin, (req, res) => {
+  const roomCode = String(req.params?.roomCode || '').trim().toUpperCase();
+  const key = isRoomKey(`room:${roomCode}`) ? `room:${roomCode}` : '';
+  if (!key) {
+    res.status(400).json({ ok: false, error: 'Invalid room code.' });
+    return;
+  }
+  const deleted = removeRoomSession(key, 'admin_closed');
+  if (!deleted) {
+    res.status(404).json({ ok: false, error: 'Session not found.' });
+    return;
+  }
+  res.json({
+    ok: true,
+    closedRoomCode: roomCode,
+    sessions: listAdminRooms()
+  });
+});
+
+app.post('/api/admin/sessions/cleanup-abandoned', requireAdmin, (_req, res) => {
+  const removed = sweepExpiredRooms({ log: true });
+  res.json({
+    ok: true,
+    removed,
+    sessions: listAdminRooms(),
+    sessionTtlMinutes: SESSION_TTL_MINUTES
   });
 });
 
@@ -1390,7 +1580,8 @@ app.put('/api/admin/config', requireAdmin, async (req, res) => {
     ok: true,
     config: feedbackState.config,
     collections: feedbackState.collections,
-    communityHostRequests: feedbackState.communityHostRequests
+    communityHostRequests: feedbackState.communityHostRequests,
+    sessions: listAdminRooms()
   });
 });
 
@@ -1432,7 +1623,8 @@ app.patch('/api/admin/community-host-requests/:id', requireAdmin, async (req, re
     ok: true,
     request,
     config: feedbackState.config,
-    communityHostRequests: feedbackState.communityHostRequests
+    communityHostRequests: feedbackState.communityHostRequests,
+    sessions: listAdminRooms()
   });
 });
 
@@ -1506,9 +1698,7 @@ io.on('connection', socket => {
       ack?.({ ok: false, error: 'Unauthorized room access' });
       return;
     }
-    const deleted = deleteRoomState(key);
-    io.to(key).emit('shared:update', { key, value: null });
-    io.in(key).socketsLeave(key);
+    const deleted = removeRoomSession(key, 'deleted');
     ack?.({ ok: deleted });
   });
 
@@ -1761,10 +1951,12 @@ io.on('connection', socket => {
 loadStateFromDisk();
 loadFeedbackStateFromDisk();
 loadRoomMetaFromDisk();
+sweepExpiredRooms({ log: true });
 Promise.resolve()
   .then(() => initializeConfigDatabase())
   .then(() => loadConfigFromDatabase())
   .finally(() => {
+    startSessionCleanupLoop();
     server.listen(PORT, () => {
       // eslint-disable-next-line no-console
       console.log(`Team Builder realtime server listening on http://localhost:${PORT}`);
@@ -1777,6 +1969,8 @@ Promise.resolve()
         // eslint-disable-next-line no-console
         console.log('Global config storage: Local file');
       }
+      // eslint-disable-next-line no-console
+      console.log(`Session TTL: ${SESSION_TTL_MINUTES} minutes; cleanup sweep every ${Math.round(SESSION_CLEANUP_INTERVAL_MS / 1000)}s`);
     });
   });
 
@@ -1784,6 +1978,7 @@ process.on('SIGINT', () => {
   if (persistTimer) clearTimeout(persistTimer);
   if (feedbackPersistTimer) clearTimeout(feedbackPersistTimer);
   if (roomMetaPersistTimer) clearTimeout(roomMetaPersistTimer);
+  if (sessionCleanupInterval) clearInterval(sessionCleanupInterval);
   persistStateToDisk();
   persistFeedbackStateToDisk();
   persistRoomMetaToDisk();
@@ -1797,6 +1992,7 @@ process.on('SIGTERM', () => {
   if (persistTimer) clearTimeout(persistTimer);
   if (feedbackPersistTimer) clearTimeout(feedbackPersistTimer);
   if (roomMetaPersistTimer) clearTimeout(roomMetaPersistTimer);
+  if (sessionCleanupInterval) clearInterval(sessionCleanupInterval);
   persistStateToDisk();
   persistFeedbackStateToDisk();
   persistRoomMetaToDisk();

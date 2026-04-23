@@ -1,6 +1,26 @@
-# Team Builder
+# Team Builder Pro
 
-Team Builder is a realtime facilitation app for host-led team sessions. It combines room management, multiplayer activities, live voice, presentation tools, and session planning in one web app.
+Team Builder Pro is a realtime facilitation app for host-led team sessions. It combines room management, multiplayer activities, live voice, presentation tools, and session planning in one web app.
+
+## Quick Start
+
+Requirements:
+
+- Node.js 22.x
+- npm
+
+Install dependencies and start the server:
+
+```bash
+npm install
+npm start
+```
+
+Open:
+
+- `http://localhost:3000`
+
+The app runs locally with Socket.IO and JSON persistence by default. Runtime files are created in `.runtime-data/` and should not be committed.
 
 ## What It Includes
 
@@ -181,16 +201,12 @@ Notes:
 - The default realtime/storage path uses Socket.IO plus local runtime persistence.
 - Supabase code is present only as an optional browser-side fallback for shared room state and realtime sync.
 
-## Local Development
+## Development Notes
 
-```bash
-npm install
-npm start
-```
-
-Open:
-
-- `http://localhost:3000`
+- `npm start` runs `server.js`.
+- `PORT` can be set to run on a different port.
+- Admin-only flows can be protected with `ADMIN_TOKEN`, `DEV_ADMIN_PASSWORD`, or `ADMIN_TEMP_PASSWORD` depending on the environment.
+- Supabase is optional; the local default does not require Supabase credentials.
 
 ## Repository Structure
 

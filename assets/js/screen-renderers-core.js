@@ -349,6 +349,9 @@ TEAM_BUILDER_SCREEN_RENDERERS.renderAdminConsole = function renderAdminConsole()
   const safeAppName = escapeHtml(APP.branding.appName || '');
   const safeTagline = escapeHtml(APP.branding.tagline || '');
   const safeAccent = escapeHtml(APP.branding.accent || '#00d2d3');
+  const safeAccentAlt = escapeHtml(APP.branding.accentAlt || '');
+  const safeBgColor = escapeHtml(APP.branding.bgColor || '');
+  const safeColorTheme = escapeHtml(APP.branding.colorTheme || 'default');
   const backScreen = APP.roomCode && (admin.returnScreen === 'lobby' || admin.returnScreen === 'activity-queue')
     ? admin.returnScreen
     : 'dashboard';
@@ -362,6 +365,8 @@ TEAM_BUILDER_SCREEN_RENDERERS.renderAdminConsole = function renderAdminConsole()
   const collections = Array.isArray(admin.collections) ? admin.collections : [];
   const dbConnected = Boolean(admin.configDatabaseConnected);
   const feedback = admin.feedback || [];
+  const sessions = Array.isArray(admin.sessions) ? admin.sessions : [];
+  const abandonedSessions = sessions.filter(item => item?.isAbandoned);
   const communityHostRequests = normalizeCommunityHostRequests(admin.communityHostRequests || []);
   const pendingCommunityHostRequests = communityHostRequests.filter(item => item.status === 'pending');
   const statusColor = {
@@ -416,9 +421,51 @@ TEAM_BUILDER_SCREEN_RENDERERS.renderAdminConsole = function renderAdminConsole()
           <label class="form-label" for="adminBrandTagline">Tagline</label>
           <input id="adminBrandTagline" class="form-input" value="${safeTagline}" maxlength="140">
         </div>
-        <div class="form-group">
-          <label class="form-label" for="adminBrandAccent">Accent Color (#RRGGBB)</label>
-          <input id="adminBrandAccent" class="form-input" value="${safeAccent}" maxlength="7" placeholder="#00d2d3">
+        <div style="margin-bottom:18px;padding:16px;background:var(--surface-2);border:1px solid var(--border);border-radius:14px;">
+          <div style="font-weight:700;margin-bottom:12px;">Color Theme</div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" for="adminColorTheme">Theme Preset</label>
+            <select id="adminColorTheme" class="form-input">
+              <option value="default" ${safeColorTheme === 'default' ? 'selected' : ''}>Default (Dark)</option>
+              <option value="servicenow" ${safeColorTheme === 'servicenow' ? 'selected' : ''}>ServiceNow Branded</option>
+            </select>
+          </div>
+          <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:12px;">
+            Customize individual colors below. Leave blank to use theme defaults.
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">
+            <div class="form-group" style="margin:0;">
+              <label class="form-label" for="adminBrandAccent">Primary Accent</label>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <input type="color" id="adminBrandAccentPicker" value="${safeAccent.startsWith('#') ? safeAccent : '#00d2d3'}" style="width:36px;height:36px;border:none;background:none;padding:0;cursor:pointer;border-radius:6px;overflow:hidden;" oninput="document.getElementById('adminBrandAccent').value=this.value">
+                <input id="adminBrandAccent" class="form-input" value="${safeAccent}" maxlength="7" placeholder="#00d2d3" style="flex:1;" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById('adminBrandAccentPicker').value=this.value">
+              </div>
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label class="form-label" for="adminBrandAccentAlt">Secondary Accent</label>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <input type="color" id="adminBrandAccentAltPicker" value="${safeAccentAlt.startsWith('#') ? safeAccentAlt : '#c56cf0'}" style="width:36px;height:36px;border:none;background:none;padding:0;cursor:pointer;border-radius:6px;overflow:hidden;" oninput="document.getElementById('adminBrandAccentAlt').value=this.value">
+                <input id="adminBrandAccentAlt" class="form-input" value="${safeAccentAlt}" maxlength="7" placeholder="Theme default" style="flex:1;" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById('adminBrandAccentAltPicker').value=this.value">
+              </div>
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label class="form-label" for="adminBrandBgColor">Background</label>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <input type="color" id="adminBrandBgColorPicker" value="${safeBgColor.startsWith('#') ? safeBgColor : '#07070d'}" style="width:36px;height:36px;border:none;background:none;padding:0;cursor:pointer;border-radius:6px;overflow:hidden;" oninput="document.getElementById('adminBrandBgColor').value=this.value">
+                <input id="adminBrandBgColor" class="form-input" value="${safeBgColor}" maxlength="7" placeholder="Theme default" style="flex:1;" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById('adminBrandBgColorPicker').value=this.value">
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <div title="ServiceNow Green" style="width:24px;height:24px;border-radius:6px;background:#62D84E;cursor:pointer;border:2px solid rgba(255,255,255,0.2);" onclick="document.getElementById('adminBrandAccent').value='#62D84E';document.getElementById('adminBrandAccentPicker').value='#62D84E';"></div>
+              <div title="ServiceNow Teal" style="width:24px;height:24px;border-radius:6px;background:#00C7B1;cursor:pointer;border:2px solid rgba(255,255,255,0.2);" onclick="document.getElementById('adminBrandAccentAlt').value='#00C7B1';document.getElementById('adminBrandAccentAltPicker').value='#00C7B1';"></div>
+              <div title="ServiceNow Navy" style="width:24px;height:24px;border-radius:6px;background:#00182D;cursor:pointer;border:2px solid rgba(255,255,255,0.2);" onclick="document.getElementById('adminBrandBgColor').value='#00182D';document.getElementById('adminBrandBgColorPicker').value='#00182D';"></div>
+              <div title="Default Cyan" style="width:24px;height:24px;border-radius:6px;background:#00d2d3;cursor:pointer;border:2px solid rgba(255,255,255,0.2);" onclick="document.getElementById('adminBrandAccent').value='#00d2d3';document.getElementById('adminBrandAccentPicker').value='#00d2d3';"></div>
+              <div title="Default Purple" style="width:24px;height:24px;border-radius:6px;background:#c56cf0;cursor:pointer;border:2px solid rgba(255,255,255,0.2);" onclick="document.getElementById('adminBrandAccentAlt').value='#c56cf0';document.getElementById('adminBrandAccentAltPicker').value='#c56cf0';"></div>
+            </div>
+            <span style="font-size:0.75rem;color:var(--text-dim);align-self:center;">Quick colors</span>
+          </div>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">
           <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px;">
@@ -434,9 +481,65 @@ TEAM_BUILDER_SCREEN_RENDERERS.renderAdminConsole = function renderAdminConsole()
             <div style="font-size:1.28rem;font-weight:800;">${feedback.filter(item => (item.status || 'open') !== 'resolved').length}</div>
           </div>
           <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px;">
+            <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:6px;">Live Sessions</div>
+            <div style="font-size:1.28rem;font-weight:800;">${sessions.length}</div>
+          </div>
+          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px;">
+            <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:6px;">Abandoned Sessions</div>
+            <div style="font-size:1.28rem;font-weight:800;">${abandonedSessions.length}</div>
+          </div>
+          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px;">
             <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:6px;">Pending Host Requests</div>
             <div style="font-size:1.28rem;font-weight:800;">${pendingCommunityHostRequests.length}</div>
           </div>
+        </div>
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+            <div>
+              <div style="font-weight:700;">Session Management</div>
+              <div style="font-size:0.82rem;color:var(--text-dim);">Sessions expire after 242 minutes. Admin can refresh, close one session, or clean up abandoned sessions immediately.</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn-secondary" data-action="refresh-admin-sessions" style="width:auto;" ${admin.sessionsLoading ? 'disabled aria-busy="true"' : ''}>${admin.sessionsLoading ? 'Refreshing...' : 'Refresh Sessions'}</button>
+              <button class="btn-primary" data-action="cleanup-admin-abandoned-sessions" style="width:auto;" ${(admin.sessionActionPending === 'cleanup-abandoned' || !abandonedSessions.length) ? 'disabled aria-busy="true"' : ''}>${admin.sessionActionPending === 'cleanup-abandoned' ? 'Closing...' : `Close Abandoned (${abandonedSessions.length})`}</button>
+            </div>
+          </div>
+          ${!sessions.length ? `
+            <div style="font-size:0.84rem;color:var(--text-dim);">No live sessions found.</div>
+          ` : sessions.map(session => {
+            const closePending = admin.sessionActionPending === `close:${session.code}`;
+            const badgeColor = session.isAbandoned ? 'var(--warning)' : 'var(--accent)';
+            const badgeLabel = session.cleanupReason ? String(session.cleanupReason).replace(/_/g, ' ') : (session.currentActivity ? 'active' : 'open');
+            return `
+              <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;">
+                <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
+                  <div>
+                    <div style="font-weight:700;">${escapeHtml(session.title || session.code || 'Session')}</div>
+                    <div style="font-size:0.82rem;color:var(--text-dim);">
+                      ${escapeHtml(session.code || '')} • ${escapeHtml(session.roomType || 'private')} • ${escapeHtml(session.privateSession ? 'private access' : 'open access')}
+                    </div>
+                  </div>
+                  <span style="padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.05);border:1px solid var(--border);font-size:0.76rem;font-weight:800;color:${badgeColor};text-transform:uppercase;">
+                    ${escapeHtml(badgeLabel)}
+                  </span>
+                </div>
+                <div style="font-size:0.84rem;color:var(--text-mid);margin-bottom:8px;">
+                  Host: <strong>${escapeHtml(session.host || 'Unassigned')}</strong> • Participants: <strong>${escapeHtml(String(session.participantCount || 0))}/${escapeHtml(String(session.maxParticipants || 24))}</strong> • Activity: <strong>${escapeHtml(session.currentActivity || 'Lobby')}</strong>
+                </div>
+                <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:10px;">
+                  Created: ${escapeHtml(session.createdAt || 'Unknown')}<br>
+                  Last activity: ${escapeHtml(session.lastActivityAt || 'Unknown')}<br>
+                  Expires: ${escapeHtml(session.expiresAt || 'Unknown')}
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+                  <div style="font-size:0.82rem;color:var(--text-dim);">
+                    ${session.participants?.length ? escapeHtml(session.participants.map(item => item.name || 'Unknown').join(', ')) : 'No active participants tracked.'}
+                  </div>
+                  <button class="btn-secondary" data-action="close-admin-session" data-room-code="${escapeHtml(session.code || '')}" style="width:auto;border-color:rgba(255,107,107,0.3);color:#ff9c9c;" ${closePending ? 'disabled aria-busy="true"' : ''}>${closePending ? 'Closing...' : 'Close Session'}</button>
+                </div>
+              </div>
+            `;
+          }).join('')}
         </div>
       </div>
 
@@ -473,6 +576,10 @@ TEAM_BUILDER_SCREEN_RENDERERS.renderAdminConsole = function renderAdminConsole()
         <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
           <input id="adminEnableFooterQuotes" type="checkbox" ${preferences.enableFooterQuotes === true ? 'checked' : ''}>
           Enable inspiring team quote footer
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <input id="adminEnableMessageBoard" type="checkbox" ${preferences.enableMessageBoard !== false ? 'checked' : ''}>
+          Enable Message Board in session lobby (all rooms)
         </label>
         <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
           <div style="font-weight:700;margin-bottom:10px;">Global Game Rules</div>

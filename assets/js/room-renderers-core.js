@@ -182,11 +182,11 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
       `).join('')}
     </div>
 
-    ${isCommunityRoom ? `
+    ${APP.preferences?.enableMessageBoard !== false ? `
       <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:30px;">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
-          <h3 style="font-weight:700;">Community Chat</h3>
-          <div style="font-size:0.82rem;color:var(--text-dim);">Lobby-wide messages and emoji reactions</div>
+          <h3 style="font-weight:700;">${isCommunityRoom ? '💬 Community Chat' : '📋 Session Message Board'}</h3>
+          <div style="font-size:0.82rem;color:var(--text-dim);">${isCommunityRoom ? 'Lobby-wide messages and emoji reactions' : 'Share notes, links, or reactions with the team'}</div>
         </div>
 
         <div data-community-chat-list="1" style="display:grid;gap:10px;max-height:420px;overflow:auto;padding-right:4px;">
@@ -212,7 +212,7 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
             `;
           }).join('') : `
             <div style="background:var(--surface-2);border:1px dashed var(--border);border-radius:14px;padding:18px;color:var(--text-dim);text-align:center;">
-              No messages yet. Start the conversation or drop an emoji.
+              ${isCommunityRoom ? 'No messages yet. Start the conversation or drop an emoji.' : 'No messages yet. Share a link, note, or quick reaction with the team.'}
             </div>
           `}
         </div>
@@ -220,7 +220,7 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
         <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
           <div class="form-group" style="margin:0 0 10px;">
             <label class="form-label" for="communityChatInput">Message</label>
-            <input id="communityChatInput" class="form-input" maxlength="280" placeholder="Say hi, react, or coordinate the next game">
+            <input id="communityChatInput" class="form-input" maxlength="280" placeholder="${isCommunityRoom ? 'Say hi, react, or coordinate the next game' : 'Share a message, link, or note with the team'}">
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
             <div style="position:relative;">
