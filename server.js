@@ -203,11 +203,18 @@ function normalizeConfig(rawConfig) {
   const tagline = String(existingBranding.tagline || 'Team building, games, and challenges - all in one place').trim().slice(0, 140)
     || 'Team building, games, and challenges - all in one place';
   const accentRaw = String(existingBranding.accent || '#00d2d3').trim();
+  const accentAltRaw = String(existingBranding.accentAlt || '').trim();
+  const bgColorRaw = String(existingBranding.bgColor || '').trim();
+  const validThemes = new Set(['default', 'servicenow']);
+  const colorThemeRaw = String(existingBranding.colorTheme || 'default').trim().toLowerCase();
   return {
     branding: {
       appName,
       tagline,
-      accent: isValidHexColor(accentRaw) ? accentRaw : '#00d2d3'
+      accent: isValidHexColor(accentRaw) ? accentRaw : '#00d2d3',
+      accentAlt: isValidHexColor(accentAltRaw) ? accentAltRaw : '',
+      bgColor: isValidHexColor(bgColorRaw) ? bgColorRaw : '',
+      colorTheme: validThemes.has(colorThemeRaw) ? colorThemeRaw : 'default'
     },
     preferences: normalizePreferences(source.preferences)
   };
@@ -1556,12 +1563,21 @@ app.put('/api/admin/config', requireAdmin, async (req, res) => {
   const appName = String(branding.appName ?? feedbackState.config.branding.appName).trim().slice(0, 64);
   const tagline = String(branding.tagline ?? feedbackState.config.branding.tagline).trim().slice(0, 140);
   const accent = String(branding.accent ?? feedbackState.config.branding.accent).trim();
+  const accentAlt = String(branding.accentAlt ?? (feedbackState.config.branding.accentAlt || '')).trim();
+  const bgColor = String(branding.bgColor ?? (feedbackState.config.branding.bgColor || '')).trim();
+  const colorThemeRaw = String(branding.colorTheme ?? (feedbackState.config.branding.colorTheme || 'default')).trim().toLowerCase();
   const normalizedAccent = isValidHexColor(accent) ? accent : feedbackState.config.branding.accent;
+  const normalizedAccentAlt = isValidHexColor(accentAlt) ? accentAlt : '';
+  const normalizedBgColor = isValidHexColor(bgColor) ? bgColor : '';
+  const normalizedColorTheme = ['default', 'servicenow'].includes(colorThemeRaw) ? colorThemeRaw : 'default';
 
   feedbackState.config.branding = {
     appName: appName || feedbackState.config.branding.appName,
     tagline: tagline || feedbackState.config.branding.tagline,
-    accent: normalizedAccent
+    accent: normalizedAccent,
+    accentAlt: normalizedAccentAlt,
+    bgColor: normalizedBgColor,
+    colorTheme: normalizedColorTheme
   };
 
   feedbackState.config.preferences = {
