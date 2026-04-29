@@ -48,6 +48,7 @@ const ALL_ACTIVITY_IDS = [
   'tic-tac-toe-blitz',
   'team-jeopardy',
   'spin-wheel',
+  'presentation',
   'slides-studio',
   'dj-booth',
   'battleship',
