@@ -51,6 +51,7 @@ const ALL_ACTIVITY_IDS = [
   'presentation',
   'slides-studio',
   'dj-booth',
+  'survey-clash',
   'battleship',
   'bingo',
   'backgammon',
@@ -112,6 +113,7 @@ function getDefaultPreferences() {
     'spin-wheel',
     'slides-studio',
     'battleship',
+    'survey-clash',
     'bingo'
   ]);
   return {
@@ -291,6 +293,7 @@ function sendFrontendFile(filename) {
 
 app.get('/', sendFrontendFile('index.html'));
 app.get('/index.html', sendFrontendFile('index.html'));
+app.get('/survey-clash.html', sendFrontendFile('survey-clash.html'));
 app.get('/player-hub-v1 (2).html', sendFrontendFile('player-hub-v1 (2).html'));
 
 function loadStateFromDisk() {

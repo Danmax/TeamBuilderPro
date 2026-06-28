@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Survey Clash</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@700;800&family=Outfit:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #101014;
+    --panel: #18191f;
+    --panel-2: #21232b;
+    --line: rgba(255,255,255,0.12);
+    --text: #f7f3e8;
+    --muted: #b5ad9b;
+    --gold: #f8c14b;
+    --teal: #18c7b9;
+    --coral: #ff6b5f;
+    --green: #65d889;
+    --ink: #0b0c10;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--text);
+    font-family: Outfit, system-ui, sans-serif;
+    background:
+      radial-gradient(circle at 15% 15%, rgba(24,199,185,0.2), transparent 30%),
+      radial-gradient(circle at 90% 0%, rgba(248,193,75,0.18), transparent 34%),
+      linear-gradient(135deg, #101014 0%, #171820 52%, #0f1517 100%);
+  }
+
+  button, input, select {
+    font: inherit;
+  }
+
+  button {
+    border: 0;
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  .app {
+    width: min(1440px, 100%);
+    margin: 0 auto;
+    padding: 18px;
+  }
+
+  .topbar {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) auto minmax(220px, 1fr);
+    gap: 14px;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .brand-mark {
+    width: 48px;
+    height: 48px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--gold), #fff1aa);
+    color: var(--ink);
+    font: 900 1.2rem "IBM Plex Mono", monospace;
+    box-shadow: 0 12px 32px rgba(248,193,75,0.24);
+  }
+
+  h1 {
+    margin: 0;
+    font: 800 clamp(2rem, 5vw, 4.6rem) Fraunces, serif;
+    line-height: 0.88;
+    letter-spacing: 0;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+  }
+
+  .scoreboard {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .score-card {
+    min-width: 140px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.07);
+    border-radius: 8px;
+  }
+
+  .score-card.active {
+    outline: 2px solid var(--gold);
+    box-shadow: 0 0 0 5px rgba(248,193,75,0.1);
+  }
+
+  .score-label {
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .score-value {
+    margin-top: 3px;
+    font: 800 2rem "IBM Plex Mono", monospace;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 16px;
+    align-items: start;
+  }
+
+  .stage, .control-panel, .setup-panel {
+    border: 1px solid var(--line);
+    background: rgba(18,19,25,0.82);
+    border-radius: 8px;
+    box-shadow: 0 18px 60px rgba(0,0,0,0.28);
+  }
+
+  .stage {
+    padding: clamp(14px, 2vw, 24px);
+    min-height: 640px;
+  }
+
+  .question-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .question {
+    padding: 18px 20px;
+    border: 1px solid rgba(248,193,75,0.35);
+    background: linear-gradient(135deg, rgba(248,193,75,0.13), rgba(24,199,185,0.08));
+    border-radius: 8px;
+  }
+
+  .question .label {
+    color: var(--gold);
+    font-weight: 900;
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .question h2 {
+    margin: 7px 0 0;
+    font-size: clamp(1.35rem, 3vw, 2.4rem);
+    line-height: 1.05;
+    letter-spacing: 0;
+  }
+
+  .strikes {
+    display: flex;
+    gap: 8px;
+  }
+
+  .strike {
+    width: clamp(48px, 7vw, 76px);
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+    border: 2px solid rgba(255,255,255,0.13);
+    border-radius: 8px;
+    background: #2a1416;
+    color: rgba(255,255,255,0.18);
+    font: 900 clamp(2rem, 5vw, 4rem) "IBM Plex Mono", monospace;
+  }
+
+  .strike.on {
+    color: #fff;
+    background: linear-gradient(135deg, #a40015, var(--coral));
+    border-color: rgba(255,255,255,0.34);
+    animation: hit 260ms ease-out;
+  }
+
+  @keyframes hit {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.12) rotate(-3deg); }
+    100% { transform: scale(1); }
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .answer-slot {
+    min-height: 84px;
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr) 72px;
+    align-items: stretch;
+    overflow: hidden;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: #24262f;
+  }
+
+  .answer-rank, .answer-points {
+    display: grid;
+    place-items: center;
+    background: rgba(255,255,255,0.08);
+    color: var(--gold);
+    font: 800 1.45rem "IBM Plex Mono", monospace;
+  }
+
+  .answer-body {
+    display: grid;
+    align-items: center;
+    padding: 12px 16px;
+    background:
+      linear-gradient(90deg, rgba(24,199,185,0.14), rgba(248,193,75,0.08)),
+      #171a20;
+  }
+
+  .answer-text {
+    color: rgba(255,255,255,0.24);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: clamp(1rem, 2vw, 1.35rem);
+    overflow-wrap: anywhere;
+  }
+
+  .answer-slot.revealed .answer-text {
+    color: var(--text);
+    animation: reveal 360ms ease-out;
+  }
+
+  .answer-slot.revealed .answer-body {
+    background:
+      linear-gradient(90deg, rgba(24,199,185,0.42), rgba(248,193,75,0.22)),
+      #172025;
+  }
+
+  @keyframes reveal {
+    from { transform: translateY(12px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .round-footer {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .metric {
+    padding: 14px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+
+  .metric span {
+    display: block;
+    color: var(--muted);
+    font-size: 0.74rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .metric strong {
+    display: block;
+    margin-top: 5px;
+    font: 800 1.55rem "IBM Plex Mono", monospace;
+  }
+
+  .control-panel {
+    padding: 14px;
+    position: sticky;
+    top: 12px;
+  }
+
+  .panel-section {
+    padding: 14px 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .panel-section:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .panel-title {
+    margin: 0 0 10px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .field {
+    display: grid;
+    gap: 7px;
+    margin-bottom: 10px;
+  }
+
+  label {
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 800;
+  }
+
+  input, select {
+    width: 100%;
+    color: var(--text);
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 12px;
+    outline: none;
+  }
+
+  input:focus, select:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 4px rgba(248,193,75,0.12);
+  }
+
+  .button-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .btn {
+    min-height: 44px;
+    padding: 10px 12px;
+    color: var(--text);
+    background: rgba(255,255,255,0.09);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 8px;
+    font-weight: 900;
+  }
+
+  .btn:hover:not(:disabled) {
+    border-color: rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.13);
+  }
+
+  .btn.primary {
+    color: var(--ink);
+    background: linear-gradient(135deg, var(--gold), #fff0a0);
+  }
+
+  .btn.good {
+    color: var(--ink);
+    background: linear-gradient(135deg, var(--green), #bcffd0);
+  }
+
+  .btn.bad {
+    background: linear-gradient(135deg, #b50f23, var(--coral));
+  }
+
+  .btn.full {
+    grid-column: 1 / -1;
+  }
+
+  .sound-buttons {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .sound-buttons .btn {
+    min-height: 40px;
+    padding: 8px;
+    font-size: 0.78rem;
+  }
+
+  .setup-panel {
+    max-width: 760px;
+    margin: 7vh auto;
+    padding: clamp(18px, 4vw, 34px);
+  }
+
+  .setup-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .setup-panel h1 {
+    margin-bottom: 12px;
+  }
+
+  .setup-copy {
+    color: var(--muted);
+    font-size: 1.06rem;
+    line-height: 1.5;
+    margin: 0 0 22px;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
+  .notice {
+    color: var(--muted);
+    font-size: 0.88rem;
+    line-height: 1.45;
+  }
+
+  .toast {
+    min-height: 40px;
+    color: var(--gold);
+    font-weight: 900;
+  }
+
+  .overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    place-items: center;
+    z-index: 20;
+    background: rgba(0,0,0,0.58);
+  }
+
+  .overlay.show {
+    display: grid;
+  }
+
+  .strike-burst {
+    color: #fff;
+    text-shadow: 0 8px 42px rgba(255,64,96,0.7);
+    font: 900 min(28vw, 13rem) "IBM Plex Mono", monospace;
+    animation: burst 720ms ease-out forwards;
+  }
+
+  @keyframes burst {
+    from { transform: scale(0.68) rotate(-6deg); opacity: 0; }
+    24% { opacity: 1; }
+    to { transform: scale(1.08) rotate(2deg); opacity: 0; }
+  }
+
+  .winner-card {
+    width: min(620px, calc(100vw - 28px));
+    padding: 26px;
+    border-radius: 8px;
+    border: 1px solid rgba(248,193,75,0.42);
+    background: #18191f;
+    text-align: center;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.48);
+  }
+
+  .winner-card h2 {
+    margin: 0 0 8px;
+    font: 800 clamp(2rem, 8vw, 4.5rem) Fraunces, serif;
+  }
+
+  @media (max-width: 980px) {
+    .topbar, .layout {
+      grid-template-columns: 1fr;
+    }
+
+    .scoreboard {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .control-panel {
+      position: static;
+    }
+  }
+
+  @media (max-width: 680px) {
+    .app { padding: 10px; }
+    .board, .round-footer, .setup-grid, .scoreboard {
+      grid-template-columns: 1fr;
+    }
+
+    .question-row {
+      grid-template-columns: 1fr;
+    }
+
+    .strikes {
+      justify-content: stretch;
+    }
+
+    .strike {
+      width: 100%;
+    }
+  }
+</style>
+</head>
+<body>
+<main class="app">
+  <section id="setup" class="setup-panel">
+    <div class="brand">
+      <div class="brand-mark">SC</div>
+      <div>
+        <h1>Survey Clash</h1>
+        <div class="subtitle">Crowd answers. Team pressure. Host-controlled sounds.</div>
+      </div>
+    </div>
+    <p class="setup-copy">Run a survey-answer guessing game from one screen. Enter team names, start the board, reveal answers, assign strikes, steal points, and trigger sound effects live.</p>
+    <div class="setup-grid">
+      <div class="field">
+        <label for="teamAInput">Team 1</label>
+        <input id="teamAInput" value="North Team" maxlength="24">
+      </div>
+      <div class="field">
+        <label for="teamBInput">Team 2</label>
+        <input id="teamBInput" value="South Team" maxlength="24">
+      </div>
+      <div class="field">
+        <label for="roundCountInput">Rounds</label>
+        <select id="roundCountInput">
+          <option value="3">3 rounds</option>
+          <option value="4" selected>4 rounds</option>
+          <option value="5">5 rounds</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="soundStartInput">Sound</label>
+        <select id="soundStartInput">
+          <option value="on" selected>On</option>
+          <option value="off">Muted</option>
+        </select>
+      </div>
+    </div>
+    <button id="startGameBtn" class="btn primary" style="width:100%;margin-top:14px;">Start Game</button>
+  </section>
+
+  <section id="game" class="hidden">
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand-mark">SC</div>
+        <div>
+          <h1>Survey Clash</h1>
+          <div class="subtitle">Round <span id="roundNumber">1</span> of <span id="roundTotal">4</span></div>
+        </div>
+      </div>
+      <div class="scoreboard">
+        <div id="teamACard" class="score-card">
+          <div id="teamAName" class="score-label">Team 1</div>
+          <div id="teamAScore" class="score-value">0</div>
+        </div>
+        <div class="score-card">
+          <div class="score-label">Bank</div>
+          <div id="bankScore" class="score-value">0</div>
+        </div>
+        <div id="teamBCard" class="score-card">
+          <div id="teamBName" class="score-label">Team 2</div>
+          <div id="teamBScore" class="score-value">0</div>
+        </div>
+      </div>
+      <div class="toast" id="toast">Board ready.</div>
+    </div>
+
+    <div class="layout">
+      <section class="stage">
+        <div class="question-row">
+          <div class="question">
+            <div class="label">Survey says</div>
+            <h2 id="questionText">Loading...</h2>
+          </div>
+          <div class="strikes" aria-label="Strikes">
+            <div id="strike1" class="strike">X</div>
+            <div id="strike2" class="strike">X</div>
+            <div id="strike3" class="strike">X</div>
+          </div>
+        </div>
+        <div id="answerBoard" class="board"></div>
+        <div class="round-footer">
+          <div class="metric">
+            <span>Active team</span>
+            <strong id="activeTeamName">Team 1</strong>
+          </div>
+          <div class="metric">
+            <span>Board Total</span>
+            <strong id="roundMultiplier">100</strong>
+          </div>
+          <div class="metric">
+            <span>Timer</span>
+            <strong id="timerText">--</strong>
+          </div>
+        </div>
+      </section>
+
+      <aside class="control-panel">
+        <section class="panel-section">
+          <h3 class="panel-title">Guess</h3>
+          <form id="guessForm" class="field">
+            <label for="guessInput">Player answer</label>
+            <input id="guessInput" autocomplete="off" placeholder="Type a guess">
+            <button class="btn primary" type="submit">Submit Guess</button>
+          </form>
+          <div class="button-grid">
+            <button id="strikeBtn" class="btn bad">Strike</button>
+            <button id="clearStrikeBtn" class="btn">Clear Strike</button>
+            <button id="awardBankBtn" class="btn good">Award Bank</button>
+            <button id="stealBtn" class="btn">Steal</button>
+          </div>
+        </section>
+
+        <section class="panel-section">
+          <h3 class="panel-title">Round</h3>
+          <div class="button-grid">
+            <button id="switchTeamBtn" class="btn">Switch Team</button>
+            <button id="revealNextBtn" class="btn">Reveal Next</button>
+            <button id="nextRoundBtn" class="btn primary">Next Round</button>
+            <button id="finishGameBtn" class="btn">Finish</button>
+          </div>
+        </section>
+
+        <section class="panel-section">
+          <h3 class="panel-title">Finale Timer</h3>
+          <div class="button-grid">
+            <button id="timer20Btn" class="btn">20 sec</button>
+            <button id="timer30Btn" class="btn">30 sec</button>
+            <button id="stopTimerBtn" class="btn full">Stop Timer</button>
+          </div>
+        </section>
+
+        <section class="panel-section">
+          <h3 class="panel-title">Sound</h3>
+          <div class="field">
+            <label for="volumeInput">Master volume</label>
+            <input id="volumeInput" type="range" min="0" max="100" value="75">
+          </div>
+          <div class="button-grid sound-buttons">
+            <button class="btn" data-sound="correct">Correct</button>
+            <button class="btn" data-sound="top">Top</button>
+            <button class="btn" data-sound="strike">Strike</button>
+            <button class="btn" data-sound="win">Win</button>
+            <button class="btn" data-sound="timer">Tick</button>
+            <button id="muteBtn" class="btn">Mute</button>
+          </div>
+          <p class="notice">First click unlocks audio in the browser. All sounds use local files from this project.</p>
+        </section>
+
+        <section class="panel-section">
+          <h3 class="panel-title">Reset</h3>
+          <button id="resetBtn" class="btn bad" style="width:100%;">New Game</button>
+        </section>
+      </aside>
+    </div>
+  </section>
+</main>
+
+<div id="strikeOverlay" class="overlay" aria-hidden="true">
+  <div class="strike-burst">X</div>
+</div>
+
+<div id="winnerOverlay" class="overlay" aria-hidden="true">
+  <div class="winner-card">
+    <div class="subtitle">Winner</div>
+    <h2 id="winnerName">Team</h2>
+    <p id="winnerScore" class="notice">Final score</p>
+    <button id="closeWinnerBtn" class="btn primary">Back to Board</button>
+  </div>
+</div>
+
+<script>
+const QUESTIONS = [
+  {
+    prompt: "Name something people forget when leaving the house.",
+    answers: [
+      { text: "Keys", points: 31, aliases: ["key"] },
+      { text: "Phone", points: 25, aliases: ["cell", "cell phone", "mobile"] },
+      { text: "Wallet", points: 18, aliases: ["purse", "money"] },
+      { text: "Lunch", points: 10, aliases: ["food"] },
+      { text: "Sunglasses", points: 9, aliases: ["glasses"] },
+      { text: "Charger", points: 7, aliases: ["phone charger"] }
+    ]
+  },
+  {
+    prompt: "Name a reason someone might be late to work.",
+    answers: [
+      { text: "Traffic", points: 34, aliases: ["jam", "car traffic"] },
+      { text: "Overslept", points: 24, aliases: ["sleeping", "slept in"] },
+      { text: "Car trouble", points: 15, aliases: ["flat tire", "car broke"] },
+      { text: "Bad weather", points: 11, aliases: ["rain", "snow"] },
+      { text: "Kids", points: 9, aliases: ["children", "school drop off"] },
+      { text: "Forgot something", points: 7, aliases: ["left something"] }
+    ]
+  },
+  {
+    prompt: "Name something you bring to a cookout.",
+    answers: [
+      { text: "Chips", points: 29, aliases: ["crisps"] },
+      { text: "Drinks", points: 23, aliases: ["soda", "water", "beverages"] },
+      { text: "Dessert", points: 16, aliases: ["cake", "cookies"] },
+      { text: "Burgers", points: 13, aliases: ["hamburgers"] },
+      { text: "Hot dogs", points: 11, aliases: ["franks"] },
+      { text: "Salad", points: 8, aliases: ["potato salad", "pasta salad"] }
+    ]
+  },
+  {
+    prompt: "Name something people do during a meeting.",
+    answers: [
+      { text: "Take notes", points: 27, aliases: ["notes", "write"] },
+      { text: "Talk", points: 22, aliases: ["speak", "discuss"] },
+      { text: "Check email", points: 18, aliases: ["email", "check phone"] },
+      { text: "Drink coffee", points: 14, aliases: ["coffee"] },
+      { text: "Ask questions", points: 11, aliases: ["question"] },
+      { text: "Zone out", points: 8, aliases: ["daydream", "lose focus"] }
+    ]
+  },
+  {
+    prompt: "Name a place people go to relax.",
+    answers: [
+      { text: "Beach", points: 30, aliases: ["the beach"] },
+      { text: "Home", points: 23, aliases: ["house"] },
+      { text: "Park", points: 17, aliases: ["garden"] },
+      { text: "Spa", points: 12, aliases: ["massage"] },
+      { text: "Bed", points: 10, aliases: ["bedroom"] },
+      { text: "Gym", points: 8, aliases: ["fitness center"] }
+    ]
+  }
+];
+
+const SOUND_FILES = {
+  correct: "/sounds/eaglaxle-electronic-beep-2-453382.mp3",
+  top: "/sounds/lubecin123-info-computer-sound-299367.mp3",
+  strike: "/sounds/freesound_community-laser-gun-72558.mp3",
+  win: "/sounds/freesound_community-launch-85216.mp3",
+  timer: "/sounds/beep-sound-short-237619.mp3",
+  round: "/sounds/freesound_community-cinematic-glitch-transition-sfx-27806.mp3"
+};
+
+const state = {
+  started: false,
+  teamNames: ["North Team", "South Team"],
+  scores: [0, 0],
+  activeTeam: 0,
+  roundIndex: 0,
+  roundCount: 4,
+  strikes: 0,
+  roundAwarded: false,
+  revealed: [],
+  muted: false,
+  volume: 0.75,
+  timer: null,
+  timerRemaining: 0,
+  lastSound: null
+};
+
+const audio = {};
+Object.entries(SOUND_FILES).forEach(([key, src]) => {
+  audio[key] = new Audio(src);
+  audio[key].preload = "auto";
+});
+
+const $ = selector => document.querySelector(selector);
+
+function currentQuestion() {
+  return QUESTIONS[state.roundIndex % QUESTIONS.length];
+}
+
+function normalize(value) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function savePrefs() {
+  localStorage.setItem("surveyClashPrefs", JSON.stringify({
+    muted: state.muted,
+    volume: state.volume
+  }));
+}
+
+function loadPrefs() {
+  try {
+    const prefs = JSON.parse(localStorage.getItem("surveyClashPrefs") || "{}");
+    if (typeof prefs.muted === "boolean") state.muted = prefs.muted;
+    if (Number.isFinite(prefs.volume)) state.volume = Math.max(0, Math.min(1, prefs.volume));
+  } catch (_error) {}
+}
+
+function playSound(key) {
+  state.lastSound = key;
+  if (state.muted || !audio[key]) return;
+  const sound = audio[key].cloneNode();
+  sound.volume = state.volume;
+  sound.play().catch(() => {});
+}
+
+function bankTotal() {
+  if (state.roundAwarded) return 0;
+  const q = currentQuestion();
+  return q.answers.reduce((sum, answer, index) => {
+    return state.revealed[index] ? sum + answer.points : sum;
+  }, 0);
+}
+
+function multiplier() {
+  return 1;
+}
+
+function setToast(message) {
+  $("#toast").textContent = message;
+}
+
+function render() {
+  const q = currentQuestion();
+  $("#roundNumber").textContent = String(state.roundIndex + 1);
+  $("#roundTotal").textContent = String(state.roundCount);
+  $("#teamAName").textContent = state.teamNames[0];
+  $("#teamBName").textContent = state.teamNames[1];
+  $("#teamAScore").textContent = String(state.scores[0]);
+  $("#teamBScore").textContent = String(state.scores[1]);
+  $("#bankScore").textContent = String(bankTotal());
+  $("#activeTeamName").textContent = state.teamNames[state.activeTeam];
+  $("#roundMultiplier").textContent = "100";
+  $("#questionText").textContent = q.prompt;
+  $("#teamACard").classList.toggle("active", state.activeTeam === 0);
+  $("#teamBCard").classList.toggle("active", state.activeTeam === 1);
+  $("#muteBtn").textContent = state.muted ? "Unmute" : "Mute";
+  $("#volumeInput").value = String(Math.round(state.volume * 100));
+  $("#timerText").textContent = state.timerRemaining > 0 ? `${state.timerRemaining}s` : "--";
+
+  [1, 2, 3].forEach(num => {
+    $(`#strike${num}`).classList.toggle("on", state.strikes >= num);
+  });
+
+  $("#answerBoard").innerHTML = q.answers.map((answer, index) => {
+    const revealed = state.revealed[index];
+    return `
+      <div class="answer-slot ${revealed ? "revealed" : ""}">
+        <div class="answer-rank">${index + 1}</div>
+        <div class="answer-body">
+          <div class="answer-text">${revealed ? escapeHtml(answer.text) : "Hidden Answer"}</div>
+        </div>
+        <div class="answer-points">${revealed ? answer.points : "--"}</div>
+      </div>
+    `;
+  }).join("");
+
+  $("#nextRoundBtn").disabled = state.roundIndex >= state.roundCount - 1;
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  }[char]));
+}
+
+function startGame() {
+  state.teamNames = [
+    $("#teamAInput").value.trim() || "Team 1",
+    $("#teamBInput").value.trim() || "Team 2"
+  ];
+  state.roundCount = Number($("#roundCountInput").value) || 4;
+  state.muted = $("#soundStartInput").value === "off";
+  state.scores = [0, 0];
+  state.activeTeam = 0;
+  state.roundIndex = 0;
+  state.strikes = 0;
+  state.roundAwarded = false;
+  state.revealed = QUESTIONS[0].answers.map(() => false);
+  $("#setup").classList.add("hidden");
+  $("#game").classList.remove("hidden");
+  savePrefs();
+  playSound("round");
+  setToast(`${state.teamNames[0]} starts the board.`);
+  render();
+  $("#guessInput").focus();
+}
+
+function submitGuess(event) {
+  event.preventDefault();
+  const guess = normalize($("#guessInput").value);
+  $("#guessInput").value = "";
+  if (!guess) return;
+
+  const q = currentQuestion();
+  const index = q.answers.findIndex((answer, idx) => {
+    if (state.revealed[idx]) return false;
+    return answerMatches(answer, guess);
+  });
+
+  if (index === -1) {
+    addStrike();
+    return;
+  }
+
+  revealAnswer(index);
+}
+
+function answerMatches(answer, guess) {
+  const normalizedGuess = normalize(guess);
+  if (!normalizedGuess) return false;
+  const singularGuess = normalizedGuess.endsWith("s") ? normalizedGuess.slice(0, -1) : normalizedGuess;
+  return [answer.text, ...(answer.aliases || [])].map(normalize).some(choice => {
+    const singularChoice = choice.endsWith("s") ? choice.slice(0, -1) : choice;
+    return choice === normalizedGuess || singularChoice === singularGuess;
+  });
+}
+
+function revealAnswer(index) {
+  if (state.revealed[index]) return;
+  state.revealed[index] = true;
+  playSound(index === 0 ? "top" : "correct");
+  setToast(`${currentQuestion().answers[index].text} is on the board.`);
+  if (state.revealed.every(Boolean)) {
+    setToast("Board cleared. Award the bank or move to the next round.");
+    playSound("win");
+  }
+  render();
+}
+
+function revealNext() {
+  const nextIndex = state.revealed.findIndex(revealed => !revealed);
+  if (nextIndex >= 0) revealAnswer(nextIndex);
+}
+
+function showStrikeBurst() {
+  const overlay = $("#strikeOverlay");
+  overlay.classList.add("show");
+  window.setTimeout(() => overlay.classList.remove("show"), 720);
+}
+
+function addStrike() {
+  state.strikes = Math.min(3, state.strikes + 1);
+  playSound("strike");
+  showStrikeBurst();
+  if (state.strikes >= 3) {
+    setToast(`Three strikes. ${state.teamNames[1 - state.activeTeam]} can steal.`);
+  } else {
+    setToast(`Strike ${state.strikes}.`);
+  }
+  render();
+}
+
+function clearStrike() {
+  state.strikes = Math.max(0, state.strikes - 1);
+  setToast("Strike cleared.");
+  render();
+}
+
+function switchTeam() {
+  state.activeTeam = 1 - state.activeTeam;
+  state.strikes = 0;
+  setToast(`${state.teamNames[state.activeTeam]} has control.`);
+  render();
+}
+
+function awardBank(teamIndex = state.activeTeam) {
+  if (state.roundAwarded) {
+    setToast("This round has already been awarded.");
+    return;
+  }
+  const points = bankTotal();
+  if (!points) {
+    setToast("No revealed points in the bank yet.");
+    return;
+  }
+  state.scores[teamIndex] += points;
+  state.roundAwarded = true;
+  playSound("win");
+  setToast(`${state.teamNames[teamIndex]} takes ${points} points.`);
+  render();
+}
+
+function steal() {
+  if (state.roundAwarded) {
+    setToast("This round has already been awarded.");
+    render();
+    return;
+  }
+  const stealingTeam = 1 - state.activeTeam;
+  awardBank(stealingTeam);
+  state.activeTeam = stealingTeam;
+  state.strikes = 0;
+  render();
+}
+
+function nextRound() {
+  if (state.roundIndex >= state.roundCount - 1) {
+    finishGame();
+    return;
+  }
+  state.roundIndex += 1;
+  state.activeTeam = state.roundIndex % 2;
+  state.strikes = 0;
+  state.roundAwarded = false;
+  state.revealed = currentQuestion().answers.map(() => false);
+  stopTimer();
+  playSound("round");
+  setToast(`Round ${state.roundIndex + 1}. ${state.teamNames[state.activeTeam]} starts.`);
+  render();
+}
+
+function startTimer(seconds) {
+  stopTimer();
+  state.timerRemaining = seconds;
+  playSound("timer");
+  render();
+  state.timer = window.setInterval(() => {
+    state.timerRemaining -= 1;
+    if (state.timerRemaining > 0 && state.timerRemaining <= 10) playSound("timer");
+    if (state.timerRemaining <= 0) {
+      stopTimer();
+      playSound("strike");
+      setToast("Time is up.");
+    }
+    render();
+  }, 1000);
+}
+
+function stopTimer() {
+  if (state.timer) window.clearInterval(state.timer);
+  state.timer = null;
+  state.timerRemaining = 0;
+  render();
+}
+
+function finishGame() {
+  const winnerIndex = state.scores[0] === state.scores[1] ? -1 : (state.scores[0] > state.scores[1] ? 0 : 1);
+  $("#winnerName").textContent = winnerIndex === -1 ? "Tie Game" : state.teamNames[winnerIndex];
+  $("#winnerScore").textContent = `${state.teamNames[0]} ${state.scores[0]} - ${state.teamNames[1]} ${state.scores[1]}`;
+  $("#winnerOverlay").classList.add("show");
+  playSound("win");
+}
+
+function resetGame() {
+  stopTimer();
+  $("#winnerOverlay").classList.remove("show");
+  $("#game").classList.add("hidden");
+  $("#setup").classList.remove("hidden");
+}
+
+function bind() {
+  loadPrefs();
+  $("#volumeInput").value = String(Math.round(state.volume * 100));
+  $("#soundStartInput").value = state.muted ? "off" : "on";
+  $("#startGameBtn").addEventListener("click", startGame);
+  $("#guessForm").addEventListener("submit", submitGuess);
+  $("#strikeBtn").addEventListener("click", addStrike);
+  $("#clearStrikeBtn").addEventListener("click", clearStrike);
+  $("#awardBankBtn").addEventListener("click", () => awardBank());
+  $("#stealBtn").addEventListener("click", steal);
+  $("#switchTeamBtn").addEventListener("click", switchTeam);
+  $("#revealNextBtn").addEventListener("click", revealNext);
+  $("#nextRoundBtn").addEventListener("click", nextRound);
+  $("#finishGameBtn").addEventListener("click", finishGame);
+  $("#timer20Btn").addEventListener("click", () => startTimer(20));
+  $("#timer30Btn").addEventListener("click", () => startTimer(30));
+  $("#stopTimerBtn").addEventListener("click", stopTimer);
+  $("#resetBtn").addEventListener("click", resetGame);
+  $("#closeWinnerBtn").addEventListener("click", () => $("#winnerOverlay").classList.remove("show"));
+  $("#muteBtn").addEventListener("click", () => {
+    state.muted = !state.muted;
+    savePrefs();
+    render();
+  });
+  $("#volumeInput").addEventListener("input", event => {
+    state.volume = Number(event.target.value) / 100;
+    savePrefs();
+  });
+  document.querySelectorAll("[data-sound]").forEach(button => {
+    button.addEventListener("click", () => playSound(button.dataset.sound));
+  });
+  document.addEventListener("keydown", event => {
+    if ($("#game").classList.contains("hidden")) return;
+    if (event.key === "x" || event.key === "X") addStrike();
+    if (event.key === "r" || event.key === "R") revealNext();
+    if (event.key === " ") {
+      event.preventDefault();
+      playSound(state.lastSound || "correct");
+    }
+  });
+}
+
+bind();
+</script>
+</body>
+</html>
