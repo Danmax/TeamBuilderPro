@@ -594,8 +594,8 @@
             <strong id="activeTeamName">Team 1</strong>
           </div>
           <div class="metric">
-            <span>Multiplier</span>
-            <strong id="roundMultiplier">1x</strong>
+            <span>Board Total</span>
+            <strong id="roundMultiplier">100</strong>
           </div>
           <div class="metric">
             <span>Timer</span>
@@ -754,6 +754,7 @@ const state = {
   roundIndex: 0,
   roundCount: 4,
   strikes: 0,
+  roundAwarded: false,
   revealed: [],
   muted: false,
   volume: 0.75,
@@ -802,15 +803,14 @@ function playSound(key) {
 }
 
 function bankTotal() {
+  if (state.roundAwarded) return 0;
   const q = currentQuestion();
   return q.answers.reduce((sum, answer, index) => {
-    return state.revealed[index] ? sum + answer.points * multiplier() : sum;
+    return state.revealed[index] ? sum + answer.points : sum;
   }, 0);
 }
 
 function multiplier() {
-  if (state.roundIndex >= 3) return 3;
-  if (state.roundIndex >= 2) return 2;
   return 1;
 }
 
@@ -828,7 +828,7 @@ function render() {
   $("#teamBScore").textContent = String(state.scores[1]);
   $("#bankScore").textContent = String(bankTotal());
   $("#activeTeamName").textContent = state.teamNames[state.activeTeam];
-  $("#roundMultiplier").textContent = `${multiplier()}x`;
+  $("#roundMultiplier").textContent = "100";
   $("#questionText").textContent = q.prompt;
   $("#teamACard").classList.toggle("active", state.activeTeam === 0);
   $("#teamBCard").classList.toggle("active", state.activeTeam === 1);
@@ -848,7 +848,7 @@ function render() {
         <div class="answer-body">
           <div class="answer-text">${revealed ? escapeHtml(answer.text) : "Hidden Answer"}</div>
         </div>
-        <div class="answer-points">${revealed ? answer.points * multiplier() : "--"}</div>
+        <div class="answer-points">${revealed ? answer.points : "--"}</div>
       </div>
     `;
   }).join("");
@@ -877,6 +877,7 @@ function startGame() {
   state.activeTeam = 0;
   state.roundIndex = 0;
   state.strikes = 0;
+  state.roundAwarded = false;
   state.revealed = QUESTIONS[0].answers.map(() => false);
   $("#setup").classList.add("hidden");
   $("#game").classList.remove("hidden");
@@ -896,8 +897,7 @@ function submitGuess(event) {
   const q = currentQuestion();
   const index = q.answers.findIndex((answer, idx) => {
     if (state.revealed[idx]) return false;
-    const choices = [answer.text, ...(answer.aliases || [])].map(normalize);
-    return choices.some(choice => choice === guess || choice.includes(guess) || guess.includes(choice));
+    return answerMatches(answer, guess);
   });
 
   if (index === -1) {
@@ -906,6 +906,16 @@ function submitGuess(event) {
   }
 
   revealAnswer(index);
+}
+
+function answerMatches(answer, guess) {
+  const normalizedGuess = normalize(guess);
+  if (!normalizedGuess) return false;
+  const singularGuess = normalizedGuess.endsWith("s") ? normalizedGuess.slice(0, -1) : normalizedGuess;
+  return [answer.text, ...(answer.aliases || [])].map(normalize).some(choice => {
+    const singularChoice = choice.endsWith("s") ? choice.slice(0, -1) : choice;
+    return choice === normalizedGuess || singularChoice === singularGuess;
+  });
 }
 
 function revealAnswer(index) {
@@ -957,18 +967,28 @@ function switchTeam() {
 }
 
 function awardBank(teamIndex = state.activeTeam) {
+  if (state.roundAwarded) {
+    setToast("This round has already been awarded.");
+    return;
+  }
   const points = bankTotal();
   if (!points) {
     setToast("No revealed points in the bank yet.");
     return;
   }
   state.scores[teamIndex] += points;
+  state.roundAwarded = true;
   playSound("win");
   setToast(`${state.teamNames[teamIndex]} takes ${points} points.`);
   render();
 }
 
 function steal() {
+  if (state.roundAwarded) {
+    setToast("This round has already been awarded.");
+    render();
+    return;
+  }
   const stealingTeam = 1 - state.activeTeam;
   awardBank(stealingTeam);
   state.activeTeam = stealingTeam;
@@ -984,6 +1004,7 @@ function nextRound() {
   state.roundIndex += 1;
   state.activeTeam = state.roundIndex % 2;
   state.strikes = 0;
+  state.roundAwarded = false;
   state.revealed = currentQuestion().answers.map(() => false);
   stopTimer();
   playSound("round");

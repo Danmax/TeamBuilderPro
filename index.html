@@ -10562,9 +10562,6 @@ function getSurveyClashQuestion(state) {
 }
 
 function getSurveyClashMultiplier(state) {
-  const round = Math.max(0, Number.parseInt(state?.roundIndex || 0, 10) || 0);
-  if (round >= 3) return 3;
-  if (round >= 2) return 2;
   return 1;
 }
 
@@ -10580,6 +10577,7 @@ function createSurveyClashState(participants = []) {
     roundCount: Math.min(4, SURVEY_CLASH_QUESTIONS.length),
     questionOrder: buildShuffledQuestionOrder(SURVEY_CLASH_QUESTIONS.length),
     revealed: Array(6).fill(false),
+    roundAwarded: false,
     strikes: 0,
     message: 'Board ready.',
     timerSeconds: 0,
@@ -10592,8 +10590,8 @@ function createSurveyClashState(participants = []) {
 function getSurveyClashBank(state) {
   const question = getSurveyClashQuestion(state);
   const revealed = Array.isArray(state?.revealed) ? state.revealed : [];
-  const multiplier = getSurveyClashMultiplier(state);
-  return question.answers.reduce((sum, answer, idx) => revealed[idx] ? sum + (Number(answer.points) || 0) * multiplier : sum, 0);
+  if (state?.roundAwarded === true) return 0;
+  return question.answers.reduce((sum, answer, idx) => revealed[idx] ? sum + (Number(answer.points) || 0) : sum, 0);
 }
 
 function playSurveyClashSound(key) {
@@ -10625,6 +10623,7 @@ async function updateSurveyClashState(mutator) {
   state.teamNames = Array.isArray(state.teamNames) ? state.teamNames.slice(0, 2) : ['Team 1', 'Team 2'];
   state.scores = Array.isArray(state.scores) ? state.scores.slice(0, 2).map(score => Number(score) || 0) : [0, 0];
   state.revealed = Array.isArray(state.revealed) ? state.revealed : Array(6).fill(false);
+  state.roundAwarded = state.roundAwarded === true;
   if (typeof mutator === 'function') mutator(state);
   state.updatedAt = Date.now();
   room.activityState = state;
@@ -10638,6 +10637,19 @@ function surveyClashSetSound(state, key) {
   state.lastSound = { key, stamp: Date.now() };
 }
 
+function surveyClashAnswerMatches(answer, guess) {
+  const normalizedGuess = normalizeSurveyClashText(guess);
+  if (!normalizedGuess) return false;
+  const variants = [answer?.text, ...(Array.isArray(answer?.aliases) ? answer.aliases : [])]
+    .map(normalizeSurveyClashText)
+    .filter(Boolean);
+  const singularGuess = normalizedGuess.endsWith('s') ? normalizedGuess.slice(0, -1) : normalizedGuess;
+  return variants.some(choice => {
+    const singularChoice = choice.endsWith('s') ? choice.slice(0, -1) : choice;
+    return choice === normalizedGuess || singularChoice === singularGuess;
+  });
+}
+
 async function surveyClashSubmitGuess() {
   const input = document.getElementById('surveyClashGuessInput');
   const guess = normalizeSurveyClashText(input?.value || '');
@@ -10647,8 +10659,7 @@ async function surveyClashSubmitGuess() {
     const question = getSurveyClashQuestion(state);
     const answerIndex = question.answers.findIndex((answer, idx) => {
       if (state.revealed[idx]) return false;
-      const choices = [answer.text, ...(answer.aliases || [])].map(normalizeSurveyClashText);
-      return choices.some(choice => choice === guess || choice.includes(guess) || guess.includes(choice));
+      return surveyClashAnswerMatches(answer, guess);
     });
     if (answerIndex < 0) {
       state.strikes = Math.min(3, (Number(state.strikes) || 0) + 1);
@@ -10708,12 +10719,17 @@ async function surveyClashAwardBank(teamIndex = null) {
   await updateSurveyClashState(state => {
     const activeTeam = Number(state.activeTeam) || 0;
     const targetTeam = Number.isInteger(teamIndex) ? Math.max(0, Math.min(1, teamIndex)) : activeTeam;
+    if (state.roundAwarded === true) {
+      state.message = 'This round has already been awarded.';
+      return;
+    }
     const bank = getSurveyClashBank(state);
     if (!bank) {
       state.message = 'No revealed points in the bank yet.';
       return;
     }
     state.scores[targetTeam] = (Number(state.scores[targetTeam]) || 0) + bank;
+    state.roundAwarded = true;
     state.message = `${state.teamNames[targetTeam]} takes ${bank} points.`;
     surveyClashSetSound(state, 'win');
   });
@@ -10722,12 +10738,17 @@ async function surveyClashAwardBank(teamIndex = null) {
 async function surveyClashSteal() {
   await updateSurveyClashState(state => {
     const stealingTeam = 1 - (Number(state.activeTeam) || 0);
+    if (state.roundAwarded === true) {
+      state.message = 'This round has already been awarded.';
+      return;
+    }
     const bank = getSurveyClashBank(state);
     if (!bank) {
       state.message = 'No revealed points in the bank yet.';
       return;
     }
     state.scores[stealingTeam] = (Number(state.scores[stealingTeam]) || 0) + bank;
+    state.roundAwarded = true;
     state.activeTeam = stealingTeam;
     state.strikes = 0;
     state.message = `${state.teamNames[stealingTeam]} steals ${bank} points.`;
@@ -10746,6 +10767,7 @@ async function surveyClashNextRound() {
     state.roundIndex = (Number(state.roundIndex) || 0) + 1;
     state.activeTeam = state.roundIndex % 2;
     state.strikes = 0;
+    state.roundAwarded = false;
     state.revealed = Array(getSurveyClashQuestion(state).answers.length).fill(false);
     state.timerSeconds = 0;
     state.timerStartedAt = 0;
@@ -10799,7 +10821,6 @@ function renderSurveyClash() {
   const teamNames = Array.isArray(state.teamNames) ? state.teamNames : ['Team 1', 'Team 2'];
   const scores = Array.isArray(state.scores) ? state.scores : [0, 0];
   const activeTeam = Number(state.activeTeam) === 1 ? 1 : 0;
-  const multiplier = getSurveyClashMultiplier(state);
   const bank = getSurveyClashBank(state);
   const strikes = Math.max(0, Math.min(3, Number(state.strikes) || 0));
   const roundIndex = Math.max(0, Number(state.roundIndex) || 0);
@@ -10817,7 +10838,7 @@ function renderSurveyClash() {
         <div style="display:grid;align-items:center;padding:12px 14px;min-width:0;">
           <div style="font-size:clamp(1rem,2vw,1.35rem);font-weight:900;text-transform:uppercase;letter-spacing:0;overflow-wrap:anywhere;color:${isRevealed ? 'var(--text)' : 'rgba(255,255,255,0.28)'};">${escapeHtml(isRevealed ? answer.text : 'Hidden Answer')}</div>
         </div>
-        <div style="display:grid;place-items:center;background:rgba(0,0,0,0.22);font-family:'IBM Plex Mono',monospace;font-weight:900;color:${isRevealed ? 'var(--warning)' : 'var(--text-dim)'};">${isRevealed ? (Number(answer.points) || 0) * multiplier : '--'}</div>
+        <div style="display:grid;place-items:center;background:rgba(0,0,0,0.22);font-family:'IBM Plex Mono',monospace;font-weight:900;color:${isRevealed ? 'var(--warning)' : 'var(--text-dim)'};">${isRevealed ? Number(answer.points) || 0 : '--'}</div>
       </div>
     `;
   }).join('');
@@ -10907,8 +10928,8 @@ function renderSurveyClash() {
             <div style="font-weight:900;margin-top:4px;">${escapeHtml(teamNames[activeTeam] || 'Team')}</div>
           </div>
           <div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.05);">
-            <div style="font-size:0.72rem;font-weight:900;color:var(--text-dim);text-transform:uppercase;">Multiplier</div>
-            <div style="font-family:'IBM Plex Mono',monospace;font-weight:900;margin-top:4px;">${multiplier}x</div>
+            <div style="font-size:0.72rem;font-weight:900;color:var(--text-dim);text-transform:uppercase;">Board Total</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-weight:900;margin-top:4px;">100</div>
           </div>
           <div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.05);">
             <div style="font-size:0.72rem;font-weight:900;color:var(--text-dim);text-transform:uppercase;">Strikes</div>
