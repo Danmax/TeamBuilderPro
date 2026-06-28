@@ -291,6 +291,7 @@ function sendFrontendFile(filename) {
 
 app.get('/', sendFrontendFile('index.html'));
 app.get('/index.html', sendFrontendFile('index.html'));
+app.get('/survey-clash.html', sendFrontendFile('survey-clash.html'));
 app.get('/player-hub-v1 (2).html', sendFrontendFile('player-hub-v1 (2).html'));
 
 function loadStateFromDisk() {
