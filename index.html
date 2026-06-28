@@ -3646,6 +3646,7 @@ function getDefaultAppPreferences() {
     'spin-wheel',
     'slides-studio',
     'battleship',
+    'survey-clash',
     'bingo'
   ]);
   return {
@@ -5032,6 +5033,7 @@ const ALL_ACTIVITY_IDS = [
   'presentation',
   'slides-studio',
   'dj-booth',
+  'survey-clash',
   'battleship',
   'bingo',
   'backgammon',
@@ -5360,6 +5362,74 @@ const BINGO_COLUMN_LABELS = cloneStaticData('BINGO_COLUMN_LABELS', ['B', 'I', 'N
 const BINGO_NUMBER_RANGES = cloneStaticData('BINGO_NUMBER_RANGES', []);
 const BINGO_PATTERN_OPTIONS = cloneStaticData('BINGO_PATTERN_OPTIONS', []);
 const BINGO_MARKER_OPTIONS = cloneStaticData('BINGO_MARKER_OPTIONS', []);
+const SURVEY_CLASH_QUESTIONS = [
+  {
+    prompt: 'Name something people forget when leaving the house.',
+    answers: [
+      { text: 'Keys', points: 31, aliases: ['key'] },
+      { text: 'Phone', points: 25, aliases: ['cell', 'cell phone', 'mobile'] },
+      { text: 'Wallet', points: 18, aliases: ['purse', 'money'] },
+      { text: 'Lunch', points: 10, aliases: ['food'] },
+      { text: 'Sunglasses', points: 9, aliases: ['glasses'] },
+      { text: 'Charger', points: 7, aliases: ['phone charger'] }
+    ]
+  },
+  {
+    prompt: 'Name a reason someone might be late to work.',
+    answers: [
+      { text: 'Traffic', points: 34, aliases: ['jam', 'car traffic'] },
+      { text: 'Overslept', points: 24, aliases: ['sleeping', 'slept in'] },
+      { text: 'Car trouble', points: 15, aliases: ['flat tire', 'car broke'] },
+      { text: 'Bad weather', points: 11, aliases: ['rain', 'snow'] },
+      { text: 'Kids', points: 9, aliases: ['children', 'school drop off'] },
+      { text: 'Forgot something', points: 7, aliases: ['left something'] }
+    ]
+  },
+  {
+    prompt: 'Name something you bring to a cookout.',
+    answers: [
+      { text: 'Chips', points: 29, aliases: ['crisps'] },
+      { text: 'Drinks', points: 23, aliases: ['soda', 'water', 'beverages'] },
+      { text: 'Dessert', points: 16, aliases: ['cake', 'cookies'] },
+      { text: 'Burgers', points: 13, aliases: ['hamburgers'] },
+      { text: 'Hot dogs', points: 11, aliases: ['franks'] },
+      { text: 'Salad', points: 8, aliases: ['potato salad', 'pasta salad'] }
+    ]
+  },
+  {
+    prompt: 'Name something people do during a meeting.',
+    answers: [
+      { text: 'Take notes', points: 27, aliases: ['notes', 'write'] },
+      { text: 'Talk', points: 22, aliases: ['speak', 'discuss'] },
+      { text: 'Check email', points: 18, aliases: ['email', 'check phone'] },
+      { text: 'Drink coffee', points: 14, aliases: ['coffee'] },
+      { text: 'Ask questions', points: 11, aliases: ['question'] },
+      { text: 'Zone out', points: 8, aliases: ['daydream', 'lose focus'] }
+    ]
+  },
+  {
+    prompt: 'Name a place people go to relax.',
+    answers: [
+      { text: 'Beach', points: 30, aliases: ['the beach'] },
+      { text: 'Home', points: 23, aliases: ['house'] },
+      { text: 'Park', points: 17, aliases: ['garden'] },
+      { text: 'Spa', points: 12, aliases: ['massage'] },
+      { text: 'Bed', points: 10, aliases: ['bedroom'] },
+      { text: 'Gym', points: 8, aliases: ['fitness center'] }
+    ]
+  }
+];
+const SURVEY_CLASH_SOUNDS = {
+  correct: '/sounds/eaglaxle-electronic-beep-2-453382.mp3',
+  top: '/sounds/lubecin123-info-computer-sound-299367.mp3',
+  strike: '/sounds/freesound_community-laser-gun-72558.mp3',
+  win: '/sounds/freesound_community-launch-85216.mp3',
+  timer: '/sounds/beep-sound-short-237619.mp3',
+  round: '/sounds/freesound_community-cinematic-glitch-transition-sfx-27806.mp3'
+};
+let surveyClashLastSoundStamp = 0;
+let surveyClashMuted = localStorage.getItem('surveyClashMuted') === 'true';
+let surveyClashVolume = Math.max(0, Math.min(1, Number.parseFloat(localStorage.getItem('surveyClashVolume') || '0.75') || 0.75));
 const BACKGAMMON_COLORS = cloneStaticData('BACKGAMMON_COLORS', ['white', 'black']);
 const BACKGAMMON_COLOR_META = cloneStaticData('BACKGAMMON_COLOR_META', {});
 const BACKGAMMON_INITIAL_POINTS = cloneStaticData('BACKGAMMON_INITIAL_POINTS', []);
@@ -6709,6 +6779,9 @@ function createInitialActivityState(activityId, room = APP.room) {
       roundsTotal: Math.min(8, EMOJI_CHARADES_BANK.length),
       startedAt: Date.now()
     };
+  }
+  if (activityId === 'survey-clash') {
+    return createSurveyClashState(room?.participants || []);
   }
   if (activityId === 'pulse-check') {
     const questionOrder = buildShuffledQuestionOrder(PULSE_QUESTIONS.length);
@@ -10472,7 +10545,395 @@ async function startBattleship() { await startActivityById('battleship'); }
 async function startBingo() { await startActivityById('bingo'); }
 async function startBackgammon() { await startActivityById('backgammon'); }
 async function startConnect4() { await startActivityById('connect-4'); }
+async function startSurveyClash() { await startActivityById('survey-clash'); }
 async function startCosmosBound() { await startActivityById('cosmos-bound'); }
+
+function normalizeSurveyClashText(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function getSurveyClashQuestion(state) {
+  const order = Array.isArray(state?.questionOrder) && state.questionOrder.length
+    ? state.questionOrder
+    : SURVEY_CLASH_QUESTIONS.map((_, idx) => idx);
+  const round = Math.max(0, Number.parseInt(state?.roundIndex || 0, 10) || 0);
+  const questionIndex = order[round % order.length] || 0;
+  return SURVEY_CLASH_QUESTIONS[questionIndex] || SURVEY_CLASH_QUESTIONS[0];
+}
+
+function getSurveyClashMultiplier(state) {
+  const round = Math.max(0, Number.parseInt(state?.roundIndex || 0, 10) || 0);
+  if (round >= 3) return 3;
+  if (round >= 2) return 2;
+  return 1;
+}
+
+function createSurveyClashState(participants = []) {
+  const names = (Array.isArray(participants) ? participants : [])
+    .map(player => String(player?.name || '').trim())
+    .filter(Boolean);
+  return {
+    teamNames: [names[0] || 'Team 1', names[1] || 'Team 2'],
+    scores: [0, 0],
+    activeTeam: 0,
+    roundIndex: 0,
+    roundCount: Math.min(4, SURVEY_CLASH_QUESTIONS.length),
+    questionOrder: buildShuffledQuestionOrder(SURVEY_CLASH_QUESTIONS.length),
+    revealed: Array(6).fill(false),
+    strikes: 0,
+    message: 'Board ready.',
+    timerSeconds: 0,
+    timerStartedAt: 0,
+    lastSound: { key: 'round', stamp: Date.now() },
+    startedAt: Date.now()
+  };
+}
+
+function getSurveyClashBank(state) {
+  const question = getSurveyClashQuestion(state);
+  const revealed = Array.isArray(state?.revealed) ? state.revealed : [];
+  const multiplier = getSurveyClashMultiplier(state);
+  return question.answers.reduce((sum, answer, idx) => revealed[idx] ? sum + (Number(answer.points) || 0) * multiplier : sum, 0);
+}
+
+function playSurveyClashSound(key) {
+  if (surveyClashMuted || !SURVEY_CLASH_SOUNDS[key]) return;
+  const audio = new Audio(SURVEY_CLASH_SOUNDS[key]);
+  audio.volume = surveyClashVolume;
+  audio.play().catch(() => {});
+}
+
+function maybePlaySurveyClashRenderSound(state) {
+  const stamp = Number(state?.lastSound?.stamp) || 0;
+  const key = String(state?.lastSound?.key || '');
+  if (!stamp || !key || stamp <= surveyClashLastSoundStamp) return;
+  surveyClashLastSoundStamp = stamp;
+  playSurveyClashSound(key);
+}
+
+async function updateSurveyClashState(mutator) {
+  if (!APP.roomCode || APP.room?.currentActivity !== 'survey-clash') return null;
+  const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
+  if (!room || room.currentActivity !== 'survey-clash') return null;
+  if (room.host !== APP.player?.name) {
+    showError('Only the host can control Survey Clash.');
+    return null;
+  }
+  const state = room.activityState && typeof room.activityState === 'object'
+    ? room.activityState
+    : createSurveyClashState(room.participants || []);
+  state.teamNames = Array.isArray(state.teamNames) ? state.teamNames.slice(0, 2) : ['Team 1', 'Team 2'];
+  state.scores = Array.isArray(state.scores) ? state.scores.slice(0, 2).map(score => Number(score) || 0) : [0, 0];
+  state.revealed = Array.isArray(state.revealed) ? state.revealed : Array(6).fill(false);
+  if (typeof mutator === 'function') mutator(state);
+  state.updatedAt = Date.now();
+  room.activityState = state;
+  await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
+  APP.room = room;
+  render();
+  return state;
+}
+
+function surveyClashSetSound(state, key) {
+  state.lastSound = { key, stamp: Date.now() };
+}
+
+async function surveyClashSubmitGuess() {
+  const input = document.getElementById('surveyClashGuessInput');
+  const guess = normalizeSurveyClashText(input?.value || '');
+  if (input) input.value = '';
+  if (!guess) return;
+  await updateSurveyClashState(state => {
+    const question = getSurveyClashQuestion(state);
+    const answerIndex = question.answers.findIndex((answer, idx) => {
+      if (state.revealed[idx]) return false;
+      const choices = [answer.text, ...(answer.aliases || [])].map(normalizeSurveyClashText);
+      return choices.some(choice => choice === guess || choice.includes(guess) || guess.includes(choice));
+    });
+    if (answerIndex < 0) {
+      state.strikes = Math.min(3, (Number(state.strikes) || 0) + 1);
+      state.message = state.strikes >= 3
+        ? `Three strikes. ${state.teamNames[1 - (Number(state.activeTeam) || 0)]} can steal.`
+        : `Strike ${state.strikes}.`;
+      surveyClashSetSound(state, 'strike');
+      return;
+    }
+    state.revealed[answerIndex] = true;
+    state.message = `${question.answers[answerIndex].text} is on the board.`;
+    surveyClashSetSound(state, answerIndex === 0 ? 'top' : 'correct');
+    if (state.revealed.every(Boolean)) {
+      state.message = 'Board cleared. Award the bank or start the next round.';
+      surveyClashSetSound(state, 'win');
+    }
+  });
+}
+
+async function surveyClashRevealAnswer(index) {
+  await updateSurveyClashState(state => {
+    const question = getSurveyClashQuestion(state);
+    const answerIndex = Number.isInteger(index) ? index : state.revealed.findIndex(BooleanFalse => !BooleanFalse);
+    if (answerIndex < 0 || answerIndex >= question.answers.length || state.revealed[answerIndex]) return;
+    state.revealed[answerIndex] = true;
+    state.message = `${question.answers[answerIndex].text} revealed.`;
+    surveyClashSetSound(state, answerIndex === 0 ? 'top' : 'correct');
+  });
+}
+
+async function surveyClashAddStrike() {
+  await updateSurveyClashState(state => {
+    state.strikes = Math.min(3, (Number(state.strikes) || 0) + 1);
+    state.message = state.strikes >= 3
+      ? `Three strikes. ${state.teamNames[1 - (Number(state.activeTeam) || 0)]} can steal.`
+      : `Strike ${state.strikes}.`;
+    surveyClashSetSound(state, 'strike');
+  });
+}
+
+async function surveyClashClearStrike() {
+  await updateSurveyClashState(state => {
+    state.strikes = Math.max(0, (Number(state.strikes) || 0) - 1);
+    state.message = 'Strike cleared.';
+  });
+}
+
+async function surveyClashSwitchTeam() {
+  await updateSurveyClashState(state => {
+    state.activeTeam = 1 - (Number(state.activeTeam) || 0);
+    state.strikes = 0;
+    state.message = `${state.teamNames[state.activeTeam]} has control.`;
+  });
+}
+
+async function surveyClashAwardBank(teamIndex = null) {
+  await updateSurveyClashState(state => {
+    const activeTeam = Number(state.activeTeam) || 0;
+    const targetTeam = Number.isInteger(teamIndex) ? Math.max(0, Math.min(1, teamIndex)) : activeTeam;
+    const bank = getSurveyClashBank(state);
+    if (!bank) {
+      state.message = 'No revealed points in the bank yet.';
+      return;
+    }
+    state.scores[targetTeam] = (Number(state.scores[targetTeam]) || 0) + bank;
+    state.message = `${state.teamNames[targetTeam]} takes ${bank} points.`;
+    surveyClashSetSound(state, 'win');
+  });
+}
+
+async function surveyClashSteal() {
+  await updateSurveyClashState(state => {
+    const stealingTeam = 1 - (Number(state.activeTeam) || 0);
+    const bank = getSurveyClashBank(state);
+    if (!bank) {
+      state.message = 'No revealed points in the bank yet.';
+      return;
+    }
+    state.scores[stealingTeam] = (Number(state.scores[stealingTeam]) || 0) + bank;
+    state.activeTeam = stealingTeam;
+    state.strikes = 0;
+    state.message = `${state.teamNames[stealingTeam]} steals ${bank} points.`;
+    surveyClashSetSound(state, 'win');
+  });
+}
+
+async function surveyClashNextRound() {
+  await updateSurveyClashState(state => {
+    if ((Number(state.roundIndex) || 0) >= (Number(state.roundCount) || 4) - 1) {
+      const winner = state.scores[0] === state.scores[1] ? 'Tie game' : state.teamNames[state.scores[0] > state.scores[1] ? 0 : 1];
+      state.message = `Game over. ${winner} wins.`;
+      surveyClashSetSound(state, 'win');
+      return;
+    }
+    state.roundIndex = (Number(state.roundIndex) || 0) + 1;
+    state.activeTeam = state.roundIndex % 2;
+    state.strikes = 0;
+    state.revealed = Array(getSurveyClashQuestion(state).answers.length).fill(false);
+    state.timerSeconds = 0;
+    state.timerStartedAt = 0;
+    state.message = `Round ${state.roundIndex + 1}. ${state.teamNames[state.activeTeam]} starts.`;
+    surveyClashSetSound(state, 'round');
+  });
+}
+
+async function surveyClashFinishGame() {
+  await updateSurveyClashState(state => {
+    const winner = state.scores[0] === state.scores[1] ? 'Tie game' : state.teamNames[state.scores[0] > state.scores[1] ? 0 : 1];
+    state.message = `Game over. ${winner} wins.`;
+    surveyClashSetSound(state, 'win');
+  });
+}
+
+async function surveyClashStartTimer(seconds) {
+  await updateSurveyClashState(state => {
+    state.timerSeconds = Math.max(1, Math.min(90, Number(seconds) || 20));
+    state.timerStartedAt = Date.now();
+    state.message = `${state.timerSeconds} second timer started.`;
+    surveyClashSetSound(state, 'timer');
+  });
+}
+
+async function surveyClashPlaySound(key) {
+  await updateSurveyClashState(state => {
+    surveyClashSetSound(state, key);
+  });
+}
+
+function setSurveyClashMuted(muted) {
+  surveyClashMuted = Boolean(muted);
+  localStorage.setItem('surveyClashMuted', surveyClashMuted ? 'true' : 'false');
+  render();
+}
+
+function setSurveyClashVolume(value) {
+  surveyClashVolume = Math.max(0, Math.min(1, Number(value) || 0));
+  localStorage.setItem('surveyClashVolume', String(surveyClashVolume));
+}
+
+function renderSurveyClash() {
+  const state = APP.room?.activityState && typeof APP.room.activityState === 'object'
+    ? APP.room.activityState
+    : createSurveyClashState(APP.room?.participants || []);
+  maybePlaySurveyClashRenderSound(state);
+  const isHost = APP.room?.host === APP.player?.name;
+  const question = getSurveyClashQuestion(state);
+  const revealed = Array.isArray(state.revealed) ? state.revealed : Array(question.answers.length).fill(false);
+  const teamNames = Array.isArray(state.teamNames) ? state.teamNames : ['Team 1', 'Team 2'];
+  const scores = Array.isArray(state.scores) ? state.scores : [0, 0];
+  const activeTeam = Number(state.activeTeam) === 1 ? 1 : 0;
+  const multiplier = getSurveyClashMultiplier(state);
+  const bank = getSurveyClashBank(state);
+  const strikes = Math.max(0, Math.min(3, Number(state.strikes) || 0));
+  const roundIndex = Math.max(0, Number(state.roundIndex) || 0);
+  const roundCount = Math.max(1, Number(state.roundCount) || 4);
+  const timerSeconds = Number(state.timerSeconds) || 0;
+  const timerStartedAt = Number(state.timerStartedAt) || 0;
+  const remaining = timerSeconds && timerStartedAt
+    ? Math.max(0, timerSeconds - Math.floor((Date.now() - timerStartedAt) / 1000))
+    : 0;
+  const answerRows = question.answers.map((answer, idx) => {
+    const isRevealed = Boolean(revealed[idx]);
+    return `
+      <div style="display:grid;grid-template-columns:48px minmax(0,1fr)64px;align-items:stretch;min-height:70px;border:1px solid rgba(255,255,255,0.14);border-radius:8px;overflow:hidden;background:${isRevealed ? 'linear-gradient(135deg,rgba(0,210,211,0.22),rgba(254,202,87,0.13))' : 'rgba(255,255,255,0.055)'};">
+        <div style="display:grid;place-items:center;background:rgba(0,0,0,0.2);font-family:'IBM Plex Mono',monospace;font-weight:900;color:var(--warning);">${idx + 1}</div>
+        <div style="display:grid;align-items:center;padding:12px 14px;min-width:0;">
+          <div style="font-size:clamp(1rem,2vw,1.35rem);font-weight:900;text-transform:uppercase;letter-spacing:0;overflow-wrap:anywhere;color:${isRevealed ? 'var(--text)' : 'rgba(255,255,255,0.28)'};">${escapeHtml(isRevealed ? answer.text : 'Hidden Answer')}</div>
+        </div>
+        <div style="display:grid;place-items:center;background:rgba(0,0,0,0.22);font-family:'IBM Plex Mono',monospace;font-weight:900;color:${isRevealed ? 'var(--warning)' : 'var(--text-dim)'};">${isRevealed ? (Number(answer.points) || 0) * multiplier : '--'}</div>
+      </div>
+    `;
+  }).join('');
+  const hostControls = isHost ? `
+    <div style="display:grid;gap:14px;">
+      <div style="padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface-solid);">
+        <div style="font-size:0.78rem;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;">Guess</div>
+        <input id="surveyClashGuessInput" class="form-input" placeholder="Type a player guess" maxlength="80" style="margin-bottom:8px;">
+        <button class="btn-primary" data-action="survey-clash-submit-guess" style="width:100%;">Submit Guess</button>
+      </div>
+      <div style="padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface-solid);">
+        <div style="font-size:0.78rem;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;">Host Controls</div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+          <button class="btn-secondary" data-action="survey-clash-strike">Strike</button>
+          <button class="btn-secondary" data-action="survey-clash-clear-strike">Clear Strike</button>
+          <button class="btn-primary" data-action="survey-clash-award-bank">Award Bank</button>
+          <button class="btn-secondary" data-action="survey-clash-steal">Steal</button>
+          <button class="btn-secondary" data-action="survey-clash-switch-team">Switch Team</button>
+          <button class="btn-secondary" data-action="survey-clash-reveal-next">Reveal Next</button>
+          <button class="btn-primary" data-action="survey-clash-next-round" ${roundIndex >= roundCount - 1 ? 'disabled' : ''}>Next Round</button>
+          <button class="btn-secondary" data-action="survey-clash-finish">Finish</button>
+        </div>
+      </div>
+      <div style="padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface-solid);">
+        <div style="font-size:0.78rem;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;">Reveal Board</div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
+          ${question.answers.map((answer, idx) => `<button class="btn-secondary" data-action="survey-clash-reveal-answer" data-index="${idx}" ${revealed[idx] ? 'disabled' : ''}>${idx + 1}</button>`).join('')}
+        </div>
+      </div>
+      <div style="padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface-solid);">
+        <div style="font-size:0.78rem;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;">Sound</div>
+        <label class="form-label" for="surveyClashVolume">Master volume</label>
+        <input id="surveyClashVolume" type="range" min="0" max="100" value="${Math.round(surveyClashVolume * 100)}" style="width:100%;margin:6px 0 10px;">
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
+          <button class="btn-secondary" data-action="survey-clash-sound" data-key="correct">Correct</button>
+          <button class="btn-secondary" data-action="survey-clash-sound" data-key="top">Top</button>
+          <button class="btn-secondary" data-action="survey-clash-sound" data-key="strike">Strike</button>
+          <button class="btn-secondary" data-action="survey-clash-sound" data-key="win">Win</button>
+          <button class="btn-secondary" data-action="survey-clash-sound" data-key="timer">Tick</button>
+          <button class="btn-secondary" data-action="survey-clash-toggle-mute">${surveyClashMuted ? 'Unmute' : 'Mute'}</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px;">
+          <button class="btn-secondary" data-action="survey-clash-timer" data-seconds="20">20 sec</button>
+          <button class="btn-secondary" data-action="survey-clash-timer" data-seconds="30">30 sec</button>
+        </div>
+      </div>
+    </div>
+  ` : `
+    <div style="padding:18px;border:1px solid var(--border);border-radius:8px;background:var(--surface-solid);color:var(--text-dim);line-height:1.5;">
+      The host controls the board, scoring, strikes, and sounds.
+    </div>
+  `;
+
+  return `
+    <div style="display:grid;grid-template-columns:minmax(0,1fr)340px;gap:16px;align-items:start;" class="survey-clash-app">
+      <div style="padding:18px;border:1px solid var(--border);border-radius:8px;background:linear-gradient(135deg,rgba(0,210,211,0.08),rgba(254,202,87,0.07));box-shadow:0 18px 48px rgba(0,0,0,0.18);">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+          <div>
+            <div style="font-size:0.78rem;font-weight:900;letter-spacing:0.1em;text-transform:uppercase;color:var(--warning);">Survey Clash</div>
+            <h2 style="font-family:'Fraunces',serif;font-size:clamp(2rem,5vw,4rem);line-height:0.95;margin:4px 0 0;letter-spacing:0;">Round ${roundIndex + 1} of ${roundCount}</h2>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(100px,1fr));gap:8px;min-width:min(100%,440px);">
+            <div style="padding:10px;border:1px solid ${activeTeam === 0 ? 'rgba(254,202,87,0.6)' : 'var(--border)'};border-radius:8px;background:rgba(255,255,255,0.06);">
+              <div style="font-size:0.72rem;font-weight:900;color:var(--text-dim);text-transform:uppercase;">${escapeHtml(teamNames[0] || 'Team 1')}</div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:1.7rem;font-weight:900;">${Number(scores[0]) || 0}</div>
+            </div>
+            <div style="padding:10px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.06);">
+              <div style="font-size:0.72rem;font-weight:900;color:var(--text-dim);text-transform:uppercase;">Bank</div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:1.7rem;font-weight:900;">${bank}</div>
+            </div>
+            <div style="padding:10px;border:1px solid ${activeTeam === 1 ? 'rgba(254,202,87,0.6)' : 'var(--border)'};border-radius:8px;background:rgba(255,255,255,0.06);">
+              <div style="font-size:0.72rem;font-weight:900;color:var(--text-dim);text-transform:uppercase;">${escapeHtml(teamNames[1] || 'Team 2')}</div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:1.7rem;font-weight:900;">${Number(scores[1]) || 0}</div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:16px;border:1px solid rgba(254,202,87,0.25);border-radius:8px;background:rgba(0,0,0,0.18);margin-bottom:12px;">
+          <div style="font-size:0.78rem;font-weight:900;color:var(--warning);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;">Survey says</div>
+          <div style="font-size:clamp(1.35rem,3vw,2.3rem);font-weight:900;line-height:1.08;letter-spacing:0;">${escapeHtml(question.prompt)}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px;">
+          ${answerRows}
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;">
+          <div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.05);">
+            <div style="font-size:0.72rem;font-weight:900;color:var(--text-dim);text-transform:uppercase;">Active</div>
+            <div style="font-weight:900;margin-top:4px;">${escapeHtml(teamNames[activeTeam] || 'Team')}</div>
+          </div>
+          <div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.05);">
+            <div style="font-size:0.72rem;font-weight:900;color:var(--text-dim);text-transform:uppercase;">Multiplier</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-weight:900;margin-top:4px;">${multiplier}x</div>
+          </div>
+          <div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.05);">
+            <div style="font-size:0.72rem;font-weight:900;color:var(--text-dim);text-transform:uppercase;">Strikes</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-weight:900;margin-top:4px;color:var(--danger);">${Array.from({ length: 3 }, (_, idx) => idx < strikes ? 'X' : '-').join(' ')}</div>
+          </div>
+          <div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.05);">
+            <div style="font-size:0.72rem;font-weight:900;color:var(--text-dim);text-transform:uppercase;">Timer</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-weight:900;margin-top:4px;">${remaining ? `${remaining}s` : '--'}</div>
+          </div>
+        </div>
+        <div style="margin-top:12px;padding:12px 14px;border-radius:8px;background:rgba(254,202,87,0.1);border:1px solid rgba(254,202,87,0.18);font-weight:800;color:var(--warning);">${escapeHtml(state.message || 'Board ready.')}</div>
+      </div>
+      ${hostControls}
+    </div>
+    <style>
+      @media (max-width: 980px) {
+        .survey-clash-app { grid-template-columns: 1fr !important; }
+      }
+      @media (max-width: 700px) {
+        .survey-clash-app [style*="grid-template-columns:repeat(2"] { grid-template-columns: 1fr !important; }
+        .survey-clash-app [style*="grid-template-columns:repeat(4"] { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+      }
+    </style>
+  `;
+}
 
 // ═══════════════════════════════════════════
 // COSMOS BOUND — ACTION HANDLERS
@@ -16351,6 +16812,9 @@ document.addEventListener('click', async (event) => {
     case 'start-dj-booth':
       await startDjBooth();
       break;
+    case 'start-survey-clash':
+      await startSurveyClash();
+      break;
     case 'start-battleship':
       await startBattleship();
       break;
@@ -16523,6 +16987,45 @@ document.addEventListener('click', async (event) => {
       break;
     case 'spin-wheel-start-mini-session':
       await startSpinWheelMiniSession();
+      break;
+    case 'survey-clash-submit-guess':
+      await surveyClashSubmitGuess();
+      break;
+    case 'survey-clash-strike':
+      await surveyClashAddStrike();
+      break;
+    case 'survey-clash-clear-strike':
+      await surveyClashClearStrike();
+      break;
+    case 'survey-clash-award-bank':
+      await surveyClashAwardBank();
+      break;
+    case 'survey-clash-steal':
+      await surveyClashSteal();
+      break;
+    case 'survey-clash-switch-team':
+      await surveyClashSwitchTeam();
+      break;
+    case 'survey-clash-reveal-next':
+      await surveyClashRevealAnswer(null);
+      break;
+    case 'survey-clash-reveal-answer':
+      if (Number.isInteger(parsedIndex)) await surveyClashRevealAnswer(parsedIndex);
+      break;
+    case 'survey-clash-next-round':
+      await surveyClashNextRound();
+      break;
+    case 'survey-clash-finish':
+      await surveyClashFinishGame();
+      break;
+    case 'survey-clash-sound':
+      await surveyClashPlaySound(key || 'correct');
+      break;
+    case 'survey-clash-toggle-mute':
+      setSurveyClashMuted(!surveyClashMuted);
+      break;
+    case 'survey-clash-timer':
+      await surveyClashStartTimer(Number.parseInt(target.dataset.seconds || '20', 10) || 20);
       break;
     case 'battleship-select-ship':
       if (shipId) await handleBattleshipShipSelection(shipId);
@@ -16804,6 +17307,23 @@ document.addEventListener('click', async (event) => {
       break;
     default:
       break;
+  }
+});
+
+document.addEventListener('input', event => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+  if (target.id === 'surveyClashVolume') {
+    setSurveyClashVolume((Number(target.value) || 0) / 100);
+  }
+});
+
+document.addEventListener('keydown', async event => {
+  if (APP.room?.currentActivity !== 'survey-clash') return;
+  const active = document.activeElement;
+  if (event.key === 'Enter' && active?.id === 'surveyClashGuessInput') {
+    event.preventDefault();
+    await surveyClashSubmitGuess();
   }
 });
 
@@ -17199,6 +17719,7 @@ function renderActivity() {
   else if (activity === 'presentation') content = renderPresentationActivity();
   else if (activity === 'slides-studio') content = renderSlidesStudio();
   else if (activity === 'dj-booth') content = renderDjBooth();
+  else if (activity === 'survey-clash') content = renderSurveyClash();
   else if (activity === 'battleship') content = renderBattleship();
   else if (activity === 'bingo') content = renderBingo();
   else if (activity === 'backgammon') content = renderBackgammon();

@@ -346,6 +346,12 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
           <p class="card-desc">Load two YouTube decks, blend them live, fire sound pads, and broadcast a scrolling DJ banner</p>
         </button>
 
+        <button type="button" class="card" data-action="start-survey-clash" aria-label="Start Survey Clash" style="${enabledActivities['survey-clash'] === false ? 'display:none;' : ''}">
+          <div class="card-icon">📣</div>
+          <h3 class="card-title">Survey Clash</h3>
+          <p class="card-desc">Guess top survey answers, reveal the board, play strikes, steal points, and trigger host sounds</p>
+        </button>
+
         <button type="button" class="card" data-action="start-battleship" aria-label="Start Battleship" style="${enabledActivities.battleship === false ? 'display:none;' : ''}">
           <div class="card-icon">🚢</div>
           <h3 class="card-title">Battleship</h3>

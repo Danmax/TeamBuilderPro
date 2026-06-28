@@ -51,6 +51,7 @@ const ALL_ACTIVITY_IDS = [
   'presentation',
   'slides-studio',
   'dj-booth',
+  'survey-clash',
   'battleship',
   'bingo',
   'backgammon',
@@ -112,6 +113,7 @@ function getDefaultPreferences() {
     'spin-wheel',
     'slides-studio',
     'battleship',
+    'survey-clash',
     'bingo'
   ]);
   return {
