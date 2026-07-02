@@ -10653,9 +10653,6 @@ function activityMeetsRoomRequirements(room, activityId) {
   if (activityId === 'connect-4') {
     return (room?.participants || []).length >= 2;
   }
-  if (activityId === 'chess-lobby') {
-    return (room?.participants || []).length >= 2;
-  }
   if (activityId === 'cosmos-bound') {
     return (room?.participants || []).length >= 2;
   }
@@ -10682,10 +10679,6 @@ async function startActivityById(activityId) {
     }
     if (activityId === 'connect-4') {
       showError('Connect 4 needs 2 players in the room.');
-      return false;
-    }
-    if (activityId === 'chess-lobby') {
-      showError('Chess Lobby needs at least 2 players in the room.');
       return false;
     }
     if (activityId === 'cosmos-bound') {
@@ -19796,7 +19789,7 @@ function renderChessLobby() {
   return `
     <div class="header">
       <h1 style="font-size:2rem;font-weight:700;">♟️ Chess Lobby</h1>
-      <p class="tagline">Room: ${safeRoomCode} • Multiple boards can run at the same time</p>
+      <p class="tagline">Room: ${safeRoomCode} • Play solo against the computer or run multiple player boards at once</p>
     </div>
 
     <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
@@ -19813,7 +19806,7 @@ function renderChessLobby() {
       <div class="game-mobile-side" style="display:grid;gap:18px;">
         <div style="background:linear-gradient(180deg,rgba(16,18,24,0.96),rgba(8,8,12,0.98));border:1px solid rgba(255,255,255,0.12);border-radius:24px;padding:20px;box-shadow:0 24px 54px rgba(0,0,0,0.38);">
           <div style="font-family:'Fraunces',serif;font-size:1.35rem;margin-bottom:10px;">Find a Match</div>
-          <div style="color:var(--text-dim);font-size:0.9rem;line-height:1.5;margin-bottom:16px;">Create a quick match or invite an available player directly.</div>
+          <div style="color:var(--text-dim);font-size:0.9rem;line-height:1.5;margin-bottom:16px;">Play the computer now, queue for a quick match, or invite an available player directly.</div>
           ${myActiveGame ? `
             <button class="btn-primary" data-action="chess-select-game" data-game-id="${escapeHtml(myActiveGame.id)}">Open My Game</button>
           ` : isQueued ? `
