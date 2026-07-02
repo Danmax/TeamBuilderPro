@@ -56,6 +56,7 @@ const ALL_ACTIVITY_IDS = [
   'bingo',
   'backgammon',
   'connect-4',
+  'chess-lobby',
   'cosmos-bound'
 ];
 const FEATURE_FLAG_IDS = [
@@ -114,7 +115,8 @@ function getDefaultPreferences() {
     'slides-studio',
     'battleship',
     'survey-clash',
-    'bingo'
+    'bingo',
+    'chess-lobby'
   ]);
   return {
     enableFeedbackHub: true,

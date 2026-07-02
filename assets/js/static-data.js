@@ -331,6 +331,7 @@ window.TEAM_BUILDER_STATIC_DATA = {
     { id: 'bingo', icon: '🎟️', label: 'Bingo' },
     { id: 'backgammon', icon: '🎲', label: 'Backgammon' },
     { id: 'connect-4', icon: '🟡', label: 'Connect 4' },
+    { id: 'chess-lobby', icon: '♟️', label: 'Chess Lobby' },
     { id: 'cosmos-bound', icon: '🚀', label: 'Cosmos Bound' }
   ],
   GAME_ACTIVITY_IDS: [
@@ -348,6 +349,7 @@ window.TEAM_BUILDER_STATIC_DATA = {
     'bingo',
     'backgammon',
     'connect-4',
+    'chess-lobby',
     'cosmos-bound'
   ],
   BATTLESHIP_BOARD_SIZE: 10,
