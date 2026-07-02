@@ -56,6 +56,7 @@ The app runs locally with Socket.IO and JSON persistence by default. Runtime fil
 - Bingo
 - Backgammon
 - Connect 4
+- Chess Lobby
 - Cosmos Bound
 
 ## Notable Features

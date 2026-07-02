@@ -5467,6 +5467,12 @@ const CHESS_PIECES = {
   bq: '♛',
   bk: '♚'
 };
+const CHESS_COMPUTER_PLAYER_ID = '__team_builder_chess_computer__';
+const CHESS_COMPUTER_SEAT = {
+  playerId: CHESS_COMPUTER_PLAYER_ID,
+  playerName: 'Computer',
+  avatar: '🤖'
+};
 let chessEngineModulePromise = null;
 const AI_GENERATION_TARGETS = cloneStaticData('AI_GENERATION_TARGETS', []);
 const AI_GENERATION_TARGET_LABELS = Object.fromEntries(AI_GENERATION_TARGETS.map(item => [item.id, item.label]));
@@ -7708,8 +7714,8 @@ function createConnect4State(participants) {
 
 function createChessSeat(participant = null, fallbackLabel = 'Player') {
   return {
-    playerId: String(participant?.id || '').trim(),
-    playerName: String(participant?.name || '').trim() || fallbackLabel,
+    playerId: String(participant?.id || participant?.playerId || '').trim(),
+    playerName: String(participant?.name || participant?.playerName || '').trim() || fallbackLabel,
     avatar: String(participant?.avatar || '').trim() || '👤'
   };
 }
@@ -7793,6 +7799,15 @@ function isChessGameFinished(game) {
   return ['checkmate', 'stalemate', 'draw', 'resigned', 'abandoned'].includes(String(game?.status || ''));
 }
 
+function getChessOpenGameForPlayer(state, playerId) {
+  const id = String(playerId || '').trim();
+  if (!id) return null;
+  return Object.values(state?.games || {}).find(game => {
+    if (!game || isChessGameFinished(game)) return false;
+    return game.players?.white?.playerId === id || game.players?.black?.playerId === id;
+  }) || null;
+}
+
 function createChessGame(participants, whitePlayerId, blackPlayerId, options = {}) {
   const whiteParticipant = getParticipantById(participants, whitePlayerId);
   const blackParticipant = getParticipantById(participants, blackPlayerId);
@@ -7823,12 +7838,85 @@ function createChessGame(participants, whitePlayerId, blackPlayerId, options = {
   };
 }
 
+function createChessComputerGame(participants, playerId) {
+  const game = createChessGame(participants, playerId, CHESS_COMPUTER_PLAYER_ID, { createdByPlayerId: playerId });
+  game.players.black = { ...CHESS_COMPUTER_SEAT };
+  game.lastAction = `${game.players.white.playerName} started a game against the computer. ${game.players.white.playerName} moves first.`;
+  return game;
+}
+
 async function loadChessEngine() {
   if (!chessEngineModulePromise) {
     chessEngineModulePromise = import('/assets/vendor/chess.js');
   }
   const mod = await chessEngineModulePromise;
   return mod.Chess;
+}
+
+function scoreChessComputerMove(chess, move, Chess) {
+  const pieceValues = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 };
+  const trial = new Chess(chess.fen());
+  let applied = null;
+  try {
+    applied = trial.move({ from: move.from, to: move.to, promotion: move.promotion || 'q' });
+  } catch (_error) {
+    applied = null;
+  }
+  if (!applied) return Number.NEGATIVE_INFINITY;
+  let score = Math.random() * 12;
+  if (applied.captured) score += pieceValues[applied.captured] || 0;
+  if (applied.promotion) score += pieceValues[applied.promotion] || 0;
+  if (getChessGameStatusFromEngine(trial) === 'checkmate') score += 10000;
+  if (getChessGameStatusFromEngine(trial) === 'check') score += 75;
+  if (['d4', 'e4', 'd5', 'e5'].includes(applied.to)) score += 20;
+  return score;
+}
+
+function chooseChessComputerMove(chess, Chess) {
+  const moves = typeof chess.moves === 'function' ? chess.moves({ verbose: true }) : [];
+  if (!Array.isArray(moves) || !moves.length) return null;
+  let bestScore = Number.NEGATIVE_INFINITY;
+  let bestMoves = [];
+  moves.forEach(move => {
+    const score = scoreChessComputerMove(chess, move, Chess);
+    if (score > bestScore + 0.001) {
+      bestScore = score;
+      bestMoves = [move];
+    } else if (Math.abs(score - bestScore) <= 0.001) {
+      bestMoves.push(move);
+    }
+  });
+  return bestMoves[Math.floor(Math.random() * bestMoves.length)] || moves[Math.floor(Math.random() * moves.length)] || null;
+}
+
+function syncChessGameFromEngine(game, chess, move, moverColor, state, actionPrefix = '') {
+  game.fen = chess.fen();
+  game.pgn = typeof chess.pgn === 'function' ? chess.pgn() : game.pgn;
+  game.turn = typeof chess.turn === 'function' ? chess.turn() : (getChessTurnColorFromFen(game.fen) === 'black' ? 'b' : 'w');
+  game.lastMove = { from: move.from, to: move.to, san: move.san, color: move.color, piece: move.piece, captured: move.captured || '', promotion: move.promotion || '' };
+  game.moves = [...(Array.isArray(game.moves) ? game.moves : []), game.lastMove].slice(-240);
+  game.drawOfferByPlayerId = '';
+  game.status = getChessGameStatusFromEngine(chess);
+  game.updatedAt = Date.now();
+  const moverSeat = getChessSeat(game, moverColor);
+  if (game.status === 'checkmate') {
+    game.winnerPlayerId = moverSeat.playerId;
+    game.finishedAt = Date.now();
+    game.lastAction = `${moverSeat.playerName} delivered checkmate.`;
+    recordChessResult(state, game, `${moverSeat.playerName} won by checkmate`);
+  } else if (game.status === 'stalemate') {
+    game.finishedAt = Date.now();
+    game.lastAction = 'Stalemate. The game is drawn.';
+    recordChessResult(state, game, 'Draw by stalemate');
+  } else if (game.status === 'draw') {
+    game.finishedAt = Date.now();
+    game.lastAction = 'The game ended in a draw.';
+    recordChessResult(state, game, 'Draw');
+  } else {
+    const nextColor = getChessTurnColorFromFen(game.fen);
+    const prefix = actionPrefix ? `${actionPrefix} ` : '';
+    game.lastAction = `${prefix}${moverSeat.playerName} played ${move.san}. ${getChessSeat(game, nextColor).playerName} is up${game.status === 'check' ? ' in check' : ''}.`;
+  }
 }
 
 function getChessGameStatusFromEngine(chess) {
@@ -13014,14 +13102,15 @@ async function updateChessLobbyState(mutator) {
 async function chessQuickMatch() {
   const myId = String(APP.player?.id || '').trim();
   if (!myId) return;
-  await updateChessLobbyState(state => {
-    state.quickMatchQueue = state.quickMatchQueue.filter(id => id !== myId);
-    const opponentId = state.quickMatchQueue.find(id => id && id !== myId);
+  await updateChessLobbyState((state, room) => {
+    if (getChessOpenGameForPlayer(state, myId)) return;
+    state.quickMatchQueue = state.quickMatchQueue.filter(id => id !== myId && !getChessOpenGameForPlayer(state, id));
+    const opponentId = state.quickMatchQueue.find(id => id && id !== myId && !getChessOpenGameForPlayer(state, id));
     if (opponentId) {
       state.quickMatchQueue = state.quickMatchQueue.filter(id => id !== opponentId);
       const whiteId = Math.random() >= 0.5 ? myId : opponentId;
       const blackId = whiteId === myId ? opponentId : myId;
-      const game = createChessGame(APP.room.participants || [], whiteId, blackId, { createdByPlayerId: myId });
+      const game = createChessGame(room.participants || [], whiteId, blackId, { createdByPlayerId: myId });
       state.games[game.id] = game;
       APP.chessUi.selectedGameId = game.id;
       APP.chessUi.selectedSquare = '';
@@ -13040,18 +13129,33 @@ async function chessCancelQuickMatch() {
   });
 }
 
+async function chessPlayComputer() {
+  const myId = String(APP.player?.id || '').trim();
+  if (!myId) return;
+  await updateChessLobbyState((state, room) => {
+    if (getChessOpenGameForPlayer(state, myId)) return;
+    state.quickMatchQueue = state.quickMatchQueue.filter(id => id !== myId);
+    const game = createChessComputerGame(room.participants || [], myId);
+    state.games[game.id] = game;
+    APP.chessUi.selectedGameId = game.id;
+    APP.chessUi.selectedSquare = '';
+    APP.chessUi.pendingPromotion = null;
+  });
+}
+
 async function chessInvitePlayer(invitedPlayerId) {
   const myId = String(APP.player?.id || '').trim();
   const targetId = String(invitedPlayerId || '').trim();
   if (!myId || !targetId || myId === targetId) return;
-  await updateChessLobbyState(state => {
+  await updateChessLobbyState((state, room) => {
+    if (getChessOpenGameForPlayer(state, myId) || getChessOpenGameForPlayer(state, targetId)) return;
     const hasPending = Object.values(state.games).some(game =>
       game.status === 'invited'
       && game.createdByPlayerId === myId
       && game.invitedPlayerId === targetId
     );
     if (hasPending) return;
-    const game = createChessGame(APP.room.participants || [], myId, targetId, {
+    const game = createChessGame(room.participants || [], myId, targetId, {
       status: 'invited',
       createdByPlayerId: myId,
       invitedPlayerId: targetId
@@ -13067,6 +13171,8 @@ async function chessAcceptInvite(gameId) {
   await updateChessLobbyState(state => {
     const game = state.games[safeGameId];
     if (!game || game.status !== 'invited' || game.invitedPlayerId !== myId) return;
+    const existingGame = getChessOpenGameForPlayer(state, myId);
+    if (existingGame && existingGame.id !== safeGameId) return;
     game.status = 'active';
     game.invitedPlayerId = '';
     game.lastAction = `${getChessSeat(game, 'black').playerName} accepted. ${getChessSeat(game, 'white').playerName} moves first.`;
@@ -13083,6 +13189,19 @@ async function chessDeclineInvite(gameId) {
   await updateChessLobbyState(state => {
     const game = state.games[safeGameId];
     if (!game || game.status !== 'invited' || game.invitedPlayerId !== myId) return;
+    delete state.games[safeGameId];
+  });
+}
+
+async function chessCancelInvite(gameId) {
+  const myId = String(APP.player?.id || '').trim();
+  const safeGameId = String(gameId || '').trim();
+  if (!myId || !safeGameId) return;
+  const isHost = APP.room?.host === APP.player?.name;
+  await updateChessLobbyState(state => {
+    const game = state.games[safeGameId];
+    if (!game || game.status !== 'invited') return;
+    if (!isHost && game.createdByPlayerId !== myId) return;
     delete state.games[safeGameId];
   });
 }
@@ -13154,31 +13273,19 @@ async function chessMakeMove(gameId, from, to, promotion = 'q') {
       move = null;
     }
     if (!move) return;
-    game.fen = chess.fen();
-    game.pgn = typeof chess.pgn === 'function' ? chess.pgn() : game.pgn;
-    game.turn = typeof chess.turn === 'function' ? chess.turn() : (getChessTurnColorFromFen(game.fen) === 'black' ? 'b' : 'w');
-    game.lastMove = { from: move.from, to: move.to, san: move.san, color: move.color, piece: move.piece, captured: move.captured || '' };
-    game.moves = [...(Array.isArray(game.moves) ? game.moves : []), game.lastMove].slice(-240);
-    game.drawOfferByPlayerId = '';
-    game.status = getChessGameStatusFromEngine(chess);
-    game.updatedAt = Date.now();
-    const moverSeat = getChessSeat(game, myColor);
-    if (game.status === 'checkmate') {
-      game.winnerPlayerId = moverSeat.playerId;
-      game.finishedAt = Date.now();
-      game.lastAction = `${moverSeat.playerName} delivered checkmate.`;
-      recordChessResult(state, game, `${moverSeat.playerName} won by checkmate`);
-    } else if (game.status === 'stalemate') {
-      game.finishedAt = Date.now();
-      game.lastAction = 'Stalemate. The game is drawn.';
-      recordChessResult(state, game, 'Draw by stalemate');
-    } else if (game.status === 'draw') {
-      game.finishedAt = Date.now();
-      game.lastAction = 'The game ended in a draw.';
-      recordChessResult(state, game, 'Draw');
-    } else {
-      const nextColor = getChessTurnColorFromFen(game.fen);
-      game.lastAction = `${moverSeat.playerName} played ${move.san}. ${getChessSeat(game, nextColor).playerName} is up${game.status === 'check' ? ' in check' : ''}.`;
+    syncChessGameFromEngine(game, chess, move, myColor, state);
+    if (!isChessGameFinished(game) && getChessSeat(game, getChessTurnColorFromFen(game.fen)).playerId === CHESS_COMPUTER_PLAYER_ID) {
+      const computerMove = chooseChessComputerMove(chess, Chess);
+      if (computerMove) {
+        const appliedComputerMove = chess.move({
+          from: computerMove.from,
+          to: computerMove.to,
+          promotion: computerMove.promotion || 'q'
+        });
+        if (appliedComputerMove) {
+          syncChessGameFromEngine(game, chess, appliedComputerMove, 'black', state, `${getChessSeat(game, myColor).playerName} played ${move.san}.`);
+        }
+      }
     }
     APP.chessUi.selectedSquare = '';
     APP.chessUi.pendingPromotion = null;
@@ -13237,6 +13344,22 @@ async function chessClearFinishedGames() {
     });
     APP.chessUi.selectedGameId = '';
     APP.chessUi.selectedSquare = '';
+  });
+}
+
+async function chessCloseGame(gameId) {
+  if (APP.room?.host !== APP.player?.name) return;
+  const safeGameId = String(gameId || '').trim();
+  if (!safeGameId) return;
+  await updateChessLobbyState(state => {
+    const game = state.games[safeGameId];
+    if (!game || isChessGameFinished(game)) return;
+    game.status = 'abandoned';
+    game.finishedAt = Date.now();
+    game.updatedAt = Date.now();
+    game.drawOfferByPlayerId = '';
+    game.lastAction = 'Host closed this game.';
+    recordChessResult(state, game, 'Closed by host');
   });
 }
 
@@ -17723,6 +17846,9 @@ document.addEventListener('click', async (event) => {
     case 'chess-cancel-quick-match':
       await chessCancelQuickMatch();
       break;
+    case 'chess-play-computer':
+      await chessPlayComputer();
+      break;
     case 'chess-invite':
       if (playerId) await chessInvitePlayer(playerId);
       break;
@@ -17731,6 +17857,9 @@ document.addEventListener('click', async (event) => {
       break;
     case 'chess-decline-invite':
       if (gameId) await chessDeclineInvite(gameId);
+      break;
+    case 'chess-cancel-invite':
+      if (gameId) await chessCancelInvite(gameId);
       break;
     case 'chess-select-game':
       chessSelectGame(gameId || '');
@@ -17754,6 +17883,9 @@ document.addEventListener('click', async (event) => {
       break;
     case 'chess-clear-finished':
       await chessClearFinishedGames();
+      break;
+    case 'chess-close-game':
+      if (gameId) await chessCloseGame(gameId);
       break;
     case 'chess-reset-lobby':
       await chessResetLobby();
@@ -19626,12 +19758,13 @@ function renderChessLobby() {
   const safeRoomCode = escapeHtml(APP.roomCode);
   const myId = String(APP.player?.id || '').trim();
   const games = Object.values(state.games).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-  const selectedGame = state.games[APP.chessUi?.selectedGameId || ''] || null;
+  const selectedGameRaw = state.games[APP.chessUi?.selectedGameId || ''] || null;
+  const selectedGame = selectedGameRaw?.status === 'invited' ? null : selectedGameRaw;
   if (selectedGame) return renderChessGameView(state, selectedGame);
 
   const activeGames = games.filter(game => !isChessGameFinished(game) && game.status !== 'invited');
   const pendingInvites = games.filter(game => game.status === 'invited');
-  const myActiveGame = games.find(game => !isChessGameFinished(game) && getChessPlayerColor(game));
+  const myActiveGame = activeGames.find(game => getChessPlayerColor(game));
   const isQueued = state.quickMatchQueue.includes(myId);
   const busyPlayerIds = new Set();
   games.forEach(game => {
@@ -19686,7 +19819,10 @@ function renderChessLobby() {
           ` : isQueued ? `
             <button class="btn-secondary" data-action="chess-cancel-quick-match" style="border-color:rgba(255,209,102,0.36);color:#ffd166;">Cancel Quick Match</button>
           ` : `
-            <button class="btn-primary" data-action="chess-quick-match">Quick Match</button>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button class="btn-primary" data-action="chess-quick-match" style="width:auto;flex:1 1 160px;">Quick Match</button>
+              <button class="btn-secondary" data-action="chess-play-computer" style="width:auto;flex:1 1 160px;">Play Computer</button>
+            </div>
           `}
         </div>
 
@@ -19703,6 +19839,7 @@ function renderChessLobby() {
             <div style="display:grid;gap:10px;">
               ${pendingInvites.map(game => {
                 const isMine = game.invitedPlayerId === myId;
+                const canCancel = isHost || game.createdByPlayerId === myId;
                 return `
                   <div style="border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:14px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;">
                     <div>
@@ -19714,6 +19851,8 @@ function renderChessLobby() {
                         <button class="btn-primary" data-action="chess-accept-invite" data-game-id="${escapeHtml(game.id)}" style="width:auto;padding:8px 12px;">Accept</button>
                         <button class="btn-secondary" data-action="chess-decline-invite" data-game-id="${escapeHtml(game.id)}" style="width:auto;padding:8px 12px;">Decline</button>
                       </div>
+                    ` : canCancel ? `
+                      <button class="btn-secondary" data-action="chess-cancel-invite" data-game-id="${escapeHtml(game.id)}" style="width:auto;padding:8px 12px;">Cancel</button>
                     ` : ''}
                   </div>
                 `;
@@ -19874,6 +20013,7 @@ function renderChessGameView(state, game) {
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
             ${isPlayer && !isChessGameFinished(game) ? `<button class="btn-secondary" data-action="chess-offer-draw" data-game-id="${escapeHtml(game.id)}" style="width:auto;padding:10px 14px;">${game.drawOfferByPlayerId && game.drawOfferByPlayerId !== myId ? 'Accept Draw' : 'Offer Draw'}</button>` : ''}
             ${isPlayer && !isChessGameFinished(game) ? `<button class="btn-secondary" data-action="chess-resign" data-game-id="${escapeHtml(game.id)}" style="width:auto;padding:10px 14px;border-color:rgba(255,64,96,0.34);color:#ff9cac;">Resign</button>` : ''}
+            ${isHost && !isChessGameFinished(game) ? `<button class="btn-secondary" data-action="chess-close-game" data-game-id="${escapeHtml(game.id)}" style="width:auto;padding:10px 14px;border-color:rgba(255,209,102,0.34);color:#ffd166;">Close Game</button>` : ''}
           </div>
         </div>
 
