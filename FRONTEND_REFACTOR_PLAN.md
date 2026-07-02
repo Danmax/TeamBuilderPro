@@ -1,4 +1,4 @@
-# Frontend Refactor Plan
+# Frontend Split Migration Plan
 
 ## Goals
 
@@ -6,80 +6,87 @@
 - Separate static content from runtime logic.
 - Make activities and screens independently maintainable.
 - Create a path to lazy loading and optional bundling later.
+- Keep every migration step deployable and easy to review.
 
-## Phase 1: Static Data Extraction
+## Current State
+
+- `index.html` still owns the page shell, global app state, the central action dispatcher, voice/WebRTC runtime, activity engines, and most activity renderers.
+- `assets/js/` already contains extracted browser scripts that attach APIs to `window`.
+- The safest short-term migration strategy is to continue that pattern before introducing ES modules or a bundler.
+
+## Target Shape
+
+```text
+assets/js/core/
+  app-state.js
+  particles.js
+  activity-registry.js
+  action-dispatcher.js
+
+assets/js/activities/
+  chess-lobby.js
+  connect-4.js
+  backgammon.js
+  bingo.js
+  battleship.js
+  dj-booth.js
+  slides-studio.js
+  cosmos-bound.js
+
+assets/css/
+  base.css
+  activities/*.css
+```
+
+## Phase 1: Shell Extraction
 
 Status: In progress
 
-- Serve frontend assets from `/assets`.
-- Move pure static datasets into external files.
-- Keep the current app runtime intact by reading the extracted data from `window.TEAM_BUILDER_STATIC_DATA`.
-- Start with low-risk content banks and presets:
-  - avatars
-  - reactions
-  - quotes
-  - trivia bank
-  - jeopardy board
-  - spin wheel presets
-  - icebreakers
-  - pulse questions
-  - values
-  - wordle words
-  - word chain puzzles
-  - emoji charades
+- Move shell-only code that does not depend on app state.
+- Start with the canvas particle background in `assets/js/core/particles.js`.
+- Keep script order explicit in `index.html`.
+- Validation:
+  - parse `index.html` script content
+  - `node --check server.js`
+  - smoke-load `/` and the new asset when running locally
 
-## Phase 2: Split Remaining Static Configuration
+## Phase 2: Activity Registry and Dispatcher
 
-- Move remaining pure constants out of `index.html`.
-- Prioritize:
-  - activity queue item metadata
-  - battleship constants
-  - bingo constants
-  - backgammon constants
-  - connect-4 constants
-  - slides studio template presets
-- Group by feature under `assets/js/data/` or `assets/js/features/<feature>/`.
+- Introduce a small `window.TEAM_BUILDER_ACTIVITY_REGISTRY`.
+- Move activity start/render/action mappings out of the central switch incrementally.
+- Keep existing `data-action` attributes working.
 
-## Phase 3: Extract Core Runtime Modules
+## Phase 3: Extract One Activity End-to-End
 
-- Move non-UI logic into plain browser modules or external scripts:
-  - API helpers
-  - socket/realtime client
-  - navigation
-  - app state defaults
-  - storage/session helpers
-  - room/player managers
-- Keep the public app behavior unchanged during extraction.
-
-## Phase 4: Split Screen Renderers
-
-- Extract render functions by screen:
-  - dashboard
-  - lobby
-  - admin
-  - activity queue
-  - feedback
-  - schedule/load session
-- Reduce direct access to global state where possible by passing the state slice each renderer needs.
-
-## Phase 5: Split Activity Logic by Feature
-
-- Move each activity into its own boundary:
-  - renderers
+- Extract Chess Lobby first because it is new, self-contained, and has clear boundaries.
+- Move:
+  - `CHESS_*` constants
   - state helpers
-  - event handlers
-  - feature constants
-- Recommended order:
-  1. lightning trivia
-  2. icebreaker
-  3. pulse check
-  4. spin wheel
-  5. wordle
-  6. team jeopardy
-  7. brainstorm
-  8. heavier game modes
+  - computer move helpers
+  - chess actions
+  - chess renderers
+- Register Chess through the activity registry.
 
-## Phase 6: Optional Build Step
+## Phase 4: Extract Additional Board Games
+
+- Move similar two-player board games after Chess:
+  1. Connect 4
+  2. Backgammon
+  3. Bingo
+  4. Battleship
+
+## Phase 5: Extract Heavy Media/Simulation Activities
+
+- DJ Booth, Slides Studio, and Cosmos Bound should move after the registry is proven.
+- These have more DOM/audio/canvas lifecycle concerns, so extract them only after lighter games are stable.
+
+## Phase 6: CSS Extraction
+
+- Move base styles to `assets/css/base.css`.
+- Move feature styles to `assets/css/activities/`.
+- Keep CSS extraction separate from JS extraction to reduce review risk.
+
+## Phase 7: Optional Build Step
 
 - After the app is already modular, decide whether to adopt Vite.
 - Use a build step only after the current file boundaries are stable.
@@ -95,3 +102,4 @@ Status: In progress
 - Avoid rewriting the entire frontend in one pass.
 - Prefer moving code unchanged before redesigning it.
 - Validate after each extraction with a targeted smoke test.
+- Do not extract an activity unless its state helpers, handlers, and renderer can move together or through a temporary registry bridge.
