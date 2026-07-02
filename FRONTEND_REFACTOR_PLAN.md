@@ -40,7 +40,7 @@ assets/css/
 
 ## Phase 1: Shell Extraction
 
-Status: In progress
+Status: Complete
 
 - Move shell-only code that does not depend on app state.
 - Start with the canvas particle background in `assets/js/core/particles.js`.
@@ -52,11 +52,96 @@ Status: In progress
 
 ## Phase 2: Activity Registry and Dispatcher
 
+Status: Complete
+
 - Introduce a small `window.TEAM_BUILDER_ACTIVITY_REGISTRY`.
 - Move activity start/render/action mappings out of the central switch incrementally.
 - Keep existing `data-action` attributes working.
 
+### Phase 2A: Registry Skeleton
+
+Status: Complete
+
+Create `assets/js/core/activity-registry.js` and load it before the main inline app script.
+
+Target API:
+
+```js
+window.TEAM_BUILDER_ACTIVITY_REGISTRY = {
+  activities: {},
+  actions: {},
+  registerActivity(activityId, definition) {},
+  registerAction(actionId, handler) {},
+  getActivity(activityId) {},
+  getAction(actionId) {}
+};
+```
+
+Activity definition shape:
+
+```js
+{
+  id: 'chess-lobby',
+  label: 'Chess Lobby',
+  start: async () => {},
+  createInitialState: room => ({}),
+  meetsRoomRequirements: room => true,
+  getRequirementMessage: room => '',
+  render: () => ''
+}
+```
+
+Action handler shape:
+
+```js
+async function handler({ target, dataset, parsed }) {}
+```
+
+### Phase 2B: Bridge Existing Code
+
+Status: Complete
+
+- Keep all current functions in `index.html`.
+- Register wrapper entries that call existing functions.
+- Add registry lookups as a fallback before the giant `switch` default path.
+- Do not remove existing `case` branches yet.
+
+Bridge pattern:
+
+```js
+const registeredAction = TEAM_BUILDER_ACTIVITY_REGISTRY.getAction(action);
+if (registeredAction) {
+  await registeredAction({ target, dataset: target.dataset, parsed });
+  return;
+}
+```
+
+### Phase 2C: Route One Activity Through Registry
+
+Status: Complete
+
+- Route `chess-lobby` start/render/actions through the registry while its functions still live in `index.html`.
+- Keep behavior unchanged.
+- Validate that:
+  - the Chess Lobby card starts the activity
+  - solo computer play works
+  - quick match still queues
+  - invites still accept/decline
+  - active games still render
+
+### Phase 2D: Acceptance Checks
+
+Status: Complete
+
+- `node --check server.js`
+- `node --check assets/js/core/activity-registry.js`
+- parse inline `index.html` script with `new Function(...)`
+- smoke-load `/`
+- smoke-load `/assets/js/core/activity-registry.js`
+
 ## Phase 3: Extract One Activity End-to-End
+
+Status: Complete
 
 - Extract Chess Lobby first because it is new, self-contained, and has clear boundaries.
 - Move:
@@ -67,7 +152,53 @@ Status: In progress
   - chess renderers
 - Register Chess through the activity registry.
 
+### Phase 3A: Extract Chess Without Behavior Changes
+
+Status: Complete
+
+Create `assets/js/activities/chess-lobby.js`.
+
+Move in this order:
+
+1. Pure constants and helpers:
+   - `CHESS_START_FEN`
+   - `CHESS_FILES`
+   - `CHESS_RANKS`
+   - `CHESS_PIECES`
+   - `buildChessBoardMapFromFen`
+   - `getChessPieceGlyph`
+2. State helpers:
+   - `createChessLobbyState`
+   - `normalizeChessLobbyState`
+   - `createChessGame`
+   - `createChessComputerGame`
+3. Engine helpers:
+   - `loadChessEngine`
+   - `chooseChessComputerMove`
+   - `syncChessGameFromEngine`
+4. Actions:
+   - quick match
+   - cancel quick match
+   - play computer
+   - invite/accept/decline/cancel
+   - move/promote/resign/draw/close/reset
+5. Renderers:
+   - `renderChessLobby`
+   - `renderChessGameView`
+
+Keep the file loaded before the inline app script until more of the runtime is extracted.
+
+### Phase 3B: Remove Inline Chess Code
+
+Status: Complete
+
+- Delete the moved Chess code from `index.html`.
+- Keep only registry wiring and generic dispatch in `index.html`.
+- Verify `index.html` line count drops meaningfully.
+
 ## Phase 4: Extract Additional Board Games
+
+Status: Planned
 
 - Move similar two-player board games after Chess:
   1. Connect 4
