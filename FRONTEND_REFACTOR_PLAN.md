@@ -198,13 +198,39 @@ Status: Complete
 
 ## Phase 4: Extract Additional Board Games
 
-Status: Planned
+Status: In progress
 
 - Move similar two-player board games after Chess:
   1. Connect 4
   2. Backgammon
   3. Bingo
   4. Battleship
+
+### Phase 4A: Extract Connect 4
+
+Status: Complete
+
+- Move Connect 4 constants, state helpers, action handlers, and renderer to `assets/js/activities/connect-4.js`.
+- Register `connect-4` through the activity registry.
+- Remove Connect 4-specific start/action/render fallbacks from the central dispatcher.
+
+### Phase 4B: Extract Backgammon
+
+Status: Planned
+
+- Move Backgammon constants, move helpers, action handlers, and renderer to `assets/js/activities/backgammon.js`.
+
+### Phase 4C: Extract Bingo
+
+Status: Planned
+
+- Move Bingo constants, card helpers, action handlers, and renderer to `assets/js/activities/bingo.js`.
+
+### Phase 4D: Extract Battleship
+
+Status: Planned
+
+- Move Battleship constants, board helpers, action handlers, and renderer to `assets/js/activities/battleship.js`.
 
 ## Phase 5: Extract Heavy Media/Simulation Activities
 
