@@ -376,6 +376,12 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
           <p class="card-desc">Drop glowing discs into a neon grid and connect four before your opponent does</p>
         </button>
 
+        <button type="button" class="card" data-action="start-chess-lobby" aria-label="Start Chess Lobby" style="${enabledActivities['chess-lobby'] === false ? 'display:none;' : ''}">
+          <div class="card-icon">♟️</div>
+          <h3 class="card-title">Chess Lobby</h3>
+          <p class="card-desc">Create quick matches, invite players, and run multiple chess boards at once</p>
+        </button>
+
         <button type="button" class="card" data-action="start-cosmos-bound" aria-label="Start Cosmos Bound" style="${enabledActivities['cosmos-bound'] === false ? 'display:none;' : ''}">
           <div class="card-icon">🚀</div>
           <h3 class="card-title">Cosmos Bound</h3>

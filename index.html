@@ -3647,7 +3647,8 @@ function getDefaultAppPreferences() {
     'slides-studio',
     'battleship',
     'survey-clash',
-    'bingo'
+    'bingo',
+    'chess-lobby'
   ]);
   return {
     enableFeedbackHub: true,
@@ -5038,6 +5039,7 @@ const ALL_ACTIVITY_IDS = [
   'bingo',
   'backgammon',
   'connect-4',
+  'chess-lobby',
   'cosmos-bound'
 ];
 
@@ -5085,6 +5087,14 @@ function getDefaultBingoUiState() {
 function getDefaultBackgammonUiState() {
   return {
     selectedSource: null
+  };
+}
+
+function getDefaultChessUiState() {
+  return {
+    selectedGameId: '',
+    selectedSquare: '',
+    pendingPromotion: null
   };
 }
 
@@ -5191,6 +5201,7 @@ const APP = {
   battleshipUi: getDefaultBattleshipUiState(),
   bingoUi: getDefaultBingoUiState(),
   backgammonUi: getDefaultBackgammonUiState(),
+  chessUi: getDefaultChessUiState(),
   slidesStudioUi: getDefaultSlidesStudioUiState(),
   djBoothUi: getDefaultDjBoothUiState(),
   cosmosBoundUi: getDefaultCosmosBoundUiState(),
@@ -5439,6 +5450,24 @@ const CONNECT4_ROWS = Number(cloneStaticData('CONNECT4_ROWS', 6)) || 6;
 const CONNECT4_COLS = Number(cloneStaticData('CONNECT4_COLS', 7)) || 7;
 const CONNECT4_COLORS = cloneStaticData('CONNECT4_COLORS', ['red', 'yellow']);
 const CONNECT4_COLOR_META = cloneStaticData('CONNECT4_COLOR_META', {});
+const CHESS_START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+const CHESS_FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+const CHESS_RANKS = ['8', '7', '6', '5', '4', '3', '2', '1'];
+const CHESS_PIECES = {
+  wp: '♙',
+  wn: '♘',
+  wb: '♗',
+  wr: '♖',
+  wq: '♕',
+  wk: '♔',
+  bp: '♟',
+  bn: '♞',
+  bb: '♝',
+  br: '♜',
+  bq: '♛',
+  bk: '♚'
+};
+let chessEngineModulePromise = null;
 const AI_GENERATION_TARGETS = cloneStaticData('AI_GENERATION_TARGETS', []);
 const AI_GENERATION_TARGET_LABELS = Object.fromEntries(AI_GENERATION_TARGETS.map(item => [item.id, item.label]));
 const ACTIVITY_QUEUE_THEME_OPTIONS = cloneStaticData('ACTIVITY_QUEUE_THEME_OPTIONS', []);
@@ -7675,6 +7704,196 @@ function createConnect4State(participants) {
     startedAt: Date.now(),
     updatedAt: Date.now()
   };
+}
+
+function createChessSeat(participant = null, fallbackLabel = 'Player') {
+  return {
+    playerId: String(participant?.id || '').trim(),
+    playerName: String(participant?.name || '').trim() || fallbackLabel,
+    avatar: String(participant?.avatar || '').trim() || '👤'
+  };
+}
+
+function getParticipantById(participants, playerId) {
+  const id = String(playerId || '').trim();
+  if (!id) return null;
+  return (Array.isArray(participants) ? participants : []).find(participant => String(participant?.id || '').trim() === id) || null;
+}
+
+function createChessLobbyState(_participants = []) {
+  return {
+    phase: 'lobby',
+    games: {},
+    quickMatchQueue: [],
+    selectedGameIdByPlayer: {},
+    recentResults: [],
+    startedAt: Date.now(),
+    updatedAt: Date.now()
+  };
+}
+
+function normalizeChessLobbyState(state, participants = []) {
+  const source = state && typeof state === 'object' ? state : createChessLobbyState(participants);
+  const games = {};
+  Object.entries(source.games && typeof source.games === 'object' ? source.games : {}).forEach(([id, rawGame]) => {
+    if (!rawGame || typeof rawGame !== 'object') return;
+    const gameId = String(rawGame.id || id || '').trim();
+    if (!gameId) return;
+    const whiteParticipant = getParticipantById(participants, rawGame.players?.white?.playerId || rawGame.whitePlayerId);
+    const blackParticipant = getParticipantById(participants, rawGame.players?.black?.playerId || rawGame.blackPlayerId);
+    games[gameId] = {
+      id: gameId,
+      status: ['invited', 'active', 'check', 'checkmate', 'stalemate', 'draw', 'resigned', 'abandoned'].includes(rawGame.status) ? rawGame.status : 'active',
+      players: {
+        white: createChessSeat(rawGame.players?.white || whiteParticipant, 'White'),
+        black: createChessSeat(rawGame.players?.black || blackParticipant, 'Black')
+      },
+      createdByPlayerId: String(rawGame.createdByPlayerId || rawGame.players?.white?.playerId || '').trim(),
+      invitedPlayerId: String(rawGame.invitedPlayerId || '').trim(),
+      fen: String(rawGame.fen || CHESS_START_FEN).trim() || CHESS_START_FEN,
+      pgn: String(rawGame.pgn || ''),
+      turn: String(rawGame.turn || 'w') === 'b' ? 'b' : 'w',
+      moves: Array.isArray(rawGame.moves) ? rawGame.moves.slice(-240) : [],
+      lastMove: rawGame.lastMove && typeof rawGame.lastMove === 'object' ? rawGame.lastMove : null,
+      winnerPlayerId: String(rawGame.winnerPlayerId || '').trim(),
+      drawOfferByPlayerId: String(rawGame.drawOfferByPlayerId || '').trim(),
+      lastAction: String(rawGame.lastAction || '').trim(),
+      createdAt: Number(rawGame.createdAt) || Date.now(),
+      updatedAt: Number(rawGame.updatedAt) || Date.now(),
+      finishedAt: Number(rawGame.finishedAt) || 0
+    };
+  });
+  const participantIds = new Set((participants || []).map(participant => String(participant?.id || '').trim()).filter(Boolean));
+  return {
+    phase: 'lobby',
+    games,
+    quickMatchQueue: Array.isArray(source.quickMatchQueue)
+      ? source.quickMatchQueue.map(id => String(id || '').trim()).filter(id => participantIds.has(id)).filter((id, index, arr) => arr.indexOf(id) === index)
+      : [],
+    selectedGameIdByPlayer: source.selectedGameIdByPlayer && typeof source.selectedGameIdByPlayer === 'object' ? { ...source.selectedGameIdByPlayer } : {},
+    recentResults: Array.isArray(source.recentResults) ? source.recentResults.slice(0, 12) : [],
+    startedAt: Number(source.startedAt) || Date.now(),
+    updatedAt: Number(source.updatedAt) || Date.now()
+  };
+}
+
+function getChessPlayerColor(game, player = APP.player) {
+  const playerId = String(player?.id || '').trim();
+  if (!game?.players || !playerId) return '';
+  if (game.players.white?.playerId === playerId) return 'white';
+  if (game.players.black?.playerId === playerId) return 'black';
+  return '';
+}
+
+function getChessSeat(game, color) {
+  return game?.players?.[color] || createChessSeat(null, color === 'black' ? 'Black' : 'White');
+}
+
+function isChessGameFinished(game) {
+  return ['checkmate', 'stalemate', 'draw', 'resigned', 'abandoned'].includes(String(game?.status || ''));
+}
+
+function createChessGame(participants, whitePlayerId, blackPlayerId, options = {}) {
+  const whiteParticipant = getParticipantById(participants, whitePlayerId);
+  const blackParticipant = getParticipantById(participants, blackPlayerId);
+  const now = Date.now();
+  const id = `chess_${now}_${Math.random().toString(36).slice(2, 8)}`;
+  return {
+    id,
+    status: options.status || 'active',
+    players: {
+      white: createChessSeat(whiteParticipant, 'White'),
+      black: createChessSeat(blackParticipant, 'Black')
+    },
+    createdByPlayerId: String(options.createdByPlayerId || whitePlayerId || '').trim(),
+    invitedPlayerId: String(options.invitedPlayerId || '').trim(),
+    fen: CHESS_START_FEN,
+    pgn: '',
+    turn: 'w',
+    moves: [],
+    lastMove: null,
+    winnerPlayerId: '',
+    drawOfferByPlayerId: '',
+    lastAction: options.status === 'invited'
+      ? `${whiteParticipant?.name || 'Player'} invited ${blackParticipant?.name || 'another player'} to play.`
+      : `${whiteParticipant?.name || 'White'} vs ${blackParticipant?.name || 'Black'} started.`,
+    createdAt: now,
+    updatedAt: now,
+    finishedAt: 0
+  };
+}
+
+async function loadChessEngine() {
+  if (!chessEngineModulePromise) {
+    chessEngineModulePromise = import('/assets/vendor/chess.js');
+  }
+  const mod = await chessEngineModulePromise;
+  return mod.Chess;
+}
+
+function getChessGameStatusFromEngine(chess) {
+  if (typeof chess.isCheckmate === 'function' && chess.isCheckmate()) return 'checkmate';
+  if (typeof chess.isStalemate === 'function' && chess.isStalemate()) return 'stalemate';
+  if (typeof chess.isDraw === 'function' && chess.isDraw()) return 'draw';
+  if (typeof chess.in_checkmate === 'function' && chess.in_checkmate()) return 'checkmate';
+  if (typeof chess.in_stalemate === 'function' && chess.in_stalemate()) return 'stalemate';
+  if (typeof chess.in_draw === 'function' && chess.in_draw()) return 'draw';
+  if (typeof chess.isCheck === 'function' && chess.isCheck()) return 'check';
+  if (typeof chess.in_check === 'function' && chess.in_check()) return 'check';
+  return 'active';
+}
+
+function getChessTurnColorFromFen(fen) {
+  return String(fen || '').split(/\s+/)[1] === 'b' ? 'black' : 'white';
+}
+
+function getChessPieceGlyph(piece) {
+  if (!piece || typeof piece !== 'object') return '';
+  return CHESS_PIECES[`${piece.color}${piece.type}`] || '';
+}
+
+function isChessPromotionMove(game, from, to) {
+  const safeFrom = String(from || '').trim();
+  const safeTo = String(to || '').trim();
+  if (!/^[a-h][1-8]$/.test(safeFrom) || !/^[a-h][1-8]$/.test(safeTo)) return false;
+  const boardMap = buildChessBoardMapFromFen(game?.fen || CHESS_START_FEN);
+  const piece = boardMap.get(safeFrom);
+  if (!piece || piece.type !== 'p') return false;
+  return (piece.color === 'w' && safeTo[1] === '8') || (piece.color === 'b' && safeTo[1] === '1');
+}
+
+function buildChessBoardMapFromFen(fen) {
+  const map = new Map();
+  const placement = String(fen || CHESS_START_FEN).split(/\s+/)[0] || CHESS_START_FEN.split(' ')[0];
+  const pieceMap = {
+    p: { color: 'b', type: 'p' },
+    n: { color: 'b', type: 'n' },
+    b: { color: 'b', type: 'b' },
+    r: { color: 'b', type: 'r' },
+    q: { color: 'b', type: 'q' },
+    k: { color: 'b', type: 'k' },
+    P: { color: 'w', type: 'p' },
+    N: { color: 'w', type: 'n' },
+    B: { color: 'w', type: 'b' },
+    R: { color: 'w', type: 'r' },
+    Q: { color: 'w', type: 'q' },
+    K: { color: 'w', type: 'k' }
+  };
+  placement.split('/').forEach((rankText, rankIndex) => {
+    let fileIndex = 0;
+    for (const char of rankText) {
+      if (/\d/.test(char)) {
+        fileIndex += Number(char) || 0;
+        continue;
+      }
+      const file = CHESS_FILES[fileIndex];
+      const rank = CHESS_RANKS[rankIndex];
+      const piece = pieceMap[char];
+      if (file && rank && piece) map.set(`${file}${rank}`, { ...piece });
+      fileIndex++;
+    }
+  });
+  return map;
 }
 
 // ═══════════════════════════════════════════
@@ -10311,6 +10530,9 @@ function getInitialActivityState(room, activityId) {
   if (activityId === 'connect-4') {
     return createConnect4State(room?.participants || []);
   }
+  if (activityId === 'chess-lobby') {
+    return createChessLobbyState(room?.participants || []);
+  }
   if (activityId === 'cosmos-bound') {
     return createCosmosBoundState(room?.participants || []);
   }
@@ -10343,6 +10565,9 @@ function activityMeetsRoomRequirements(room, activityId) {
   if (activityId === 'connect-4') {
     return (room?.participants || []).length >= 2;
   }
+  if (activityId === 'chess-lobby') {
+    return (room?.participants || []).length >= 2;
+  }
   if (activityId === 'cosmos-bound') {
     return (room?.participants || []).length >= 2;
   }
@@ -10369,6 +10594,10 @@ async function startActivityById(activityId) {
     }
     if (activityId === 'connect-4') {
       showError('Connect 4 needs 2 players in the room.');
+      return false;
+    }
+    if (activityId === 'chess-lobby') {
+      showError('Chess Lobby needs at least 2 players in the room.');
       return false;
     }
     if (activityId === 'cosmos-bound') {
@@ -10414,6 +10643,9 @@ async function startActivityById(activityId) {
   }
   if (activityId === 'backgammon') {
     APP.backgammonUi = getDefaultBackgammonUiState();
+  }
+  if (activityId === 'chess-lobby') {
+    APP.chessUi = getDefaultChessUiState();
   }
   if (activityId === 'dj-booth') {
     APP.djBoothUi = getDefaultDjBoothUiState();
@@ -10486,6 +10718,9 @@ async function runNextQueuedActivity(roomOverride = null) {
   if (activityId === 'backgammon') {
     APP.backgammonUi = getDefaultBackgammonUiState();
   }
+  if (activityId === 'chess-lobby') {
+    APP.chessUi = getDefaultChessUiState();
+  }
   render();
   return true;
 }
@@ -10545,6 +10780,7 @@ async function startBattleship() { await startActivityById('battleship'); }
 async function startBingo() { await startActivityById('bingo'); }
 async function startBackgammon() { await startActivityById('backgammon'); }
 async function startConnect4() { await startActivityById('connect-4'); }
+async function startChessLobby() { await startActivityById('chess-lobby'); }
 async function startSurveyClash() { await startActivityById('survey-clash'); }
 async function startCosmosBound() { await startActivityById('cosmos-bound'); }
 
@@ -12746,6 +12982,274 @@ async function restartConnect4Match() {
   await RoomManager.updateRoom(APP.roomCode, room);
   APP.room = room;
   render();
+}
+
+function recordChessResult(state, game, label) {
+  state.recentResults = [
+    {
+      id: game.id,
+      label,
+      white: game.players.white?.playerName || 'White',
+      black: game.players.black?.playerName || 'Black',
+      finishedAt: Date.now()
+    },
+    ...(Array.isArray(state.recentResults) ? state.recentResults : [])
+  ].slice(0, 12);
+}
+
+async function updateChessLobbyState(mutator) {
+  if (!APP.roomCode || !APP.room) return null;
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'chess-lobby') return null;
+  const state = normalizeChessLobbyState(room.activityState, room.participants || []);
+  const result = await mutator(state, room);
+  state.updatedAt = Date.now();
+  room.activityState = state;
+  await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
+  return result;
+}
+
+async function chessQuickMatch() {
+  const myId = String(APP.player?.id || '').trim();
+  if (!myId) return;
+  await updateChessLobbyState(state => {
+    state.quickMatchQueue = state.quickMatchQueue.filter(id => id !== myId);
+    const opponentId = state.quickMatchQueue.find(id => id && id !== myId);
+    if (opponentId) {
+      state.quickMatchQueue = state.quickMatchQueue.filter(id => id !== opponentId);
+      const whiteId = Math.random() >= 0.5 ? myId : opponentId;
+      const blackId = whiteId === myId ? opponentId : myId;
+      const game = createChessGame(APP.room.participants || [], whiteId, blackId, { createdByPlayerId: myId });
+      state.games[game.id] = game;
+      APP.chessUi.selectedGameId = game.id;
+      APP.chessUi.selectedSquare = '';
+      return;
+    }
+    state.quickMatchQueue.push(myId);
+    APP.chessUi.selectedSquare = '';
+  });
+}
+
+async function chessCancelQuickMatch() {
+  const myId = String(APP.player?.id || '').trim();
+  if (!myId) return;
+  await updateChessLobbyState(state => {
+    state.quickMatchQueue = state.quickMatchQueue.filter(id => id !== myId);
+  });
+}
+
+async function chessInvitePlayer(invitedPlayerId) {
+  const myId = String(APP.player?.id || '').trim();
+  const targetId = String(invitedPlayerId || '').trim();
+  if (!myId || !targetId || myId === targetId) return;
+  await updateChessLobbyState(state => {
+    const hasPending = Object.values(state.games).some(game =>
+      game.status === 'invited'
+      && game.createdByPlayerId === myId
+      && game.invitedPlayerId === targetId
+    );
+    if (hasPending) return;
+    const game = createChessGame(APP.room.participants || [], myId, targetId, {
+      status: 'invited',
+      createdByPlayerId: myId,
+      invitedPlayerId: targetId
+    });
+    state.games[game.id] = game;
+  });
+}
+
+async function chessAcceptInvite(gameId) {
+  const myId = String(APP.player?.id || '').trim();
+  const safeGameId = String(gameId || '').trim();
+  if (!myId || !safeGameId) return;
+  await updateChessLobbyState(state => {
+    const game = state.games[safeGameId];
+    if (!game || game.status !== 'invited' || game.invitedPlayerId !== myId) return;
+    game.status = 'active';
+    game.invitedPlayerId = '';
+    game.lastAction = `${getChessSeat(game, 'black').playerName} accepted. ${getChessSeat(game, 'white').playerName} moves first.`;
+    game.updatedAt = Date.now();
+    APP.chessUi.selectedGameId = game.id;
+    APP.chessUi.selectedSquare = '';
+  });
+}
+
+async function chessDeclineInvite(gameId) {
+  const myId = String(APP.player?.id || '').trim();
+  const safeGameId = String(gameId || '').trim();
+  if (!myId || !safeGameId) return;
+  await updateChessLobbyState(state => {
+    const game = state.games[safeGameId];
+    if (!game || game.status !== 'invited' || game.invitedPlayerId !== myId) return;
+    delete state.games[safeGameId];
+  });
+}
+
+function chessSelectGame(gameId = '') {
+  APP.chessUi.selectedGameId = String(gameId || '').trim();
+  APP.chessUi.selectedSquare = '';
+  APP.chessUi.pendingPromotion = null;
+  render();
+}
+
+async function chessHandleSquare(gameId, square) {
+  const safeGameId = String(gameId || '').trim();
+  const safeSquare = String(square || '').trim();
+  if (!safeGameId || !/^[a-h][1-8]$/.test(safeSquare)) return;
+  const state = normalizeChessLobbyState(APP.room?.activityState, APP.room?.participants || []);
+  const game = state.games[safeGameId];
+  if (!game || game.status !== 'active' && game.status !== 'check') return;
+  const myColor = getChessPlayerColor(game);
+  if (!myColor || getChessTurnColorFromFen(game.fen) !== myColor) return;
+  const selectedSquare = String(APP.chessUi.selectedSquare || '').trim();
+  const boardMap = buildChessBoardMapFromFen(game.fen);
+  const clickedPiece = boardMap.get(safeSquare);
+  const myPieceColor = myColor === 'white' ? 'w' : 'b';
+  if (!selectedSquare) {
+    if (clickedPiece?.color === myPieceColor) {
+      APP.chessUi.selectedGameId = safeGameId;
+      APP.chessUi.selectedSquare = safeSquare;
+      render();
+    }
+    return;
+  }
+  if (selectedSquare === safeSquare) {
+    APP.chessUi.selectedSquare = '';
+    APP.chessUi.pendingPromotion = null;
+    render();
+    return;
+  }
+  if (clickedPiece?.color === myPieceColor) {
+    APP.chessUi.selectedSquare = safeSquare;
+    APP.chessUi.pendingPromotion = null;
+    render();
+    return;
+  }
+  if (isChessPromotionMove(game, selectedSquare, safeSquare)) {
+    APP.chessUi.pendingPromotion = { gameId: safeGameId, from: selectedSquare, to: safeSquare };
+    render();
+    return;
+  }
+  await chessMakeMove(safeGameId, selectedSquare, safeSquare);
+}
+
+async function chessMakeMove(gameId, from, to, promotion = 'q') {
+  const safeGameId = String(gameId || '').trim();
+  const safeFrom = String(from || '').trim();
+  const safeTo = String(to || '').trim();
+  if (!safeGameId || !/^[a-h][1-8]$/.test(safeFrom) || !/^[a-h][1-8]$/.test(safeTo)) return;
+  await updateChessLobbyState(async state => {
+    const game = state.games[safeGameId];
+    if (!game || !['active', 'check'].includes(game.status)) return;
+    const myColor = getChessPlayerColor(game);
+    if (!myColor || getChessTurnColorFromFen(game.fen) !== myColor) return;
+    const Chess = await loadChessEngine();
+    const chess = new Chess(game.fen || CHESS_START_FEN);
+    let move = null;
+    try {
+      move = chess.move({ from: safeFrom, to: safeTo, promotion: String(promotion || 'q').slice(0, 1).toLowerCase() || 'q' });
+    } catch (_error) {
+      move = null;
+    }
+    if (!move) return;
+    game.fen = chess.fen();
+    game.pgn = typeof chess.pgn === 'function' ? chess.pgn() : game.pgn;
+    game.turn = typeof chess.turn === 'function' ? chess.turn() : (getChessTurnColorFromFen(game.fen) === 'black' ? 'b' : 'w');
+    game.lastMove = { from: move.from, to: move.to, san: move.san, color: move.color, piece: move.piece, captured: move.captured || '' };
+    game.moves = [...(Array.isArray(game.moves) ? game.moves : []), game.lastMove].slice(-240);
+    game.drawOfferByPlayerId = '';
+    game.status = getChessGameStatusFromEngine(chess);
+    game.updatedAt = Date.now();
+    const moverSeat = getChessSeat(game, myColor);
+    if (game.status === 'checkmate') {
+      game.winnerPlayerId = moverSeat.playerId;
+      game.finishedAt = Date.now();
+      game.lastAction = `${moverSeat.playerName} delivered checkmate.`;
+      recordChessResult(state, game, `${moverSeat.playerName} won by checkmate`);
+    } else if (game.status === 'stalemate') {
+      game.finishedAt = Date.now();
+      game.lastAction = 'Stalemate. The game is drawn.';
+      recordChessResult(state, game, 'Draw by stalemate');
+    } else if (game.status === 'draw') {
+      game.finishedAt = Date.now();
+      game.lastAction = 'The game ended in a draw.';
+      recordChessResult(state, game, 'Draw');
+    } else {
+      const nextColor = getChessTurnColorFromFen(game.fen);
+      game.lastAction = `${moverSeat.playerName} played ${move.san}. ${getChessSeat(game, nextColor).playerName} is up${game.status === 'check' ? ' in check' : ''}.`;
+    }
+    APP.chessUi.selectedSquare = '';
+    APP.chessUi.pendingPromotion = null;
+    APP.chessUi.selectedGameId = safeGameId;
+  });
+}
+
+async function chessResign(gameId) {
+  const safeGameId = String(gameId || '').trim();
+  const myId = String(APP.player?.id || '').trim();
+  if (!safeGameId || !myId) return;
+  await updateChessLobbyState(state => {
+    const game = state.games[safeGameId];
+    if (!game || isChessGameFinished(game)) return;
+    const myColor = getChessPlayerColor(game);
+    if (!myColor) return;
+    const winnerColor = myColor === 'white' ? 'black' : 'white';
+    const winnerSeat = getChessSeat(game, winnerColor);
+    const resigningSeat = getChessSeat(game, myColor);
+    game.status = 'resigned';
+    game.winnerPlayerId = winnerSeat.playerId;
+    game.finishedAt = Date.now();
+    game.updatedAt = Date.now();
+    game.lastAction = `${resigningSeat.playerName} resigned. ${winnerSeat.playerName} wins.`;
+    recordChessResult(state, game, `${winnerSeat.playerName} won by resignation`);
+  });
+}
+
+async function chessOfferDraw(gameId) {
+  const safeGameId = String(gameId || '').trim();
+  const myId = String(APP.player?.id || '').trim();
+  if (!safeGameId || !myId) return;
+  await updateChessLobbyState(state => {
+    const game = state.games[safeGameId];
+    if (!game || isChessGameFinished(game) || !getChessPlayerColor(game)) return;
+    if (game.drawOfferByPlayerId && game.drawOfferByPlayerId !== myId) {
+      game.status = 'draw';
+      game.finishedAt = Date.now();
+      game.updatedAt = Date.now();
+      game.lastAction = 'Draw agreed.';
+      game.drawOfferByPlayerId = '';
+      recordChessResult(state, game, 'Draw by agreement');
+      return;
+    }
+    game.drawOfferByPlayerId = myId;
+    game.updatedAt = Date.now();
+    game.lastAction = `${APP.player?.name || 'Player'} offered a draw.`;
+  });
+}
+
+async function chessClearFinishedGames() {
+  if (APP.room?.host !== APP.player?.name) return;
+  await updateChessLobbyState(state => {
+    Object.entries(state.games).forEach(([id, game]) => {
+      if (isChessGameFinished(game)) delete state.games[id];
+    });
+    APP.chessUi.selectedGameId = '';
+    APP.chessUi.selectedSquare = '';
+  });
+}
+
+async function chessResetLobby() {
+  if (APP.room?.host !== APP.player?.name) return;
+  await updateChessLobbyState((state, room) => {
+    const fresh = createChessLobbyState(room.participants || []);
+    state.games = fresh.games;
+    state.quickMatchQueue = fresh.quickMatchQueue;
+    state.selectedGameIdByPlayer = {};
+    state.recentResults = [];
+    APP.chessUi = getDefaultChessUiState();
+  });
 }
 
 function getCurrentBattleshipPlayerBoard() {
@@ -16498,7 +17002,7 @@ document.addEventListener('click', async (event) => {
   const target = event.target.closest('[data-action]');
   if (!target) return;
 
-  const { action, avatar, screen, key, index, feedbackId, requestId, requestStatus, activity, queueIndex, noteId, lane, direction, tab, word, cat, clue, player, accepted, cardId, color, playerId, shipId, slideId, bsRow, bsCol, axis, readyState, pattern, marker, roomCode, deckKey, padId, fadeTarget, trackId } = target.dataset;
+  const { action, avatar, screen, key, index, feedbackId, requestId, requestStatus, activity, queueIndex, noteId, lane, direction, tab, word, cat, clue, player, accepted, cardId, color, playerId, shipId, slideId, bsRow, bsCol, axis, readyState, pattern, marker, roomCode, deckKey, padId, fadeTarget, trackId, gameId, square, promotion } = target.dataset;
   const parsedIndex = Number.parseInt(index ?? '', 10);
   const parsedQueueIndex = Number.parseInt(queueIndex ?? '', 10);
   const parsedCategoryIndex = Number.parseInt(cat ?? '', 10);
@@ -16847,6 +17351,9 @@ document.addEventListener('click', async (event) => {
       break;
     case 'start-connect-4':
       await startConnect4();
+      break;
+    case 'start-chess-lobby':
+      await startChessLobby();
       break;
     case 'start-cosmos-bound':
       await startCosmosBound();
@@ -17209,6 +17716,47 @@ document.addEventListener('click', async (event) => {
       break;
     case 'connect4-restart':
       await restartConnect4Match();
+      break;
+    case 'chess-quick-match':
+      await chessQuickMatch();
+      break;
+    case 'chess-cancel-quick-match':
+      await chessCancelQuickMatch();
+      break;
+    case 'chess-invite':
+      if (playerId) await chessInvitePlayer(playerId);
+      break;
+    case 'chess-accept-invite':
+      if (gameId) await chessAcceptInvite(gameId);
+      break;
+    case 'chess-decline-invite':
+      if (gameId) await chessDeclineInvite(gameId);
+      break;
+    case 'chess-select-game':
+      chessSelectGame(gameId || '');
+      break;
+    case 'chess-back-lobby':
+      chessSelectGame('');
+      break;
+    case 'chess-square':
+      if (gameId && square) await chessHandleSquare(gameId, square);
+      break;
+    case 'chess-promote':
+      if (APP.chessUi.pendingPromotion && promotion) {
+        await chessMakeMove(APP.chessUi.pendingPromotion.gameId, APP.chessUi.pendingPromotion.from, APP.chessUi.pendingPromotion.to, promotion);
+      }
+      break;
+    case 'chess-resign':
+      if (gameId) await chessResign(gameId);
+      break;
+    case 'chess-offer-draw':
+      if (gameId) await chessOfferDraw(gameId);
+      break;
+    case 'chess-clear-finished':
+      await chessClearFinishedGames();
+      break;
+    case 'chess-reset-lobby':
+      await chessResetLobby();
       break;
     // Cosmos Bound actions
     case 'cosmos-begin-mission':
@@ -17745,6 +18293,7 @@ function renderActivity() {
   else if (activity === 'bingo') content = renderBingo();
   else if (activity === 'backgammon') content = renderBackgammon();
   else if (activity === 'connect-4') content = renderConnect4();
+  else if (activity === 'chess-lobby') content = renderChessLobby();
   else if (activity === 'cosmos-bound') content = renderCosmosBound();
 
   return `
@@ -19064,6 +19613,287 @@ function renderConnect4() {
                 </div>
               </div>
             ` : ''}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderChessLobby() {
+  const isHost = APP.room.host === APP.player.name;
+  const state = normalizeChessLobbyState(APP.room.activityState, APP.room.participants || []);
+  const safeRoomCode = escapeHtml(APP.roomCode);
+  const myId = String(APP.player?.id || '').trim();
+  const games = Object.values(state.games).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  const selectedGame = state.games[APP.chessUi?.selectedGameId || ''] || null;
+  if (selectedGame) return renderChessGameView(state, selectedGame);
+
+  const activeGames = games.filter(game => !isChessGameFinished(game) && game.status !== 'invited');
+  const pendingInvites = games.filter(game => game.status === 'invited');
+  const myActiveGame = games.find(game => !isChessGameFinished(game) && getChessPlayerColor(game));
+  const isQueued = state.quickMatchQueue.includes(myId);
+  const busyPlayerIds = new Set();
+  games.forEach(game => {
+    if (isChessGameFinished(game)) return;
+    if (game.players?.white?.playerId) busyPlayerIds.add(game.players.white.playerId);
+    if (game.players?.black?.playerId) busyPlayerIds.add(game.players.black.playerId);
+  });
+
+  const playerCards = (APP.room.participants || []).map(participant => {
+    const participantId = String(participant?.id || '').trim();
+    const isMe = participantId === myId;
+    const isBusy = busyPlayerIds.has(participantId);
+    const queued = state.quickMatchQueue.includes(participantId);
+    const canInvite = !isMe && !myActiveGame && !isBusy && !queued;
+    return `
+      <div style="background:linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+          <div style="font-size:1.45rem;">${escapeHtml(participant.avatar || '👤')}</div>
+          <div style="min-width:0;">
+            <div style="font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(participant.name || 'Player')}${isMe ? ' (You)' : ''}</div>
+            <div style="font-size:0.78rem;color:${isBusy ? '#ffd166' : queued ? 'var(--accent)' : 'var(--text-dim)'};">${isBusy ? 'In game' : queued ? 'Waiting for quick match' : 'Available'}</div>
+          </div>
+        </div>
+        ${canInvite ? `<button class="btn-secondary" data-action="chess-invite" data-player-id="${escapeHtml(participantId)}" style="width:auto;padding:8px 12px;">Invite</button>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="header">
+      <h1 style="font-size:2rem;font-weight:700;">♟️ Chess Lobby</h1>
+      <p class="tagline">Room: ${safeRoomCode} • Multiple boards can run at the same time</p>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
+      ${isHost ? '<button class="btn-secondary" data-action="end-activity" style="width:auto;">← End Activity</button>' : '<div></div>'}
+      ${isHost ? `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn-secondary" data-action="chess-clear-finished" style="width:auto;padding:10px 14px;">Clear Finished</button>
+          <button class="btn-secondary" data-action="chess-reset-lobby" style="width:auto;padding:10px 14px;border-color:rgba(255,64,96,0.34);color:#ff9cac;">Reset Lobby</button>
+        </div>
+      ` : ''}
+    </div>
+
+    <div class="game-mobile-main" style="max-width:1280px;margin:0 auto;display:grid;grid-template-columns:minmax(300px,0.9fr) minmax(0,1.35fr);gap:18px;align-items:start;">
+      <div class="game-mobile-side" style="display:grid;gap:18px;">
+        <div style="background:linear-gradient(180deg,rgba(16,18,24,0.96),rgba(8,8,12,0.98));border:1px solid rgba(255,255,255,0.12);border-radius:24px;padding:20px;box-shadow:0 24px 54px rgba(0,0,0,0.38);">
+          <div style="font-family:'Fraunces',serif;font-size:1.35rem;margin-bottom:10px;">Find a Match</div>
+          <div style="color:var(--text-dim);font-size:0.9rem;line-height:1.5;margin-bottom:16px;">Create a quick match or invite an available player directly.</div>
+          ${myActiveGame ? `
+            <button class="btn-primary" data-action="chess-select-game" data-game-id="${escapeHtml(myActiveGame.id)}">Open My Game</button>
+          ` : isQueued ? `
+            <button class="btn-secondary" data-action="chess-cancel-quick-match" style="border-color:rgba(255,209,102,0.36);color:#ffd166;">Cancel Quick Match</button>
+          ` : `
+            <button class="btn-primary" data-action="chess-quick-match">Quick Match</button>
+          `}
+        </div>
+
+        <div style="background:linear-gradient(180deg,rgba(16,18,24,0.96),rgba(8,8,12,0.98));border:1px solid rgba(255,255,255,0.12);border-radius:24px;padding:18px;box-shadow:0 24px 54px rgba(0,0,0,0.38);">
+          <div style="font-family:'Fraunces',serif;font-size:1.25rem;margin-bottom:12px;">Players</div>
+          <div style="display:grid;gap:10px;">${playerCards}</div>
+        </div>
+      </div>
+
+      <div class="game-mobile-side" style="display:grid;gap:18px;">
+        ${pendingInvites.length ? `
+          <div style="background:linear-gradient(180deg,rgba(28,21,8,0.96),rgba(11,9,5,0.98));border:1px solid rgba(255,209,102,0.24);border-radius:24px;padding:18px;">
+            <div style="font-family:'Fraunces',serif;font-size:1.25rem;margin-bottom:12px;">Pending Invites</div>
+            <div style="display:grid;gap:10px;">
+              ${pendingInvites.map(game => {
+                const isMine = game.invitedPlayerId === myId;
+                return `
+                  <div style="border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:14px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;">
+                    <div>
+                      <div style="font-weight:800;">${escapeHtml(getChessSeat(game, 'white').playerName)} invited ${escapeHtml(getChessSeat(game, 'black').playerName)}</div>
+                      <div style="font-size:0.82rem;color:var(--text-dim);">${escapeHtml(game.lastAction || 'Waiting for response.')}</div>
+                    </div>
+                    ${isMine ? `
+                      <div style="display:flex;gap:8px;">
+                        <button class="btn-primary" data-action="chess-accept-invite" data-game-id="${escapeHtml(game.id)}" style="width:auto;padding:8px 12px;">Accept</button>
+                        <button class="btn-secondary" data-action="chess-decline-invite" data-game-id="${escapeHtml(game.id)}" style="width:auto;padding:8px 12px;">Decline</button>
+                      </div>
+                    ` : ''}
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <div style="background:linear-gradient(180deg,rgba(16,18,24,0.96),rgba(8,8,12,0.98));border:1px solid rgba(255,255,255,0.12);border-radius:24px;padding:18px;box-shadow:0 24px 54px rgba(0,0,0,0.38);">
+          <div style="font-family:'Fraunces',serif;font-size:1.25rem;margin-bottom:12px;">Active Games</div>
+          <div style="display:grid;gap:10px;">
+            ${activeGames.length ? activeGames.map(game => {
+              const turnColor = getChessTurnColorFromFen(game.fen);
+              return `
+                <div style="border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:14px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;">
+                  <div>
+                    <div style="font-weight:800;">${escapeHtml(getChessSeat(game, 'white').playerName)} vs ${escapeHtml(getChessSeat(game, 'black').playerName)}</div>
+                    <div style="font-size:0.82rem;color:var(--text-dim);">${escapeHtml(getChessSeat(game, turnColor).playerName)} to move${game.status === 'check' ? ' • Check' : ''}</div>
+                  </div>
+                  <button class="btn-secondary" data-action="chess-select-game" data-game-id="${escapeHtml(game.id)}" style="width:auto;padding:8px 12px;">${getChessPlayerColor(game) ? 'Play' : 'Spectate'}</button>
+                </div>
+              `;
+            }).join('') : `
+              <div style="border:1px dashed rgba(255,255,255,0.14);border-radius:16px;padding:20px;text-align:center;color:var(--text-dim);">No active chess games yet.</div>
+            `}
+          </div>
+        </div>
+
+        <div style="background:linear-gradient(180deg,rgba(16,18,24,0.96),rgba(8,8,12,0.98));border:1px solid rgba(255,255,255,0.12);border-radius:24px;padding:18px;">
+          <div style="font-family:'Fraunces',serif;font-size:1.25rem;margin-bottom:12px;">Recent Results</div>
+          <div style="display:grid;gap:8px;">
+            ${state.recentResults.length ? state.recentResults.map(result => `
+              <div style="font-size:0.9rem;color:var(--text-mid);padding:10px 12px;border-radius:12px;background:rgba(255,255,255,0.04);">${escapeHtml(result.label || 'Finished game')} • ${escapeHtml(result.white || 'White')} vs ${escapeHtml(result.black || 'Black')}</div>
+            `).join('') : '<div style="color:var(--text-dim);font-size:0.9rem;">Finished games will appear here.</div>'}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderChessGameView(state, game) {
+  const myColor = getChessPlayerColor(game);
+  const myId = String(APP.player?.id || '').trim();
+  const isPlayer = Boolean(myColor);
+  const isHost = APP.room.host === APP.player.name;
+  const turnColor = getChessTurnColorFromFen(game.fen);
+  const canMove = isPlayer && !isChessGameFinished(game) && turnColor === myColor;
+  const boardMap = buildChessBoardMapFromFen(game.fen);
+  const selectedSquare = APP.chessUi?.selectedSquare || '';
+  const orientation = myColor === 'black' ? 'black' : 'white';
+  const files = orientation === 'black' ? [...CHESS_FILES].reverse() : CHESS_FILES;
+  const ranks = orientation === 'black' ? [...CHESS_RANKS].reverse() : CHESS_RANKS;
+  const lastMoveSquares = new Set([game.lastMove?.from, game.lastMove?.to].filter(Boolean));
+  const pendingPromotion = APP.chessUi?.pendingPromotion;
+  const capturedByWhite = (game.moves || []).filter(move => move.color === 'w' && move.captured).map(move => ({ color: 'b', type: move.captured }));
+  const capturedByBlack = (game.moves || []).filter(move => move.color === 'b' && move.captured).map(move => ({ color: 'w', type: move.captured }));
+  const statusLabel = game.status === 'checkmate'
+    ? 'Checkmate'
+    : game.status === 'stalemate'
+      ? 'Stalemate'
+      : game.status === 'resigned'
+        ? 'Resigned'
+        : game.status === 'draw'
+          ? 'Draw'
+          : game.status === 'check'
+            ? 'Check'
+            : 'Active';
+  const winnerSeat = game.winnerPlayerId
+    ? [getChessSeat(game, 'white'), getChessSeat(game, 'black')].find(seat => seat.playerId === game.winnerPlayerId)
+    : null;
+
+  const boardMarkup = ranks.map(rank => files.map(file => {
+    const square = `${file}${rank}`;
+    const piece = boardMap.get(square);
+    const isLight = (CHESS_FILES.indexOf(file) + Number(rank)) % 2 === 1;
+    const isSelected = selectedSquare === square;
+    const isLastMove = lastMoveSquares.has(square);
+    return `
+      <button
+        type="button"
+        class="chess-square"
+        data-action="chess-square"
+        data-game-id="${escapeHtml(game.id)}"
+        data-square="${escapeHtml(square)}"
+        ${canMove ? '' : 'disabled'}
+        style="
+          aspect-ratio:1/1;
+          border:0;
+          display:grid;
+          place-items:center;
+          font-size:clamp(1.6rem, 6vw, 3.3rem);
+          line-height:1;
+          cursor:${canMove ? 'pointer' : 'default'};
+          background:${isSelected ? 'linear-gradient(135deg,#f6d365,#fda085)' : isLastMove ? 'linear-gradient(135deg,rgba(0,210,211,0.34),rgba(255,209,102,0.28))' : isLight ? '#e8d8bd' : '#6d4b35'};
+          color:${piece?.color === 'w' ? '#f8f3e7' : '#15110c'};
+          text-shadow:${piece?.color === 'w' ? '0 2px 6px rgba(0,0,0,0.5)' : '0 1px 3px rgba(255,255,255,0.18)'};
+          box-shadow:${isSelected ? 'inset 0 0 0 4px rgba(0,0,0,0.28)' : 'inset 0 0 0 1px rgba(0,0,0,0.12)'};
+        "
+        title="${escapeHtml(square)}"
+      >
+        ${escapeHtml(getChessPieceGlyph(piece))}
+      </button>
+    `;
+  }).join('')).join('');
+
+  return `
+    <div class="header">
+      <h1 style="font-size:2rem;font-weight:700;">♟️ ${escapeHtml(getChessSeat(game, 'white').playerName)} vs ${escapeHtml(getChessSeat(game, 'black').playerName)}</h1>
+      <p class="tagline">${isPlayer ? `You are ${myColor}` : 'Spectating'} • ${winnerSeat ? `${escapeHtml(winnerSeat.playerName)} wins` : `${escapeHtml(getChessSeat(game, turnColor).playerName)} to move`}</p>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
+      <button class="btn-secondary" data-action="chess-back-lobby" style="width:auto;">← Chess Lobby</button>
+      ${isHost ? '<button class="btn-secondary" data-action="end-activity" style="width:auto;">End Activity</button>' : ''}
+    </div>
+
+    ${isChessGameFinished(game) || game.status === 'check' ? `
+      <div style="max-width:1180px;margin:0 auto 18px;padding:16px 18px;border-radius:22px;background:linear-gradient(135deg, rgba(255,209,102,0.16), rgba(0,210,211,0.08));border:1px solid rgba(255,209,102,0.26);">
+        <div style="font-weight:900;font-size:1.1rem;margin-bottom:4px;">${escapeHtml(statusLabel)}</div>
+        <div style="color:var(--text-mid);">${escapeHtml(game.lastAction || '')}</div>
+      </div>
+    ` : ''}
+
+    <div class="game-mobile-main" style="max-width:1280px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(300px,0.7fr);gap:18px;align-items:start;">
+      <div class="game-mobile-side" style="background:linear-gradient(180deg,rgba(18,17,14,0.98),rgba(8,8,8,0.99));border:1px solid rgba(255,255,255,0.12);border-radius:24px;padding:18px;box-shadow:0 24px 54px rgba(0,0,0,0.45);">
+        <div class="game-mobile-scroll">
+          <div class="chess-board" style="min-width:320px;max-width:720px;margin:0 auto;display:grid;grid-template-columns:repeat(8,minmax(0,1fr));border-radius:18px;overflow:hidden;border:10px solid #2a1d15;box-shadow:0 24px 44px rgba(0,0,0,0.44);">
+            ${boardMarkup}
+          </div>
+        </div>
+        ${pendingPromotion && pendingPromotion.gameId === game.id ? `
+          <div style="margin:16px auto 0;max-width:720px;padding:14px;border-radius:16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;">
+            <div style="font-weight:800;">Choose promotion</div>
+            <div style="display:flex;gap:8px;">
+              ${['q', 'r', 'b', 'n'].map(piece => `<button class="btn-secondary" data-action="chess-promote" data-promotion="${piece}" style="width:auto;padding:8px 12px;text-transform:uppercase;">${piece}</button>`).join('')}
+            </div>
+          </div>
+        ` : ''}
+      </div>
+
+      <div class="game-mobile-side" style="display:grid;gap:18px;">
+        <div style="background:linear-gradient(180deg,rgba(16,18,24,0.96),rgba(8,8,12,0.98));border:1px solid rgba(255,255,255,0.12);border-radius:24px;padding:18px;">
+          <div style="font-family:'Fraunces',serif;font-size:1.25rem;margin-bottom:12px;">Match</div>
+          ${['white', 'black'].map(color => {
+            const seat = getChessSeat(game, color);
+            const active = turnColor === color && !isChessGameFinished(game);
+            return `
+              <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px;border-radius:14px;background:${active ? 'rgba(0,210,211,0.1)' : 'rgba(255,255,255,0.04)'};border:1px solid ${active ? 'rgba(0,210,211,0.24)' : 'rgba(255,255,255,0.08)'};margin-bottom:10px;">
+                <div>
+                  <div style="font-weight:900;">${escapeHtml(seat.avatar)} ${escapeHtml(seat.playerName)}</div>
+                  <div style="font-size:0.78rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;">${color}</div>
+                </div>
+                <div style="font-size:0.82rem;color:${active ? 'var(--accent)' : 'var(--text-dim)'};font-weight:800;">${active ? 'Turn' : winnerSeat?.playerId === seat.playerId ? 'Winner' : ''}</div>
+              </div>
+            `;
+          }).join('')}
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+            ${isPlayer && !isChessGameFinished(game) ? `<button class="btn-secondary" data-action="chess-offer-draw" data-game-id="${escapeHtml(game.id)}" style="width:auto;padding:10px 14px;">${game.drawOfferByPlayerId && game.drawOfferByPlayerId !== myId ? 'Accept Draw' : 'Offer Draw'}</button>` : ''}
+            ${isPlayer && !isChessGameFinished(game) ? `<button class="btn-secondary" data-action="chess-resign" data-game-id="${escapeHtml(game.id)}" style="width:auto;padding:10px 14px;border-color:rgba(255,64,96,0.34);color:#ff9cac;">Resign</button>` : ''}
+          </div>
+        </div>
+
+        <div style="background:linear-gradient(180deg,rgba(16,18,24,0.96),rgba(8,8,12,0.98));border:1px solid rgba(255,255,255,0.12);border-radius:24px;padding:18px;">
+          <div style="font-family:'Fraunces',serif;font-size:1.25rem;margin-bottom:12px;">Captured</div>
+          <div style="display:grid;gap:10px;">
+            <div style="padding:10px;border-radius:12px;background:rgba(255,255,255,0.04);"><strong>White:</strong> ${capturedByWhite.map(getChessPieceGlyph).join(' ') || '<span style="color:var(--text-dim);">None</span>'}</div>
+            <div style="padding:10px;border-radius:12px;background:rgba(255,255,255,0.04);"><strong>Black:</strong> ${capturedByBlack.map(getChessPieceGlyph).join(' ') || '<span style="color:var(--text-dim);">None</span>'}</div>
+          </div>
+        </div>
+
+        <div style="background:linear-gradient(180deg,rgba(16,18,24,0.96),rgba(8,8,12,0.98));border:1px solid rgba(255,255,255,0.12);border-radius:24px;padding:18px;">
+          <div style="font-family:'Fraunces',serif;font-size:1.25rem;margin-bottom:12px;">Moves</div>
+          <div style="max-height:260px;overflow:auto;display:grid;gap:6px;">
+            ${(game.moves || []).length ? game.moves.map((move, idx) => `
+              <div style="display:grid;grid-template-columns:44px 1fr;gap:8px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,0.04);font-family:'IBM Plex Mono',monospace;font-size:0.84rem;">
+                <span style="color:var(--text-dim);">${idx + 1}</span>
+                <span>${escapeHtml(move.san || `${move.from}-${move.to}`)}</span>
+              </div>
+            `).join('') : '<div style="color:var(--text-dim);font-size:0.9rem;">No moves yet.</div>'}
           </div>
         </div>
       </div>
