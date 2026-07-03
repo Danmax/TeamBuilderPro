@@ -3165,3 +3165,68 @@
     }
     .cb-viewport { min-height: 250px; }
   }
+
+.chess-square {
+  position: relative;
+  overflow: visible;
+}
+
+.chess-square::after {
+  content: "";
+  position: absolute;
+  inset: 8%;
+  z-index: 1;
+  border-radius: 10px;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.chess-square-move-from::after {
+  opacity: 1;
+  border: 2px solid rgba(255, 209, 102, 0.78);
+  background: rgba(255, 209, 102, 0.16);
+}
+
+.chess-square-move-to::after {
+  opacity: 1;
+  border: 2px solid rgba(0, 210, 211, 0.78);
+  box-shadow: inset 0 0 0 3px rgba(0, 210, 211, 0.16);
+}
+
+.chess-piece-glyph {
+  position: relative;
+  z-index: 2;
+  display: inline-grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+}
+
+.chess-square-animate-move .chess-piece-glyph {
+  animation: chessPieceSlide 420ms cubic-bezier(.18, .84, .22, 1);
+}
+
+@keyframes chessPieceSlide {
+  0% {
+    opacity: .86;
+    transform: translate(var(--chess-move-x, 0), var(--chess-move-y, 0)) scale(1.08);
+    filter: drop-shadow(0 14px 14px rgba(0, 0, 0, .34));
+  }
+  72% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1.08);
+    filter: drop-shadow(0 10px 10px rgba(0, 0, 0, .24));
+  }
+  100% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+    filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chess-square-animate-move .chess-piece-glyph {
+    animation: none;
+  }
+}
