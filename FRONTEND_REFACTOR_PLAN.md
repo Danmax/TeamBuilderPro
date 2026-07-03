@@ -216,15 +216,19 @@ Status: Complete
 
 ### Phase 4B: Extract Backgammon
 
-Status: Planned
+Status: Complete
 
 - Move Backgammon constants, move helpers, action handlers, and renderer to `assets/js/activities/backgammon.js`.
+- Register `backgammon` through the activity registry.
+- Remove Backgammon-specific start/action/render fallbacks from the central dispatcher.
 
 ### Phase 4C: Extract Bingo
 
-Status: Planned
+Status: Complete
 
 - Move Bingo constants, card helpers, action handlers, and renderer to `assets/js/activities/bingo.js`.
+- Register `bingo` through the activity registry.
+- Remove Bingo-specific start/action/render fallbacks from the central dispatcher.
 
 ### Phase 4D: Extract Battleship
 
