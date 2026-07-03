@@ -232,22 +232,43 @@ Status: Complete
 
 ### Phase 4D: Extract Battleship
 
-Status: Planned
+Status: Complete
 
 - Move Battleship constants, board helpers, action handlers, and renderer to `assets/js/activities/battleship.js`.
+- Register `battleship` through the activity registry.
+- Remove Battleship-specific start/action/render fallbacks from the central dispatcher.
+
+## Phase 4 Result
+
+Status: Complete
+
+- Chess Lobby, Connect 4, Backgammon, Bingo, and Battleship now live in activity modules.
+- The central activity dispatcher now uses registry-owned renderers/actions for the extracted board games.
 
 ## Phase 5: Extract Heavy Media/Simulation Activities
 
+Status: Deferred
+
 - DJ Booth, Slides Studio, and Cosmos Bound should move after the registry is proven.
 - These have more DOM/audio/canvas lifecycle concerns, so extract them only after lighter games are stable.
+- Current decision: keep these inline until each can be migrated and browser-tested independently:
+  - DJ Booth: YouTube players, local/shared audio, microphone recorder, animation sync.
+  - Slides Studio: editor state, AI generation flow, generated slide canvas/preview rendering.
+  - Cosmos Bound: canvas animation loop, timers, audio, mission simulation state.
 
 ## Phase 6: CSS Extraction
+
+Status: Complete
 
 - Move base styles to `assets/css/base.css`.
 - Move feature styles to `assets/css/activities/`.
 - Keep CSS extraction separate from JS extraction to reduce review risk.
+- Current implementation moved the inline stylesheet to `assets/css/base.css` unchanged, preserving deployable behavior.
+- Per-activity CSS files remain an optional follow-up once JS module boundaries settle.
 
 ## Phase 7: Optional Build Step
+
+Status: Complete
 
 - After the app is already modular, decide whether to adopt Vite.
 - Use a build step only after the current file boundaries are stable.
@@ -256,6 +277,7 @@ Status: Planned
   - asset hashing
   - easier dependency management
   - better dev ergonomics
+- Decision: defer Vite for now. The app still runs as static HTML plus plain JS/CSS modules, keeping deployment simple while extraction continues.
 
 ## Guardrails
 
