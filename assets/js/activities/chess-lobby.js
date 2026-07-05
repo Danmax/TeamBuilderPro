@@ -336,7 +336,9 @@ function syncChessGameFromEngine(game, chess, move, moverColor, state, actionPre
   game.fen = chess.fen();
   game.pgn = typeof chess.pgn === 'function' ? chess.pgn() : game.pgn;
   game.turn = typeof chess.turn === 'function' ? chess.turn() : (getChessTurnColorFromFen(game.fen) === 'black' ? 'b' : 'w');
-  game.lastMove = { from: move.from, to: move.to, san: move.san, color: move.color, piece: move.piece, captured: move.captured || '', promotion: move.promotion || '', at: now };
+  const isEnPassant = String(move.flags || '').includes('e');
+  const moveLabel = `${move.san}${isEnPassant ? ' en passant' : ''}`;
+  game.lastMove = { from: move.from, to: move.to, san: move.san, color: move.color, piece: move.piece, captured: move.captured || '', promotion: move.promotion || '', flags: String(move.flags || ''), at: now };
   game.moves = [...(Array.isArray(game.moves) ? game.moves : []), game.lastMove].slice(-240);
   game.drawOfferByPlayerId = '';
   game.status = getChessGameStatusFromEngine(chess);
@@ -359,7 +361,7 @@ function syncChessGameFromEngine(game, chess, move, moverColor, state, actionPre
     updateChessClockAfterMove(game, now);
     const nextColor = getChessTurnColorFromFen(game.fen);
     const prefix = actionPrefix ? `${actionPrefix} ` : '';
-    game.lastAction = `${prefix}${moverSeat.playerName} played ${move.san}. ${getChessSeat(game, nextColor).playerName} is up${game.status === 'check' ? ' in check' : ''}.`;
+    game.lastAction = `${prefix}${moverSeat.playerName} played ${moveLabel}. ${getChessSeat(game, nextColor).playerName} is up${game.status === 'check' ? ' in check' : ''}.`;
   }
 }
 
@@ -1284,7 +1286,7 @@ function renderChessGameView(state, game) {
             ${(game.moves || []).length ? game.moves.map((move, idx) => `
               <div style="display:grid;grid-template-columns:44px 1fr;gap:8px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,0.04);font-family:'IBM Plex Mono',monospace;font-size:0.84rem;">
                 <span style="color:var(--text-dim);">${idx + 1}</span>
-                <span>${escapeHtml(move.san || `${move.from}-${move.to}`)}</span>
+                <span>${escapeHtml(`${move.san || `${move.from}-${move.to}`}${String(move.flags || '').includes('e') ? ' e.p.' : ''}`)}</span>
               </div>
             `).join('') : '<div style="color:var(--text-dim);font-size:0.9rem;">No moves yet.</div>'}
           </div>
