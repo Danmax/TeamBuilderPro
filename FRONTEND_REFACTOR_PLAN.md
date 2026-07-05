@@ -247,14 +247,14 @@ Status: Complete
 
 ## Phase 5: Extract Heavy Media/Simulation Activities
 
-Status: In progress
+Status: Complete
 
 - DJ Booth, Slides Studio, and Cosmos Bound should move after the registry is proven.
 - These have more DOM/audio/canvas lifecycle concerns, so extract them only after lighter games are stable.
 - Slides Studio has been moved to `assets/js/activities/slides-studio.js` and registered through the activity registry.
-- Remaining heavy activities should be migrated and browser-tested independently:
-  - DJ Booth: YouTube players, local/shared audio, microphone recorder, animation sync.
-  - Cosmos Bound: canvas animation loop, timers, audio, mission simulation state.
+- DJ Booth has been moved to `assets/js/activities/dj-booth.js` and registered through the activity registry.
+- Cosmos Bound has been moved to `assets/js/activities/cosmos-bound.js` and registered through the activity registry.
+- The main render loop still owns lifecycle calls for DJ player preservation/sync and Cosmos canvas teardown/post-render setup because those hooks coordinate with global rendering.
 
 ## Phase 6: CSS Extraction
 

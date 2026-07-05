@@ -2,7 +2,10 @@ function getDefaultChessUiState() {
   return {
     selectedGameId: '',
     selectedSquare: '',
-    pendingPromotion: null
+    pendingPromotion: null,
+    lastSoundKey: '',
+    timeControlSeconds: 600,
+    computerDifficulty: 'normal'
   };
 }
 
@@ -29,13 +32,114 @@ const CHESS_COMPUTER_SEAT = {
   playerName: 'Computer',
   avatar: '🤖'
 };
+const CHESS_SOUND_SOURCES = {
+  move: '/Sounds/move.wav',
+  capture: '/Sounds/capture.wav'
+};
+const CHESS_TIMER_OPTIONS = [
+  { seconds: 0, label: 'No clock' },
+  { seconds: 300, label: '5 min' },
+  { seconds: 600, label: '10 min' },
+  { seconds: 900, label: '15 min' }
+];
+const CHESS_DIFFICULTY_OPTIONS = [
+  { id: 'easy', label: 'Easy' },
+  { id: 'normal', label: 'Normal' },
+  { id: 'hard', label: 'Hard' }
+];
+const chessSoundPlayers = {};
 let chessEngineModulePromise = null;
+let chessClockRenderTimer = 0;
+let chessClockExpireTimer = 0;
+
+function playChessMoveSound(move) {
+  if (!move || typeof Audio === 'undefined') return;
+  const soundType = move.captured ? 'capture' : 'move';
+  const source = CHESS_SOUND_SOURCES[soundType] || CHESS_SOUND_SOURCES.move;
+  try {
+    if (!chessSoundPlayers[soundType]) {
+      chessSoundPlayers[soundType] = new Audio(source);
+      chessSoundPlayers[soundType].preload = 'auto';
+    }
+    const audio = chessSoundPlayers[soundType];
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+  } catch (_error) {
+    // Browsers can block audio until user interaction; ignore that safely.
+  }
+}
+
+function maybePlayChessLastMoveSound(game) {
+  const move = game?.lastMove;
+  const moveAt = Number(move?.at) || 0;
+  if (!moveAt || Date.now() - moveAt > 3000) return;
+  APP.chessUi = APP.chessUi && typeof APP.chessUi === 'object' ? APP.chessUi : getDefaultChessUiState();
+  const soundKey = `${game.id}:${move.from}:${move.to}:${moveAt}:${move.captured || ''}`;
+  if (APP.chessUi.lastSoundKey === soundKey) return;
+  APP.chessUi.lastSoundKey = soundKey;
+  playChessMoveSound(move);
+}
 
 function createChessSeat(participant = null, fallbackLabel = 'Player') {
   return {
     playerId: String(participant?.id || participant?.playerId || '').trim(),
     playerName: String(participant?.name || participant?.playerName || '').trim() || fallbackLabel,
     avatar: String(participant?.avatar || '').trim() || '👤'
+  };
+}
+
+function normalizeChessTimeControlSeconds(value) {
+  if (value === undefined || value === null || value === '') return 600;
+  const seconds = Number(value) || 0;
+  return CHESS_TIMER_OPTIONS.some(option => option.seconds === seconds) ? seconds : 600;
+}
+
+function normalizeChessDifficulty(value) {
+  const id = String(value || '').trim().toLowerCase();
+  return CHESS_DIFFICULTY_OPTIONS.some(option => option.id === id) ? id : 'normal';
+}
+
+function getChessSelectedTimeControlSeconds() {
+  APP.chessUi = APP.chessUi && typeof APP.chessUi === 'object' ? APP.chessUi : getDefaultChessUiState();
+  APP.chessUi.timeControlSeconds = normalizeChessTimeControlSeconds(APP.chessUi.timeControlSeconds);
+  return APP.chessUi.timeControlSeconds;
+}
+
+function getChessSelectedComputerDifficulty() {
+  APP.chessUi = APP.chessUi && typeof APP.chessUi === 'object' ? APP.chessUi : getDefaultChessUiState();
+  APP.chessUi.computerDifficulty = normalizeChessDifficulty(APP.chessUi.computerDifficulty);
+  return APP.chessUi.computerDifficulty;
+}
+
+function getChessTimerLabel(seconds) {
+  const safeSeconds = normalizeChessTimeControlSeconds(seconds);
+  return CHESS_TIMER_OPTIONS.find(option => option.seconds === safeSeconds)?.label || '10 min';
+}
+
+function createChessTimerState(seconds, now = Date.now(), status = 'active') {
+  const initialSeconds = normalizeChessTimeControlSeconds(seconds);
+  return {
+    initialSeconds,
+    remaining: {
+      white: initialSeconds,
+      black: initialSeconds
+    },
+    activeColor: 'white',
+    lastTickAt: initialSeconds && status !== 'invited' ? now : 0
+  };
+}
+
+function normalizeChessTimer(rawTimer, rawGame = {}) {
+  const initialSeconds = normalizeChessTimeControlSeconds(rawTimer?.initialSeconds ?? rawGame.timeControlSeconds ?? '0');
+  const remaining = rawTimer?.remaining && typeof rawTimer.remaining === 'object' ? rawTimer.remaining : {};
+  return {
+    initialSeconds,
+    remaining: {
+      white: Math.max(0, Number(remaining.white ?? initialSeconds) || 0),
+      black: Math.max(0, Number(remaining.black ?? initialSeconds) || 0)
+    },
+    activeColor: rawTimer?.activeColor === 'black' ? 'black' : 'white',
+    lastTickAt: Math.max(0, Number(rawTimer?.lastTickAt) || 0)
   };
 }
 
@@ -68,7 +172,7 @@ function normalizeChessLobbyState(state, participants = []) {
     const blackParticipant = getParticipantById(participants, rawGame.players?.black?.playerId || rawGame.blackPlayerId);
     games[gameId] = {
       id: gameId,
-      status: ['invited', 'active', 'check', 'checkmate', 'stalemate', 'draw', 'resigned', 'abandoned'].includes(rawGame.status) ? rawGame.status : 'active',
+      status: ['invited', 'active', 'check', 'checkmate', 'stalemate', 'draw', 'resigned', 'abandoned', 'timeout'].includes(rawGame.status) ? rawGame.status : 'active',
       players: {
         white: createChessSeat(rawGame.players?.white || whiteParticipant, 'White'),
         black: createChessSeat(rawGame.players?.black || blackParticipant, 'Black')
@@ -79,6 +183,8 @@ function normalizeChessLobbyState(state, participants = []) {
       pgn: String(rawGame.pgn || ''),
       turn: String(rawGame.turn || 'w') === 'b' ? 'b' : 'w',
       moves: Array.isArray(rawGame.moves) ? rawGame.moves.slice(-240) : [],
+      timer: normalizeChessTimer(rawGame.timer, rawGame),
+      computerDifficulty: normalizeChessDifficulty(rawGame.computerDifficulty),
       lastMove: rawGame.lastMove && typeof rawGame.lastMove === 'object'
         ? { ...rawGame.lastMove, at: Number(rawGame.lastMove.at) || Number(rawGame.updatedAt) || 0 }
         : null,
@@ -117,7 +223,7 @@ function getChessSeat(game, color) {
 }
 
 function isChessGameFinished(game) {
-  return ['checkmate', 'stalemate', 'draw', 'resigned', 'abandoned'].includes(String(game?.status || ''));
+  return ['checkmate', 'stalemate', 'draw', 'resigned', 'abandoned', 'timeout'].includes(String(game?.status || ''));
 }
 
 function getChessOpenGameForPlayer(state, playerId) {
@@ -147,6 +253,8 @@ function createChessGame(participants, whitePlayerId, blackPlayerId, options = {
     pgn: '',
     turn: 'w',
     moves: [],
+    timer: createChessTimerState(options.timerSeconds, now, options.status || 'active'),
+    computerDifficulty: normalizeChessDifficulty(options.computerDifficulty),
     lastMove: null,
     winnerPlayerId: '',
     drawOfferByPlayerId: '',
@@ -160,7 +268,11 @@ function createChessGame(participants, whitePlayerId, blackPlayerId, options = {
 }
 
 function createChessComputerGame(participants, playerId) {
-  const game = createChessGame(participants, playerId, CHESS_COMPUTER_PLAYER_ID, { createdByPlayerId: playerId });
+  const game = createChessGame(participants, playerId, CHESS_COMPUTER_PLAYER_ID, {
+    createdByPlayerId: playerId,
+    timerSeconds: getChessSelectedTimeControlSeconds(),
+    computerDifficulty: getChessSelectedComputerDifficulty()
+  });
   game.players.black = { ...CHESS_COMPUTER_SEAT };
   game.lastAction = `${game.players.white.playerName} started a game against the computer. ${game.players.white.playerName} moves first.`;
   return game;
@@ -174,7 +286,7 @@ async function loadChessEngine() {
   return mod.Chess;
 }
 
-function scoreChessComputerMove(chess, move, Chess) {
+function scoreChessComputerMove(chess, move, Chess, difficulty = 'normal') {
   const pieceValues = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 };
   const trial = new Chess(chess.fen());
   let applied = null;
@@ -184,7 +296,8 @@ function scoreChessComputerMove(chess, move, Chess) {
     applied = null;
   }
   if (!applied) return Number.NEGATIVE_INFINITY;
-  let score = Math.random() * 12;
+  const safeDifficulty = normalizeChessDifficulty(difficulty);
+  let score = Math.random() * (safeDifficulty === 'hard' ? 2 : 12);
   if (applied.captured) score += pieceValues[applied.captured] || 0;
   if (applied.promotion) score += pieceValues[applied.promotion] || 0;
   if (getChessGameStatusFromEngine(trial) === 'checkmate') score += 10000;
@@ -193,13 +306,18 @@ function scoreChessComputerMove(chess, move, Chess) {
   return score;
 }
 
-function chooseChessComputerMove(chess, Chess) {
+function chooseChessComputerMove(chess, Chess, difficulty = 'normal') {
   const moves = typeof chess.moves === 'function' ? chess.moves({ verbose: true }) : [];
   if (!Array.isArray(moves) || !moves.length) return null;
+  const safeDifficulty = normalizeChessDifficulty(difficulty);
+  if (safeDifficulty === 'easy') {
+    const shuffled = moves.slice().sort(() => Math.random() - 0.5);
+    return shuffled.find(move => !move.san?.includes('#')) || shuffled[0] || null;
+  }
   let bestScore = Number.NEGATIVE_INFINITY;
   let bestMoves = [];
   moves.forEach(move => {
-    const score = scoreChessComputerMove(chess, move, Chess);
+    const score = scoreChessComputerMove(chess, move, Chess, safeDifficulty);
     if (score > bestScore + 0.001) {
       bestScore = score;
       bestMoves = [move];
@@ -207,6 +325,9 @@ function chooseChessComputerMove(chess, Chess) {
       bestMoves.push(move);
     }
   });
+  if (safeDifficulty === 'hard') {
+    return bestMoves[0] || moves[0] || null;
+  }
   return bestMoves[Math.floor(Math.random() * bestMoves.length)] || moves[Math.floor(Math.random() * moves.length)] || null;
 }
 
@@ -235,6 +356,7 @@ function syncChessGameFromEngine(game, chess, move, moverColor, state, actionPre
     game.lastAction = 'The game ended in a draw.';
     recordChessResult(state, game, 'Draw');
   } else {
+    updateChessClockAfterMove(game, now);
     const nextColor = getChessTurnColorFromFen(game.fen);
     const prefix = actionPrefix ? `${actionPrefix} ` : '';
     game.lastAction = `${prefix}${moverSeat.playerName} played ${move.san}. ${getChessSeat(game, nextColor).playerName} is up${game.status === 'check' ? ' in check' : ''}.`;
@@ -255,6 +377,92 @@ function getChessGameStatusFromEngine(chess) {
 
 function getChessTurnColorFromFen(fen) {
   return String(fen || '').split(/\s+/)[1] === 'b' ? 'black' : 'white';
+}
+
+function formatChessClock(seconds) {
+  const safeSeconds = Math.max(0, Math.ceil(Number(seconds) || 0));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainder = safeSeconds % 60;
+  return `${minutes}:${String(remainder).padStart(2, '0')}`;
+}
+
+function getChessTimerSnapshot(game, now = Date.now()) {
+  const timer = normalizeChessTimer(game?.timer, game || {});
+  if (!timer.initialSeconds) return { ...timer, running: false };
+  const snapshot = {
+    initialSeconds: timer.initialSeconds,
+    remaining: { ...timer.remaining },
+    activeColor: timer.activeColor,
+    lastTickAt: timer.lastTickAt,
+    running: !isChessGameFinished(game) && game?.status !== 'invited'
+  };
+  if (!snapshot.running || !snapshot.lastTickAt) return snapshot;
+  const elapsedSeconds = Math.max(0, (now - snapshot.lastTickAt) / 1000);
+  snapshot.remaining[snapshot.activeColor] = Math.max(0, snapshot.remaining[snapshot.activeColor] - elapsedSeconds);
+  return snapshot;
+}
+
+function finishChessGameOnTime(game, state, flaggedColor, now = Date.now()) {
+  const safeColor = flaggedColor === 'black' ? 'black' : 'white';
+  const winnerColor = safeColor === 'white' ? 'black' : 'white';
+  const winnerSeat = getChessSeat(game, winnerColor);
+  const flaggedSeat = getChessSeat(game, safeColor);
+  game.status = 'timeout';
+  game.winnerPlayerId = winnerSeat.playerId;
+  game.finishedAt = now;
+  game.updatedAt = now;
+  game.drawOfferByPlayerId = '';
+  game.lastAction = `${flaggedSeat.playerName} ran out of time. ${winnerSeat.playerName} wins.`;
+  if (game.timer?.remaining) game.timer.remaining[safeColor] = 0;
+  recordChessResult(state, game, `${winnerSeat.playerName} won on time`);
+  return true;
+}
+
+function applyChessClockTick(game, state, now = Date.now()) {
+  if (!game?.timer?.initialSeconds || isChessGameFinished(game) || game.status === 'invited') return false;
+  game.timer = normalizeChessTimer(game.timer, game);
+  const activeColor = game.timer.activeColor === 'black' ? 'black' : 'white';
+  const lastTickAt = Number(game.timer.lastTickAt) || now;
+  const elapsedSeconds = Math.max(0, (now - lastTickAt) / 1000);
+  if (elapsedSeconds > 0) {
+    game.timer.remaining[activeColor] = Math.max(0, game.timer.remaining[activeColor] - elapsedSeconds);
+    game.timer.lastTickAt = now;
+  }
+  if (game.timer.remaining[activeColor] <= 0) {
+    return finishChessGameOnTime(game, state, activeColor, now);
+  }
+  return false;
+}
+
+function updateChessClockAfterMove(game, now = Date.now()) {
+  if (!game?.timer?.initialSeconds || isChessGameFinished(game)) return;
+  game.timer = normalizeChessTimer(game.timer, game);
+  game.timer.activeColor = getChessTurnColorFromFen(game.fen);
+  game.timer.lastTickAt = now;
+}
+
+async function chessExpireClock(gameId) {
+  const safeGameId = String(gameId || '').trim();
+  if (!safeGameId) return;
+  await updateChessLobbyState(state => {
+    const game = state.games[safeGameId];
+    if (!game || isChessGameFinished(game)) return;
+    applyChessClockTick(game, state);
+  });
+}
+
+function scheduleChessClockTimers(game) {
+  clearTimeout(chessClockRenderTimer);
+  clearTimeout(chessClockExpireTimer);
+  const snapshot = getChessTimerSnapshot(game);
+  if (!snapshot.running || !snapshot.initialSeconds) return;
+  chessClockRenderTimer = setTimeout(() => {
+    if (APP.room?.currentActivity === 'chess-lobby' && APP.chessUi?.selectedGameId === game.id) render();
+  }, 1000);
+  const activeRemainingMs = Math.max(0, snapshot.remaining[snapshot.activeColor] * 1000);
+  chessClockExpireTimer = setTimeout(() => {
+    if (APP.room?.currentActivity === 'chess-lobby') chessExpireClock(game.id);
+  }, activeRemainingMs + 150);
 }
 
 function getChessPieceGlyph(piece) {
@@ -344,7 +552,10 @@ async function chessQuickMatch() {
       state.quickMatchQueue = state.quickMatchQueue.filter(id => id !== opponentId);
       const whiteId = Math.random() >= 0.5 ? myId : opponentId;
       const blackId = whiteId === myId ? opponentId : myId;
-      const game = createChessGame(room.participants || [], whiteId, blackId, { createdByPlayerId: myId });
+      const game = createChessGame(room.participants || [], whiteId, blackId, {
+        createdByPlayerId: myId,
+        timerSeconds: getChessSelectedTimeControlSeconds()
+      });
       state.games[game.id] = game;
       APP.chessUi.selectedGameId = game.id;
       APP.chessUi.selectedSquare = '';
@@ -392,7 +603,8 @@ async function chessInvitePlayer(invitedPlayerId) {
     const game = createChessGame(room.participants || [], myId, targetId, {
       status: 'invited',
       createdByPlayerId: myId,
-      invitedPlayerId: targetId
+      invitedPlayerId: targetId,
+      timerSeconds: getChessSelectedTimeControlSeconds()
     });
     state.games[game.id] = game;
   });
@@ -409,6 +621,10 @@ async function chessAcceptInvite(gameId) {
     if (existingGame && existingGame.id !== safeGameId) return;
     game.status = 'active';
     game.invitedPlayerId = '';
+    if (game.timer?.initialSeconds) {
+      game.timer.activeColor = 'white';
+      game.timer.lastTickAt = Date.now();
+    }
     game.lastAction = `${getChessSeat(game, 'black').playerName} accepted. ${getChessSeat(game, 'white').playerName} moves first.`;
     game.updatedAt = Date.now();
     APP.chessUi.selectedGameId = game.id;
@@ -444,6 +660,18 @@ function chessSelectGame(gameId = '') {
   APP.chessUi.selectedGameId = String(gameId || '').trim();
   APP.chessUi.selectedSquare = '';
   APP.chessUi.pendingPromotion = null;
+  render();
+}
+
+function setChessTimeControl(seconds) {
+  APP.chessUi = APP.chessUi && typeof APP.chessUi === 'object' ? APP.chessUi : getDefaultChessUiState();
+  APP.chessUi.timeControlSeconds = normalizeChessTimeControlSeconds(seconds);
+  render();
+}
+
+function setChessComputerDifficulty(difficulty) {
+  APP.chessUi = APP.chessUi && typeof APP.chessUi === 'object' ? APP.chessUi : getDefaultChessUiState();
+  APP.chessUi.computerDifficulty = normalizeChessDifficulty(difficulty);
   render();
 }
 
@@ -499,6 +727,7 @@ async function chessMakeMove(gameId, from, to, promotion = 'q') {
     if (!game || !['active', 'check'].includes(game.status)) return;
     const myColor = getChessPlayerColor(game);
     if (!myColor || getChessTurnColorFromFen(game.fen) !== myColor) return;
+    if (applyChessClockTick(game, state)) return;
     const chess = new Chess(game.fen || CHESS_START_FEN);
     let move = null;
     try {
@@ -522,9 +751,10 @@ async function chessMakeMove(gameId, from, to, promotion = 'q') {
         if (!game || !['active', 'check'].includes(game.status) || isChessGameFinished(game)) return;
         const computerColor = getChessTurnColorFromFen(game.fen);
         if (getChessSeat(game, computerColor).playerId !== CHESS_COMPUTER_PLAYER_ID) return;
+        if (applyChessClockTick(game, state)) return;
         const chess = new Chess(game.fen || CHESS_START_FEN);
         const actionPrefix = result.playerMoveSan ? `${result.playerName || 'Player'} played ${result.playerMoveSan}.` : '';
-        const computerMove = chooseChessComputerMove(chess, Chess);
+        const computerMove = chooseChessComputerMove(chess, Chess, game.computerDifficulty);
         if (computerMove) {
           const appliedComputerMove = chess.move({
             from: computerMove.from,
@@ -586,6 +816,95 @@ async function chessOfferDraw(gameId) {
   });
 }
 
+async function chessRematch(gameId) {
+  const safeGameId = String(gameId || '').trim();
+  const myId = String(APP.player?.id || '').trim();
+  if (!safeGameId || !myId) return;
+  await updateChessLobbyState((state, room) => {
+    const sourceGame = state.games[safeGameId];
+    if (!sourceGame || !isChessGameFinished(sourceGame) || !getChessPlayerColor(sourceGame)) return;
+    if (getChessOpenGameForPlayer(state, myId)) return;
+    const timerSeconds = sourceGame.timer?.initialSeconds || 0;
+    let game = null;
+    if (sourceGame.players?.black?.playerId === CHESS_COMPUTER_PLAYER_ID || sourceGame.players?.white?.playerId === CHESS_COMPUTER_PLAYER_ID) {
+      game = createChessComputerGame(room.participants || [], myId);
+      game.timer = createChessTimerState(timerSeconds, Date.now(), 'active');
+      game.computerDifficulty = normalizeChessDifficulty(sourceGame.computerDifficulty);
+    } else {
+      const whiteId = sourceGame.players?.black?.playerId || '';
+      const blackId = sourceGame.players?.white?.playerId || '';
+      if (!whiteId || !blackId) return;
+      game = createChessGame(room.participants || [], whiteId, blackId, {
+        createdByPlayerId: myId,
+        timerSeconds
+      });
+    }
+    game.lastAction = `Rematch started from ${sourceGame.players.white?.playerName || 'White'} vs ${sourceGame.players.black?.playerName || 'Black'}.`;
+    state.games[game.id] = game;
+    APP.chessUi.selectedGameId = game.id;
+    APP.chessUi.selectedSquare = '';
+    APP.chessUi.pendingPromotion = null;
+  });
+}
+
+function getChessResultCode(game) {
+  if (['stalemate', 'draw'].includes(game?.status)) return '1/2-1/2';
+  if (!game?.winnerPlayerId) return '*';
+  if (game.players?.white?.playerId === game.winnerPlayerId) return '1-0';
+  if (game.players?.black?.playerId === game.winnerPlayerId) return '0-1';
+  return '*';
+}
+
+function buildChessMoveText(game) {
+  const moves = Array.isArray(game?.moves) ? game.moves : [];
+  if (!moves.length) return '*';
+  const parts = [];
+  for (let index = 0; index < moves.length; index += 2) {
+    const moveNumber = Math.floor(index / 2) + 1;
+    const whiteMove = moves[index]?.san || `${moves[index]?.from || ''}-${moves[index]?.to || ''}`;
+    const blackMove = moves[index + 1]?.san || '';
+    parts.push(`${moveNumber}. ${whiteMove}${blackMove ? ` ${blackMove}` : ''}`);
+  }
+  return `${parts.join(' ')} ${getChessResultCode(game)}`.trim();
+}
+
+function buildChessPgn(game) {
+  const playedAt = new Date(Number(game?.createdAt) || Date.now());
+  const date = `${playedAt.getFullYear()}.${String(playedAt.getMonth() + 1).padStart(2, '0')}.${String(playedAt.getDate()).padStart(2, '0')}`;
+  const result = getChessResultCode(game);
+  const escapePgn = value => String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const headers = [
+    ['Event', 'Team Builder Chess'],
+    ['Site', APP.roomCode || 'Team Builder Pro'],
+    ['Date', date],
+    ['White', getChessSeat(game, 'white').playerName],
+    ['Black', getChessSeat(game, 'black').playerName],
+    ['Result', result],
+    ['TimeControl', game?.timer?.initialSeconds ? `${game.timer.initialSeconds}` : '-'],
+    ['Termination', game?.lastAction || game?.status || '*']
+  ].map(([key, value]) => `[${key} "${escapePgn(value)}"]`).join('\n');
+  const moveText = String(game?.pgn || '').trim() || buildChessMoveText(game);
+  return `${headers}\n\n${moveText || result}\n`;
+}
+
+function downloadChessPgn(gameId) {
+  const safeGameId = String(gameId || '').trim();
+  const state = normalizeChessLobbyState(APP.room?.activityState, APP.room?.participants || []);
+  const game = state.games[safeGameId];
+  if (!game) return;
+  const text = buildChessPgn(game);
+  const filename = `team-builder-chess-${safeGameId}.pgn`;
+  const blob = new Blob([text], { type: 'application/x-chess-pgn;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 async function chessClearFinishedGames() {
   if (APP.room?.host !== APP.player?.name) return;
   await updateChessLobbyState(state => {
@@ -634,6 +953,14 @@ function renderChessLobby() {
   const selectedGameRaw = state.games[APP.chessUi?.selectedGameId || ''] || null;
   const selectedGame = selectedGameRaw?.status === 'invited' ? null : selectedGameRaw;
   if (selectedGame) return renderChessGameView(state, selectedGame);
+  const selectedTimeControl = getChessSelectedTimeControlSeconds();
+  const selectedDifficulty = getChessSelectedComputerDifficulty();
+  const timeControlOptions = CHESS_TIMER_OPTIONS.map(option => `
+    <option value="${option.seconds}" ${option.seconds === selectedTimeControl ? 'selected' : ''}>${escapeHtml(option.label)}</option>
+  `).join('');
+  const difficultyOptions = CHESS_DIFFICULTY_OPTIONS.map(option => `
+    <option value="${escapeHtml(option.id)}" ${option.id === selectedDifficulty ? 'selected' : ''}>${escapeHtml(option.label)}</option>
+  `).join('');
 
   const activeGames = games.filter(game => !isChessGameFinished(game) && game.status !== 'invited');
   const pendingInvites = games.filter(game => game.status === 'invited');
@@ -692,6 +1019,20 @@ function renderChessLobby() {
           ` : isQueued ? `
             <button class="btn-secondary" data-action="chess-cancel-quick-match" style="border-color:rgba(255,209,102,0.36);color:#ffd166;">Cancel Quick Match</button>
           ` : `
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px;">
+              <label style="display:grid;gap:6px;font-size:0.78rem;color:var(--text-dim);font-weight:800;text-transform:uppercase;letter-spacing:0.07em;">
+                Timer
+                <select onchange="setChessTimeControl(this.value)" style="width:100%;border:1px solid rgba(255,255,255,0.14);border-radius:12px;background:rgba(255,255,255,0.06);color:var(--text);padding:10px 12px;font:inherit;text-transform:none;letter-spacing:0;">
+                  ${timeControlOptions}
+                </select>
+              </label>
+              <label style="display:grid;gap:6px;font-size:0.78rem;color:var(--text-dim);font-weight:800;text-transform:uppercase;letter-spacing:0.07em;">
+                Computer
+                <select onchange="setChessComputerDifficulty(this.value)" style="width:100%;border:1px solid rgba(255,255,255,0.14);border-radius:12px;background:rgba(255,255,255,0.06);color:var(--text);padding:10px 12px;font:inherit;text-transform:none;letter-spacing:0;">
+                  ${difficultyOptions}
+                </select>
+              </label>
+            </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
               <button class="btn-primary" data-action="chess-quick-match" style="width:auto;flex:1 1 160px;">Quick Match</button>
               <button class="btn-secondary" data-action="chess-play-computer" style="width:auto;flex:1 1 160px;">Play Computer</button>
@@ -717,7 +1058,7 @@ function renderChessLobby() {
                   <div style="border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:14px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;">
                     <div>
                       <div style="font-weight:800;">${escapeHtml(getChessSeat(game, 'white').playerName)} invited ${escapeHtml(getChessSeat(game, 'black').playerName)}</div>
-                      <div style="font-size:0.82rem;color:var(--text-dim);">${escapeHtml(game.lastAction || 'Waiting for response.')}</div>
+                      <div style="font-size:0.82rem;color:var(--text-dim);">${escapeHtml(game.lastAction || 'Waiting for response.')} • ${escapeHtml(getChessTimerLabel(game.timer?.initialSeconds || 0))}</div>
                     </div>
                     ${isMine ? `
                       <div style="display:flex;gap:8px;">
@@ -739,11 +1080,15 @@ function renderChessLobby() {
           <div style="display:grid;gap:10px;">
             ${activeGames.length ? activeGames.map(game => {
               const turnColor = getChessTurnColorFromFen(game.fen);
+              const timerSnapshot = getChessTimerSnapshot(game);
+              const clockLabel = timerSnapshot.initialSeconds
+                ? `${formatChessClock(timerSnapshot.remaining.white)} / ${formatChessClock(timerSnapshot.remaining.black)}`
+                : 'No clock';
               return `
                 <div style="border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:14px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;">
                   <div>
                     <div style="font-weight:800;">${escapeHtml(getChessSeat(game, 'white').playerName)} vs ${escapeHtml(getChessSeat(game, 'black').playerName)}</div>
-                    <div style="font-size:0.82rem;color:var(--text-dim);">${escapeHtml(getChessSeat(game, turnColor).playerName)} to move${game.status === 'check' ? ' • Check' : ''}</div>
+                    <div style="font-size:0.82rem;color:var(--text-dim);">${escapeHtml(getChessSeat(game, turnColor).playerName)} to move${game.status === 'check' ? ' • Check' : ''} • ${escapeHtml(clockLabel)}</div>
                   </div>
                   <button class="btn-secondary" data-action="chess-select-game" data-game-id="${escapeHtml(game.id)}" style="width:auto;padding:8px 12px;">${getChessPlayerColor(game) ? 'Play' : 'Spectate'}</button>
                 </div>
@@ -768,6 +1113,8 @@ function renderChessLobby() {
 }
 
 function renderChessGameView(state, game) {
+  maybePlayChessLastMoveSound(game);
+  scheduleChessClockTimers(game);
   const myColor = getChessPlayerColor(game);
   const myId = String(APP.player?.id || '').trim();
   const isPlayer = Boolean(myColor);
@@ -802,14 +1149,17 @@ function renderChessGameView(state, game) {
       ? 'Stalemate'
       : game.status === 'resigned'
         ? 'Resigned'
-        : game.status === 'draw'
-          ? 'Draw'
-          : game.status === 'check'
-            ? 'Check'
-            : 'Active';
+        : game.status === 'timeout'
+          ? 'Timeout'
+          : game.status === 'draw'
+            ? 'Draw'
+            : game.status === 'check'
+              ? 'Check'
+              : 'Active';
   const winnerSeat = game.winnerPlayerId
     ? [getChessSeat(game, 'white'), getChessSeat(game, 'black')].find(seat => seat.playerId === game.winnerPlayerId)
     : null;
+  const timerSnapshot = getChessTimerSnapshot(game);
 
   const boardMarkup = ranks.map(rank => files.map(file => {
     const square = `${file}${rank}`;
@@ -897,13 +1247,17 @@ function renderChessGameView(state, game) {
           ${['white', 'black'].map(color => {
             const seat = getChessSeat(game, color);
             const active = turnColor === color && !isChessGameFinished(game);
+            const clock = timerSnapshot.initialSeconds ? formatChessClock(timerSnapshot.remaining[color]) : '';
             return `
               <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px;border-radius:14px;background:${active ? 'rgba(0,210,211,0.1)' : 'rgba(255,255,255,0.04)'};border:1px solid ${active ? 'rgba(0,210,211,0.24)' : 'rgba(255,255,255,0.08)'};margin-bottom:10px;">
                 <div>
                   <div style="font-weight:900;">${escapeHtml(seat.avatar)} ${escapeHtml(seat.playerName)}</div>
-                  <div style="font-size:0.78rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;">${color}</div>
+                  <div style="font-size:0.78rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;">${color}${clock ? ` • ${escapeHtml(getChessTimerLabel(timerSnapshot.initialSeconds))}` : ''}</div>
                 </div>
-                <div style="font-size:0.82rem;color:${active ? 'var(--accent)' : 'var(--text-dim)'};font-weight:800;">${active ? 'Turn' : winnerSeat?.playerId === seat.playerId ? 'Winner' : ''}</div>
+                <div style="text-align:right;">
+                  ${clock ? `<div style="font-family:'IBM Plex Mono',monospace;font-size:1.2rem;font-weight:900;color:${active ? 'var(--accent)' : 'var(--text)'};">${escapeHtml(clock)}</div>` : ''}
+                  <div style="font-size:0.82rem;color:${active ? 'var(--accent)' : 'var(--text-dim)'};font-weight:800;">${active ? 'Turn' : winnerSeat?.playerId === seat.playerId ? 'Winner' : ''}</div>
+                </div>
               </div>
             `;
           }).join('')}
@@ -911,6 +1265,8 @@ function renderChessGameView(state, game) {
             ${isPlayer && !isChessGameFinished(game) ? `<button class="btn-secondary" data-action="chess-offer-draw" data-game-id="${escapeHtml(game.id)}" style="width:auto;padding:10px 14px;">${game.drawOfferByPlayerId && game.drawOfferByPlayerId !== myId ? 'Accept Draw' : 'Offer Draw'}</button>` : ''}
             ${isPlayer && !isChessGameFinished(game) ? `<button class="btn-secondary" data-action="chess-resign" data-game-id="${escapeHtml(game.id)}" style="width:auto;padding:10px 14px;border-color:rgba(255,64,96,0.34);color:#ff9cac;">Resign</button>` : ''}
             ${isHost && !isChessGameFinished(game) ? `<button class="btn-secondary" data-action="chess-close-game" data-game-id="${escapeHtml(game.id)}" style="width:auto;padding:10px 14px;border-color:rgba(255,209,102,0.34);color:#ffd166;">Close Game</button>` : ''}
+            ${isPlayer && isChessGameFinished(game) ? `<button class="btn-primary" data-action="chess-rematch" data-game-id="${escapeHtml(game.id)}" style="width:auto;padding:10px 14px;">Rematch</button>` : ''}
+            ${(game.moves || []).length ? `<button class="btn-secondary" data-action="chess-export-pgn" data-game-id="${escapeHtml(game.id)}" style="width:auto;padding:10px 14px;">Export PGN</button>` : ''}
           </div>
         </div>
 
@@ -937,3 +1293,38 @@ function renderChessGameView(state, game) {
     </div>
   `;
 }
+
+function registerChessLobbyActivity() {
+  const registry = window.TEAM_BUILDER_ACTIVITY_REGISTRY;
+  if (!registry || typeof registry.registerActivity !== 'function' || typeof registry.registerAction !== 'function') return;
+  registry.registerActivity('chess-lobby', {
+    label: 'Chess Lobby',
+    createInitialState: room => createChessLobbyState(room?.participants || []),
+    render: () => renderChessLobby()
+  });
+  registry.registerAction('start-chess-lobby', () => startActivityById('chess-lobby'));
+  registry.registerAction('chess-quick-match', () => chessQuickMatch());
+  registry.registerAction('chess-cancel-quick-match', () => chessCancelQuickMatch());
+  registry.registerAction('chess-play-computer', () => chessPlayComputer());
+  registry.registerAction('chess-invite', ({ dataset }) => chessInvitePlayer(dataset.playerId));
+  registry.registerAction('chess-accept-invite', ({ dataset }) => chessAcceptInvite(dataset.gameId));
+  registry.registerAction('chess-decline-invite', ({ dataset }) => chessDeclineInvite(dataset.gameId));
+  registry.registerAction('chess-cancel-invite', ({ dataset }) => chessCancelInvite(dataset.gameId));
+  registry.registerAction('chess-select-game', ({ dataset }) => chessSelectGame(dataset.gameId));
+  registry.registerAction('chess-back-lobby', () => chessSelectGame(''));
+  registry.registerAction('chess-square', ({ dataset }) => chessHandleSquare(dataset.gameId, dataset.square));
+  registry.registerAction('chess-promote', ({ dataset }) => {
+    const promotion = APP.chessUi?.pendingPromotion;
+    if (!promotion) return;
+    return chessMakeMove(promotion.gameId, promotion.from, promotion.to, dataset.promotion || 'q');
+  });
+  registry.registerAction('chess-resign', ({ dataset }) => chessResign(dataset.gameId));
+  registry.registerAction('chess-offer-draw', ({ dataset }) => chessOfferDraw(dataset.gameId));
+  registry.registerAction('chess-rematch', ({ dataset }) => chessRematch(dataset.gameId));
+  registry.registerAction('chess-export-pgn', ({ dataset }) => downloadChessPgn(dataset.gameId));
+  registry.registerAction('chess-clear-finished', () => chessClearFinishedGames());
+  registry.registerAction('chess-close-game', ({ dataset }) => chessCloseGame(dataset.gameId));
+  registry.registerAction('chess-reset-lobby', () => chessResetLobby());
+}
+
+registerChessLobbyActivity();
