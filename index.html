@@ -3524,6 +3524,15 @@ function createInitialActivityState(activityId, room = APP.room) {
   if (activityId === 'survey-clash') {
     return createSurveyClashState(room?.participants || []);
   }
+  if (activityId === 'battleship') {
+    return createBattleshipState(room?.participants || []);
+  }
+  if (activityId === 'bingo') {
+    return createBingoState(room?.participants || []);
+  }
+  if (activityId === 'connect-4') {
+    return createConnect4State(room?.participants || []);
+  }
   if (activityId === 'pulse-check') {
     const questionOrder = buildShuffledQuestionOrder(PULSE_QUESTIONS.length);
     const selectedPollIndexes = questionOrder.slice(0, Math.min(5, PULSE_QUESTIONS.length));
@@ -8257,6 +8266,15 @@ document.addEventListener('click', async (event) => {
     case 'start-survey-clash':
       await startSurveyClash();
       break;
+    case 'start-battleship':
+      await startBattleship();
+      break;
+    case 'start-bingo':
+      await startBingo();
+      break;
+    case 'start-connect-4':
+      await startConnect4();
+      break;
     case 'generate-ai-questions':
       await generateAIQuestions();
       break;
@@ -8523,6 +8541,27 @@ document.addEventListener('click', async (event) => {
     case 'battleship-restart':
       await restartBattleshipMatch();
       break;
+    case 'bingo-draw-next':
+      await bingoDrawNext();
+      break;
+    case 'bingo-toggle-mark':
+      if (Number.isInteger(parsedBsRow) && Number.isInteger(parsedBsCol)) await bingoToggleMark(parsedBsRow, parsedBsCol);
+      break;
+    case 'bingo-claim':
+      await bingoClaimWin();
+      break;
+    case 'bingo-select-marker':
+      if (marker) bingoSelectMarker(marker);
+      break;
+    case 'bingo-toggle-voice':
+      bingoToggleVoice();
+      break;
+    case 'bingo-set-pattern':
+      if (pattern) await bingoSetNextPattern(pattern);
+      break;
+    case 'bingo-new-round':
+      await bingoStartNewRound();
+      break;
     case 'ttt-close-round':
       await closeTicTacToeRound();
       break;
@@ -8598,6 +8637,9 @@ function renderActivity() {
   else if (activity === 'spin-wheel') content = renderSpinWheel();
   else if (activity === 'presentation') content = renderPresentationActivity();
   else if (activity === 'survey-clash') content = renderSurveyClash();
+  else if (activity === 'battleship') content = renderBattleship();
+  else if (activity === 'bingo') content = renderBingo();
+  else if (activity === 'connect-4') content = renderConnect4();
 
   return `
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
