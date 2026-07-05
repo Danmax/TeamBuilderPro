@@ -1916,6 +1916,7 @@ const APP = {
   },
   voice: getDefaultVoiceUiState(),
   battleshipUi: getDefaultBattleshipUiState(),
+  ticTacToeLastSoundKey: '',
   bingoUi: getDefaultBingoUiState(),
   backgammonUi: getDefaultBackgammonUiState(),
   chessUi: getDefaultChessUiState(),
@@ -2148,6 +2149,34 @@ const SURVEY_CLASH_SOUNDS = {
   timer: '/sounds/beep-sound-short-237619.mp3',
   round: '/sounds/freesound_community-cinematic-glitch-transition-sfx-27806.mp3'
 };
+const SIMPLE_GAME_SOUNDS = {
+  move: '/Sounds/move.wav'
+};
+const simpleGameSoundPlayers = {};
+function playSimpleGameSound(key = 'move') {
+  if (typeof Audio === 'undefined') return;
+  const source = SIMPLE_GAME_SOUNDS[key] || SIMPLE_GAME_SOUNDS.move;
+  try {
+    if (!simpleGameSoundPlayers[key]) {
+      simpleGameSoundPlayers[key] = new Audio(source);
+      simpleGameSoundPlayers[key].preload = 'auto';
+    }
+    const audio = simpleGameSoundPlayers[key];
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+  } catch (_error) {
+    // Browser audio can be blocked until a user gesture.
+  }
+}
+function maybePlayTicTacToeLastMoveSound(match) {
+  const move = match?.lastMove;
+  const moveAt = Number(move?.at) || 0;
+  if (!moveAt || Date.now() - moveAt > 3000) return;
+  const soundKey = `ttt:${match.id}:${move.index}:${move.symbol}:${move.playerName}:${moveAt}`;
+  if (APP.ticTacToeLastSoundKey === soundKey) return;
+  APP.ticTacToeLastSoundKey = soundKey;
+  playSimpleGameSound('move');
+}
 let surveyClashLastSoundStamp = 0;
 let surveyClashMuted = localStorage.getItem('surveyClashMuted') === 'true';
 let surveyClashVolume = Math.max(0, Math.min(1, Number.parseFloat(localStorage.getItem('surveyClashVolume') || '0.75') || 0.75));
@@ -3823,6 +3852,7 @@ function createTicTacToeBlitzState(participants, previousState = null) {
       scored: false,
       winner: null,
       resultReason: null,
+      lastMove: null,
       startedAt: now,
       updatedAt: now
     };
@@ -4529,6 +4559,7 @@ async function submitTicTacToeMove(index) {
   if (!symbol || symbol !== match.turn) return;
 
   match.board[index] = symbol;
+  match.lastMove = { index, symbol, playerName: APP.player.name, at: Date.now() };
   match.turn = symbol === 'X' ? 'O' : 'X';
   match.updatedAt = Date.now();
   const winnerSymbol = getTicTacToeWinnerSymbol(match.board);
@@ -4547,6 +4578,8 @@ async function submitTicTacToeMove(index) {
   state.updatedAt = Date.now();
   room.activityState = state;
   await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
 }
 
 async function closeTicTacToeRound() {
@@ -8451,6 +8484,45 @@ document.addEventListener('click', async (event) => {
     case 'submit-ttt-move':
       if (Number.isInteger(parsedIndex)) await submitTicTacToeMove(parsedIndex);
       break;
+    case 'connect4-drop':
+      if (Number.isInteger(parsedIndex)) await dropConnect4Disc(parsedIndex);
+      break;
+    case 'connect4-restart':
+      await restartConnect4Match();
+      break;
+    case 'battleship-select-ship':
+      if (shipId) await handleBattleshipShipSelection(shipId);
+      break;
+    case 'battleship-select-next-ship':
+      selectNextBattleshipShip();
+      break;
+    case 'battleship-select-next-unplaced-ship':
+      selectNextUnplacedBattleshipShip();
+      break;
+    case 'battleship-toggle-axis':
+      await toggleBattleshipPlacementAxis();
+      break;
+    case 'battleship-place-ship':
+      if (Number.isInteger(parsedBsRow) && Number.isInteger(parsedBsCol)) await placeBattleshipShipAt(parsedBsRow, parsedBsCol);
+      break;
+    case 'battleship-randomize':
+      await randomizeBattleshipFleet(false);
+      break;
+    case 'battleship-quick-random':
+      await randomizeBattleshipFleet(true);
+      break;
+    case 'battleship-clear':
+      await clearBattleshipFleet();
+      break;
+    case 'battleship-ready':
+      await setBattleshipReady(readyState === 'true');
+      break;
+    case 'battleship-attack':
+      if (Number.isInteger(parsedBsRow) && Number.isInteger(parsedBsCol)) await attackBattleshipCell(parsedBsRow, parsedBsCol);
+      break;
+    case 'battleship-restart':
+      await restartBattleshipMatch();
+      break;
     case 'ttt-close-round':
       await closeTicTacToeRound();
       break;
@@ -11408,6 +11480,7 @@ function renderTicTacToeBlitz() {
     const board = Array.isArray(playerMatch.board) ? playerMatch.board : Array(9).fill('');
     const canPlay = !roundClosed && !playerMatch.complete && playerMatch.turn === playerSymbol;
     const winner = playerMatch.winner || null;
+    maybePlayTicTacToeLastMoveSound(playerMatch);
     const statusText = playerMatch.complete
       ? (winner ? `${escapeHtml(winner)} won this match.` : 'Match ended in a draw.')
       : (canPlay ? 'Your turn.' : `${escapeHtml(opponentName)} is up.`);
@@ -11440,6 +11513,7 @@ function renderTicTacToeBlitz() {
             const attrs = disabled ? '' : `data-action="submit-ttt-move" data-index="${idx}"`;
             const isX = cell === 'X';
             const isO = cell === 'O';
+            const isLastMoveCell = Number(playerMatch.lastMove?.index) === idx && Date.now() - (Number(playerMatch.lastMove?.at) || 0) < 3000;
             const symbolColor = isX ? '#91c4ff' : isO ? '#ff8ca0' : 'rgba(255,255,255,0.24)';
             const symbolGlow = isX
               ? '0 0 10px rgba(145,196,255,0.95), 0 0 24px rgba(77,152,255,0.9), 0 0 42px rgba(77,152,255,0.45)'
@@ -11447,7 +11521,7 @@ function renderTicTacToeBlitz() {
                 ? '0 0 10px rgba(255,140,160,0.95), 0 0 24px rgba(255,86,126,0.9), 0 0 42px rgba(255,86,126,0.45)'
                 : 'none';
             return `
-              <button type="button" ${attrs} ${disabled ? 'disabled' : ''} style="
+              <button type="button" class="${isLastMoveCell ? 'game-move-pop' : ''}" ${attrs} ${disabled ? 'disabled' : ''} style="
                 aspect-ratio:1/1;
                 border-radius:18px;
                 border:2px solid ${cell ? 'rgba(221,181,255,0.46)' : 'rgba(255,112,219,0.28)'};

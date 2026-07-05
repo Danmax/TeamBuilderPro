@@ -4,7 +4,8 @@ function getDefaultBattleshipUiState() {
     placementAxis: 'horizontal',
     dragShipId: '',
     lastTapShipId: '',
-    lastTapAt: 0
+    lastTapAt: 0,
+    lastShotSoundKey: ''
   };
 }
 
@@ -25,6 +26,41 @@ function cloneBattleshipStaticData(key, fallback) {
 const BATTLESHIP_BOARD_SIZE = Number(cloneBattleshipStaticData('BATTLESHIP_BOARD_SIZE', 10)) || 10;
 const BATTLESHIP_SHIP_SET = cloneBattleshipStaticData('BATTLESHIP_SHIP_SET', []);
 const BATTLESHIP_COLUMN_LABELS = cloneBattleshipStaticData('BATTLESHIP_COLUMN_LABELS', 'ABCDEFGHIJ'.split(''));
+const BATTLESHIP_SOUND_SOURCES = {
+  shot: '/Sounds/freesound_community-laser-gun-72558.mp3',
+  hit: '/Sounds/capture.wav'
+};
+const battleshipSoundPlayers = {};
+
+function playBattleshipSound(key = 'shot') {
+  if (typeof Audio === 'undefined') return;
+  const source = BATTLESHIP_SOUND_SOURCES[key] || BATTLESHIP_SOUND_SOURCES.shot;
+  try {
+    if (!battleshipSoundPlayers[key]) {
+      battleshipSoundPlayers[key] = new Audio(source);
+      battleshipSoundPlayers[key].preload = 'auto';
+    }
+    const audio = battleshipSoundPlayers[key];
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+  } catch (_error) {
+    // Browser audio can be blocked until a user gesture.
+  }
+}
+
+function maybePlayBattleshipLastShotSound(state) {
+  const shot = state?.lastShot;
+  const shotAt = Number(shot?.at) || 0;
+  if (!shotAt || Date.now() - shotAt > 3000) return;
+  APP.battleshipUi = APP.battleshipUi && typeof APP.battleshipUi === 'object' ? APP.battleshipUi : getDefaultBattleshipUiState();
+  const soundKey = `battleship:${shot.attacker}:${shot.defender}:${shot.row}:${shot.col}:${shot.result}:${shotAt}`;
+  if (APP.battleshipUi.lastShotSoundKey === soundKey) return;
+  APP.battleshipUi.lastShotSoundKey = soundKey;
+  playBattleshipSound('shot');
+  if (shot.result === 'hit') {
+    window.setTimeout(() => playBattleshipSound('hit'), 110);
+  }
+}
 
 function createBattleshipShipState(template) {
   return {
@@ -118,13 +154,19 @@ function normalizeBattleshipBoard(board) {
       row: Number(shot?.row),
       col: Number(shot?.col),
       result: String(shot?.result || 'miss'),
-      shipId: String(shot?.shipId || '')
+      shipId: String(shot?.shipId || ''),
+      at: Number(shot?.at) || 0,
+      attacker: String(shot?.attacker || ''),
+      defender: String(shot?.defender || '')
     })).filter(shot => Number.isInteger(shot.row) && Number.isInteger(shot.col)) : [],
     shotsReceived: Array.isArray(base.shotsReceived) ? base.shotsReceived.map(shot => ({
       row: Number(shot?.row),
       col: Number(shot?.col),
       result: String(shot?.result || 'miss'),
-      shipId: String(shot?.shipId || '')
+      shipId: String(shot?.shipId || ''),
+      at: Number(shot?.at) || 0,
+      attacker: String(shot?.attacker || ''),
+      defender: String(shot?.defender || '')
     })).filter(shot => Number.isInteger(shot.row) && Number.isInteger(shot.col)) : []
   };
 }
@@ -366,7 +408,7 @@ async function placeBattleshipShipAt(row, col, explicitShipId = '') {
   render();
 }
 
-async function randomizeBattleshipFleet() {
+async function randomizeBattleshipFleet(ready = false) {
   if (!APP.roomCode) return;
   const room = await RoomManager.loadRoom(APP.roomCode);
   if (!room || room.currentActivity !== 'battleship') return;
@@ -375,7 +417,19 @@ async function randomizeBattleshipFleet() {
     : createBattleshipState(room.participants || []);
   if (state.phase !== 'setup') return;
   if (!getBattleshipPlayers(state).includes(APP.player?.name || '')) return;
-  state.boards[APP.player.name] = randomizeBattleshipBoard(getBattleshipBoard(state, APP.player.name));
+  const board = randomizeBattleshipBoard(getBattleshipBoard(state, APP.player.name));
+  board.ready = ready === true;
+  state.boards[APP.player.name] = board;
+  if (ready === true) {
+    const players = getBattleshipPlayers(state);
+    if (players.length === 2 && players.every(name => normalizeBattleshipBoard(getBattleshipBoard(state, name)).ready)) {
+      state.phase = 'battle';
+      state.turn = players[0];
+      state.lastAction = `${players[0]} has the first shot.`;
+    } else {
+      state.lastAction = `${APP.player.name} placed a random fleet and is ready.`;
+    }
+  }
   state.updatedAt = Date.now();
   APP.battleshipUi.selectedShipId = '';
   room.activityState = state;
@@ -449,7 +503,7 @@ async function attackBattleshipCell(row, col) {
 
   const targetShip = getBattleshipShipAtCell(defenderBoard, row, col);
   const result = targetShip ? 'hit' : 'miss';
-  const shot = { row, col, result, shipId: targetShip?.id || '' };
+  const shot = { row, col, result, shipId: targetShip?.id || '', attacker, defender, at: Date.now() };
   attackerBoard.shotsTaken = [...attackerBoard.shotsTaken, shot];
   defenderBoard.shotsReceived = [...defenderBoard.shotsReceived, shot];
 
@@ -464,6 +518,7 @@ async function attackBattleshipCell(row, col) {
   state.boards[attacker] = attackerBoard;
   state.boards[defender] = defenderBoard;
   state.lastAction = actionLabel;
+  state.lastShot = shot;
   if (areAllBattleshipShipsSunk(defenderBoard)) {
     state.phase = 'finished';
     state.winner = attacker;
@@ -557,6 +612,7 @@ function renderBattleship() {
   const nextUnplacedShip = myBoard ? getNextUnplacedBattleshipShip(myBoard, selectedShipId) : null;
   const canAdvancePlacementShip = state.phase === 'setup' && Boolean(nextPlacementShip?.id) && nextPlacementShip.id !== selectedShipId;
   const canSelectNextUnplacedShip = state.phase === 'setup' && Boolean(nextUnplacedShip?.id) && nextUnplacedShip.id !== selectedShipId;
+  maybePlayBattleshipLastShotSound(state);
   const readyButtonLabel = myBoard?.ready
     ? 'Fleet Ready'
     : myShipsPlaced
@@ -643,6 +699,7 @@ function renderBattleship() {
         ${renderBattleshipGridLabelCell(String(row + 1))}
         ${Array.from({ length: BATTLESHIP_BOARD_SIZE }, (_, col) => {
         const ownCell = myBoard ? getBattleshipOwnCellState(myBoard, row, col) : { ship: null, shot: null };
+          const isLatestShotCell = Number(state.lastShot?.row) === row && Number(state.lastShot?.col) === col && state.lastShot?.defender === me && Date.now() - (Number(state.lastShot?.at) || 0) < 3000;
           const shipId = ownCell.ship?.id || '';
           const isPlacedShipCell = state.phase === 'setup' && Boolean(ownCell.ship);
           const isSelectedShipCell = Boolean(selectedShipId && ownCell.ship?.id === selectedShipId);
@@ -675,7 +732,7 @@ function renderBattleship() {
           return `
             <button
               type="button"
-              class="battleship-cell"
+              class="battleship-cell ${isLatestShotCell ? (ownCell.shot?.result === 'hit' ? 'battleship-hit-burst' : 'battleship-shot-splash') : ''}"
               data-action="${cellAction}"
               data-bs-row="${row}"
               data-bs-col="${col}"
@@ -711,6 +768,7 @@ function renderBattleship() {
         ${renderBattleshipGridLabelCell(String(row + 1))}
         ${Array.from({ length: BATTLESHIP_BOARD_SIZE }, (_, col) => {
           const shot = getBattleshipTargetCellState(myBoard, row, col);
+          const isLatestShotCell = Number(state.lastShot?.row) === row && Number(state.lastShot?.col) === col && state.lastShot?.attacker === me && Date.now() - (Number(state.lastShot?.at) || 0) < 3000;
           const canAttack = state.phase === 'battle' && turnName === me && !winnerName && !shot;
           const background = shot?.result === 'hit'
             ? 'linear-gradient(135deg,#ff8aa0,#b31244)'
@@ -720,7 +778,7 @@ function renderBattleship() {
           return `
             <button
               type="button"
-              class="battleship-cell"
+              class="battleship-cell ${isLatestShotCell ? (shot?.result === 'hit' ? 'battleship-hit-burst' : 'battleship-shot-splash') : ''}"
               data-action="${canAttack ? 'battleship-attack' : ''}"
               data-bs-row="${row}"
               data-bs-col="${col}"
@@ -788,6 +846,16 @@ function renderBattleship() {
               <div style="font-size:0.84rem;color:rgba(236,233,225,0.72);">${state.lastAction ? escapeHtml(state.lastAction) : state.phase === 'setup' ? 'Place ships, rotate, then lock your fleet.' : turnName ? `${escapeHtml(turnName)} is up.` : 'Match complete.'}</div>
             </div>
             <div style="display:flex;align-items:center;gap:10px;">
+              ${state.phase === 'setup' && isBattlePlayer ? `
+                <button
+                  type="button"
+                  class="btn-secondary"
+                  data-action="battleship-quick-random"
+                  aria-label="Randomly place ships and ready fleet"
+                  title="Randomly place ships and ready fleet"
+                  style="width:48px;height:48px;padding:0;border-radius:999px;display:grid;place-items:center;font-size:1.15rem;border:1px solid rgba(255,209,102,0.32);background:linear-gradient(135deg,rgba(255,209,102,0.2),rgba(255,143,163,0.13));color:#ffd166;box-shadow:0 0 18px rgba(255,209,102,0.13);"
+                >⚡</button>
+              ` : ''}
               ${state.phase === 'setup' && isBattlePlayer ? `
                 <div style="font-size:0.76rem;color:${myBoard?.ready ? '#7af59f' : myShipsPlaced ? '#8af1ff' : 'rgba(236,233,225,0.58)'};font-weight:800;letter-spacing:0.08em;text-transform:uppercase;">
                   ${myBoard?.ready ? 'Ready' : myShipsPlaced ? 'Ready Up' : `${shipsRemainingToPlace} Left`}
@@ -895,6 +963,7 @@ function renderBattleship() {
                 <span>Next Vessel</span>
               </button>
               <button class="btn-secondary" data-action="battleship-randomize" style="width:auto;padding:10px 14px;" ${state.phase !== 'setup' ? 'disabled' : ''}>Randomize</button>
+              <button class="btn-secondary" data-action="battleship-quick-random" style="width:auto;padding:10px 14px;" ${state.phase !== 'setup' ? 'disabled' : ''}>Random + Ready</button>
               <button class="btn-secondary" data-action="battleship-clear" style="width:auto;padding:10px 14px;" ${state.phase !== 'setup' ? 'disabled' : ''}>Clear</button>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:12px;">

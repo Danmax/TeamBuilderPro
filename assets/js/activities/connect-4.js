@@ -16,6 +16,36 @@ const CONNECT4_ROWS = Number(cloneConnect4StaticData('CONNECT4_ROWS', 6)) || 6;
 const CONNECT4_COLS = Number(cloneConnect4StaticData('CONNECT4_COLS', 7)) || 7;
 const CONNECT4_COLORS = cloneConnect4StaticData('CONNECT4_COLORS', ['red', 'yellow']);
 const CONNECT4_COLOR_META = cloneConnect4StaticData('CONNECT4_COLOR_META', {});
+const CONNECT4_SOUND_SOURCES = {
+  move: '/Sounds/move.wav'
+};
+const connect4SoundPlayers = {};
+
+function playConnect4Sound(key = 'move') {
+  if (typeof Audio === 'undefined') return;
+  const source = CONNECT4_SOUND_SOURCES[key] || CONNECT4_SOUND_SOURCES.move;
+  try {
+    if (!connect4SoundPlayers[key]) {
+      connect4SoundPlayers[key] = new Audio(source);
+      connect4SoundPlayers[key].preload = 'auto';
+    }
+    const audio = connect4SoundPlayers[key];
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+  } catch (_error) {
+    // Browser audio can be blocked until a user gesture.
+  }
+}
+
+function maybePlayConnect4LastMoveSound(state) {
+  const move = state?.lastMove;
+  const moveAt = Number(move?.at) || 0;
+  if (!moveAt || Date.now() - moveAt > 3000) return;
+  const soundKey = `connect4:${move.row}:${move.col}:${move.color}:${moveAt}`;
+  if (APP.connect4LastSoundKey === soundKey) return;
+  APP.connect4LastSoundKey = soundKey;
+  playConnect4Sound('move');
+}
 
 function createConnect4Seat(participant = null, fallbackColor = 'red') {
   return {
@@ -135,7 +165,7 @@ async function dropConnect4Disc(col) {
   if (row < 0) return;
   board[row][col] = myColor;
   state.board = board;
-  state.lastMove = { row, col, color: myColor };
+  state.lastMove = { row, col, color: myColor, at: Date.now() };
   state.updatedAt = Date.now();
   const winner = getConnect4Winner(board);
   if (winner) {
@@ -184,6 +214,7 @@ function renderConnect4() {
   const isDraw = state.winner === 'draw';
   const winningKeySet = new Set((Array.isArray(state.winningCells) ? state.winningCells : []).map(cell => `${cell.row}:${cell.col}`));
   const canDrop = state.phase === 'playing' && !winnerColor && !isDraw && myColor === activeColor;
+  maybePlayConnect4LastMoveSound(state);
 
   if (!redSeat.playerId || !yellowSeat.playerId) {
     return `
@@ -229,6 +260,7 @@ function renderConnect4() {
       const color = getConnect4Cell(board, row, col);
       const colorMeta = color ? CONNECT4_COLOR_META[color] : null;
       const isWinningCell = winningKeySet.has(`${row}:${col}`);
+      const isLastMoveCell = Number(state.lastMove?.row) === row && Number(state.lastMove?.col) === col && Date.now() - (Number(state.lastMove?.at) || 0) < 3000;
       return `
         <div class="connect4-cell" style="
           aspect-ratio:1/1;
@@ -238,7 +270,7 @@ function renderConnect4() {
           display:grid;place-items:center;
           box-shadow:inset 0 0 0 1px rgba(255,255,255,0.04), ${isWinningCell ? '0 0 22px rgba(255,255,255,0.14)' : 'none'};
         ">
-          <div class="connect4-disc" style="
+          <div class="connect4-disc ${isLastMoveCell ? 'game-move-pop' : ''}" style="
             width:78%;height:78%;border-radius:50%;
             background:${colorMeta
               ? `radial-gradient(circle at 34% 32%, rgba(255,255,255,0.94), ${colorMeta.accent} 42%, color-mix(in srgb, ${colorMeta.accent} 76%, #171717 24%) 100%)`
