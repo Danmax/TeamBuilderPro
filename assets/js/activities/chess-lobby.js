@@ -1160,6 +1160,12 @@ function renderChessGameView(state, game) {
     ? [getChessSeat(game, 'white'), getChessSeat(game, 'black')].find(seat => seat.playerId === game.winnerPlayerId)
     : null;
   const timerSnapshot = getChessTimerSnapshot(game);
+  const statusAlertMarkup = isChessGameFinished(game) || game.status === 'check' ? `
+    <div style="padding:16px 18px;border-radius:22px;background:linear-gradient(135deg, rgba(255,209,102,0.16), rgba(0,210,211,0.08));border:1px solid rgba(255,209,102,0.26);">
+      <div style="font-weight:900;font-size:1.1rem;margin-bottom:4px;">${escapeHtml(statusLabel)}</div>
+      <div style="color:var(--text-mid);">${escapeHtml(game.lastAction || '')}</div>
+    </div>
+  ` : '';
 
   const boardMarkup = ranks.map(rank => files.map(file => {
     const square = `${file}${rank}`;
@@ -1217,13 +1223,6 @@ function renderChessGameView(state, game) {
       ${isHost ? '<button class="btn-secondary" data-action="end-activity" style="width:auto;">End Activity</button>' : ''}
     </div>
 
-    ${isChessGameFinished(game) || game.status === 'check' ? `
-      <div style="max-width:1180px;margin:0 auto 18px;padding:16px 18px;border-radius:22px;background:linear-gradient(135deg, rgba(255,209,102,0.16), rgba(0,210,211,0.08));border:1px solid rgba(255,209,102,0.26);">
-        <div style="font-weight:900;font-size:1.1rem;margin-bottom:4px;">${escapeHtml(statusLabel)}</div>
-        <div style="color:var(--text-mid);">${escapeHtml(game.lastAction || '')}</div>
-      </div>
-    ` : ''}
-
     <div class="game-mobile-main" style="max-width:1280px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(300px,0.7fr);gap:18px;align-items:start;">
       <div class="game-mobile-side" style="background:linear-gradient(180deg,rgba(18,17,14,0.98),rgba(8,8,8,0.99));border:1px solid rgba(255,255,255,0.12);border-radius:24px;padding:18px;box-shadow:0 24px 54px rgba(0,0,0,0.45);">
         <div class="game-mobile-scroll">
@@ -1242,6 +1241,7 @@ function renderChessGameView(state, game) {
       </div>
 
       <div class="game-mobile-side" style="display:grid;gap:18px;">
+        ${statusAlertMarkup}
         <div style="background:linear-gradient(180deg,rgba(16,18,24,0.96),rgba(8,8,12,0.98));border:1px solid rgba(255,255,255,0.12);border-radius:24px;padding:18px;">
           <div style="font-family:'Fraunces',serif;font-size:1.25rem;margin-bottom:12px;">Match</div>
           ${['white', 'black'].map(color => {
