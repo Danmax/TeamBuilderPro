@@ -81,6 +81,7 @@ const voiceRooms = new Map();
 const SESSION_TTL_MINUTES = 242;
 const SESSION_TTL_MS = SESSION_TTL_MINUTES * 60 * 1000;
 const SESSION_CLEANUP_INTERVAL_MS = 60 * 1000;
+const SHARED_STATE_MAX_BYTES = 250000;
 let sessionCleanupInterval = null;
 
 
@@ -1691,7 +1692,7 @@ io.on('connection', socket => {
       return;
     }
     const strValue = String(value ?? '');
-    if (strValue.length > 20000) {
+    if (Buffer.byteLength(strValue, 'utf8') > SHARED_STATE_MAX_BYTES) {
       ack?.({ ok: false, error: 'Payload too large' });
       return;
     }

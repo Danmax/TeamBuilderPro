@@ -474,7 +474,7 @@ async function toggleBattleshipPlacementAxis() {
 
 async function placeBattleshipShipAt(row, col, explicitShipId = '') {
   if (!APP.roomCode || !Number.isInteger(row) || !Number.isInteger(col)) return;
-  const room = await RoomManager.loadRoom(APP.roomCode);
+  const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
   if (!room || room.currentActivity !== 'battleship') return;
   const state = room.activityState && typeof room.activityState === 'object'
     ? room.activityState
@@ -501,14 +501,14 @@ async function placeBattleshipShipAt(row, col, explicitShipId = '') {
   const nextShip = normalizeBattleshipBoard(state.boards[APP.player.name]).ships.find(ship => ship.cells.length !== ship.length);
   APP.battleshipUi.selectedShipId = wasPlaced ? shipId : (nextShip?.id || shipId);
   room.activityState = state;
-  await RoomManager.updateRoom(APP.roomCode, room);
+  await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
   APP.room = room;
   render();
 }
 
 async function randomizeBattleshipFleet(ready = false) {
   if (!APP.roomCode) return;
-  const room = await RoomManager.loadRoom(APP.roomCode);
+  const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
   if (!room || room.currentActivity !== 'battleship') return;
   const state = room.activityState && typeof room.activityState === 'object'
     ? room.activityState
@@ -531,7 +531,7 @@ async function randomizeBattleshipFleet(ready = false) {
   state.updatedAt = Date.now();
   APP.battleshipUi.selectedShipId = '';
   room.activityState = state;
-  await RoomManager.updateRoom(APP.roomCode, room);
+  await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
   APP.room = room;
   render();
 }
@@ -557,7 +557,7 @@ async function startBattleshipComputerMatch() {
 
 async function clearBattleshipFleet() {
   if (!APP.roomCode) return;
-  const room = await RoomManager.loadRoom(APP.roomCode);
+  const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
   if (!room || room.currentActivity !== 'battleship') return;
   const state = room.activityState && typeof room.activityState === 'object'
     ? room.activityState
@@ -568,14 +568,14 @@ async function clearBattleshipFleet() {
   state.updatedAt = Date.now();
   APP.battleshipUi = getDefaultBattleshipUiState();
   room.activityState = state;
-  await RoomManager.updateRoom(APP.roomCode, room);
+  await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
   APP.room = room;
   render();
 }
 
 async function setBattleshipReady(ready) {
   if (!APP.roomCode) return;
-  const room = await RoomManager.loadRoom(APP.roomCode);
+  const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
   if (!room || room.currentActivity !== 'battleship') return;
   const state = room.activityState && typeof room.activityState === 'object'
     ? room.activityState
@@ -597,7 +597,7 @@ async function setBattleshipReady(ready) {
   }
   state.updatedAt = Date.now();
   room.activityState = state;
-  await RoomManager.updateRoom(APP.roomCode, room);
+  await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
   APP.room = room;
   render();
 }
@@ -650,7 +650,7 @@ async function attackBattleshipCell(row, col) {
 
 async function restartBattleshipMatch() {
   if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
-  const room = await RoomManager.loadRoom(APP.roomCode);
+  const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
   if (!room || room.currentActivity !== 'battleship') return;
   const previousState = room.activityState || null;
   room.activityState = previousState?.vsComputer === true

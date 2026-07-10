@@ -30,6 +30,7 @@ TEAM_BUILDER_ROOM_SESSION_CORE.exitUnavailableRoom = function exitUnavailableRoo
 
 TEAM_BUILDER_ROOM_SESSION_CORE.startRoomRealtime = async function startRoomRealtime() {
   roomRealtimeEnabled = false;
+  roomMissingPollCount = 0;
   if (!APP.roomCode) return false;
 
   const sharedKey = `room:${APP.roomCode}`;
@@ -99,6 +100,7 @@ TEAM_BUILDER_ROOM_SESSION_CORE.stopRoomSync = function stopRoomSync() {
     clearInterval(syncInterval);
     syncInterval = null;
   }
+  roomMissingPollCount = 0;
   stopRoomRealtime();
 };
 
@@ -294,9 +296,13 @@ TEAM_BUILDER_ROOM_SESSION_CORE.startRoomSync = function startRoomSync() {
     if (!roomRealtimeEnabled) {
       const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
       if (!room) {
-        exitUnavailableRoom('This room has been removed.');
+        roomMissingPollCount += 1;
+        if (roomMissingPollCount >= 3) {
+          exitUnavailableRoom('This room has been removed.');
+        }
         return;
       }
+      roomMissingPollCount = 0;
       if (room.lastUpdate !== APP.room?.lastUpdate) {
         APP.room = room;
         void maybeClaimSpinWheelWinnerXp();
