@@ -26,6 +26,7 @@ function cloneBattleshipStaticData(key, fallback) {
 const BATTLESHIP_BOARD_SIZE = Number(cloneBattleshipStaticData('BATTLESHIP_BOARD_SIZE', 10)) || 10;
 const BATTLESHIP_SHIP_SET = cloneBattleshipStaticData('BATTLESHIP_SHIP_SET', []);
 const BATTLESHIP_COLUMN_LABELS = cloneBattleshipStaticData('BATTLESHIP_COLUMN_LABELS', 'ABCDEFGHIJ'.split(''));
+const BATTLESHIP_COMPUTER_PLAYER = 'Computer Fleet';
 const BATTLESHIP_SOUND_SOURCES = {
   shot: '/Sounds/freesound_community-laser-gun-72558.mp3',
   hit: '/Sounds/capture.wav'
@@ -102,6 +103,7 @@ function createBattleshipState(participants, previousState = null) {
       : createBattleshipPlayerState();
   });
   return {
+    vsComputer: false,
     phase: 'setup',
     players,
     boards,
@@ -113,12 +115,39 @@ function createBattleshipState(participants, previousState = null) {
   };
 }
 
+function createBattleshipComputerMatchState(playerName, previousState = null) {
+  const humanName = String(playerName || '').trim();
+  const state = createBattleshipState([{ name: humanName }], previousState);
+  if (!humanName) return state;
+  const humanPreviousBoard = previousState?.boards?.[humanName];
+  const computerBoard = randomizeBattleshipBoard(createBattleshipPlayerState());
+  computerBoard.ready = true;
+  state.vsComputer = true;
+  state.phase = 'setup';
+  state.players = [humanName, BATTLESHIP_COMPUTER_PLAYER];
+  state.boards = {
+    [humanName]: humanPreviousBoard && typeof humanPreviousBoard === 'object'
+      ? normalizeBattleshipBoard(humanPreviousBoard)
+      : createBattleshipPlayerState(),
+    [BATTLESHIP_COMPUTER_PLAYER]: computerBoard
+  };
+  state.turn = humanName;
+  state.winner = '';
+  state.lastAction = 'Computer fleet is deployed. Place your ships and ready up.';
+  state.updatedAt = Date.now();
+  return state;
+}
+
 function getBattleshipPlayers(state) {
   return Array.isArray(state?.players) ? state.players.filter(Boolean).slice(0, 2) : [];
 }
 
 function getBattleshipOpponent(state, playerName) {
   return getBattleshipPlayers(state).find(name => name !== playerName) || '';
+}
+
+function isBattleshipComputerPlayer(playerName) {
+  return String(playerName || '') === BATTLESHIP_COMPUTER_PLAYER;
 }
 
 function getBattleshipBoard(state, playerName) {
@@ -243,6 +272,71 @@ function areAllBattleshipShipsSunk(board) {
 
 function getBattleshipLivingShips(board) {
   return normalizeBattleshipBoard(board).ships.filter(ship => !isBattleshipShipSunk(board, ship)).length;
+}
+
+function getBattleshipUnfiredCells(board) {
+  const safeBoard = normalizeBattleshipBoard(board);
+  const fired = new Set(safeBoard.shotsTaken.map(shot => `${shot.row}:${shot.col}`));
+  const cells = [];
+  for (let row = 0; row < BATTLESHIP_BOARD_SIZE; row++) {
+    for (let col = 0; col < BATTLESHIP_BOARD_SIZE; col++) {
+      if (!fired.has(`${row}:${col}`)) cells.push({ row, col });
+    }
+  }
+  return cells;
+}
+
+function getBattleshipComputerTargetCell(computerBoard) {
+  const available = getBattleshipUnfiredCells(computerBoard);
+  if (!available.length) return null;
+  const recentHits = normalizeBattleshipBoard(computerBoard).shotsTaken
+    .filter(shot => shot.result === 'hit')
+    .slice(-4);
+  const fired = new Set(normalizeBattleshipBoard(computerBoard).shotsTaken.map(shot => `${shot.row}:${shot.col}`));
+  const candidates = [];
+  recentHits.forEach(shot => {
+    [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dr, dc]) => {
+      const row = shot.row + dr;
+      const col = shot.col + dc;
+      if (row < 0 || col < 0 || row >= BATTLESHIP_BOARD_SIZE || col >= BATTLESHIP_BOARD_SIZE) return;
+      if (!fired.has(`${row}:${col}`)) candidates.push({ row, col });
+    });
+  });
+  const pool = candidates.length ? candidates : available;
+  return pool[Math.floor(Math.random() * pool.length)] || null;
+}
+
+function applyBattleshipShotToState(state, attacker, defender, row, col) {
+  const attackerBoard = normalizeBattleshipBoard(getBattleshipBoard(state, attacker));
+  const defenderBoard = normalizeBattleshipBoard(getBattleshipBoard(state, defender));
+  if (attackerBoard.shotsTaken.some(shot => shot.row === row && shot.col === col)) return null;
+
+  const targetShip = getBattleshipShipAtCell(defenderBoard, row, col);
+  const result = targetShip ? 'hit' : 'miss';
+  const shot = { row, col, result, shipId: targetShip?.id || '', attacker, defender, at: Date.now() };
+  attackerBoard.shotsTaken = [...attackerBoard.shotsTaken, shot];
+  defenderBoard.shotsReceived = [...defenderBoard.shotsReceived, shot];
+
+  let actionLabel = `${attacker} missed at ${BATTLESHIP_COLUMN_LABELS[col]}${row + 1}.`;
+  if (targetShip) {
+    const sunk = isBattleshipShipSunk(defenderBoard, targetShip);
+    actionLabel = sunk
+      ? `${attacker} sank ${defender}'s ${targetShip.label}.`
+      : `${attacker} hit ${defender}'s fleet at ${BATTLESHIP_COLUMN_LABELS[col]}${row + 1}.`;
+  }
+
+  state.boards[attacker] = attackerBoard;
+  state.boards[defender] = defenderBoard;
+  state.lastAction = actionLabel;
+  state.lastShot = shot;
+  if (areAllBattleshipShipsSunk(defenderBoard)) {
+    state.phase = 'finished';
+    state.winner = attacker;
+    state.turn = '';
+  } else {
+    state.turn = defender;
+  }
+  return { shot, actionLabel, attackerBoard, defenderBoard };
 }
 
 function randomizeBattleshipBoard(board) {
@@ -438,6 +532,25 @@ async function randomizeBattleshipFleet(ready = false) {
   render();
 }
 
+async function startBattleshipComputerMatch() {
+  if (!APP.roomCode || !APP.player?.name) return;
+  const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
+  if (!room || room.currentActivity !== 'battleship') return;
+  const state = room.activityState && typeof room.activityState === 'object'
+    ? room.activityState
+    : createBattleshipState(room.participants || []);
+  if (state.phase !== 'setup') return;
+  if (!getBattleshipPlayers(state).includes(APP.player.name) && getBattleshipPlayers(state).length >= 2) {
+    showError('Only an assigned captain can switch this match to computer play.');
+    return;
+  }
+  room.activityState = createBattleshipComputerMatchState(APP.player.name, state);
+  APP.battleshipUi = getDefaultBattleshipUiState();
+  await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
+  APP.room = room;
+  render();
+}
+
 async function clearBattleshipFleet() {
   if (!APP.roomCode) return;
   const room = await RoomManager.loadRoom(APP.roomCode);
@@ -497,38 +610,23 @@ async function attackBattleshipCell(row, col) {
   if (state.turn !== attacker) return;
   const defender = getBattleshipOpponent(state, attacker);
   if (!defender) return;
-  const attackerBoard = normalizeBattleshipBoard(getBattleshipBoard(state, attacker));
-  const defenderBoard = normalizeBattleshipBoard(getBattleshipBoard(state, defender));
-  if (attackerBoard.shotsTaken.some(shot => shot.row === row && shot.col === col)) return;
+  const humanShot = applyBattleshipShotToState(state, attacker, defender, row, col);
+  if (!humanShot) return;
 
-  const targetShip = getBattleshipShipAtCell(defenderBoard, row, col);
-  const result = targetShip ? 'hit' : 'miss';
-  const shot = { row, col, result, shipId: targetShip?.id || '', attacker, defender, at: Date.now() };
-  attackerBoard.shotsTaken = [...attackerBoard.shotsTaken, shot];
-  defenderBoard.shotsReceived = [...defenderBoard.shotsReceived, shot];
-
-  let actionLabel = `${attacker} missed at ${BATTLESHIP_COLUMN_LABELS[col]}${row + 1}.`;
-  if (targetShip) {
-    const sunk = isBattleshipShipSunk(defenderBoard, targetShip);
-    actionLabel = sunk
-      ? `${attacker} sank ${defender}'s ${targetShip.label}.`
-      : `${attacker} hit ${defender}'s fleet at ${BATTLESHIP_COLUMN_LABELS[col]}${row + 1}.`;
-  }
-
-  state.boards[attacker] = attackerBoard;
-  state.boards[defender] = defenderBoard;
-  state.lastAction = actionLabel;
-  state.lastShot = shot;
-  if (areAllBattleshipShipsSunk(defenderBoard)) {
-    state.phase = 'finished';
-    state.winner = attacker;
-    state.turn = '';
-  } else {
-    state.turn = defender;
+  if (state.vsComputer === true && state.phase === 'battle' && isBattleshipComputerPlayer(defender)) {
+    const computerBoard = normalizeBattleshipBoard(getBattleshipBoard(state, defender));
+    const botTarget = getBattleshipComputerTargetCell(computerBoard);
+    if (botTarget) {
+      const botShot = applyBattleshipShotToState(state, defender, attacker, botTarget.row, botTarget.col);
+      if (botShot && state.phase === 'battle') {
+        state.turn = attacker;
+        state.lastAction = `${humanShot.actionLabel} ${botShot.actionLabel}`;
+      }
+    }
   }
   state.updatedAt = Date.now();
   room.activityState = state;
-  await RoomManager.updateRoom(APP.roomCode, room);
+  await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
   APP.room = room;
   render();
 }
@@ -537,9 +635,12 @@ async function restartBattleshipMatch() {
   if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
   const room = await RoomManager.loadRoom(APP.roomCode);
   if (!room || room.currentActivity !== 'battleship') return;
-  room.activityState = createBattleshipState(room.participants || [], room.activityState || null);
+  const previousState = room.activityState || null;
+  room.activityState = previousState?.vsComputer === true
+    ? createBattleshipComputerMatchState(APP.player.name, previousState)
+    : createBattleshipState(room.participants || [], previousState);
   APP.battleshipUi = getDefaultBattleshipUiState();
-  await RoomManager.updateRoom(APP.roomCode, room);
+  await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
   APP.room = room;
   render();
 }
@@ -563,7 +664,7 @@ function getBattleshipShipHits(board, ship) {
   if (!ship) return 0;
   const safeBoard = normalizeBattleshipBoard(board);
   const receivedMap = getBattleshipShotsByCell(safeBoard.shotsReceived);
-  return (ship.cells || []).filter(cell => receivedMap.has(`${cell.row},${cell.col}`)).length;
+  return (ship.cells || []).filter(cell => receivedMap.has(`${cell.row}:${cell.col}`)).length;
 }
 
 function formatBattleshipShipPosition(ship) {
@@ -612,6 +713,7 @@ function renderBattleship() {
   const nextUnplacedShip = myBoard ? getNextUnplacedBattleshipShip(myBoard, selectedShipId) : null;
   const canAdvancePlacementShip = state.phase === 'setup' && Boolean(nextPlacementShip?.id) && nextPlacementShip.id !== selectedShipId;
   const canSelectNextUnplacedShip = state.phase === 'setup' && Boolean(nextUnplacedShip?.id) && nextUnplacedShip.id !== selectedShipId;
+  const canStartComputerMatch = state.phase === 'setup' && isBattlePlayer && state.vsComputer !== true;
   maybePlayBattleshipLastShotSound(state);
   const readyButtonLabel = myBoard?.ready
     ? 'Fleet Ready'
@@ -850,6 +952,17 @@ function renderBattleship() {
                 <button
                   type="button"
                   class="btn-secondary"
+                  data-action="battleship-play-computer"
+                  aria-label="Play against the computer"
+                  title="Play against the computer"
+                  style="width:48px;height:48px;padding:0;border-radius:999px;display:grid;place-items:center;font-size:1.15rem;border:1px solid rgba(196,161,255,0.34);background:linear-gradient(135deg,rgba(196,161,255,0.2),rgba(138,241,255,0.1));color:#c4a1ff;box-shadow:0 0 18px rgba(196,161,255,0.14);"
+                  ${canStartComputerMatch ? '' : 'disabled'}
+                >🤖</button>
+              ` : ''}
+              ${state.phase === 'setup' && isBattlePlayer ? `
+                <button
+                  type="button"
+                  class="btn-secondary"
                   data-action="battleship-quick-random"
                   aria-label="Randomly place ships and ready fleet"
                   title="Randomly place ships and ready fleet"
@@ -964,6 +1077,10 @@ function renderBattleship() {
               </button>
               <button class="btn-secondary" data-action="battleship-randomize" style="width:auto;padding:10px 14px;" ${state.phase !== 'setup' ? 'disabled' : ''}>Randomize</button>
               <button class="btn-secondary" data-action="battleship-quick-random" style="width:auto;padding:10px 14px;" ${state.phase !== 'setup' ? 'disabled' : ''}>Random + Ready</button>
+              <button class="btn-secondary" data-action="battleship-play-computer" style="width:auto;padding:10px 14px;display:inline-flex;align-items:center;gap:8px;" ${canStartComputerMatch ? '' : 'disabled'}>
+                <span aria-hidden="true">🤖</span>
+                <span>${state.vsComputer === true ? 'Computer Ready' : 'Play Computer'}</span>
+              </button>
               <button class="btn-secondary" data-action="battleship-clear" style="width:auto;padding:10px 14px;" ${state.phase !== 'setup' ? 'disabled' : ''}>Clear</button>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:12px;">
@@ -1016,7 +1133,7 @@ function renderBattleship() {
           <div style="background:linear-gradient(180deg,rgba(20,12,68,0.96),rgba(8,8,28,0.98));border:1px solid rgba(152,115,255,0.34);border-radius:24px;padding:18px;box-shadow:0 24px 54px rgba(6,6,26,0.45);">
             <div style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:12px;">Spectator View</div>
             <div style="font-size:0.86rem;color:var(--text-dim);line-height:1.5;">
-              Battleship currently assigns the first two people in the room as captains. Everyone else watches the public hit and miss markers until the match ends.
+              ${state.vsComputer === true ? 'A captain is playing against the computer fleet. Everyone else watches the public hit and miss markers until the match ends.' : 'Battleship currently assigns the first two people in the room as captains. Everyone else watches the public hit and miss markers until the match ends.'}
             </div>
           </div>
         `}

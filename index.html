@@ -8532,6 +8532,9 @@ document.addEventListener('click', async (event) => {
     case 'battleship-quick-random':
       await randomizeBattleshipFleet(true);
       break;
+    case 'battleship-play-computer':
+      await startBattleshipComputerMatch();
+      break;
     case 'battleship-clear':
       await clearBattleshipFleet();
       break;
