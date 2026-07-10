@@ -32,97 +32,105 @@ window.TEAM_BUILDER_STATIC_DATA = {
     'The best ideas rarely come from the loudest voice — they come from the safest room.'
 ],
  TRIVIA_BANK: [
-  // ServiceNow
-  { q: 'What scripting language does ServiceNow primarily use?', opts: ['Python', 'JavaScript', 'Ruby', 'TypeScript'], ans: 1, tip: 'ServiceNow runs JavaScript server-side via the Rhino engine (Mozilla), and also supports ECMAScript 2021+ in scoped apps through the GraalVM runtime.' },
-  { q: 'What is the name of ServiceNow\'s AI assistant product?', opts: ['Now Assist', 'ServiceBot', 'ITSM Helper', 'GlideAI'], ans: 0, tip: 'Now Assist is powered by Now LLM, a large language model trained specifically on enterprise workflow data to generate text, summarize incidents, and automate tasks.' },
-  { q: 'Which ServiceNow module manages incident tickets?', opts: ['CMDB', 'ITSM', 'HRSD', 'SecOps'], ans: 1, tip: 'IT Service Management (ITSM) in ServiceNow follows ITIL best practices. Incident Management, Problem Management, and Change Management are its three core pillars.' },
-  { q: 'What is the ServiceNow database layer framework called?', opts: ['FlowBase', 'GlideRecord', 'NowDB', 'TableSync'], ans: 1, tip: 'GlideRecord is the ORM layer that lets developers query and manipulate the Now Platform database without writing raw SQL. Every table in ServiceNow can be accessed this way.' },
-  { q: 'What does CMDB stand for in ServiceNow?', opts: ['Central Module Database', 'Configuration Management Database', 'Cloud Managed Data Bus', 'Change Management Dashboard'], ans: 1, tip: 'The CMDB tracks Configuration Items (CIs) — everything from servers and apps to network devices. It\'s the backbone of visibility for IT operations in ServiceNow.' },
+  // America 250
+  { q: 'In 2026, the United States marks 250 years since which founding document was adopted?', opts: ['The Bill of Rights', 'The Declaration of Independence', 'The Constitution', 'The Federalist Papers'], ans: 1, tip: 'July 4, 2026 marks 250 years since the Declaration of Independence was adopted in 1776.' },
+  { q: 'What is the common name for America\'s 250th birthday celebration?', opts: ['Bicentennial', 'Semiquincentennial', 'Millennial', 'Centennial Plus'], ans: 1, tip: 'Semiquincentennial means a 250th anniversary.' },
+  { q: 'Which city hosted the Second Continental Congress that adopted the Declaration of Independence?', opts: ['Boston', 'New York', 'Philadelphia', 'Richmond'], ans: 2, tip: 'Philadelphia was the central meeting place for the Second Continental Congress.' },
+  { q: 'How many original colonies declared independence in 1776?', opts: ['10', '11', '12', '13'], ans: 3, tip: 'The 13 colonies became the first states of the United States.' },
+  { q: 'Which phrase best describes the America 250 theme for teams?', opts: ['Only looking backward', 'Celebrating history and building the future', 'Skipping civic stories', 'Avoiding local communities'], ans: 1, tip: 'A strong 250th celebration connects history, community, service, and future goals.' },
 
-  // Science
-  { q: 'What is the powerhouse of the cell?', opts: ['Nucleus', 'Ribosome', 'Mitochondria', 'Golgi Body'], ans: 2, tip: 'Mitochondria generate ATP through cellular respiration. They have their own DNA, suggesting they evolved from ancient bacteria absorbed by larger cells over 2 billion years ago.' },
-  { q: 'What gas makes up roughly 78% of Earth\'s atmosphere?', opts: ['Oxygen', 'Carbon Dioxide', 'Nitrogen', 'Argon'], ans: 2, tip: 'Nitrogen is largely inert in the atmosphere, but it\'s essential for life. Bacteria in soil "fix" nitrogen into forms plants can absorb — making them critical to the food chain.' },
-  { q: 'How many bones are in the adult human body?', opts: ['186', '206', '226', '256'], ans: 1, tip: 'Babies are born with around 270-300 bones. As we grow, many fuse together. By adulthood, the number stabilizes at 206, with the smallest being the stapes bone in the ear.' },
-  { q: 'What is the speed of light in a vacuum (approx)?', opts: ['186,000 mi/s', '200,000 mi/s', '250,000 mi/s', '300,000 mi/s'], ans: 0, tip: 'Light travels at exactly 299,792,458 meters per second in a vacuum. In 1983, the meter was officially redefined based on the speed of light, making it a fixed constant.' },
-  { q: 'Which planet has the most moons in our solar system?', opts: ['Jupiter', 'Saturn', 'Uranus', 'Neptune'], ans: 1, tip: 'Saturn overtook Jupiter in 2023 with over 140 confirmed moons. Most of Saturn\'s new moons are tiny (under 5km) and were discovered using advanced telescope techniques.' },
-
-  // AI & Computing
-  { q: 'What does "API" stand for?', opts: ['Application Programming Interface', 'Automated Process Integration', 'Active Protocol Instance', 'Application Process Index'], ans: 0, tip: 'APIs are contracts between software systems. REST APIs became dominant in the 2000s, while GraphQL (2015) lets clients request only the data they need, reducing over-fetching.' },
-  { q: 'What does "RAM" stand for in computing?', opts: ['Readily Accessible Memory', 'Random Access Memory', 'Read And Modify', 'Rapid Action Module'], ans: 1, tip: '"Random Access" means any memory address can be read in the same time regardless of location — unlike tape drives where you had to rewind to reach earlier data.' },
-  { q: 'What is the binary representation of the decimal number 10?', opts: ['1010', '1100', '1001', '1110'], ans: 0, tip: 'Binary uses only 0s and 1s because digital circuits have two states: on and off. The number 10 in binary (1010) means 1×8 + 0×4 + 1×2 + 0×1 = 10.' },
-  { q: 'What technique in machine learning prevents overfitting by randomly disabling neurons?', opts: ['Pooling', 'Dropout', 'Batch Norm', 'Pruning'], ans: 1, tip: 'Dropout, introduced in 2014, randomly zeroes out neurons during training, forcing the network to learn multiple redundant representations and generalize better to new data.' },
-  { q: 'What year was the World Wide Web invented?', opts: ['1985', '1989', '1993', '1995'], ans: 1, tip: 'Tim Berners-Lee proposed the WWW in 1989 at CERN to help scientists share information. He intentionally kept it free and unpatented — a decision that changed the world.' },
+  // World Cup 2026
+  { q: 'Which three countries are hosting the 2026 FIFA World Cup?', opts: ['USA, Canada, Mexico', 'Brazil, Argentina, Chile', 'Spain, Portugal, Morocco', 'Japan, Korea, China'], ans: 0, tip: 'The 2026 tournament is co-hosted across North America.' },
+  { q: 'How many teams are in the expanded 2026 FIFA World Cup field?', opts: ['24', '32', '40', '48'], ans: 3, tip: 'The 2026 World Cup expanded from 32 to 48 teams.' },
+  { q: 'Which sport is played in the FIFA World Cup?', opts: ['Rugby', 'Soccer', 'Cricket', 'Basketball'], ans: 1, tip: 'FIFA is the international governing body for association football, known as soccer in the United States.' },
+  { q: 'What does a knockout-round match use if the score is still tied after extra time?', opts: ['Coin toss', 'Penalty shootout', 'Replay next week', 'Fan vote'], ans: 1, tip: 'Penalty shootouts decide many tied knockout matches after extra time.' },
+  { q: 'What makes the 2026 World Cup especially useful for team events?', opts: ['One host city only', 'Global flags, brackets, predictions, and watch-party energy', 'No group stage', 'No team badges'], ans: 1, tip: 'World Cup themes work well for friendly predictions, country draws, and bracket challenges.' },
 
   // Technology
-  { q: 'What does "HTTP" stand for?', opts: ['HyperText Transfer Protocol', 'High Tech Transfer Process', 'HyperThread Text Protocol', 'Home Tool Transfer Platform'], ans: 0, tip: 'HTTP/1.1 (1997) supported persistent connections. HTTP/2 (2015) added multiplexing. HTTP/3 (2022) runs over QUIC instead of TCP, dramatically reducing latency.' },
-  { q: 'In what year was the first iPhone released?', opts: ['2005', '2006', '2007', '2008'], ans: 2, tip: 'Steve Jobs introduced the iPhone on January 9, 2007, calling it "an iPod, a phone, and an internet communicator" — three devices in one. It had no App Store at launch.' },
-  { q: 'What programming language was created by Guido van Rossum?', opts: ['Java', 'Ruby', 'Python', 'Perl'], ans: 2, tip: 'Guido van Rossum named Python after "Monty Python\'s Flying Circus," not the snake. He was reading scripts from the show while developing it in the late 1980s.' },
-  { q: 'What does "SaaS" stand for?', opts: ['Software and a Service', 'Software as a Service', 'System as a Solution', 'Scalable App and Service'], ans: 1, tip: 'Salesforce pioneered the SaaS model in 1999. Before SaaS, companies had to buy and install software on-premise — a process that could take months and cost millions.' },
-  { q: 'Which company developed the Kubernetes container platform?', opts: ['Amazon', 'Microsoft', 'Google', 'IBM'], ans: 2, tip: 'Kubernetes (K8s) was open-sourced by Google in 2014, based on their internal system "Borg." The name comes from Greek for "helmsman" — fitting for a container orchestrator.' },
+  { q: 'What does AI stand for in technology?', opts: ['Automated Internet', 'Artificial Intelligence', 'Applied Interface', 'Active Integration'], ans: 1, tip: 'AI systems perform tasks that usually require human-like reasoning, perception, or language skills.' },
+  { q: 'What does API stand for?', opts: ['Application Programming Interface', 'Automated Process Input', 'Applied Program Instance', 'Access Platform Index'], ans: 0, tip: 'An API defines how software systems request and exchange data.' },
+  { q: 'Which technology lets teams run applications in isolated packages called containers?', opts: ['Spreadsheets', 'Kubernetes and container platforms', 'Ink printers', 'Fax servers'], ans: 1, tip: 'Containers package code and dependencies so apps run consistently across environments.' },
+  { q: 'What is a passkey designed to reduce?', opts: ['Screen size', 'Password-based sign-in risk', 'Battery capacity', 'File names'], ans: 1, tip: 'Passkeys use cryptographic sign-in flows and can reduce phishing risk.' },
+  { q: 'What does low-code usually help teams do?', opts: ['Build workflows faster with less hand coding', 'Remove all testing', 'Avoid user feedback', 'Disable automation'], ans: 0, tip: 'Low-code tools speed up delivery while still requiring thoughtful design and governance.' },
 
-  // Movies
-  { q: 'Who directed "Inception" (2010)?', opts: ['Ridley Scott', 'Christopher Nolan', 'Denis Villeneuve', 'Steven Spielberg'], ans: 1, tip: 'Christopher Nolan wrote Inception\'s script over nearly a decade. The film\'s iconic "BRAAAM" horn sound, created by Hans Zimmer, became one of the most imitated sounds in movie trailers.' },
-  { q: 'What fictional metal is Captain America\'s shield made of?', opts: ['Adamantium', 'Vibranium', 'Unobtanium', 'Carbonadium'], ans: 1, tip: 'Vibranium is fictional and native to Wakanda in Marvel Comics. The shield was introduced in 1941 — originally circular for aerodynamic reasons — and has appeared in nearly every Cap story since.' },
-  { q: 'Which film won Best Picture at the 2024 Oscars?', opts: ['Barbie', 'Oppenheimer', 'Killers of the Flower Moon', 'Poor Things'], ans: 1, tip: 'Oppenheimer swept the 2024 Oscars with 7 wins including Best Picture and Best Director. It grossed over $952M worldwide, making it the highest-grossing biopic of all time.' },
-  { q: 'In "The Matrix," what color pill does Neo take?', opts: ['Blue', 'Red', 'Green', 'White'], ans: 1, tip: 'The red/blue pill metaphor became a cultural phenomenon. The Wachowskis have said the pills are a metaphor for truth vs. comfortable illusion — a theme rooted in Plato\'s Allegory of the Cave.' },
-  { q: 'What is the highest-grossing film of all time (unadjusted)?', opts: ['Avengers: Endgame', 'Avatar', 'Titanic', 'Star Wars: The Force Awakens'], ans: 1, tip: 'Avatar (2009) grossed $2.92B. James Cameron also directed Titanic (1997). A 2022 re-release of Avatar helped it reclaim the top spot after being briefly overtaken by Avengers: Endgame.' },
+  // Human Performance
+  { q: 'Which habit most directly supports focus during deep work?', opts: ['Constant notifications', 'Single-tasking with protected time', 'Skipping breaks', 'Multitasking every minute'], ans: 1, tip: 'Protected focus blocks reduce context switching and make complex work easier.' },
+  { q: 'What is active recovery in performance routines?', opts: ['Total inactivity forever', 'Light movement that helps recovery', 'Ignoring fatigue', 'Adding more meetings'], ans: 1, tip: 'Walking, stretching, and easy movement can support recovery without adding heavy strain.' },
+  { q: 'Which factor is most linked to learning retention?', opts: ['Cramming once', 'Spaced repetition', 'Never reviewing', 'Only reading headlines'], ans: 1, tip: 'Spaced repetition revisits material over time so memory becomes stronger.' },
+  { q: 'What does psychological safety help teams do?', opts: ['Hide problems', 'Share concerns and ideas earlier', 'Avoid questions', 'Reward silence'], ans: 1, tip: 'Teams perform better when people can raise risks and ideas without fear.' },
+  { q: 'Which quick reset can improve energy during a long session?', opts: ['A short movement break', 'More tabs open', 'Skipping water', 'Turning every task urgent'], ans: 0, tip: 'Short breaks, hydration, and movement help attention recover.' },
 
-  // Pop Culture
-  { q: 'What is the name of Taylor Swift\'s 2024 concert tour?', opts: ['Reputation Tour', 'Eras Tour', 'Midnights Tour', 'Folklore Tour'], ans: 1, tip: 'The Eras Tour became the first concert tour to gross over $1 billion. Taylor Swift\'s economic impact on host cities was so significant it was dubbed the "Taylor Swift Effect" by economists.' },
-  { q: 'Which video game franchise features a character named Master Chief?', opts: ['Gears of War', 'Destiny', 'Halo', 'Call of Duty'], ans: 2, tip: 'Master Chief (John-117) debuted in Halo: Combat Evolved (2001) as the launch title for the original Xbox. The franchise essentially saved Microsoft\'s gaming division in its early years.' },
-  { q: 'What social media platform was formerly known as Twitter?', opts: ['Threads', 'X', 'Bluesky', 'Mastodon'], ans: 1, tip: 'Elon Musk renamed Twitter to "X" in 2023 as part of his vision for an "everything app." Twitter was founded in 2006; the first ever tweet was "just setting up my twttr."' },
-  { q: 'Which K-pop group performed at the 2023 FIFA World Cup?', opts: ['BLACKPINK', 'BTS', 'Stray Kids', 'Jung Kook (solo)'], ans: 3, tip: 'Jung Kook performed "Dreamers" at the 2022 FIFA World Cup opening ceremony in Qatar (broadcast in 2023). BTS took a hiatus in 2022 when its members began mandatory military service.' },
-  { q: 'In "Stranger Things," what is Eleven\'s favorite food?', opts: ['Pizza', 'Eggo Waffles', 'Chicken Nuggets', 'French Fries'], ans: 1, tip: 'The show\'s iconic Eggo product placement was unsponsored — the writers simply needed a food Eleven could hide and eat secretly. Kellogg\'s noticed the spike in Eggo sales and leaned in.' }
+  // Elemental Fun
+  { q: 'Which element has the chemical symbol O?', opts: ['Gold', 'Oxygen', 'Osmium', 'Iron'], ans: 1, tip: 'Oxygen is essential for human respiration and has the symbol O.' },
+  { q: 'Which element is represented by Au?', opts: ['Silver', 'Argon', 'Gold', 'Aluminum'], ans: 2, tip: 'Au comes from the Latin word aurum.' },
+  { q: 'What is the lightest element on the periodic table?', opts: ['Helium', 'Hydrogen', 'Lithium', 'Carbon'], ans: 1, tip: 'Hydrogen has atomic number 1.' },
+  { q: 'Which element is a major ingredient in table salt?', opts: ['Sodium', 'Silicon', 'Sulfur', 'Silver'], ans: 0, tip: 'Table salt is sodium chloride: NaCl.' },
+  { q: 'Which element is commonly used to make computer chips?', opts: ['Silicon', 'Neon', 'Mercury', 'Lead'], ans: 0, tip: 'Silicon is a semiconductor used throughout electronics.' }
 ],
   TEAM_JEOPARDY_BOARD: [
     {
-      category: 'Science',
+      category: 'ServiceNow Trivia',
       clues: [
-        { value: 100, q: 'What gas do humans breathe in to survive?', opts: ['Nitrogen', 'Carbon Dioxide', 'Oxygen', 'Hydrogen'], ans: 2 },
-        { value: 200, q: 'How many planets are in our solar system?', opts: ['7', '8', '9', '10'], ans: 1 },
-        { value: 300, q: 'What force keeps us on the ground?', opts: ['Magnetism', 'Friction', 'Gravity', 'Pressure'], ans: 2 },
-        { value: 400, q: 'What part of the plant conducts photosynthesis most often?', opts: ['Root', 'Stem', 'Leaf', 'Seed'], ans: 2 },
-        { value: 500, q: 'What is the chemical symbol for sodium?', opts: ['S', 'So', 'Na', 'Sn'], ans: 2 }
+        { value: 100, q: 'What scripting language is most associated with ServiceNow development?', opts: ['JavaScript', 'Python', 'Go', 'Ruby'], ans: 0 },
+        { value: 200, q: 'What does CMDB stand for?', opts: ['Cloud Managed Data Bank', 'Configuration Management Database', 'Change Model Design Board', 'Customer Metadata Bundle'], ans: 1 },
+        { value: 300, q: 'Which object is commonly used to query records in server-side scripts?', opts: ['GlideRecord', 'RecordFetch', 'NowQuery', 'TableReader'], ans: 0 },
+        { value: 400, q: 'Which ServiceNow product area focuses on incidents, problems, and changes?', opts: ['ITSM', 'HRSD', 'CSM', 'GRC'], ans: 0 },
+        { value: 500, q: 'What is an Update Set mainly used for?', opts: ['Moving configuration between instances', 'Storing passwords', 'Replacing indexes', 'Deleting audit logs'], ans: 0 },
+        { value: 600, q: 'What does a Business Rule usually respond to?', opts: ['Database record operations', 'Browser bookmarks', 'Email font changes', 'Device battery level'], ans: 0 },
+        { value: 700, q: 'Which interface is commonly used to automate processes without heavy scripting?', opts: ['Flow Designer', 'Theme Builder', 'List Collector', 'Banner Manager'], ans: 0 },
+        { value: 800, q: 'What is the safest default mindset for ServiceNow customization?', opts: ['Configure first, customize carefully', 'Always edit core tables directly', 'Disable all ACLs', 'Skip testing in sub-prod'], ans: 0 }
       ]
     },
     {
-      category: 'History',
+      category: 'JavaScript',
       clues: [
-        { value: 100, q: 'Who was the first president of the United States?', opts: ['Thomas Jefferson', 'George Washington', 'John Adams', 'Abraham Lincoln'], ans: 1 },
-        { value: 200, q: 'In what year did World War II end?', opts: ['1945', '1944', '1939', '1950'], ans: 0 },
-        { value: 300, q: 'The Great Wall is located in which country?', opts: ['Japan', 'India', 'China', 'Korea'], ans: 2 },
-        { value: 400, q: 'Which civilization built Machu Picchu?', opts: ['Maya', 'Aztec', 'Roman', 'Inca'], ans: 3 },
-        { value: 500, q: 'The Renaissance began in which country?', opts: ['France', 'Italy', 'England', 'Spain'], ans: 1 }
+        { value: 100, q: 'Which keyword declares a block-scoped variable?', opts: ['var', 'let', 'global', 'field'], ans: 1 },
+        { value: 200, q: 'What does JSON stand for?', opts: ['JavaScript Object Notation', 'Java Source Object Network', 'Joined Server Output Node', 'JavaScript Ordered Numbers'], ans: 0 },
+        { value: 300, q: 'Which method converts a JSON string into an object?', opts: ['JSON.parse', 'JSON.object', 'String.decode', 'Object.read'], ans: 0 },
+        { value: 400, q: 'What is an arrow function syntax example?', opts: ['function => run()', '(x) => x + 1', 'arrow x return', 'def x -> x'], ans: 1 },
+        { value: 500, q: 'What does Array.prototype.map return?', opts: ['A new transformed array', 'Only the first item', 'A sorted object', 'Nothing always'], ans: 0 },
+        { value: 600, q: 'What does async/await help manage?', opts: ['Asynchronous operations', 'CSS colors', 'Database indexes only', 'Browser zoom'], ans: 0 },
+        { value: 700, q: 'Which value means a variable has been declared but not assigned?', opts: ['null', 'undefined', 'false', 'NaN'], ans: 1 },
+        { value: 800, q: 'Why avoid mutating shared objects unexpectedly?', opts: ['It can create hidden side effects', 'It makes code shorter always', 'It improves all security', 'It turns JS into SQL'], ans: 0 }
       ]
     },
     {
-      category: 'Geography',
+      category: 'ACLs',
       clues: [
-        { value: 100, q: 'What is the largest ocean on Earth?', opts: ['Atlantic', 'Pacific', 'Indian', 'Arctic'], ans: 1 },
-        { value: 200, q: 'Which continent is Egypt in?', opts: ['Asia', 'Europe', 'Africa', 'South America'], ans: 2 },
-        { value: 300, q: 'What is the capital city of Canada?', opts: ['Toronto', 'Vancouver', 'Montreal', 'Ottawa'], ans: 3 },
-        { value: 400, q: 'Mount Everest sits on the border of Nepal and what other country?', opts: ['China', 'India', 'Bhutan', 'Pakistan'], ans: 0 },
-        { value: 500, q: 'Which river runs through Egypt?', opts: ['Amazon', 'Nile', 'Danube', 'Mississippi'], ans: 1 }
+        { value: 100, q: 'What does ACL stand for in ServiceNow security?', opts: ['Access Control List', 'Active Code Loader', 'App Configuration Layer', 'Audit Change Log'], ans: 0 },
+        { value: 200, q: 'Which operation can an ACL protect?', opts: ['Read', 'Write', 'Create', 'All of these'], ans: 3 },
+        { value: 300, q: 'What is the usual goal of least privilege?', opts: ['Grant only needed access', 'Give admin to everyone', 'Remove all roles', 'Hide all records from users'], ans: 0 },
+        { value: 400, q: 'Which is usually checked by ACLs?', opts: ['User roles and conditions', 'Monitor brightness', 'Keyboard language', 'Meeting length'], ans: 0 },
+        { value: 500, q: 'What can field-level ACLs control?', opts: ['Access to a specific field', 'Only table colors', 'Only email signatures', 'Only dashboard icons'], ans: 0 },
+        { value: 600, q: 'What should you do after changing ACLs?', opts: ['Test with representative users', 'Assume admin view is enough', 'Skip regression checks', 'Delete audit history'], ans: 0 },
+        { value: 700, q: 'Why are overly broad ACLs risky?', opts: ['They may expose more data than intended', 'They speed up lunch', 'They improve passwords automatically', 'They create reports'], ans: 0 },
+        { value: 800, q: 'What is a strong ACL troubleshooting habit?', opts: ['Check table, field, role, condition, and script logic', 'Only refresh once', 'Rename every role', 'Disable security globally'], ans: 0 }
       ]
     },
     {
-      category: 'Pop Culture',
+      category: 'Workflow',
       clues: [
-        { value: 100, q: 'What streaming platform is known for "Stranger Things"?', opts: ['Hulu', 'Disney+', 'Netflix', 'Prime Video'], ans: 2 },
-        { value: 200, q: 'Which movie features a young lion named Simba?', opts: ['Madagascar', 'The Lion King', 'Tarzan', 'Kung Fu Panda'], ans: 1 },
-        { value: 300, q: "What is Spider-Man's first name?", opts: ['Peter', 'Bruce', 'Clark', 'Tony'], ans: 0 },
-        { value: 400, q: 'Which artist is known as the "Queen of Pop"?', opts: ['Madonna', 'Beyonce', 'Adele', 'Rihanna'], ans: 0 },
-        { value: 500, q: 'In "The Office" (US), what company does the Scranton branch belong to?', opts: ['Sabre Corp', 'Dunder Mifflin', 'Vance Refrigeration', 'Athlead'], ans: 1 }
+        { value: 100, q: 'What is a workflow?', opts: ['A sequence of steps to complete a process', 'A font style', 'A password rule only', 'A browser tab'], ans: 0 },
+        { value: 200, q: 'Which ServiceNow tool is commonly used for modern process automation?', opts: ['Flow Designer', 'Paint Studio', 'Sound Mixer', 'Table Wallpaper'], ans: 0 },
+        { value: 300, q: 'What is a trigger in automation?', opts: ['The event that starts a flow', 'The final report color', 'A user avatar', 'A hidden font'], ans: 0 },
+        { value: 400, q: 'What is an approval step used for?', opts: ['Getting a decision before continuing', 'Changing device volume', 'Skipping validation', 'Deleting all tasks'], ans: 0 },
+        { value: 500, q: 'Why map a process before automating it?', opts: ['To find gaps, owners, and decision points', 'To make it longer', 'To avoid stakeholders', 'To hide dependencies'], ans: 0 },
+        { value: 600, q: 'What does a subflow help teams do?', opts: ['Reuse common logic', 'Create random passwords only', 'Turn off logs', 'Rename incidents'], ans: 0 },
+        { value: 700, q: 'What is a common workflow anti-pattern?', opts: ['Automating a broken process without improving it', 'Naming steps clearly', 'Testing exceptions', 'Documenting owners'], ans: 0 },
+        { value: 800, q: 'What makes a workflow easier to maintain?', opts: ['Clear ownership, naming, and error handling', 'No comments ever', 'One giant hidden script', 'No test data'], ans: 0 }
       ]
     },
     {
-      category: 'Workplace',
+      category: 'Design & Architecture',
       clues: [
-        { value: 100, q: 'What does KPI stand for?', opts: ['Key Performance Indicator', 'Known Process Input', 'Key Product Initiative', 'Knowledge Practice Index'], ans: 0 },
-        { value: 200, q: 'Which meeting format is usually 10-15 minutes, daily, and focused on blockers?', opts: ['Retrospective', 'Town hall', 'Standup', 'Kickoff'], ans: 2 },
-        { value: 300, q: 'What is the main purpose of a retrospective?', opts: ['Set salaries', 'Review and improve team process', 'Announce layoffs', 'Write job descriptions'], ans: 1 },
-        { value: 400, q: 'What is a common meaning of "MVP" in product work?', opts: ['Most Valuable Professional', 'Minimum Viable Product', 'Managed Version Plan', 'Main Value Program'], ans: 1 },
-        { value: 500, q: 'What is "scope creep"?', opts: ['Hiring too fast', 'A project timeline moving earlier', 'Uncontrolled expansion of project requirements', 'Losing source control history'], ans: 2 }
+        { value: 100, q: 'What does UX stand for?', opts: ['User Experience', 'Unit Exchange', 'Unified XML', 'Utility Extension'], ans: 0 },
+        { value: 200, q: 'What is a design pattern?', opts: ['A reusable solution to a common problem', 'A random color palette', 'A browser bookmark', 'A broken script'], ans: 0 },
+        { value: 300, q: 'What is scalability?', opts: ['The ability to handle growth', 'The ability to delete data', 'The number of icons on a page', 'The color of a theme'], ans: 0 },
+        { value: 400, q: 'Why separate concerns in architecture?', opts: ['To reduce coupling and improve maintainability', 'To duplicate all logic', 'To hide requirements', 'To skip documentation'], ans: 0 },
+        { value: 500, q: 'What should a good data model clarify?', opts: ['Entities, relationships, and ownership', 'Only button colors', 'Only meeting notes', 'Only logo size'], ans: 0 },
+        { value: 600, q: 'What is technical debt?', opts: ['Future cost from shortcuts or deferred work', 'A hardware invoice', 'A project celebration', 'A design award'], ans: 0 },
+        { value: 700, q: 'Which architecture habit reduces risk?', opts: ['Design reviews before major builds', 'Skipping peer review', 'Changing production first', 'Avoiding monitoring'], ans: 0 },
+        { value: 800, q: 'What is the best architecture outcome for teams?', opts: ['A solution people can use, support, and evolve', 'A diagram no one understands', 'A one-off shortcut', 'A locked black box'], ans: 0 }
       ]
     }
   ],
@@ -139,6 +147,10 @@ window.TEAM_BUILDER_STATIC_DATA = {
     { label: 'Bonus 100 Points', action: { type: 'points', points: 100 } },
     { label: 'Jackpot 150 Points', action: { type: 'points', points: 150 } },
     { label: 'Team Shoutout', prompt: 'Give a teammate a 10-second shoutout before the next spin.' },
+    { label: 'Event Planner', prompt: 'Pick the next party detail: theme, food, music, prizes, or schedule.' },
+    { label: 'World Cup Draw', prompt: 'Choose a country, mascot, or walkout song for your team.' },
+    { label: 'America 250 Moment', prompt: 'Share a city, invention, song, landmark, or story worth celebrating.' },
+    { label: 'ServiceNow Scenario', prompt: 'Name one workflow, ACL, table, or automation you would improve.' },
     { label: 'Mini Break', prompt: 'Everybody take a 20-second stretch break and reset.' },
     { label: 'Wildcard Prompt', prompt: 'The spinner chooses any teammate to answer a fun one-line question.' }
   ],
@@ -272,40 +284,38 @@ window.TEAM_BUILDER_STATIC_DATA = {
     { name: 'Planning', icon: '📋' }
   ],
   WORDLE_WORDS: [
-    'AGILE', 'BOOST', 'CLOUD', 'DEBUG', 'EMAIL', 'FOCUS', 'GRAPH', 'HABIT',
-    'INBOX', 'LEARN', 'MERIT', 'PIVOT', 'QUEST', 'REACH', 'SCALE', 'TRUST',
-    'UNITE', 'VALUE', 'WORTH', 'YIELD', 'AUDIO', 'SOUND', 'RIGOR'
+    'EVENT', 'PARTY', 'GAMES', 'MUSIC', 'PRIZE', 'TIMER', 'VENUE', 'GUEST',
+    'THEME', 'HOSTS', 'TEAMS', 'CHEER', 'BREAK', 'SNACK', 'VOTES', 'SQUAD',
+    'DANCE', 'ROUND', 'QUEST', 'BADGE', 'SCORE', 'UNITY', 'TRUST', 'AGILE',
+    'CLOUD', 'DEBUG', 'FLOWS', 'LOGIC', 'TABLE', 'ROLES', 'RULES', 'BRAND'
   ],
   WORD_CHAIN_PUZZLES: [
-    { title: 'Chain A', words: ['RAIN', 'BOW', 'TIE', 'BREAK', 'DOWN', 'LOAD', 'BEARING', 'WALL'] },
-    { title: 'Chain B', words: ['STAR', 'FISH', 'BOWL', 'GAME', 'TIME', 'OUT', 'SIDE', 'WAYS'] },
-    { title: 'Chain C', words: ['HAND', 'SHAKE', 'DOWN', 'TIME', 'LINE', 'UP', 'GRADE', 'SCHOOL'] },
-    { title: 'Chain D', words: ['BOOK', 'SHELF', 'LIFE', 'CYCLE', 'TRACK', 'SUIT', 'CASE', 'STUDY'] },
-    { title: 'Chain E', words: ['SUN', 'FLOWER', 'POT', 'LUCK', 'CHARM', 'BRACELET', 'CASE', 'FILE'] },
-    { title: 'Chain F', words: ['NEWS', 'PAPER', 'CLIP', 'BOARD', 'WALK', 'AWAY', 'HOME', 'ALONE'] },
-    { title: 'Chain G', words: ['TOOTH', 'BRUSH', 'STROKE', 'TREATMENT', 'COURSE', 'WORK', 'SPACE', 'BAR'] },
-    { title: 'Chain H', words: ['EAR', 'RING', 'TONE', 'DEAF', 'LEAF', 'BLOWER', 'MOTOR', 'BIKE'] },
-    { title: 'Chain I', words: ['WATER', 'FALL', 'BACK', 'PACK', 'RAT', 'RACE', 'TRACK', 'SUIT'] },
-    { title: 'Chain J', words: ['BLACK', 'BOARD', 'ROOM', 'SERVICE', 'DOG', 'HOUSE', 'PLANT', 'FOOD'] },
-    { title: 'Chain K', words: ['MAIL', 'BOX', 'OFFICE', 'HOUR', 'GLASS', 'DOOR', 'BELL', 'HOP'] }
+    { title: 'Event Plan Template', words: ['PARTY', 'PLAN', 'BOOK', 'MARK', 'DOWN', 'TIME', 'LINE', 'UP'] },
+    { title: 'Team Fun Template', words: ['TEAM', 'WORK', 'SHOP', 'FLOOR', 'PLAN', 'BOOK', 'CLUB', 'HOUSE'] },
+    { title: 'World Cup Party', words: ['WORLD', 'CUP', 'CAKE', 'WALK', 'OUT', 'SIDE', 'LINE', 'UP'] },
+    { title: 'America 250 Night', words: ['STAR', 'SPANGLED', 'BANNER', 'DAY', 'BREAK', 'FAST', 'TRACK', 'MEET'] },
+    { title: 'ServiceNow Build', words: ['SERVICE', 'DESK', 'TOP', 'LEVEL', 'SET', 'PIECE', 'WORK', 'FLOW'] },
+    { title: 'Javascript Jam', words: ['SCRIPT', 'TAG', 'LINE', 'BREAK', 'POINT', 'CAST', 'OFF', 'BOARD'] },
+    { title: 'Party Run Sheet', words: ['GUEST', 'LIST', 'PRICE', 'TAG', 'TEAM', 'MATE', 'CHECK', 'POINT'] },
+    { title: 'Game Night Flow', words: ['GAME', 'PLAN', 'AHEAD', 'START', 'UP', 'BEAT', 'BOX', 'SCORE'] }
   ],
   EMOJI_CHARADES_BANK: [
-    { emojis: '🚀🏀', answer: 'Space Jam' },
-    { emojis: '🌮🔔', answer: 'Taco Bell' },
-    { emojis: '🧊☕', answer: 'Iced coffee' },
-    { emojis: '🕷️👨', answer: 'Spider Man' },
-    { emojis: '👨📘', answer: 'Facebook' },
-    { emojis: '🦁👑', answer: 'Lion King' },
-    { emojis: '🔎🐠', answer: 'Finding Memo' },
-    { emojis: '🚀👨‍🚀', answer: 'Rocketman' },
-    { emojis: '📱🔋', answer: 'Phone battery' },
-    { emojis: '🎸⭐', answer: 'Rock star' },
-    { emojis: '🍕🎉', answer: 'Pizza party' },
-    { emojis: '🏎️😡', answer: 'Fast and Furious' },
-    { emojis: '🌧️🌈', answer: 'Rainbow' },
-    { emojis: '🧠⚡', answer: 'Brainstorm' },
-    { emojis: '🐟🍟', answer: 'Fish and chips' },
-    { emojis: '🍿🎬', answer: 'Movie night' }
+    { emojis: '🇺🇸🎂2️⃣5️⃣0️⃣', answer: 'America 250' },
+    { emojis: '⚽🌎🏆', answer: 'World Cup' },
+    { emojis: '🤖💬⚡', answer: 'AI assistant' },
+    { emojis: '🧠🏃📈', answer: 'Human performance' },
+    { emojis: '🧪🔥💧🌬️', answer: 'Elements' },
+    { emojis: '🎟️🎶🍕', answer: 'Party plan' },
+    { emojis: '🧑‍💻📜🐞', answer: 'Debug script' },
+    { emojis: '🔐✅📋', answer: 'Access control' },
+    { emojis: '🔄✅📨', answer: 'Workflow approval' },
+    { emojis: '☁️🧩🏗️', answer: 'Cloud architecture' },
+    { emojis: '🎡🎁👏', answer: 'Prize wheel' },
+    { emojis: '🗓️⏱️🎤', answer: 'Event agenda' },
+    { emojis: '👥🎮🏁', answer: 'Team game' },
+    { emojis: '🏟️📣🎉', answer: 'Watch party' },
+    { emojis: '💡📝🚀', answer: 'Brainstorm launch' },
+    { emojis: '🎬🍿🌙', answer: 'Movie night' }
   ],
   DJ_BOOTH_DECK_KEYS: ['deckA', 'deckB'],
   DJ_BOOTH_TONE_IDS: ['airhorn', 'laser', 'clap', 'chime', 'bass', 'siren', 'sparkle', 'hit'],
@@ -421,8 +431,20 @@ window.TEAM_BUILDER_STATIC_DATA = {
     { id: 'spin-wheel', label: 'Spin Wheel' }
   ],
   ACTIVITY_QUEUE_THEME_OPTIONS: [
+    'America 250',
+    'World Cup 2026',
+    'Technology 2026',
+    'Human Performance',
+    'Elemental Fun',
+    'Team Party',
+    'Event Plan',
     'Marvel',
     'ServiceNow',
+    'ServiceNow Architecture',
+    'JavaScript',
+    'ACLs and Security',
+    'Workflow Automation',
+    'Design and Architecture',
     'General Knowledge',
     'Disney',
     'Pop Culture',
