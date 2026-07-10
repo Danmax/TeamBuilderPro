@@ -376,6 +376,12 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
           <p class="card-desc">Drop glowing discs into a neon grid and connect four before your opponent does</p>
         </button>
 
+        <button type="button" class="card" data-action="start-rock-paper-scissors" aria-label="Start Rock Paper Scissors" style="${enabledActivities['rock-paper-scissors'] === false ? 'display:none;' : ''}">
+          <div class="card-icon">✊</div>
+          <h3 class="card-title">Rock Paper Scissors</h3>
+          <p class="card-desc">Wait for rock, paper, scissors, shoot, then throw fast against the bot</p>
+        </button>
+
         <button type="button" class="card" data-action="start-chess-lobby" aria-label="Start Chess Lobby" style="${enabledActivities['chess-lobby'] === false ? 'display:none;' : ''}">
           <div class="card-icon">♟️</div>
           <h3 class="card-title">Chess Lobby</h3>

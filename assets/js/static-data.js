@@ -331,6 +331,7 @@ window.TEAM_BUILDER_STATIC_DATA = {
     { id: 'bingo', icon: '🎟️', label: 'Bingo' },
     { id: 'backgammon', icon: '🎲', label: 'Backgammon' },
     { id: 'connect-4', icon: '🟡', label: 'Connect 4' },
+    { id: 'rock-paper-scissors', icon: '✊', label: 'Rock Paper Scissors' },
     { id: 'chess-lobby', icon: '♟️', label: 'Chess Lobby' },
     { id: 'cosmos-bound', icon: '🚀', label: 'Cosmos Bound' }
   ],
@@ -349,6 +350,7 @@ window.TEAM_BUILDER_STATIC_DATA = {
     'bingo',
     'backgammon',
     'connect-4',
+    'rock-paper-scissors',
     'chess-lobby',
     'cosmos-bound'
   ],
