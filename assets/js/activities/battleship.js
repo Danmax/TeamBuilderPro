@@ -30,19 +30,26 @@ const BATTLESHIP_COLUMN_LABELS = cloneBattleshipStaticData('BATTLESHIP_COLUMN_LA
 const BATTLESHIP_COMPUTER_PLAYER = 'Computer Fleet';
 const BATTLESHIP_SOUND_SOURCES = {
   shot: '/Sounds/freesound_community-laser-gun-72558.mp3',
-  hit: '/Sounds/capture.wav'
+  hit: [
+    '/Sounds/explosion1.mp3',
+    '/Sounds/explosion2.mp3'
+  ]
 };
 const battleshipSoundPlayers = {};
 
 function playBattleshipSound(key = 'shot') {
   if (typeof Audio === 'undefined') return;
-  const source = BATTLESHIP_SOUND_SOURCES[key] || BATTLESHIP_SOUND_SOURCES.shot;
+  const sourceOptions = BATTLESHIP_SOUND_SOURCES[key] || BATTLESHIP_SOUND_SOURCES.shot;
+  const source = Array.isArray(sourceOptions)
+    ? sourceOptions[Math.floor(Math.random() * sourceOptions.length)]
+    : sourceOptions;
   try {
-    if (!battleshipSoundPlayers[key]) {
-      battleshipSoundPlayers[key] = new Audio(source);
-      battleshipSoundPlayers[key].preload = 'auto';
+    const playerKey = `${key}:${source}`;
+    if (!battleshipSoundPlayers[playerKey]) {
+      battleshipSoundPlayers[playerKey] = new Audio(source);
+      battleshipSoundPlayers[playerKey].preload = 'auto';
     }
-    const audio = battleshipSoundPlayers[key];
+    const audio = battleshipSoundPlayers[playerKey];
     audio.currentTime = 0;
     audio.play().catch(() => {});
   } catch (_error) {
@@ -322,9 +329,12 @@ function applyBattleshipShotToState(state, attacker, defender, row, col) {
   let actionLabel = `${attacker} missed at ${BATTLESHIP_COLUMN_LABELS[col]}${row + 1}.`;
   if (targetShip) {
     const sunk = isBattleshipShipSunk(defenderBoard, targetShip);
+    const hitsOnShip = getBattleshipShipHits(defenderBoard, targetShip);
+    const remainingHits = Math.max(0, Number(targetShip.length) - hitsOnShip);
+    const remainingLabel = remainingHits === 1 ? '1 more hit' : `${remainingHits} more hits`;
     actionLabel = sunk
       ? `${attacker} sank ${defender}'s ${targetShip.label}.`
-      : `${attacker} hit ${defender}'s fleet at ${BATTLESHIP_COLUMN_LABELS[col]}${row + 1}.`;
+      : `${attacker} hit ${defender}'s ${targetShip.label} at ${BATTLESHIP_COLUMN_LABELS[col]}${row + 1}. ${remainingLabel} to sink it.`;
   }
 
   state.boards[attacker] = attackerBoard;
