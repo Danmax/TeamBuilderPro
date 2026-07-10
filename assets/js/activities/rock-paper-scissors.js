@@ -1,17 +1,3 @@
-function createRockPaperScissorsState() {
-  return {
-    phase: 'ready',
-    chantIndex: 0,
-    round: 0,
-    choices: {},
-    results: {},
-    scores: {},
-    lastAction: 'Press start and wait for Shoot.',
-    startedAt: Date.now(),
-    updatedAt: Date.now()
-  };
-}
-
 const RPS_CHOICES = [
   { id: 'rock', label: 'Rock', icon: '✊', beats: 'scissors', accent: '#8af1ff' },
   { id: 'paper', label: 'Paper', icon: '✋', beats: 'rock', accent: '#ffd166' },
@@ -19,6 +5,37 @@ const RPS_CHOICES = [
 ];
 const RPS_CHANT = ['Rock', 'Paper', 'Scissors', 'Shoot'];
 const RPS_CHOICE_MAP = Object.fromEntries(RPS_CHOICES.map(choice => [choice.id, choice]));
+
+function createRockPaperScissorsState() {
+  return {
+    mode: 'multiplayer',
+    phase: 'ready',
+    chantIndex: 0,
+    round: 0,
+    choices: {},
+    results: {},
+    scores: {},
+    roundSummary: '',
+    lastAction: 'Press start and wait for Shoot.',
+    startedAt: Date.now(),
+    updatedAt: Date.now()
+  };
+}
+
+function normalizeRockPaperScissorsState(raw) {
+  const state = raw && typeof raw === 'object' ? raw : {};
+  return {
+    ...createRockPaperScissorsState(),
+    ...state,
+    mode: state.mode === 'bot' ? 'bot' : 'multiplayer',
+    phase: ['ready', 'chant', 'choosing', 'revealed'].includes(state.phase) ? state.phase : 'ready',
+    chantIndex: Math.max(0, Math.min(3, Number(state.chantIndex) || 0)),
+    round: Number(state.round) || 0,
+    choices: state.choices && typeof state.choices === 'object' ? state.choices : {},
+    results: state.results && typeof state.results === 'object' ? state.results : {},
+    scores: state.scores && typeof state.scores === 'object' ? state.scores : {}
+  };
+}
 
 function getRockPaperScissorsPlayerKey(player = APP.player) {
   return String(player?.id || player?.name || '').trim();
@@ -28,9 +45,14 @@ function getRockPaperScissorsPlayerName(player = APP.player) {
   return String(player?.name || '').trim() || 'Player';
 }
 
-function getRockPaperScissorsResult(playerChoice, computerChoice) {
-  if (playerChoice === computerChoice) return 'tie';
-  return RPS_CHOICE_MAP[playerChoice]?.beats === computerChoice ? 'win' : 'loss';
+function getRockPaperScissorsParticipants(room = APP.room) {
+  return (Array.isArray(room?.participants) ? room.participants : [])
+    .filter(player => getRockPaperScissorsPlayerKey(player));
+}
+
+function getRockPaperScissorsChoiceResult(playerChoice, opponentChoice) {
+  if (playerChoice === opponentChoice) return 'tie';
+  return RPS_CHOICE_MAP[playerChoice]?.beats === opponentChoice ? 'win' : 'loss';
 }
 
 function getRockPaperScissorsComputerChoice() {
@@ -38,9 +60,7 @@ function getRockPaperScissorsComputerChoice() {
 }
 
 function getRockPaperScissorsState(room = APP.room) {
-  return room?.activityState && typeof room.activityState === 'object'
-    ? room.activityState
-    : createRockPaperScissorsState();
+  return normalizeRockPaperScissorsState(room?.activityState);
 }
 
 function getRockPaperScissorsScore(state, playerKey) {
@@ -52,6 +72,73 @@ function getRockPaperScissorsScore(state, playerKey) {
   };
 }
 
+function updateRockPaperScissorsScore(state, playerKey, outcome) {
+  const score = getRockPaperScissorsScore(state, playerKey);
+  if (outcome === 'win') score.wins += 1;
+  else if (outcome === 'loss') score.losses += 1;
+  else score.ties += 1;
+  state.scores[playerKey] = score;
+}
+
+function getRockPaperScissorsPendingPlayers(state, room = APP.room) {
+  const choices = state?.choices && typeof state.choices === 'object' ? state.choices : {};
+  return getRockPaperScissorsParticipants(room).filter(player => !choices[getRockPaperScissorsPlayerKey(player)]);
+}
+
+function revealRockPaperScissorsMultiplayerRound(state, room = APP.room) {
+  const participants = getRockPaperScissorsParticipants(room);
+  const played = participants
+    .map(player => {
+      const playerKey = getRockPaperScissorsPlayerKey(player);
+      const choice = state.choices?.[playerKey];
+      return RPS_CHOICE_MAP[choice] ? { player, playerKey, choice } : null;
+    })
+    .filter(Boolean);
+
+  if (!played.length) return;
+
+  const uniqueChoices = Array.from(new Set(played.map(entry => entry.choice)));
+  let winningChoice = '';
+  let losingChoice = '';
+  if (uniqueChoices.length === 2) {
+    const [first, second] = uniqueChoices;
+    if (RPS_CHOICE_MAP[first]?.beats === second) {
+      winningChoice = first;
+      losingChoice = second;
+    } else {
+      winningChoice = second;
+      losingChoice = first;
+    }
+  }
+
+  state.results = {};
+  played.forEach(entry => {
+    const outcome = uniqueChoices.length !== 2
+      ? 'tie'
+      : entry.choice === winningChoice
+        ? 'win'
+        : entry.choice === losingChoice
+          ? 'loss'
+          : 'tie';
+    updateRockPaperScissorsScore(state, entry.playerKey, outcome);
+    state.results[entry.playerKey] = {
+      playerName: getRockPaperScissorsPlayerName(entry.player),
+      playerChoice: entry.choice,
+      outcome,
+      at: Date.now()
+    };
+  });
+
+  const winners = played
+    .filter(entry => state.results[entry.playerKey]?.outcome === 'win')
+    .map(entry => getRockPaperScissorsPlayerName(entry.player));
+  state.phase = 'revealed';
+  state.roundSummary = winners.length
+    ? `${winners.join(', ')} won the throw.`
+    : 'No winner this throw.';
+  state.lastAction = state.roundSummary;
+}
+
 async function updateRockPaperScissorsState(mutator) {
   if (!APP.roomCode) return null;
   const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
@@ -60,7 +147,7 @@ async function updateRockPaperScissorsState(mutator) {
   await mutator(state, room);
   state.updatedAt = Date.now();
   room.activityState = state;
-  await RoomManager.updateRoom(APP.roomCode, room);
+  await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
   APP.room = room;
   render();
   return state;
@@ -68,7 +155,7 @@ async function updateRockPaperScissorsState(mutator) {
 
 async function setRockPaperScissorsChantStep(round, chantIndex, phase = 'chant') {
   await updateRockPaperScissorsState(state => {
-    if (state.round !== round || state.phase === 'ready') return;
+    if (state.round !== round || state.phase === 'ready' || state.phase === 'revealed') return;
     state.phase = phase;
     state.chantIndex = chantIndex;
     state.lastAction = phase === 'choosing' ? 'Shoot. Pick fast.' : `${RPS_CHANT[chantIndex]}...`;
@@ -90,9 +177,32 @@ async function startRockPaperScissorsRound() {
     state.round = (Number(state.round) || 0) + 1;
     state.choices = {};
     state.results = {};
+    state.roundSummary = '';
     state.lastAction = 'Rock...';
   });
   if (nextState) scheduleRockPaperScissorsChant(nextState.round);
+}
+
+async function setRockPaperScissorsMode(mode) {
+  const nextMode = mode === 'bot' ? 'bot' : 'multiplayer';
+  await updateRockPaperScissorsState(state => {
+    state.mode = nextMode;
+    state.phase = 'ready';
+    state.chantIndex = 0;
+    state.choices = {};
+    state.results = {};
+    state.roundSummary = '';
+    state.lastAction = nextMode === 'bot'
+      ? 'Bot mode selected. Each player throws against the bot.'
+      : 'Multiplayer selected. Everyone throws at the same time.';
+  });
+}
+
+async function revealRockPaperScissorsRound() {
+  await updateRockPaperScissorsState((state, room) => {
+    if (state.mode !== 'multiplayer' || state.phase !== 'choosing') return;
+    revealRockPaperScissorsMultiplayerRound(state, room);
+  });
 }
 
 async function chooseRockPaperScissors(choiceId) {
@@ -100,33 +210,63 @@ async function chooseRockPaperScissors(choiceId) {
   const playerKey = getRockPaperScissorsPlayerKey();
   const playerName = getRockPaperScissorsPlayerName();
   if (!playerKey) return;
-  await updateRockPaperScissorsState(state => {
+
+  await updateRockPaperScissorsState((state, room) => {
     if (state.phase !== 'choosing') {
       state.lastAction = 'Wait for Shoot before picking.';
       return;
     }
-    if (state.results?.[playerKey]) return;
-    const computerChoice = getRockPaperScissorsComputerChoice();
-    const outcome = getRockPaperScissorsResult(choiceId, computerChoice);
-    const score = getRockPaperScissorsScore(state, playerKey);
-    if (outcome === 'win') score.wins += 1;
-    else if (outcome === 'loss') score.losses += 1;
-    else score.ties += 1;
+    if (state.choices?.[playerKey]) return;
+
     state.choices[playerKey] = choiceId;
-    state.scores[playerKey] = score;
+
+    if (state.mode === 'bot') {
+      const computerChoice = getRockPaperScissorsComputerChoice();
+      const outcome = getRockPaperScissorsChoiceResult(choiceId, computerChoice);
+      updateRockPaperScissorsScore(state, playerKey, outcome);
+      state.results[playerKey] = {
+        playerName,
+        playerChoice: choiceId,
+        computerChoice,
+        outcome,
+        at: Date.now()
+      };
+      state.lastAction = `${playerName} picked ${RPS_CHOICE_MAP[choiceId].label}.`;
+      return;
+    }
+
     state.results[playerKey] = {
       playerName,
       playerChoice: choiceId,
-      computerChoice,
-      outcome,
+      outcome: 'pending',
       at: Date.now()
     };
-    state.lastAction = `${playerName} picked ${RPS_CHOICE_MAP[choiceId].label}.`;
+
+    const pending = getRockPaperScissorsPendingPlayers(state, room);
+    if (pending.length === 0) {
+      revealRockPaperScissorsMultiplayerRound(state, room);
+    } else {
+      state.lastAction = `${playerName} locked a throw. Waiting on ${pending.length} player${pending.length === 1 ? '' : 's'}.`;
+    }
   });
 }
 
+function getRockPaperScissorsOutcomeLabel(outcome) {
+  if (outcome === 'win') return 'Win';
+  if (outcome === 'loss') return 'Loss';
+  if (outcome === 'tie') return 'Tie';
+  return 'Locked';
+}
+
+function getRockPaperScissorsOutcomeColor(outcome) {
+  if (outcome === 'win') return '#7af59f';
+  if (outcome === 'loss') return '#ff8fa3';
+  if (outcome === 'tie') return '#ffd166';
+  return 'var(--accent)';
+}
+
 function renderRockPaperScissorsScoreboard(state) {
-  const participants = Array.isArray(APP.room?.participants) ? APP.room.participants : [];
+  const participants = getRockPaperScissorsParticipants();
   const scoredKeys = new Set(Object.keys(state.scores || {}));
   participants.forEach(player => scoredKeys.add(getRockPaperScissorsPlayerKey(player)));
   return Array.from(scoredKeys).filter(Boolean).map(playerKey => {
@@ -135,37 +275,82 @@ function renderRockPaperScissorsScoreboard(state) {
     const avatar = participant?.avatar || '👤';
     const score = getRockPaperScissorsScore(state, playerKey);
     const last = state.results?.[playerKey];
+    const choice = RPS_CHOICE_MAP[last?.playerChoice];
+    const botChoice = RPS_CHOICE_MAP[last?.computerChoice];
     return `
       <div style="padding:14px;border-radius:18px;background:rgba(255,255,255,0.055);border:1px solid rgba(255,255,255,0.08);">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;">
           <div style="font-weight:900;">${escapeHtml(avatar)} ${escapeHtml(name)}</div>
-          <div style="font-size:0.78rem;color:var(--text-dim);">Round ${Number(state.round) || 0}</div>
+          <div style="font-size:0.78rem;color:${getRockPaperScissorsOutcomeColor(last?.outcome)};">${escapeHtml(getRockPaperScissorsOutcomeLabel(last?.outcome))}</div>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;">
           <div><strong style="color:#7af59f;">${score.wins}</strong><div style="font-size:0.72rem;color:var(--text-dim);">Wins</div></div>
           <div><strong style="color:#ff8fa3;">${score.losses}</strong><div style="font-size:0.72rem;color:var(--text-dim);">Losses</div></div>
           <div><strong style="color:#ffd166;">${score.ties}</strong><div style="font-size:0.72rem;color:var(--text-dim);">Ties</div></div>
         </div>
-        ${last ? `<div style="margin-top:10px;font-size:0.84rem;color:rgba(236,233,225,0.78);">${escapeHtml(RPS_CHOICE_MAP[last.playerChoice]?.label || '')} vs ${escapeHtml(RPS_CHOICE_MAP[last.computerChoice]?.label || '')}</div>` : ''}
+        ${choice ? `
+          <div style="margin-top:10px;font-size:0.84rem;color:rgba(236,233,225,0.78);">
+            ${state.phase === 'revealed' || state.mode === 'bot' ? `${choice.icon} ${escapeHtml(choice.label)}` : 'Throw locked'}
+            ${botChoice ? ` vs ${botChoice.icon} ${escapeHtml(botChoice.label)}` : ''}
+          </div>
+        ` : ''}
       </div>
     `;
   }).join('') || '<div style="color:var(--text-dim);">Scores appear after the first throw.</div>';
 }
 
+function renderRockPaperScissorsThrowPanel(state, myResult) {
+  if (!myResult) {
+    return `
+      <div style="padding:16px;border-radius:18px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);">
+        ${state.phase === 'choosing' ? 'Pick rock, paper, or scissors before the reveal.' : 'Wait for Shoot, then pick your move.'}
+      </div>
+    `;
+  }
+
+  const playerChoice = RPS_CHOICE_MAP[myResult.playerChoice];
+  const computerChoice = RPS_CHOICE_MAP[myResult.computerChoice];
+  return `
+    <div style="display:grid;grid-template-columns:1fr ${computerChoice ? '1fr' : ''};gap:10px;text-align:center;margin-bottom:12px;">
+      <div style="padding:14px;border-radius:18px;background:rgba(138,241,255,0.08);border:1px solid rgba(138,241,255,0.16);">
+        <div style="font-size:2.3rem;">${playerChoice?.icon || '?'}</div>
+        <div style="font-weight:900;">You</div>
+      </div>
+      ${computerChoice ? `
+        <div style="padding:14px;border-radius:18px;background:rgba(255,143,163,0.08);border:1px solid rgba(255,143,163,0.16);">
+          <div style="font-size:2.3rem;">${computerChoice.icon}</div>
+          <div style="font-weight:900;">Bot</div>
+        </div>
+      ` : ''}
+    </div>
+    <div style="font-size:1.15rem;font-weight:900;color:${getRockPaperScissorsOutcomeColor(myResult.outcome)};">
+      ${escapeHtml(getRockPaperScissorsOutcomeLabel(myResult.outcome))}
+    </div>
+  `;
+}
+
 function renderRockPaperScissors() {
-  const isHost = APP.room.host === APP.player.name;
+  const isHost = APP.room?.host === APP.player?.name;
   const state = getRockPaperScissorsState();
   const playerKey = getRockPaperScissorsPlayerKey();
   const myResult = state.results?.[playerKey] || null;
-  const canChoose = state.phase === 'choosing' && !myResult;
+  const canChoose = state.phase === 'choosing' && !state.choices?.[playerKey];
   const chantText = state.phase === 'ready' ? 'Ready?' : RPS_CHANT[state.chantIndex] || 'Shoot';
-  const resultLabel = myResult?.outcome === 'win' ? 'You win' : myResult?.outcome === 'loss' ? 'You lose' : myResult?.outcome === 'tie' ? 'Tie' : 'Make your move';
-  const resultColor = myResult?.outcome === 'win' ? '#7af59f' : myResult?.outcome === 'loss' ? '#ff8fa3' : '#ffd166';
+  const pendingPlayers = getRockPaperScissorsPendingPlayers(state);
+  const statusLabel = myResult
+    ? getRockPaperScissorsOutcomeLabel(myResult.outcome)
+    : state.phase === 'choosing'
+      ? 'Throw now'
+      : state.phase === 'revealed'
+        ? 'Round revealed'
+        : 'Make your move';
+  const statusColor = myResult ? getRockPaperScissorsOutcomeColor(myResult.outcome) : '#ffd166';
+  const modeLabel = state.mode === 'bot' ? 'Bot Mode' : 'Multiplayer';
 
   return `
     <div class="header">
       <h1 style="font-size:2rem;font-weight:800;">✊✋✌️ Rock Paper Scissors</h1>
-      <p class="tagline">Room: ${escapeHtml(APP.roomCode)} • Rock, paper, scissors, shoot</p>
+      <p class="tagline">Room: ${escapeHtml(APP.roomCode)} • ${escapeHtml(modeLabel)} • Rock, paper, scissors, shoot</p>
     </div>
     ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
 
@@ -182,7 +367,7 @@ function renderRockPaperScissors() {
           </div>
           <div style="padding:12px 16px;border-radius:18px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);text-align:right;">
             <div style="font-size:0.76rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;">Status</div>
-            <div style="font-weight:900;color:${resultColor};">${escapeHtml(resultLabel)}</div>
+            <div style="font-weight:900;color:${statusColor};">${escapeHtml(statusLabel)}</div>
           </div>
         </div>
 
@@ -201,31 +386,30 @@ function renderRockPaperScissors() {
         </div>
 
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-          <button class="btn-primary" data-action="rps-start-round" style="width:auto;padding:12px 18px;">${state.phase === 'ready' ? 'Start Round' : 'Next Throw'}</button>
+          ${isHost ? `<button class="btn-primary" data-action="rps-start-round" style="width:auto;padding:12px 18px;">${state.phase === 'ready' ? 'Start Round' : 'Next Throw'}</button>` : ''}
+          ${isHost && state.mode === 'multiplayer' && state.phase === 'choosing' ? '<button class="btn-secondary" data-action="rps-reveal" style="width:auto;padding:12px 18px;">Reveal Now</button>' : ''}
           <div style="color:rgba(236,233,225,0.72);font-size:0.92rem;">${escapeHtml(state.lastAction || '')}</div>
         </div>
       </div>
 
       <div style="display:grid;gap:18px;">
         <div style="border-radius:24px;padding:18px;background:linear-gradient(180deg,rgba(20,12,68,0.96),rgba(8,8,28,0.98));border:1px solid rgba(152,115,255,0.34);box-shadow:0 24px 54px rgba(6,6,26,0.45);">
+          <div style="font-family:'Fraunces',serif;font-size:1.35rem;margin-bottom:12px;">Mode</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+            <button class="btn-secondary" data-action="rps-set-mode" data-mode="multiplayer" ${!isHost ? 'disabled' : ''} style="padding:10px;border-color:${state.mode === 'multiplayer' ? 'var(--accent)' : 'var(--border)'};">Multiplayer</button>
+            <button class="btn-secondary" data-action="rps-set-mode" data-mode="bot" ${!isHost ? 'disabled' : ''} style="padding:10px;border-color:${state.mode === 'bot' ? 'var(--accent)' : 'var(--border)'};">Bot</button>
+          </div>
+          <div style="font-size:0.9rem;color:var(--text-dim);line-height:1.45;">
+            ${state.mode === 'multiplayer'
+              ? `${pendingPlayers.length ? `${pendingPlayers.length} player${pendingPlayers.length === 1 ? '' : 's'} still need to throw.` : 'All throws are in or the round is idle.'}`
+              : 'Each player throws against the bot and tracks their own score.'}
+          </div>
+        </div>
+
+        <div style="border-radius:24px;padding:18px;background:linear-gradient(180deg,rgba(20,12,68,0.96),rgba(8,8,28,0.98));border:1px solid rgba(152,115,255,0.34);box-shadow:0 24px 54px rgba(6,6,26,0.45);">
           <div style="font-family:'Fraunces',serif;font-size:1.35rem;margin-bottom:12px;">Your Throw</div>
-          ${myResult ? `
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:center;margin-bottom:12px;">
-              <div style="padding:14px;border-radius:18px;background:rgba(138,241,255,0.08);border:1px solid rgba(138,241,255,0.16);">
-                <div style="font-size:2.3rem;">${RPS_CHOICE_MAP[myResult.playerChoice]?.icon || ''}</div>
-                <div style="font-weight:900;">You</div>
-              </div>
-              <div style="padding:14px;border-radius:18px;background:rgba(255,143,163,0.08);border:1px solid rgba(255,143,163,0.16);">
-                <div style="font-size:2.3rem;">${RPS_CHOICE_MAP[myResult.computerChoice]?.icon || ''}</div>
-                <div style="font-weight:900;">Bot</div>
-              </div>
-            </div>
-            <div style="font-size:1.15rem;font-weight:900;color:${resultColor};">${escapeHtml(resultLabel)}</div>
-          ` : `
-            <div style="padding:16px;border-radius:18px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);">
-              ${state.phase === 'choosing' ? 'Pick rock, paper, or scissors before the next throw.' : 'Wait for Shoot, then pick your move.'}
-            </div>
-          `}
+          ${renderRockPaperScissorsThrowPanel(state, myResult)}
+          ${state.roundSummary ? `<div style="margin-top:10px;color:rgba(236,233,225,0.78);font-size:0.9rem;">${escapeHtml(state.roundSummary)}</div>` : ''}
         </div>
 
         <div style="border-radius:24px;padding:18px;background:linear-gradient(180deg,rgba(20,12,68,0.96),rgba(8,8,28,0.98));border:1px solid rgba(152,115,255,0.34);box-shadow:0 24px 54px rgba(6,6,26,0.45);">
@@ -247,5 +431,7 @@ function renderRockPaperScissors() {
   });
   registry.registerAction('start-rock-paper-scissors', () => startActivityById('rock-paper-scissors'));
   registry.registerAction('rps-start-round', () => startRockPaperScissorsRound());
+  registry.registerAction('rps-set-mode', ({ dataset }) => setRockPaperScissorsMode(dataset.mode));
+  registry.registerAction('rps-reveal', () => revealRockPaperScissorsRound());
   registry.registerAction('rps-choice', ({ dataset }) => chooseRockPaperScissors(dataset.choice));
 })();
