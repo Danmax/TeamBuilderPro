@@ -354,48 +354,48 @@ function renderRockPaperScissors() {
     </div>
     ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
 
-    <div class="game-mobile-shell" style="max-width:1180px;margin:22px auto 0;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(290px,0.75fr);gap:18px;align-items:start;">
-      <div style="position:relative;overflow:hidden;border-radius:30px;padding:24px;background:
+    <div class="game-mobile-shell rps-shell" style="max-width:1180px;margin:22px auto 0;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(290px,0.75fr);gap:18px;align-items:start;">
+      <div class="rps-stage" style="position:relative;overflow:hidden;border-radius:30px;padding:24px;background:
         radial-gradient(circle at 16% 16%, rgba(138,241,255,0.24), transparent 28%),
         radial-gradient(circle at 82% 22%, rgba(255,143,163,0.2), transparent 30%),
         linear-gradient(145deg, rgba(15,16,34,0.98), rgba(8,8,20,0.98));
         border:1px solid rgba(255,255,255,0.1);box-shadow:0 24px 64px rgba(0,0,0,0.42);">
-        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:22px;">
+        <div class="rps-topbar" style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:22px;">
           <div>
             <div style="font-size:0.78rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent);font-weight:900;">Round ${Number(state.round) || 0}</div>
-            <div style="font-family:'Fraunces',serif;font-size:clamp(2.3rem,7vw,5.4rem);line-height:0.95;margin-top:8px;">${escapeHtml(chantText)}</div>
+            <div class="rps-chant" style="font-family:'Fraunces',serif;font-size:clamp(2.3rem,7vw,5.4rem);line-height:0.95;margin-top:8px;">${escapeHtml(chantText)}</div>
           </div>
-          <div style="padding:12px 16px;border-radius:18px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);text-align:right;">
+          <div class="rps-status" style="padding:12px 16px;border-radius:18px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);text-align:right;">
             <div style="font-size:0.76rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;">Status</div>
             <div style="font-weight:900;color:${statusColor};">${escapeHtml(statusLabel)}</div>
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:22px;">
+        <div class="rps-choice-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:22px;">
           ${RPS_CHOICES.map(choice => `
-            <button type="button" data-action="rps-choice" data-choice="${choice.id}" ${canChoose ? '' : 'disabled'} style="
+            <button class="rps-choice-btn" type="button" data-action="rps-choice" data-choice="${choice.id}" ${canChoose ? '' : 'disabled'} style="
               min-height:170px;border-radius:22px;border:1px solid ${canChoose ? choice.accent : 'rgba(255,255,255,0.08)'};
               background:linear-gradient(180deg, rgba(255,255,255,0.085), rgba(255,255,255,0.028));
               color:var(--text);cursor:${canChoose ? 'pointer' : 'default'};opacity:${canChoose ? '1' : '0.58'};
               box-shadow:${canChoose ? `0 0 28px color-mix(in srgb, ${choice.accent} 28%, transparent)` : 'none'};
               display:grid;place-items:center;padding:18px;transition:transform 160ms ease,border-color 160ms ease;">
-              <span style="font-size:clamp(2.8rem,8vw,5.2rem);line-height:1;">${choice.icon}</span>
-              <span style="font-weight:900;font-size:1.05rem;">${choice.label}</span>
+              <span class="rps-choice-icon" style="font-size:clamp(2.8rem,8vw,5.2rem);line-height:1;">${choice.icon}</span>
+              <span class="rps-choice-label" style="font-weight:900;font-size:1.05rem;">${choice.label}</span>
             </button>
           `).join('')}
         </div>
 
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <div class="rps-actions" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
           ${isHost ? `<button class="btn-primary" data-action="rps-start-round" style="width:auto;padding:12px 18px;">${state.phase === 'ready' ? 'Start Round' : 'Next Throw'}</button>` : ''}
           ${isHost && state.mode === 'multiplayer' && state.phase === 'choosing' ? '<button class="btn-secondary" data-action="rps-reveal" style="width:auto;padding:12px 18px;">Reveal Now</button>' : ''}
           <div style="color:rgba(236,233,225,0.72);font-size:0.92rem;">${escapeHtml(state.lastAction || '')}</div>
         </div>
       </div>
 
-      <div style="display:grid;gap:18px;">
-        <div style="border-radius:24px;padding:18px;background:linear-gradient(180deg,rgba(20,12,68,0.96),rgba(8,8,28,0.98));border:1px solid rgba(152,115,255,0.34);box-shadow:0 24px 54px rgba(6,6,26,0.45);">
+      <div class="rps-side" style="display:grid;gap:18px;">
+        <div class="rps-panel" style="border-radius:24px;padding:18px;background:linear-gradient(180deg,rgba(20,12,68,0.96),rgba(8,8,28,0.98));border:1px solid rgba(152,115,255,0.34);box-shadow:0 24px 54px rgba(6,6,26,0.45);">
           <div style="font-family:'Fraunces',serif;font-size:1.35rem;margin-bottom:12px;">Mode</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+          <div class="rps-mode-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
             <button class="btn-secondary" data-action="rps-set-mode" data-mode="multiplayer" ${!isHost ? 'disabled' : ''} style="padding:10px;border-color:${state.mode === 'multiplayer' ? 'var(--accent)' : 'var(--border)'};">Multiplayer</button>
             <button class="btn-secondary" data-action="rps-set-mode" data-mode="bot" ${!isHost ? 'disabled' : ''} style="padding:10px;border-color:${state.mode === 'bot' ? 'var(--accent)' : 'var(--border)'};">Bot</button>
           </div>
@@ -406,13 +406,13 @@ function renderRockPaperScissors() {
           </div>
         </div>
 
-        <div style="border-radius:24px;padding:18px;background:linear-gradient(180deg,rgba(20,12,68,0.96),rgba(8,8,28,0.98));border:1px solid rgba(152,115,255,0.34);box-shadow:0 24px 54px rgba(6,6,26,0.45);">
+        <div class="rps-panel" style="border-radius:24px;padding:18px;background:linear-gradient(180deg,rgba(20,12,68,0.96),rgba(8,8,28,0.98));border:1px solid rgba(152,115,255,0.34);box-shadow:0 24px 54px rgba(6,6,26,0.45);">
           <div style="font-family:'Fraunces',serif;font-size:1.35rem;margin-bottom:12px;">Your Throw</div>
           ${renderRockPaperScissorsThrowPanel(state, myResult)}
           ${state.roundSummary ? `<div style="margin-top:10px;color:rgba(236,233,225,0.78);font-size:0.9rem;">${escapeHtml(state.roundSummary)}</div>` : ''}
         </div>
 
-        <div style="border-radius:24px;padding:18px;background:linear-gradient(180deg,rgba(20,12,68,0.96),rgba(8,8,28,0.98));border:1px solid rgba(152,115,255,0.34);box-shadow:0 24px 54px rgba(6,6,26,0.45);">
+        <div class="rps-panel" style="border-radius:24px;padding:18px;background:linear-gradient(180deg,rgba(20,12,68,0.96),rgba(8,8,28,0.98));border:1px solid rgba(152,115,255,0.34);box-shadow:0 24px 54px rgba(6,6,26,0.45);">
           <div style="font-family:'Fraunces',serif;font-size:1.35rem;margin-bottom:12px;">Scoreboard</div>
           <div style="display:grid;gap:10px;">${renderRockPaperScissorsScoreboard(state)}</div>
         </div>

@@ -2221,6 +2221,71 @@
       gap: 14px !important;
     }
 
+    .rps-shell {
+      grid-template-columns: 1fr !important;
+      gap: 14px !important;
+      margin-top: 16px !important;
+    }
+
+    .rps-stage,
+    .rps-panel {
+      border-radius: 20px !important;
+      padding: 16px !important;
+    }
+
+    .rps-topbar {
+      gap: 10px !important;
+      margin-bottom: 16px !important;
+    }
+
+    .rps-status {
+      width: 100%;
+      text-align: left !important;
+      padding: 10px 12px !important;
+      border-radius: 14px !important;
+    }
+
+    .rps-chant {
+      font-size: clamp(2rem, 14vw, 4rem) !important;
+      line-height: 0.98 !important;
+    }
+
+    .rps-choice-grid {
+      gap: 8px !important;
+      margin-bottom: 16px !important;
+    }
+
+    .rps-choice-btn {
+      min-height: 112px !important;
+      border-radius: 16px !important;
+      padding: 10px 6px !important;
+      align-content: center !important;
+      gap: 6px !important;
+    }
+
+    .rps-choice-icon {
+      font-size: clamp(2.15rem, 12vw, 3.4rem) !important;
+    }
+
+    .rps-choice-label {
+      font-size: 0.86rem !important;
+      line-height: 1.05 !important;
+    }
+
+    .rps-actions {
+      align-items: stretch !important;
+    }
+
+    .rps-actions .btn-primary,
+    .rps-actions .btn-secondary {
+      flex: 1 1 140px;
+      min-width: 0;
+    }
+
+    .rps-side {
+      gap: 12px !important;
+    }
+
     .game-mobile-scroll {
       margin-left: -4px;
       margin-right: -4px;
@@ -2375,6 +2440,34 @@
   }
 
   @media (max-width: 480px) {
+    .rps-stage,
+    .rps-panel {
+      padding: 14px !important;
+      border-radius: 18px !important;
+    }
+
+    .rps-choice-grid {
+      gap: 7px !important;
+    }
+
+    .rps-choice-btn {
+      min-height: 94px !important;
+      padding: 8px 4px !important;
+      border-radius: 14px !important;
+    }
+
+    .rps-choice-icon {
+      font-size: clamp(1.85rem, 13vw, 2.7rem) !important;
+    }
+
+    .rps-choice-label {
+      font-size: 0.76rem !important;
+    }
+
+    .rps-mode-grid {
+      grid-template-columns: 1fr !important;
+    }
+
     .bingo-card-cell {
       font-size: 1.28rem !important;
     }
