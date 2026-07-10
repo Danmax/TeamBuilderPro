@@ -5,6 +5,7 @@ function getDefaultBattleshipUiState() {
     dragShipId: '',
     lastTapShipId: '',
     lastTapAt: 0,
+    pendingAttack: false,
     lastShotSoundKey: ''
   };
 }
@@ -110,6 +111,7 @@ function createBattleshipState(participants, previousState = null) {
     turn: players[0] || '',
     winner: '',
     lastAction: '',
+    shotLog: [],
     startedAt: now,
     updatedAt: now
   };
@@ -119,7 +121,7 @@ function createBattleshipComputerMatchState(playerName, previousState = null) {
   const humanName = String(playerName || '').trim();
   const state = createBattleshipState([{ name: humanName }], previousState);
   if (!humanName) return state;
-  const humanPreviousBoard = previousState?.boards?.[humanName];
+  const humanPreviousBoard = previousState?.phase === 'setup' ? previousState?.boards?.[humanName] : null;
   const computerBoard = randomizeBattleshipBoard(createBattleshipPlayerState());
   computerBoard.ready = true;
   state.vsComputer = true;
@@ -329,6 +331,8 @@ function applyBattleshipShotToState(state, attacker, defender, row, col) {
   state.boards[defender] = defenderBoard;
   state.lastAction = actionLabel;
   state.lastShot = shot;
+  state.lastPlayerShot = shot;
+  state.shotLog = Array.isArray(state.shotLog) ? [...state.shotLog, shot].slice(-120) : [shot];
   if (areAllBattleshipShipsSunk(defenderBoard)) {
     state.phase = 'finished';
     state.winner = attacker;
@@ -600,35 +604,48 @@ async function setBattleshipReady(ready) {
 
 async function attackBattleshipCell(row, col) {
   if (!APP.roomCode || !Number.isInteger(row) || !Number.isInteger(col)) return;
-  const room = await RoomManager.loadRoom(APP.roomCode);
-  if (!room || room.currentActivity !== 'battleship') return;
-  const state = room.activityState || {};
-  if (state.phase !== 'battle') return;
-  const attacker = APP.player?.name || '';
-  const players = getBattleshipPlayers(state);
-  if (!players.includes(attacker)) return;
-  if (state.turn !== attacker) return;
-  const defender = getBattleshipOpponent(state, attacker);
-  if (!defender) return;
-  const humanShot = applyBattleshipShotToState(state, attacker, defender, row, col);
-  if (!humanShot) return;
+  APP.battleshipUi = APP.battleshipUi && typeof APP.battleshipUi === 'object' ? APP.battleshipUi : getDefaultBattleshipUiState();
+  if (APP.battleshipUi.pendingAttack) return;
+  APP.battleshipUi.pendingAttack = true;
+  try {
+    const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
+    if (!room || room.currentActivity !== 'battleship') return;
+    const state = room.activityState || {};
+    if (state.phase !== 'battle') return;
+    const attacker = APP.player?.name || '';
+    const players = getBattleshipPlayers(state);
+    if (!players.includes(attacker)) return;
+    if (state.turn !== attacker) return;
+    const defender = getBattleshipOpponent(state, attacker);
+    if (!defender) return;
+    const humanShot = applyBattleshipShotToState(state, attacker, defender, row, col);
+    if (!humanShot) return;
+    state.lastPlayerShot = humanShot.shot;
 
-  if (state.vsComputer === true && state.phase === 'battle' && isBattleshipComputerPlayer(defender)) {
-    const computerBoard = normalizeBattleshipBoard(getBattleshipBoard(state, defender));
-    const botTarget = getBattleshipComputerTargetCell(computerBoard);
-    if (botTarget) {
-      const botShot = applyBattleshipShotToState(state, defender, attacker, botTarget.row, botTarget.col);
-      if (botShot && state.phase === 'battle') {
-        state.turn = attacker;
-        state.lastAction = `${humanShot.actionLabel} ${botShot.actionLabel}`;
+    if (state.vsComputer === true && state.phase === 'battle' && isBattleshipComputerPlayer(defender)) {
+      const computerBoard = normalizeBattleshipBoard(getBattleshipBoard(state, defender));
+      const botTarget = getBattleshipComputerTargetCell(computerBoard);
+      if (botTarget) {
+        const botShot = applyBattleshipShotToState(state, defender, attacker, botTarget.row, botTarget.col);
+        if (botShot) {
+          state.lastComputerShot = botShot.shot;
+        }
+        if (botShot && state.phase === 'battle') {
+          state.turn = attacker;
+          state.lastAction = `${humanShot.actionLabel} ${botShot.actionLabel}`;
+          state.lastPlayerShot = humanShot.shot;
+          state.lastShot = humanShot.shot;
+        }
       }
     }
+    state.updatedAt = Date.now();
+    room.activityState = state;
+    await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
+    APP.room = room;
+    render();
+  } finally {
+    APP.battleshipUi.pendingAttack = false;
   }
-  state.updatedAt = Date.now();
-  room.activityState = state;
-  await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
-  APP.room = room;
-  render();
 }
 
 async function restartBattleshipMatch() {
@@ -704,6 +721,16 @@ function renderBattleship() {
   const myHitCount = myBoard ? myBoard.shotsTaken.filter(shot => shot.result === 'hit').length : 0;
   const myMissCount = myBoard ? myBoard.shotsTaken.filter(shot => shot.result === 'miss').length : 0;
   const receivedHitCount = myBoard ? myBoard.shotsReceived.filter(shot => shot.result === 'hit').length : 0;
+  const lastIncomingShot = state.lastComputerShot?.defender === me
+    ? state.lastComputerShot
+    : state.lastShot?.defender === me
+      ? state.lastShot
+      : null;
+  const lastOutgoingShot = state.lastPlayerShot?.attacker === me
+    ? state.lastPlayerShot
+    : state.lastShot?.attacker === me
+      ? state.lastShot
+      : null;
   const statusAccent = state.phase === 'finished'
     ? '#ffd166'
     : state.phase === 'battle'
@@ -801,7 +828,7 @@ function renderBattleship() {
         ${renderBattleshipGridLabelCell(String(row + 1))}
         ${Array.from({ length: BATTLESHIP_BOARD_SIZE }, (_, col) => {
         const ownCell = myBoard ? getBattleshipOwnCellState(myBoard, row, col) : { ship: null, shot: null };
-          const isLatestShotCell = Number(state.lastShot?.row) === row && Number(state.lastShot?.col) === col && state.lastShot?.defender === me && Date.now() - (Number(state.lastShot?.at) || 0) < 3000;
+          const isLatestShotCell = Number(lastIncomingShot?.row) === row && Number(lastIncomingShot?.col) === col && Date.now() - (Number(lastIncomingShot?.at) || 0) < 3000;
           const shipId = ownCell.ship?.id || '';
           const isPlacedShipCell = state.phase === 'setup' && Boolean(ownCell.ship);
           const isSelectedShipCell = Boolean(selectedShipId && ownCell.ship?.id === selectedShipId);
@@ -870,7 +897,7 @@ function renderBattleship() {
         ${renderBattleshipGridLabelCell(String(row + 1))}
         ${Array.from({ length: BATTLESHIP_BOARD_SIZE }, (_, col) => {
           const shot = getBattleshipTargetCellState(myBoard, row, col);
-          const isLatestShotCell = Number(state.lastShot?.row) === row && Number(state.lastShot?.col) === col && state.lastShot?.attacker === me && Date.now() - (Number(state.lastShot?.at) || 0) < 3000;
+          const isLatestShotCell = Number(lastOutgoingShot?.row) === row && Number(lastOutgoingShot?.col) === col && Date.now() - (Number(lastOutgoingShot?.at) || 0) < 3000;
           const canAttack = state.phase === 'battle' && turnName === me && !winnerName && !shot;
           const background = shot?.result === 'hit'
             ? 'linear-gradient(135deg,#ff8aa0,#b31244)'
