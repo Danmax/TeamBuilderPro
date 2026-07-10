@@ -751,6 +751,7 @@ function renderBattleship() {
   const canAdvancePlacementShip = state.phase === 'setup' && Boolean(nextPlacementShip?.id) && nextPlacementShip.id !== selectedShipId;
   const canSelectNextUnplacedShip = state.phase === 'setup' && Boolean(nextUnplacedShip?.id) && nextUnplacedShip.id !== selectedShipId;
   const canStartComputerMatch = state.phase === 'setup' && isBattlePlayer && state.vsComputer !== true;
+  const isPlayingLayout = state.phase === 'battle' || state.phase === 'finished';
   maybePlayBattleshipLastShotSound(state);
   const readyButtonLabel = myBoard?.ready
     ? 'Fleet Ready'
@@ -978,7 +979,7 @@ function renderBattleship() {
 
     <div class="game-mobile-shell game-mobile-main" style="max-width:1280px;margin:24px auto 0;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,0.95fr);gap:18px;align-items:start;">
       <div class="game-mobile-side" style="display:grid;gap:18px;">
-        <div style="order:${state.phase === 'battle' ? '2' : '1'};background:linear-gradient(180deg,rgba(20,12,68,0.96),rgba(8,8,28,0.98));border:1px solid rgba(152,115,255,0.34);border-radius:24px;padding:18px;box-shadow:0 24px 54px rgba(6,6,26,0.45);">
+        <div style="order:${isPlayingLayout ? '2' : '1'};background:linear-gradient(180deg,rgba(20,12,68,0.96),rgba(8,8,28,0.98));border:1px solid rgba(152,115,255,0.34);border-radius:24px;padding:18px;box-shadow:0 24px 54px rgba(6,6,26,0.45);">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
             <div>
               <div style="font-family:'Fraunces',serif;font-size:1.4rem;">${isBattlePlayer ? 'Your Fleet' : 'Battle Overview'}</div>
@@ -1049,10 +1050,10 @@ function renderBattleship() {
           ${isBattlePlayer ? ownBoardMarkup : spectatorBoards}
         </div>
 
-        <div style="order:${state.phase === 'battle' ? '1' : '2'};background:linear-gradient(180deg,rgba(20,12,68,0.96),rgba(8,8,28,0.98));border:1px solid rgba(152,115,255,0.34);border-radius:24px;padding:18px;box-shadow:0 24px 54px rgba(6,6,26,0.45);">
+        <div style="order:${isPlayingLayout ? '1' : '2'};background:linear-gradient(180deg,rgba(20,12,68,0.96),rgba(8,8,28,0.98));border:1px solid rgba(152,115,255,0.34);border-radius:24px;padding:18px;box-shadow:0 24px 54px rgba(6,6,26,0.45);">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
             <div>
-              <div style="font-family:'Fraunces',serif;font-size:1.4rem;">${isBattlePlayer && opponent ? `Target ${escapeHtml(opponent)}` : 'Observers'}</div>
+              <div style="font-family:'Fraunces',serif;font-size:1.4rem;">${isBattlePlayer && opponent ? `Target Fleet: ${escapeHtml(opponent)}` : 'Observers'}</div>
               <div style="font-size:0.84rem;color:rgba(236,233,225,0.72);">
                 ${isBattlePlayer ? (state.phase === 'battle' ? 'Click a square to fire. Hits are marked with ✕ and misses with •.' : 'Targeting unlocks after both fleets are ready.') : `${spectators.length} spectator${spectators.length === 1 ? '' : 's'} in room.`}
               </div>
