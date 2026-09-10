@@ -1,5 +1,17 @@
 const TEAM_BUILDER_STORAGE_RUNTIME = typeof window !== 'undefined' ? window : globalThis;
 
+function getSharedActorPayload(key) {
+  const actorToken = getRoomActorTokenForKey(key);
+  const player = typeof APP !== 'undefined' ? APP.player : null;
+  return {
+    ...(actorToken ? { actorToken } : {}),
+    actorPlayerId: String(player?.id || '').trim(),
+    actorPlayerName: String(player?.name || '').trim(),
+    userToken: getFeedbackUserToken(),
+    adminToken: String(typeof APP !== 'undefined' ? APP.admin?.token || '' : '').trim()
+  };
+}
+
 TEAM_BUILDER_STORAGE_RUNTIME.getSupabaseClient = async function getSupabaseClient() {
   if (!isSupabaseConfigured()) return null;
   if (!supabaseClient) {
@@ -19,16 +31,7 @@ TEAM_BUILDER_STORAGE_RUNTIME.TeamBuilderStorage = {
           const response = await socketEmitAck('shared:get', authToken ? { key, authToken } : { key });
           return response.value === null || response.value === undefined ? null : { value: response.value };
         }
-        const client = await TEAM_BUILDER_STORAGE_RUNTIME.getSupabaseClient();
-        if (client) {
-          const { data, error } = await client
-            .from('shared_state')
-            .select('value')
-            .eq('key', key)
-            .maybeSingle();
-          if (error) throw error;
-          return data ? { value: data.value } : null;
-        }
+        return null;
       }
       if (TEAM_BUILDER_STORAGE_RUNTIME.storage?.get) {
         return await TEAM_BUILDER_STORAGE_RUNTIME.storage.get(key, shared);
@@ -48,17 +51,15 @@ TEAM_BUILDER_STORAGE_RUNTIME.TeamBuilderStorage = {
         const authToken = getRoomAccessTokenForKey(key, accessToken);
         const socket = await getSocketClient();
         if (socket && (socket.connected || await waitForSocketConnection())) {
-          await socketEmitAck('shared:set', authToken ? { key, value, authToken } : { key, value });
-          return { key, value };
+          const response = await socketEmitAck('shared:set', {
+            key,
+            value,
+            ...(authToken ? { authToken } : {}),
+            ...getSharedActorPayload(key)
+          });
+          return { key, value: response?.value ?? value };
         }
-        const client = await TEAM_BUILDER_STORAGE_RUNTIME.getSupabaseClient();
-        if (client) {
-          const { error } = await client
-            .from('shared_state')
-            .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
-          if (error) throw error;
-          return { key, value };
-        }
+        return null;
       }
       if (TEAM_BUILDER_STORAGE_RUNTIME.storage?.set) {
         return await TEAM_BUILDER_STORAGE_RUNTIME.storage.set(key, value, shared);
@@ -78,9 +79,14 @@ TEAM_BUILDER_STORAGE_RUNTIME.TeamBuilderStorage = {
         const authToken = getRoomAccessTokenForKey(key, accessToken);
         const socket = await getSocketClient();
         if (socket && (socket.connected || await waitForSocketConnection())) {
-          await socketEmitAck('shared:delete', authToken ? { key, authToken } : { key });
+          await socketEmitAck('shared:delete', {
+            key,
+            ...(authToken ? { authToken } : {}),
+            ...getSharedActorPayload(key)
+          });
           return { key };
         }
+        return null;
       }
       if (TEAM_BUILDER_STORAGE_RUNTIME.storage?.remove) {
         return await TEAM_BUILDER_STORAGE_RUNTIME.storage.remove(key, shared);

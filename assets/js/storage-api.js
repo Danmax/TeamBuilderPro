@@ -2,14 +2,49 @@ const TEAM_BUILDER_STORAGE_API = typeof window !== 'undefined' ? window : global
 
 const STORAGE_FEEDBACK_USER_TOKEN_KEY = 'feedback-user-token';
 const STORAGE_ROOM_ACCESS_TOKEN_KEY_PREFIX = 'room-access-token:';
+const STORAGE_ROOM_ACTOR_TOKEN_KEY_PREFIX = 'room-actor-token:';
 const STORAGE_ACTIVE_SESSION_STORAGE_KEY = 'active-session';
 const STORAGE_SESSION_PLANS_STORAGE_KEY = 'session-plans';
 
 TEAM_BUILDER_STORAGE_API.TEAM_BUILDER_STORAGE_KEYS = {
   FEEDBACK_USER_TOKEN_KEY: STORAGE_FEEDBACK_USER_TOKEN_KEY,
   ROOM_ACCESS_TOKEN_KEY_PREFIX: STORAGE_ROOM_ACCESS_TOKEN_KEY_PREFIX,
+  ROOM_ACTOR_TOKEN_KEY_PREFIX: STORAGE_ROOM_ACTOR_TOKEN_KEY_PREFIX,
   ACTIVE_SESSION_STORAGE_KEY: STORAGE_ACTIVE_SESSION_STORAGE_KEY,
   SESSION_PLANS_STORAGE_KEY: STORAGE_SESSION_PLANS_STORAGE_KEY
+};
+
+TEAM_BUILDER_STORAGE_API.createRoomActorToken = function createRoomActorToken() {
+  if (globalThis.crypto?.getRandomValues) {
+    const bytes = new Uint8Array(32);
+    globalThis.crypto.getRandomValues(bytes);
+    return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+  }
+  return `${randomAlphaNum(32)}${randomAlphaNum(32)}`;
+};
+
+TEAM_BUILDER_STORAGE_API.getRoomActorStorageKey = function getRoomActorStorageKey(code) {
+  const normalizedCode = normalizeRoomCode(code || '');
+  return normalizedCode ? `${STORAGE_ROOM_ACTOR_TOKEN_KEY_PREFIX}${normalizedCode}` : '';
+};
+
+TEAM_BUILDER_STORAGE_API.getStoredRoomActorToken = function getStoredRoomActorToken(code) {
+  const storageKey = getRoomActorStorageKey(code);
+  if (!storageKey) return '';
+  const token = String(localStorage.getItem(storageKey) || '').trim();
+  return /^[A-Za-z0-9_-]{32,128}$/.test(token) ? token : '';
+};
+
+TEAM_BUILDER_STORAGE_API.setStoredRoomActorToken = function setStoredRoomActorToken(code, token) {
+  const storageKey = getRoomActorStorageKey(code);
+  const normalizedToken = String(token || '').trim();
+  if (!storageKey || !/^[A-Za-z0-9_-]{32,128}$/.test(normalizedToken)) return;
+  localStorage.setItem(storageKey, normalizedToken);
+};
+
+TEAM_BUILDER_STORAGE_API.getRoomActorTokenForKey = function getRoomActorTokenForKey(key) {
+  const match = /^room:([A-Z0-9]{6})$/.exec(String(key || ''));
+  return match ? getStoredRoomActorToken(match[1]) : '';
 };
 
 TEAM_BUILDER_STORAGE_API.TEAM_BUILDER_ENDPOINTS = (() => {

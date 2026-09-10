@@ -996,6 +996,8 @@ async function uploadDjBoothSharedTrack(file) {
       'Content-Type': file.type || 'application/octet-stream',
       'x-room-token': APP.roomAccessToken || '',
       'x-player-name': APP.player?.name || '',
+      'x-player-id': APP.player?.id || '',
+      'x-actor-token': getRoomActorTokenForKey(`room:${APP.roomCode}`),
       'x-file-name': encodeURIComponent(file.name || 'track')
     },
     body: file
@@ -1053,7 +1055,9 @@ async function removeDjBoothSharedTrack(trackId) {
     method: 'DELETE',
     headers: {
       'x-room-token': APP.roomAccessToken || '',
-      'x-player-name': APP.player?.name || ''
+      'x-player-name': APP.player?.name || '',
+      'x-player-id': APP.player?.id || '',
+      'x-actor-token': getRoomActorTokenForKey(`room:${APP.roomCode}`)
     }
   });
   const data = await response.json().catch(() => ({}));

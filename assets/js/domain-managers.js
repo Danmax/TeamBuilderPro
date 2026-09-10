@@ -96,6 +96,7 @@ TEAM_BUILDER_DOMAIN_MANAGERS.RoomManager = {
   async createRoom(hostId, hostName, hostAvatar, options = {}) {
     const code = this.generateCode();
     const accessToken = this.generateAccessToken();
+    const actorToken = createRoomActorToken();
     const createdAt = Date.now();
     const roomType = String(options.roomType || '').trim().toLowerCase() === 'community' ? 'community' : 'private';
     const communityTitle = roomType === 'community'
@@ -133,13 +134,32 @@ TEAM_BUILDER_DOMAIN_MANAGERS.RoomManager = {
       lastUpdate: createdAt
     });
 
-    await Storage.set(`room:${code}`, JSON.stringify(room), true, accessToken);
+    setStoredRoomActorToken(code, actorToken);
+    const created = await Storage.set(`room:${code}`, JSON.stringify(room), true, accessToken);
+    if (!created) throw new Error('Unable to create the room. Please try again.');
+    const storedRoom = normalizeRoom(safeParseJson(created.value));
+    if (storedRoom) Object.assign(room, storedRoom);
     setStoredRoomAccessToken(code, accessToken);
     return { room, accessToken };
   },
 
   async joinRoom(code, playerId, playerName, playerAvatar, accessToken = '') {
     const normalizedToken = normalizeRoomAccessToken(accessToken);
+    const socket = await getSocketClient();
+    if (socket && (socket.connected || await waitForSocketConnection(2000))) {
+      const actorToken = getStoredRoomActorToken(code) || createRoomActorToken();
+      const response = await socketEmitAck('room:join', {
+        key: `room:${code}`,
+        ...(normalizedToken ? { authToken: normalizedToken } : {}),
+        actorToken,
+        playerId,
+        playerName,
+        playerAvatar
+      }, 3000);
+      setStoredRoomActorToken(code, actorToken);
+      if (normalizedToken) setStoredRoomAccessToken(code, normalizedToken);
+      return normalizeRoom(safeParseJson(response.value));
+    }
     const result = await Storage.get(`room:${code}`, true, normalizedToken);
     if (!result) return null;
 
@@ -186,6 +206,27 @@ TEAM_BUILDER_DOMAIN_MANAGERS.RoomManager = {
       ...(room || {}),
       lastUpdate: Date.now()
     });
-    await Storage.set(`room:${code}`, JSON.stringify(normalizedRoom), true, accessToken);
+    const updated = await Storage.set(`room:${code}`, JSON.stringify(normalizedRoom), true, accessToken);
+    if (!updated) throw new Error('Unable to update the room. Refresh and try again.');
+    const storedRoom = normalizeRoom(safeParseJson(updated.value));
+    if (storedRoom) {
+      Object.assign(normalizedRoom, storedRoom);
+      if (room && typeof room === 'object') Object.assign(room, storedRoom);
+    }
+    return storedRoom || normalizedRoom;
+  },
+
+  async leaveRoom(code, accessToken = '') {
+    const socket = await getSocketClient();
+    if (!socket || !(socket.connected || await waitForSocketConnection(2000))) return false;
+    const key = `room:${code}`;
+    const player = typeof APP !== 'undefined' ? APP.player : null;
+    await socketEmitAck('room:leave', {
+      key,
+      authToken: getRoomAccessTokenForKey(key, accessToken),
+      actorToken: getRoomActorTokenForKey(key),
+      actorPlayerId: String(player?.id || '').trim()
+    }, 3000);
+    return true;
   }
 };

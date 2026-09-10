@@ -218,7 +218,7 @@ TEAM_BUILDER_ADMIN_RUNTIME.saveCommunityHostAccessRequest = async function saveC
 
 TEAM_BUILDER_ADMIN_RUNTIME.loadPublicConfig = async function loadPublicConfig() {
   try {
-    const data = await apiRequest('/api/config');
+    const data = await apiRequest('/api/config', { withUserToken: true });
     TEAM_BUILDER_ADMIN_RUNTIME.applyConfigPayload(data);
   } catch (e) {
     console.warn('Failed to load config:', e.message);
@@ -441,12 +441,6 @@ TEAM_BUILDER_ADMIN_RUNTIME.saveAdminConfig = async function saveAdminConfig() {
   const allowAnswerChanges = Boolean(document.getElementById('adminAllowAnswerChanges')?.checked);
   const dynamicScoring = Boolean(document.getElementById('adminDynamicScoring')?.checked);
   const enableMessageBoard = Boolean(document.getElementById('adminEnableMessageBoard')?.checked);
-  const communityHostAllowlist = String(document.getElementById('adminCommunityHostAllowlist')?.value || '')
-    .split('\n')
-    .map(name => normalizeName(name))
-    .filter(Boolean)
-    .filter((name, index, arr) => arr.indexOf(name) === index)
-    .slice(0, 100);
   const enabledActivities = Object.fromEntries(
     ACTIVITY_QUEUE_ITEMS.map(item => [item.id, Boolean(document.getElementById(`adminActivityEnabled-${item.id}`)?.checked)])
   );
@@ -473,7 +467,6 @@ TEAM_BUILDER_ADMIN_RUNTIME.saveAdminConfig = async function saveAdminConfig() {
           allowAnswerChanges,
           dynamicScoring,
           enableMessageBoard,
-          communityHostAllowlist,
           enabledActivities
         },
         collections: TEAM_BUILDER_ADMIN_RUNTIME.normalizeClientCollections(APP.admin.collections || [])

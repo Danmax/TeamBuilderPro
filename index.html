@@ -15,7 +15,7 @@
 
 <div class="app" id="app"></div>
 
-<script src="https://cdn.socket.io/4.8.1/socket.io.min.js" crossorigin="anonymous"></script>
+<script src="/socket.io/socket.io.js"></script>
 <script src="/assets/js/static-data.js"></script>
 <script src="/assets/js/runtime-utils.js"></script>
 <script src="/assets/js/storage-api.js"></script>
@@ -46,6 +46,7 @@ const TEAM_BUILDER_ENDPOINTS = window.TEAM_BUILDER_ENDPOINTS || {};
 
 const FEEDBACK_USER_TOKEN_KEY = TEAM_BUILDER_STORAGE_KEYS.FEEDBACK_USER_TOKEN_KEY || 'feedback-user-token';
 const ROOM_ACCESS_TOKEN_KEY_PREFIX = TEAM_BUILDER_STORAGE_KEYS.ROOM_ACCESS_TOKEN_KEY_PREFIX || 'room-access-token:';
+const ROOM_ACTOR_TOKEN_KEY_PREFIX = TEAM_BUILDER_STORAGE_KEYS.ROOM_ACTOR_TOKEN_KEY_PREFIX || 'room-actor-token:';
 const ACTIVE_SESSION_STORAGE_KEY = TEAM_BUILDER_STORAGE_KEYS.ACTIVE_SESSION_STORAGE_KEY || 'active-session';
 const SESSION_PLANS_STORAGE_KEY = TEAM_BUILDER_STORAGE_KEYS.SESSION_PLANS_STORAGE_KEY || 'session-plans';
 const SOCKET_SERVER_OVERRIDE = TEAM_BUILDER_ENDPOINTS.SOCKET_SERVER_OVERRIDE || '';
@@ -505,6 +506,7 @@ function normalizeAppPreferences(raw) {
     allowAnswerChanges: Boolean(source.allowAnswerChanges ?? defaults.allowAnswerChanges),
     dynamicScoring: Boolean(source.dynamicScoring ?? defaults.dynamicScoring),
     enableMessageBoard: Boolean(source.enableMessageBoard ?? defaults.enableMessageBoard),
+    communityHostApproved: source.communityHostApproved === true,
     communityHostAllowlist: Array.isArray(source.communityHostAllowlist)
       ? source.communityHostAllowlist
         .map(name => normalizeName(String(name || '')))
@@ -522,10 +524,7 @@ function isActivityEnabled(activityId) {
 
 function canCurrentUserCreateCommunityRooms() {
   if (APP.admin?.authenticated) return true;
-  const playerName = normalizeName(APP.player?.name || '');
-  if (!playerName) return false;
-  const allowlist = Array.isArray(APP.preferences?.communityHostAllowlist) ? APP.preferences.communityHostAllowlist : [];
-  return allowlist.includes(playerName);
+  return APP.preferences?.communityHostApproved === true;
 }
 
 function canCurrentUserManageCommunityRoom(room) {
@@ -732,6 +731,7 @@ function normalizeRoomParticipants(participants, hostName = '') {
         id: normalizedId,
         name: normalizedName,
         avatar: normalizeEmoji(participant.avatar || '') || '👤',
+        score: Number.isFinite(Number(participant.score)) ? Number(participant.score) : 0,
         isHost: normalizedName === hostName,
         ready: participant.ready !== false
       };
@@ -1532,11 +1532,13 @@ async function joinVoiceSession() {
       const response = await socketEmitAck('voice:join', authToken ? {
         key,
         authToken,
+        actorToken: getRoomActorTokenForKey(key),
         playerId: participant.id,
         playerName: participant.name,
         avatar: participant.avatar || ''
       } : {
         key,
+        actorToken: getRoomActorTokenForKey(key),
         playerId: participant.id,
         playerName: participant.name,
         avatar: participant.avatar || ''
@@ -6282,7 +6284,8 @@ async function createPlayer() {
 
 async function copyJoinLink() {
   if (!APP.roomCode) return;
-  const joinUrl = buildJoinUrl(APP.roomCode, APP.roomAccessToken || '', isRoomPrivateSession(APP.room));
+  const roomKey = `room:${APP.roomCode}`;
+  const joinUrl = buildJoinUrl(APP.roomCode, getRoomAccessTokenForKey(roomKey, APP.roomAccessToken || ''), isRoomPrivateSession(APP.room));
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(joinUrl);
@@ -6982,7 +6985,7 @@ async function saveHostSettings() {
   setAsyncButtonState(saveButton, true, 'Save Host Settings', 'Saving...');
 
   try {
-    const room = await RoomManager.loadRoom(APP.roomCode);
+    const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
     if (!room) {
       APP.hostSettingsSaving = false;
       setAsyncButtonState(saveButton, false, 'Save Host Settings', 'Saving...');
@@ -7002,7 +7005,10 @@ async function saveHostSettings() {
       ...(room.access && typeof room.access === 'object' ? room.access : {}),
       privateSession: roomSettings.privateSession === true
     };
-    await RoomManager.updateRoom(APP.roomCode, room);
+    await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
+    APP.roomAccessToken = roomSettings.privateSession === true
+      ? getRoomAccessTokenForKey(`room:${APP.roomCode}`, APP.roomAccessToken || '')
+      : '';
     APP.hostSettingsSaving = false;
     APP.room = normalizeRoom(room);
     APP.showHostSettings = false;

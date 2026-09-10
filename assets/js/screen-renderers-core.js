@@ -111,7 +111,7 @@ TEAM_BUILDER_SCREEN_RENDERERS.renderCommunityDirectory = function renderCommunit
       </div>
     ` : !canCreate ? `
       <div style="background:rgba(138,241,255,0.08);border:1px solid rgba(138,241,255,0.22);border-radius:16px;padding:14px 16px;margin-top:16px;color:var(--text-mid);">
-        Admin access or host allowlist approval is required to create community rooms. You can still browse and join open lobbies, or request community host access below.
+        Admin access or an approved host-access request is required to create community rooms. You can still browse and join open lobbies, or request community host access below.
       </div>
     ` : ''}
 
@@ -595,13 +595,6 @@ TEAM_BUILDER_SCREEN_RENDERERS.renderAdminConsole = function renderAdminConsole()
             <input id="adminDynamicScoring" type="checkbox" ${preferences.dynamicScoring !== false ? 'checked' : ''}>
             Use dynamic time-based scoring
           </label>
-        </div>
-        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-          <div style="font-weight:700;margin-bottom:8px;">Community Room Creators</div>
-          <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:8px;">
-            Admins can always create community rooms. Add approved host names below, one per line.
-          </div>
-          <textarea id="adminCommunityHostAllowlist" class="form-input" rows="5" placeholder="Alex Smith&#10;Jordan Lee">${escapeHtml((preferences.communityHostAllowlist || []).join('\n'))}</textarea>
         </div>
         <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px;">

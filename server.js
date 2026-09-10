@@ -17,16 +17,26 @@ try {
 
 const app = express();
 const server = http.createServer(app);
+const configuredSocketOrigins = String(process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
 const io = new Server(server, {
   cors: {
-    // Security Note: In production, replace '*' with specific frontend domain(s)
-    origin: '*'
-  }
+    // Same-origin deployments do not need CORS. When a split frontend is
+    // configured, allow only the explicitly listed origins.
+    origin: String(process.env.NODE_ENV || '').trim().toLowerCase() === 'production'
+      ? (configuredSocketOrigins.length ? configuredSocketOrigins : false)
+      : '*'
+  },
+  maxHttpBufferSize: 300000
 });
 
 const PORT = Number.parseInt(process.env.PORT || '3000', 10);
 const state = new Map();
-const DATA_DIR = path.join(__dirname, '.runtime-data');
+const DATA_DIR = process.env.DATA_DIR
+  ? path.resolve(String(process.env.DATA_DIR))
+  : path.join(__dirname, '.runtime-data');
 const DATA_FILE = path.join(DATA_DIR, 'shared-state.json');
 const FEEDBACK_FILE = path.join(DATA_DIR, 'feedback-state.json');
 const ROOM_META_FILE = path.join(DATA_DIR, 'room-meta.json');
@@ -82,6 +92,8 @@ const SESSION_TTL_MINUTES = 242;
 const SESSION_TTL_MS = SESSION_TTL_MINUTES * 60 * 1000;
 const SESSION_CLEANUP_INTERVAL_MS = 60 * 1000;
 const SHARED_STATE_MAX_BYTES = 250000;
+const DJ_ROOM_MAX_BYTES = 200 * 1024 * 1024;
+const DJ_ROOM_MAX_TRACKS = 48;
 let sessionCleanupInterval = null;
 
 
@@ -95,7 +107,7 @@ function getAdminTempPassword() {
 
 function getDevAdminPassword() {
   if (IS_PRODUCTION) return '';
-  return String(process.env.DEV_ADMIN_PASSWORD || getAdminTempPassword() || 'TAS2026!').trim();
+  return String(process.env.DEV_ADMIN_PASSWORD || getAdminTempPassword() || '').trim();
 }
 
 function maskConfiguredSecret(secret) {
@@ -274,7 +286,21 @@ app.use('/media/dj', express.static(DJ_UPLOAD_DIR, {
 
 // Security: Add Helmet for secure headers
 app.use(helmet({
-  contentSecurityPolicy: false // Disabled for simplicity with inline scripts in single-file frontend
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", 'https://www.youtube.com'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+      mediaSrc: ["'self'", 'blob:', 'https:'],
+      connectSrc: ["'self'", 'https:', 'wss:'],
+      frameSrc: ['https:'],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"]
+    }
+  }
 }));
 
 // Security: Rate limiting for API routes
@@ -287,6 +313,10 @@ const apiLimiter = rateLimit({
 app.use('/api/', apiLimiter);
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/sounds', express.static(path.join(__dirname, 'Sounds')));
+
+app.get('/healthz', (_req, res) => {
+  res.json({ ok: true, uptimeSeconds: Math.floor(process.uptime()) });
+});
 
 function sendFrontendFile(filename) {
   return (_req, res) => {
@@ -362,7 +392,8 @@ function loadRoomMetaFromDisk() {
       roomSecrets.set(key, {
         token,
         createdAt: Number(meta?.createdAt) || Date.now(),
-        privateSession
+        privateSession,
+        actorTokens: normalizeActorTokens(meta?.actorTokens)
       });
     });
   } catch (error) {
@@ -410,7 +441,8 @@ function persistRoomMetaToDisk() {
       {
         token: meta.token,
         createdAt: meta.createdAt,
-        privateSession: meta.privateSession === true
+        privateSession: meta.privateSession === true,
+        actorTokens: normalizeActorTokens(meta.actorTokens)
       }
     ]));
     const tempFile = `${ROOM_META_FILE}.tmp`;
@@ -522,6 +554,26 @@ function isValidRoomToken(token) {
   return /^[A-Za-z0-9_-]{20,128}$/.test(String(token || '').trim());
 }
 
+function isValidActorToken(token) {
+  return /^[A-Za-z0-9_-]{32,128}$/.test(String(token || '').trim());
+}
+
+function normalizeActorTokens(rawTokens) {
+  if (!rawTokens || typeof rawTokens !== 'object' || Array.isArray(rawTokens)) return {};
+  return Object.fromEntries(Object.entries(rawTokens)
+    .map(([playerId, token]) => [String(playerId || '').trim().slice(0, 64), String(token || '').trim()])
+    .filter(([playerId, token]) => playerId && isValidActorToken(token))
+    .slice(0, 100));
+}
+
+function safeTokenEqual(expected, provided) {
+  const expectedBuffer = Buffer.from(String(expected || ''));
+  const providedBuffer = Buffer.from(String(provided || ''));
+  return expectedBuffer.length > 0
+    && expectedBuffer.length === providedBuffer.length
+    && crypto.timingSafeEqual(expectedBuffer, providedBuffer);
+}
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -537,7 +589,8 @@ function createFeedbackId() {
 }
 
 function getUserToken(req) {
-  return String(req.header('x-user-token') || '').trim();
+  const token = String(req.header('x-user-token') || '').trim();
+  return /^u_[A-Za-z0-9_-]{12,126}$/.test(token) ? token : '';
 }
 
 function isValidHexColor(value) {
@@ -595,6 +648,41 @@ function isAllowedDjUpload(contentType = '', fileName = '') {
   );
 }
 
+function hasExpectedMediaSignature(buffer, extension) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 12) return false;
+  const firstFour = buffer.subarray(0, 4).toString('ascii');
+  if (extension === '.mp3') {
+    return buffer.subarray(0, 3).toString('ascii') === 'ID3'
+      || (buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0);
+  }
+  if (extension === '.wav') return firstFour === 'RIFF' && buffer.subarray(8, 12).toString('ascii') === 'WAVE';
+  if (extension === '.ogg') return firstFour === 'OggS';
+  if (extension === '.webm') return buffer.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]));
+  if (extension === '.m4a' || extension === '.aac') {
+    return buffer.subarray(4, 8).toString('ascii') === 'ftyp'
+      || (buffer[0] === 0xff && (buffer[1] & 0xf6) === 0xf0);
+  }
+  return false;
+}
+
+function getDjRoomDiskUsage(roomCode) {
+  if (!fs.existsSync(DJ_UPLOAD_DIR)) return { bytes: 0, files: 0 };
+  const prefix = `${roomCode}_`;
+  return fs.readdirSync(DJ_UPLOAD_DIR).reduce((usage, fileName) => {
+    if (!fileName.startsWith(prefix)) return usage;
+    try {
+      const stats = fs.statSync(path.join(DJ_UPLOAD_DIR, fileName));
+      if (stats.isFile()) {
+        usage.bytes += stats.size;
+        usage.files += 1;
+      }
+    } catch (_error) {
+      // A concurrent removal is harmless.
+    }
+    return usage;
+  }, { bytes: 0, files: 0 });
+}
+
 function normalizeDjLibraryTrack(rawTrack, idx = 0) {
   if (!rawTrack || typeof rawTrack !== 'object') return null;
   const id = String(rawTrack.id || `track_${idx + 1}`).trim().slice(0, 80);
@@ -615,10 +703,10 @@ function normalizeDjLibraryTrack(rawTrack, idx = 0) {
 }
 
 function isLocalDevRequest(req) {
+  if (!req) return false;
   const rawHost = String(req.hostname || req.header('host') || '').trim().toLowerCase();
   const host = rawHost.replace(/:\d+$/, '');
-  const forwardedFor = String(req.header('x-forwarded-for') || '').split(',')[0].trim();
-  const remoteAddress = String(forwardedFor || req.ip || req.socket?.remoteAddress || '').trim().replace(/^::ffff:/, '');
+  const remoteAddress = String(req.ip || req.socket?.remoteAddress || '').trim().replace(/^::ffff:/, '');
   const isLoopbackHost = host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
   const isLoopbackIp = remoteAddress === '127.0.0.1' || remoteAddress === '::1';
   return !IS_PRODUCTION && (isLoopbackHost || isLoopbackIp);
@@ -629,8 +717,8 @@ function isValidAdminToken(token, req) {
   const adminToken = getAdminToken();
   const devAdminPassword = getDevAdminPassword();
   if (!normalizedToken) return false;
-  if (adminToken && normalizedToken === adminToken) return true;
-  if (devAdminPassword && normalizedToken === devAdminPassword && !IS_PRODUCTION) return true;
+  if (adminToken && safeTokenEqual(adminToken, normalizedToken)) return true;
+  if (devAdminPassword && safeTokenEqual(devAdminPassword, normalizedToken) && !IS_PRODUCTION && isLocalDevRequest(req)) return true;
   return false;
 }
 
@@ -810,8 +898,31 @@ function listCommunityRooms() {
 
 function deleteRoomState(key) {
   if (!isRoomKey(key)) return false;
+  const room = getRoomSnapshot(key);
+  const library = Array.isArray(room?.activityState?.trackLibrary) ? room.activityState.trackLibrary : [];
+  library.forEach((track, idx) => {
+    const normalized = normalizeDjLibraryTrack(track, idx);
+    if (!normalized?.storageKey) return;
+    const filePath = path.join(DJ_UPLOAD_DIR, path.basename(normalized.storageKey));
+    try {
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch (error) {
+      console.error(`Failed to remove DJ upload ${normalized.storageKey}:`, error.message);
+    }
+  });
+  if (fs.existsSync(DJ_UPLOAD_DIR)) {
+    const roomCodePrefix = `${key.replace(/^room:/, '')}_`;
+    fs.readdirSync(DJ_UPLOAD_DIR).forEach(fileName => {
+      if (!fileName.startsWith(roomCodePrefix)) return;
+      try {
+        fs.unlinkSync(path.join(DJ_UPLOAD_DIR, path.basename(fileName)));
+      } catch (error) {
+        console.error(`Failed to remove DJ upload ${fileName}:`, error.message);
+      }
+    });
+  }
   const existed = state.delete(key);
-  roomSecrets.delete(key);
+  const hadRoomMeta = roomSecrets.delete(key);
   if (voiceRooms.has(key)) {
     const voiceState = voiceRooms.get(key);
     voiceState?.sockets?.forEach((_member, socketId) => {
@@ -823,7 +934,7 @@ function deleteRoomState(key) {
     });
     voiceRooms.delete(key);
   }
-  if (existed) {
+  if (existed || hadRoomMeta) {
     schedulePersist();
     scheduleRoomMetaPersist();
   }
@@ -906,7 +1017,8 @@ function getRoomAccessMeta(key) {
   const inferred = {
     token: '',
     createdAt: Number(room?.created) || Date.now(),
-    privateSession: room?.access?.privateSession === true || room?.hostSettings?.privateSession === true
+    privateSession: room?.access?.privateSession === true || room?.hostSettings?.privateSession === true,
+    actorTokens: {}
   };
   roomSecrets.set(key, inferred);
   scheduleRoomMetaPersist();
@@ -933,7 +1045,8 @@ function ensureRoomAccess(key, authToken, desiredPrivateSession = false) {
     roomSecrets.set(key, {
       token: normalizedToken,
       createdAt: Date.now(),
-      privateSession: normalizedPrivateSession
+      privateSession: normalizedPrivateSession,
+      actorTokens: {}
     });
     scheduleRoomMetaPersist();
     return true;
@@ -1037,6 +1150,114 @@ function getRoomParticipant(room, playerId = '', playerName = '') {
     if (playerId && getParticipantStableId(participant) === playerId) return true;
     return Boolean(playerName) && participant.name === playerName;
   }) || null;
+}
+
+function getRoomActor(key, payload, room = getRoomSnapshot(key), options = {}) {
+  const playerId = String(payload?.actorPlayerId || payload?.playerId || '').trim().slice(0, 64);
+  const actorToken = String(payload?.actorToken || '').trim();
+  if (!playerId || !isValidActorToken(actorToken) || !room) return null;
+  const participant = getRoomParticipant(room, playerId, '');
+  if (!participant) return null;
+  const meta = getRoomAccessMeta(key);
+  if (!meta) return null;
+  meta.actorTokens = normalizeActorTokens(meta.actorTokens);
+  const expectedToken = meta.actorTokens[playerId];
+  if (!expectedToken) {
+    if (options.allowLegacyClaim !== true || !hasValidRoomAccess(key, getRequestRoomToken(payload))) return null;
+    meta.actorTokens[playerId] = actorToken;
+    scheduleRoomMetaPersist();
+  } else if (!safeTokenEqual(expectedToken, actorToken)) {
+    return null;
+  }
+  return {
+    playerId,
+    participant,
+    isHost: participant.name === room.host
+  };
+}
+
+function isApprovedCommunityHost(userToken, playerName) {
+  const normalizedUserToken = String(userToken || '').trim();
+  const normalizedName = String(playerName || '').replace(/\s+/g, ' ').trim().slice(0, 32);
+  if (!normalizedUserToken || !normalizedName) return false;
+  return feedbackState.communityHostRequests.some(request => (
+    request.status === 'approved'
+    && request.userToken === normalizedUserToken
+    && request.userName === normalizedName
+  ));
+}
+
+const HOST_CONTROLLED_ROOM_FIELDS = [
+  'host',
+  'participants',
+  'hostSettings',
+  'access',
+  'roomType',
+  'communityTitle',
+  'communityDescription',
+  'maxParticipants',
+  'currentActivity',
+  'activityQueue',
+  'queueSchedule',
+  'queueIndex',
+  'queueActive',
+  'queueTiming'
+];
+
+function participantCanApplyRoomUpdate(currentRoom, nextRoom, actorPlayerId) {
+  if (!currentRoom || !nextRoom) return false;
+  const fixedFieldsUnchanged = HOST_CONTROLLED_ROOM_FIELDS
+    .filter(field => field !== 'participants')
+    .every(field => (
+    JSON.stringify(currentRoom[field] ?? null) === JSON.stringify(nextRoom[field] ?? null)
+  ));
+  if (!fixedFieldsUnchanged) return false;
+  const currentParticipants = Array.isArray(currentRoom.participants) ? currentRoom.participants : [];
+  const nextParticipants = Array.isArray(nextRoom.participants) ? nextRoom.participants : [];
+  if (currentParticipants.length !== nextParticipants.length) return false;
+  const names = new Set();
+  return currentParticipants.every(currentParticipant => {
+    const participantId = getParticipantStableId(currentParticipant);
+    const nextParticipant = nextParticipants.find(item => getParticipantStableId(item) === participantId);
+    if (!nextParticipant) return false;
+    const normalizedName = String(nextParticipant.name || '').replace(/\s+/g, ' ').trim().slice(0, 32);
+    if (!normalizedName || names.has(normalizedName)) return false;
+    names.add(normalizedName);
+    if (participantId !== actorPlayerId) {
+      return JSON.stringify(currentParticipant) === JSON.stringify(nextParticipant);
+    }
+    const { name: _oldName, avatar: _oldAvatar, ...currentRest } = currentParticipant;
+    const { name: _newName, avatar: _newAvatar, ...nextRest } = nextParticipant;
+    return JSON.stringify(currentRest) === JSON.stringify(nextRest);
+  });
+}
+
+function containsUnsafeMarkup(value, depth = 0) {
+  if (depth > 12) return true;
+  if (typeof value === 'string') {
+    return /<\s*\/?\s*(?:script|iframe|object|embed|svg|math|style|link|meta)\b/i.test(value)
+      || /\bon[a-z]+\s*=/i.test(value)
+      || /javascript\s*:/i.test(value);
+  }
+  if (Array.isArray(value)) return value.some(item => containsUnsafeMarkup(item, depth + 1));
+  if (!value || typeof value !== 'object') return false;
+  return Object.values(value).some(item => containsUnsafeMarkup(item, depth + 1));
+}
+
+function normalizeServerParticipant(rawParticipant, isHost = false) {
+  if (!rawParticipant || typeof rawParticipant !== 'object') return null;
+  const id = String(rawParticipant.id || '').trim().replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+  const name = String(rawParticipant.name || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 32);
+  if (!id || !name) return null;
+  return {
+    ...rawParticipant,
+    id,
+    name,
+    avatar: String(rawParticipant.avatar || '👤').replace(/[<>]/g, '').trim().slice(0, 8) || '👤',
+    score: Number.isFinite(Number(rawParticipant.score)) ? Number(rawParticipant.score) : 0,
+    isHost,
+    ready: rawParticipant.ready !== false
+  };
 }
 
 function isRoomHostParticipant(room, playerId = '', playerName = '') {
@@ -1228,10 +1449,21 @@ function removeSocketFromVoiceRoom(socket, emitUpdate = true) {
   }
 }
 
-app.get('/api/config', (_req, res) => {
+app.get('/api/config', (req, res) => {
+  const { communityHostAllowlist: _privateAllowlist, ...publicPreferences } = feedbackState.config.preferences;
+  const userToken = getUserToken(req);
+  const communityHostApproved = feedbackState.communityHostRequests.some(request => (
+    request.status === 'approved' && request.userToken === userToken
+  ));
   res.json({
     ok: true,
-    config: feedbackState.config,
+    config: {
+      ...feedbackState.config,
+      preferences: {
+        ...publicPreferences,
+        communityHostApproved
+      }
+    },
     collections: feedbackState.collections,
     ai: {
       serverKeyConfigured: false,
@@ -1257,6 +1489,8 @@ app.post('/api/dj/library/upload', express.raw({ type: () => true, limit: '30mb'
   const roomKey = isRoomKey(`room:${roomCode}`) ? `room:${roomCode}` : '';
   const roomToken = String(req.header('x-room-token') || '').trim();
   const playerName = String(req.header('x-player-name') || '').replace(/\s+/g, ' ').trim().slice(0, 32);
+  const actorPlayerId = String(req.header('x-player-id') || '').trim().slice(0, 64);
+  const actorToken = String(req.header('x-actor-token') || '').trim();
   const rawFileName = sanitizeDjFileName(decodeURIComponent(String(req.header('x-file-name') || 'track').trim()));
   const fileName = rawFileName || 'track';
   const contentType = String(req.header('content-type') || 'application/octet-stream').trim().toLowerCase();
@@ -1270,7 +1504,8 @@ app.post('/api/dj/library/upload', express.raw({ type: () => true, limit: '30mb'
     res.status(401).json({ ok: false, error: 'Unauthorized room access.' });
     return;
   }
-  if (!playerName || room.host !== playerName) {
+  const actor = getRoomActor(roomKey, { actorPlayerId, actorToken }, room);
+  if (!actor?.isHost || actor.participant.name !== playerName) {
     res.status(403).json({ ok: false, error: 'Only the host can upload DJ tracks.' });
     return;
   }
@@ -1282,12 +1517,21 @@ app.post('/api/dj/library/upload', express.raw({ type: () => true, limit: '30mb'
     res.status(400).json({ ok: false, error: 'Unsupported audio format. Use mp3, wav, m4a, ogg, or webm audio.' });
     return;
   }
+  const extension = getDjUploadExtension(fileName, contentType);
+  if (!hasExpectedMediaSignature(req.body, extension)) {
+    res.status(400).json({ ok: false, error: 'The uploaded file does not match its declared audio format.' });
+    return;
+  }
+  const diskUsage = getDjRoomDiskUsage(roomCode);
+  if (diskUsage.files >= DJ_ROOM_MAX_TRACKS || diskUsage.bytes + req.body.length > DJ_ROOM_MAX_BYTES) {
+    res.status(413).json({ ok: false, error: 'This room has reached its shared DJ library quota.' });
+    return;
+  }
 
   try {
     ensureRuntimeDir(DJ_UPLOAD_DIR);
-    const extension = getDjUploadExtension(fileName, contentType);
     const trackId = `dj_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
-    const storageKey = `${trackId}${extension}`;
+    const storageKey = `${roomCode}_${trackId}${extension}`;
     const filePath = path.join(DJ_UPLOAD_DIR, storageKey);
     fs.writeFileSync(filePath, req.body);
     res.json({
@@ -1313,6 +1557,8 @@ app.delete('/api/dj/library/:trackId', (req, res) => {
   const roomKey = isRoomKey(`room:${roomCode}`) ? `room:${roomCode}` : '';
   const roomToken = String(req.header('x-room-token') || '').trim();
   const playerName = String(req.header('x-player-name') || '').replace(/\s+/g, ' ').trim().slice(0, 32);
+  const actorPlayerId = String(req.header('x-player-id') || '').trim().slice(0, 64);
+  const actorToken = String(req.header('x-actor-token') || '').trim();
   const room = roomKey ? getRoomSnapshot(roomKey) : null;
   const trackId = String(req.params?.trackId || '').trim();
 
@@ -1324,7 +1570,8 @@ app.delete('/api/dj/library/:trackId', (req, res) => {
     res.status(401).json({ ok: false, error: 'Unauthorized room access.' });
     return;
   }
-  if (!playerName || room.host !== playerName) {
+  const actor = getRoomActor(roomKey, { actorPlayerId, actorToken }, room);
+  if (!actor?.isHost || actor.participant.name !== playerName) {
     res.status(403).json({ ok: false, error: 'Only the host can remove DJ tracks.' });
     return;
   }
@@ -1387,6 +1634,7 @@ app.post('/api/feedback', (req, res) => {
   };
 
   feedbackState.feedback.unshift(feedback);
+  feedbackState.feedback = feedbackState.feedback.slice(0, 1000);
   scheduleFeedbackPersist();
 
   res.json({ ok: true, feedback });
@@ -1429,26 +1677,6 @@ app.post('/api/community/host-access-request', (req, res) => {
   }
   if (!reason) {
     res.status(400).json({ ok: false, error: 'Please include a short reason for access.' });
-    return;
-  }
-
-  const allowlist = normalizePreferences(feedbackState.config.preferences).communityHostAllowlist || [];
-  if (allowlist.includes(userName)) {
-    res.json({
-      ok: true,
-      request: normalizeCommunityHostRequest({
-        id: `community-host-access-approved-${userName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-        userToken,
-        userId,
-        userName,
-        reason,
-        status: 'approved',
-        adminNotes: 'Already approved through the community host allowlist.',
-        createdAt: nowIso(),
-        updatedAt: nowIso(),
-        resolvedAt: nowIso()
-      })
-    });
     return;
   }
 
@@ -1626,19 +1854,6 @@ app.patch('/api/admin/community-host-requests/:id', requireAdmin, async (req, re
   request.updatedAt = nowIso();
   request.resolvedAt = status === 'pending' ? null : nowIso();
 
-  if (status === 'approved') {
-    const preferences = normalizePreferences(feedbackState.config.preferences);
-    const userName = String(request.userName || '').replace(/\s+/g, ' ').trim().slice(0, 32);
-    if (!userName) {
-      res.status(400).json({ ok: false, error: 'Approved request must include a valid user name' });
-      return;
-    }
-    feedbackState.config.preferences = {
-      ...preferences,
-      communityHostAllowlist: Array.from(new Set([...(preferences.communityHostAllowlist || []), userName]))
-    };
-  }
-
   feedbackState.communityHostRequests = normalizeCommunityHostRequests(feedbackState.communityHostRequests);
   scheduleFeedbackPersist();
   await persistConfigToDatabase();
@@ -1652,6 +1867,122 @@ app.patch('/api/admin/community-host-requests/:id', requireAdmin, async (req, re
 });
 
 io.on('connection', socket => {
+  let eventWindowStartedAt = Date.now();
+  let eventCount = 0;
+  socket.use((_packet, next) => {
+    const now = Date.now();
+    if (now - eventWindowStartedAt >= 10000) {
+      eventWindowStartedAt = now;
+      eventCount = 0;
+    }
+    eventCount += 1;
+    if (eventCount > 200) {
+      next(new Error('Realtime event rate limit exceeded'));
+      return;
+    }
+    next();
+  });
+
+  socket.on('room:join', (payload, ack) => {
+    const key = payload?.key;
+    const authToken = getRequestRoomToken(payload);
+    const actorToken = String(payload?.actorToken || '').trim();
+    const playerId = String(payload?.playerId || '').trim().replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+    const playerName = String(payload?.playerName || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 32);
+    const playerAvatar = String(payload?.playerAvatar || '👤').replace(/[<>]/g, '').trim().slice(0, 8) || '👤';
+    if (!isRoomKey(key) || !isAuthorizedForRoom(key, authToken)) {
+      ack?.({ ok: false, error: 'Room not found or access denied' });
+      return;
+    }
+    if (!playerId || !playerName || !isValidActorToken(actorToken)) {
+      ack?.({ ok: false, error: 'Invalid participant identity' });
+      return;
+    }
+    const room = getRoomSnapshot(key);
+    const meta = getRoomAccessMeta(key);
+    if (!room || !meta) {
+      ack?.({ ok: false, error: 'Room not found' });
+      return;
+    }
+    meta.actorTokens = normalizeActorTokens(meta.actorTokens);
+    const existingById = getRoomParticipant(room, playerId, '');
+    const existingByName = getRoomParticipant(room, '', playerName);
+    if (existingById) {
+      const expectedToken = meta.actorTokens[playerId];
+      if (expectedToken && !safeTokenEqual(expectedToken, actorToken)) {
+        ack?.({ ok: false, error: 'Participant identity is already in use' });
+        return;
+      }
+    } else if (existingByName) {
+      ack?.({ ok: false, error: 'That display name is already in use in this room' });
+      return;
+    } else {
+      const maxParticipants = Math.max(2, Math.min(100, Number(room.maxParticipants) || 24));
+      if ((room.participants?.length || 0) >= maxParticipants) {
+        ack?.({ ok: false, error: `This room is full (${maxParticipants} participants max).` });
+        return;
+      }
+      room.participants = Array.isArray(room.participants) ? room.participants : [];
+      room.participants.push(normalizeServerParticipant({
+        id: playerId,
+        name: playerName,
+        avatar: playerAvatar,
+        ready: true
+      }, false));
+    }
+    meta.actorTokens[playerId] = actorToken;
+    if (existingById) {
+      existingById.name = playerName;
+      existingById.avatar = playerAvatar;
+    }
+    room.lastUpdate = Date.now();
+    room.revision = Math.max(0, Number(room.revision) || 0) + 1;
+    state.set(key, JSON.stringify(room));
+    schedulePersist();
+    scheduleRoomMetaPersist();
+    socket.join(key);
+    io.to(key).emit('shared:update', { key, value: state.get(key) });
+    ack?.({ ok: true, value: state.get(key) });
+  });
+
+  socket.on('room:leave', (payload, ack) => {
+    const key = payload?.key;
+    const authToken = getRequestRoomToken(payload);
+    if (!isRoomKey(key) || !isAuthorizedForRoom(key, authToken)) {
+      ack?.({ ok: false, error: 'Room access denied' });
+      return;
+    }
+    const room = getRoomSnapshot(key);
+    const actor = getRoomActor(key, payload, room);
+    if (!room || !actor) {
+      ack?.({ ok: false, error: 'Participant authentication required' });
+      return;
+    }
+    room.participants = (Array.isArray(room.participants) ? room.participants : [])
+      .filter(participant => getParticipantStableId(participant) !== actor.playerId);
+    const meta = getRoomAccessMeta(key);
+    if (meta?.actorTokens) delete meta.actorTokens[actor.playerId];
+    if (!room.participants.length) {
+      room.host = '';
+      room.currentActivity = null;
+      room.activityState = {};
+    } else if (actor.isHost) {
+      room.host = room.participants[0].name;
+    }
+    room.participants = room.participants.map(participant => normalizeServerParticipant(
+      participant,
+      participant.name === room.host
+    )).filter(Boolean);
+    room.lastUpdate = Date.now();
+    room.revision = Math.max(0, Number(room.revision) || 0) + 1;
+    state.set(key, JSON.stringify(room));
+    schedulePersist();
+    scheduleRoomMetaPersist();
+    socket.leave(key);
+    io.to(key).emit('shared:update', { key, value: state.get(key) });
+    ack?.({ ok: true });
+  });
+
   socket.on('room:subscribe', payload => {
     const key = typeof payload === 'string' ? payload : payload?.key;
     const authToken = getRequestRoomToken(payload);
@@ -1697,17 +2028,74 @@ io.on('connection', socket => {
       return;
     }
 
+    const nextRoom = safeParseJsonObject(strValue);
+    if (!nextRoom || containsUnsafeMarkup(nextRoom)) {
+      ack?.({ ok: false, error: 'Invalid or unsafe room payload' });
+      return;
+    }
+    const roomCode = key.replace(/^room:/, '');
+    if (String(nextRoom.code || '').trim().toUpperCase() !== roomCode) {
+      ack?.({ ok: false, error: 'Room code does not match storage key' });
+      return;
+    }
     const desiredPrivateSession = extractRoomPrivacyFromValue(strValue);
+    const existingRoom = getRoomSnapshot(key);
     if (!ensureRoomAccess(key, authToken, desiredPrivateSession)) {
       ack?.({ ok: false, error: 'Unauthorized room write' });
       return;
     }
 
-    state.set(key, strValue);
+    const meta = getRoomAccessMeta(key);
+    const actorToken = String(payload?.actorToken || '').trim();
+    const actorPlayerId = String(payload?.actorPlayerId || '').trim().slice(0, 64);
+    if (!existingRoom) {
+      const hostParticipant = getRoomParticipant(nextRoom, actorPlayerId, '');
+      const actorName = String(payload?.actorPlayerName || '').trim();
+      if (!isValidActorToken(actorToken) || !hostParticipant || hostParticipant.name !== nextRoom.host || hostParticipant.name !== actorName) {
+        deleteRoomState(key);
+        ack?.({ ok: false, error: 'Valid host identity required to create room' });
+        return;
+      }
+      if (
+        String(nextRoom.roomType || '').trim().toLowerCase() === 'community'
+        && !isApprovedCommunityHost(payload?.userToken, hostParticipant.name)
+        && !isValidAdminToken(payload?.adminToken, null)
+      ) {
+        deleteRoomState(key);
+        ack?.({ ok: false, error: 'Approved community-host access is required' });
+        return;
+      }
+      meta.actorTokens = { [actorPlayerId]: actorToken };
+      nextRoom.revision = 1;
+      scheduleRoomMetaPersist();
+    } else {
+      const adminActor = isValidAdminToken(payload?.adminToken, null);
+      const actor = adminActor ? null : getRoomActor(key, payload, existingRoom, { allowLegacyClaim: true });
+      if (!adminActor && !actor) {
+        ack?.({ ok: false, error: 'Participant authentication required' });
+        return;
+      }
+      if (!adminActor && !actor.isHost && !participantCanApplyRoomUpdate(existingRoom, nextRoom, actor.playerId)) {
+        ack?.({ ok: false, error: 'Only the host can change room controls' });
+        return;
+      }
+      if (Number(nextRoom.revision) !== Number(existingRoom.revision)) {
+        ack?.({ ok: false, error: 'Room changed before this update was saved. Please retry.' });
+        return;
+      }
+      nextRoom.revision = Math.max(0, Number(existingRoom.revision) || 0) + 1;
+    }
+
+    nextRoom.participants = (Array.isArray(nextRoom.participants) ? nextRoom.participants : [])
+      .map(participant => normalizeServerParticipant(participant, participant?.name === nextRoom.host))
+      .filter(Boolean)
+      .slice(0, 100);
+
+    state.set(key, JSON.stringify(nextRoom));
     schedulePersist();
     io.to(key).emit('shared:update', { key, value: state.get(key) });
     emitVoiceState(key, safeParseJsonObject(strValue));
-    ack?.({ ok: true });
+    ack?.({ ok: true, value: state.get(key) });
   });
 
   socket.on('shared:delete', (payload, ack) => {
@@ -1719,6 +2107,12 @@ io.on('connection', socket => {
     }
     if (!isAuthorizedForRoom(key, authToken)) {
       ack?.({ ok: false, error: 'Unauthorized room access' });
+      return;
+    }
+    const adminActor = isValidAdminToken(payload?.adminToken, null);
+    const actor = adminActor ? null : getRoomActor(key, payload, getRoomSnapshot(key), { allowLegacyClaim: true });
+    if (!adminActor && !actor?.isHost) {
+      ack?.({ ok: false, error: 'Only the host can remove a room' });
       return;
     }
     const deleted = removeRoomSession(key, 'deleted');
@@ -1742,7 +2136,12 @@ io.on('connection', socket => {
     const room = getRoomSnapshot(key);
     const participant = getRoomParticipant(room, playerId, playerName);
     const participantId = getParticipantStableId(participant);
-    if (!participantId) {
+    const actor = getRoomActor(key, {
+      actorPlayerId: participantId,
+      actorToken: payload?.actorToken,
+      authToken
+    }, room, { allowLegacyClaim: true });
+    if (!participantId || !actor || actor.playerId !== participantId) {
       ack?.({ ok: false, error: 'Player is not in this room' });
       return;
     }
@@ -1981,8 +2380,9 @@ Promise.resolve()
   .finally(() => {
     startSessionCleanupLoop();
     server.listen(PORT, () => {
+      const listeningPort = server.address()?.port || PORT;
       // eslint-disable-next-line no-console
-      console.log(`Team Builder realtime server listening on http://localhost:${PORT}`);
+      console.log(`Team Builder realtime server listening on http://localhost:${listeningPort}`);
       // eslint-disable-next-line no-console
       console.log(`Environment: NODE_ENV=${process.env.NODE_ENV || 'undefined'} ADMIN_TOKEN=${maskConfiguredSecret(getAdminToken())}`);
       if (configDb) {

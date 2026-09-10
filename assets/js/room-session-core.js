@@ -1,4 +1,12 @@
 const TEAM_BUILDER_ROOM_SESSION_CORE = typeof window !== 'undefined' ? window : globalThis;
+let roomTickLastRenderAt = 0;
+
+function renderRoomTickAtMostOncePerSecond() {
+  const now = Date.now();
+  if (now - roomTickLastRenderAt < 1000) return;
+  roomTickLastRenderAt = now;
+  render();
+}
 
 TEAM_BUILDER_ROOM_SESSION_CORE.persistActiveSessionSnapshot = function persistActiveSessionSnapshot() {
   if (!APP.player?.id || !APP.player?.name || !APP.roomCode) return;
@@ -156,7 +164,7 @@ TEAM_BUILDER_ROOM_SESSION_CORE.createCommunityRoomAndNavigate = async function c
     return;
   }
   if (!canCurrentUserCreateCommunityRooms()) {
-    showError('Admin access or host allowlist approval is required to create community rooms.');
+    showError('Admin access or an approved host-access request is required to create community rooms.');
     return;
   }
   await createRoomAndNavigate({
@@ -257,23 +265,10 @@ TEAM_BUILDER_ROOM_SESSION_CORE.leaveSession = async function leaveSession() {
     return;
   }
 
-  const room = await RoomManager.loadRoom(APP.roomCode);
-  if (room) {
-    room.participants = (room.participants || []).filter(p => p.id !== APP.player.id && p.name !== APP.player.name);
-    if (room.participants.length > 0) {
-      if (room.host === APP.player.name) {
-        room.host = room.participants[0].name;
-      }
-      room.participants = normalizeRoomParticipants(room.participants.map(p => ({
-        ...p,
-        isHost: p.name === room.host
-      })), room.host);
-    } else {
-      room.host = null;
-      room.currentActivity = null;
-      room.activityState = {};
-    }
-    await RoomManager.updateRoom(APP.roomCode, room);
+  try {
+    await RoomManager.leaveRoom(APP.roomCode, APP.roomAccessToken || '');
+  } catch (_error) {
+    // Local exit should still complete if the server is unavailable.
   }
 
   stopRoomSync();
@@ -329,7 +324,7 @@ TEAM_BUILDER_ROOM_SESSION_CORE.startRoomSync = function startRoomSync() {
           lightningAutoRevealPending = false;
         }
       }
-      render();
+      renderRoomTickAtMostOncePerSecond();
     }
 
     if (APP.room?.currentActivity === 'tic-tac-toe-blitz') {
@@ -344,12 +339,12 @@ TEAM_BUILDER_ROOM_SESSION_CORE.startRoomSync = function startRoomSync() {
           ticTacToeFinalizePending = false;
         }
       }
-      render();
+      renderRoomTickAtMostOncePerSecond();
     }
 
     if (APP.room?.queueActive && APP.room?.queueTiming?.enabled) {
       await maybeAdvanceTimedQueue();
-      render();
+      renderRoomTickAtMostOncePerSecond();
     }
   }, ROOM_SYNC_MS);
 };

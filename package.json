@@ -8,7 +8,9 @@
     "node": "22.x"
   },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "check": "node --check server.js && node --test",
+    "test": "node --test"
   },
   "dependencies": {
     "chess.js": "^1.4.0",
@@ -16,6 +18,13 @@
     "express-rate-limit": "^7.1.5",
     "helmet": "^7.1.0",
     "pg": "^8.13.1",
+    "qs": "6.16.0",
     "socket.io": "^4.8.1"
+  },
+  "overrides": {
+    "qs": "6.16.0"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.3"
   }
 }
