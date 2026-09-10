@@ -4,6 +4,7 @@ function getDefaultChessUiState() {
     selectedSquare: '',
     pendingPromotion: null,
     lastSoundKey: '',
+    lastAnimatedMoveKey: '',
     timeControlSeconds: 600,
     computerDifficulty: 'normal'
   };
@@ -78,6 +79,12 @@ function maybePlayChessLastMoveSound(game) {
   if (APP.chessUi.lastSoundKey === soundKey) return;
   APP.chessUi.lastSoundKey = soundKey;
   playChessMoveSound(move);
+}
+
+function getChessMoveKey(game) {
+  const move = game?.lastMove;
+  if (!game?.id || !move?.from || !move?.to || !move?.at) return '';
+  return `${game.id}:${move.from}:${move.to}:${move.at}:${move.promotion || ''}`;
 }
 
 function createChessSeat(participant = null, fallbackLabel = 'Player') {
@@ -1130,7 +1137,15 @@ function renderChessGameView(state, game) {
   const ranks = orientation === 'black' ? [...CHESS_RANKS].reverse() : CHESS_RANKS;
   const lastMoveSquares = new Set([game.lastMove?.from, game.lastMove?.to].filter(Boolean));
   const lastMoveAgeMs = Date.now() - (Number(game.lastMove?.at) || 0);
-  const shouldAnimateLastMove = lastMoveAgeMs >= 0 && lastMoveAgeMs < 1800;
+  const moveAnimationKey = getChessMoveKey(game);
+  const shouldAnimateLastMove = lastMoveAgeMs >= 0
+    && lastMoveAgeMs < 1800
+    && moveAnimationKey
+    && APP.chessUi?.lastAnimatedMoveKey !== moveAnimationKey;
+  // A local write and the Socket.IO echo both render the same state. Mark the
+  // move before returning markup so only the first render starts the CSS
+  // animation; subsequent renders keep the move highlight without replaying.
+  if (shouldAnimateLastMove) APP.chessUi.lastAnimatedMoveKey = moveAnimationKey;
   const getDisplayPosition = square => ({
     fileIndex: files.indexOf(String(square || '').slice(0, 1)),
     rankIndex: ranks.indexOf(String(square || '').slice(1, 2))
