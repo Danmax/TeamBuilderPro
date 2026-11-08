@@ -288,6 +288,10 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
           <p class="card-desc">Roll dice, move around the board, hit blots, and bear off all fifteen checkers first</p>
         </button>
 
+        <button type="button" class="card" data-action="start-checkers" aria-label="Start Checkers" style="${enabledActivities.checkers === false ? 'display:none;' : ''}">
+          <div class="card-icon">⚫</div><h3 class="card-title">Checkers</h3><p class="card-desc">Play a shared two-player board with forced captures, multiple jumps, and kings</p>
+        </button>
+
         <button type="button" class="card" data-action="start-connect-4" aria-label="Start Connect 4" style="${enabledActivities['connect-4'] === false ? 'display:none;' : ''}">
           <div class="card-icon">🟡</div>
           <h3 class="card-title">Connect 4</h3>

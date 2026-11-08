@@ -52,3 +52,11 @@ The app does not make model API requests. The AI app generates the content; Team
 - All literal rendered button actions audited against registered actions and app switch handlers; no missing handlers remained.
 - 390px mobile layout checked for horizontal overflow; desktop and mobile screenshots inspected. These are layout checks, not a complete accessibility or cross-browser audit.
 - Voice/WebRTC, external presentation embedding, YouTube playback, external QR availability, and full gameplay across all games were not validated end to end.
+
+## Admin and question-builder refinement
+
+A subsequent pass separates the admin console into Overview, Sessions, Activities, App settings, Questions & themes, and Feedback. Branding is expandable; app settings are grouped; activity availability has search and bulk presets. Edited settings survive tab changes, and a save/discard bar appears where relevant or when edits are pending. Color controls and theme choices use delegated event listeners compatible with the app's security policy.
+
+Question creation now includes grouped theme presets, custom focus, reusable browser-local themes, named packs, and an import preview with answer details. Plain question arrays can be imported for one selected activity. Preview and save share validation; unsupported activities and invalid items are rejected, and failed saves retain the draft reply. The Message Board preference is now included in server normalization so it persists when saved.
+
+Verification: 13 automated tests pass. An isolated headless Chrome admin session verified authentication, all six tabs, draft preservation, activity presets, settings save, saved themes, named prompts, preview without persistence, question import, and 390px layout width. These changes have not been pushed or deployed as part of this refinement.

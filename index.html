@@ -19,6 +19,7 @@
 <script src="/assets/js/static-data.js"></script>
 <script src="/assets/js/runtime-utils.js"></script>
 <script src="/assets/js/theme-content-core.js"></script>
+<script src="/assets/js/content-themes.js"></script>
 <script src="/assets/js/activity-discovery.js"></script>
 <script src="/assets/js/storage-api.js"></script>
 <script src="/assets/js/navigation-core.js"></script>
@@ -28,6 +29,7 @@
 <script src="/assets/js/domain-managers.js"></script>
 <script src="/assets/js/session-plans-core.js"></script>
 <script src="/assets/js/admin-runtime-core.js"></script>
+<script src="/assets/js/admin-experience.js"></script>
 <script src="/assets/js/screen-renderers-core.js"></script>
 <script src="/assets/js/room-renderers-core.js"></script>
 <script src="/assets/js/core/activity-registry.js"></script>
@@ -38,6 +40,8 @@
 <script src="/assets/js/activities/bingo.js"></script>
 <script src="/assets/js/activities/backgammon.js"></script>
 <script src="/assets/js/activities/connect-4.js"></script>
+<script src="/assets/js/games/checkers-core.js"></script>
+<script src="/assets/js/activities/checkers.js"></script>
 <script src="/assets/js/activities/rock-paper-scissors.js"></script>
 <script src="/assets/js/activities/chess-lobby.js"></script>
 <script src="/assets/js/core/particles.js"></script>
@@ -462,7 +466,8 @@ function getDefaultAppPreferences() {
     'survey-clash',
     'bingo',
     'rock-paper-scissors',
-    'chess-lobby'
+    'chess-lobby',
+    'checkers'
   ]);
   return {
     enableFeedbackHub: true,
@@ -1832,6 +1837,7 @@ const ALL_ACTIVITY_IDS = [
   'bingo',
   'backgammon',
   'connect-4',
+  'checkers',
   'rock-paper-scissors',
   'chess-lobby',
   'cosmos-bound'
@@ -2489,7 +2495,9 @@ function getContentStudioDraftDefaults(scope, planId = '') {
     scope: context.scope,
     planId: context.planId,
     themePreset: context.brief.themePreset || 'Team Collaboration',
-    customTopic: context.brief.customTopic || context.brief.themePreset || '',
+    customTopic: context.brief.customTopic || '',
+    themeSelection: context.brief.themePreset || 'Team Collaboration',
+    packName: '',
     audience: context.brief.audience || '',
     tone: context.brief.tone || '',
     difficulty: context.brief.difficulty || HOST_LOCAL_CONFIG.aiDefaultDifficulty || 'mixed',
@@ -2508,6 +2516,7 @@ function ensureContentStudioDraft(scope, planId = '') {
   const nextDraft = getContentStudioDraftDefaults(scope, planId);
   APP.contentStudioDraft = nextDraft;
   APP.contentStudioLastPrompt = null;
+  APP.contentStudioPreview = null;
   APP.contentStudioStatus = null;
   return nextDraft;
 }
@@ -2521,7 +2530,9 @@ function captureContentStudioDraftFromInputs() {
   APP.contentStudioDraft = {
     scope,
     planId,
-    themePreset: '',
+    themeSelection: String(document.getElementById('contentStudioThemePreset')?.value || ''),
+    themePreset: getContentThemeChoice(document.getElementById('contentStudioThemePreset')?.value || '').themePreset || '',
+    packName: String(document.getElementById('contentStudioPackName')?.value || '').trim().slice(0, 80),
     customTopic: normalizeTopic(document.getElementById('contentStudioCustomTopic')?.value || ''),
     audience: normalizeTopic(document.getElementById('contentStudioAudience')?.value || ''),
     tone: normalizeTopic(document.getElementById('contentStudioTone')?.value || ''),
@@ -2536,6 +2547,7 @@ function captureContentStudioDraftFromInputs() {
 
 function buildContentStudioTopic(draft) {
   const pieces = [
+    String(draft?.themePreset || '').trim(),
     String(draft?.customTopic || '').trim(),
     draft?.audience ? `audience: ${draft.audience}` : '',
     draft?.tone ? `tone: ${draft.tone}` : ''
@@ -2546,8 +2558,10 @@ function buildContentStudioTopic(draft) {
 async function persistContentStudioCollections(scope, planId, collections) {
   const normalized = normalizeClientCollections(collections);
   if (scope === 'admin') {
+    const previous = APP.admin.collections;
     APP.admin.collections = normalized;
-    await persistAdminCollectionsOnly();
+    try { await persistAdminCollectionsOnly(); }
+    catch (error) { APP.admin.collections = previous; throw error; }
     return;
   }
   if (scope === 'plan') {
@@ -2595,37 +2609,78 @@ async function upsertContentStudioGeneratedCollection(scope, planId, activityId,
   await persistContentStudioCollections(scope, planId, nextCollections);
 }
 
-async function addContentStudioCollectionFromInput() {
-  const scope = String(document.getElementById('contentStudioScope')?.value || 'room');
-  const planId = String(document.getElementById('contentStudioPlanId')?.value || '');
+function readContentStudioImport() {
   const input = document.getElementById('contentStudioCollectionJson');
+  const draft = captureContentStudioDraftFromInputs();
   let parsed;
   let additions;
-  try {
-    parsed = TeamBuilderThemeContent.parseContentJSON(input?.value);
-    additions = normalizeClientCollections(Array.isArray(parsed) ? parsed : [parsed]);
-    if (!additions.length) throw new Error('Use the complete content pack with a name and activities object.');
-    for (const collection of additions) {
-      for (const [activityId, items] of Object.entries(collection.activities)) {
-        const validated = validateGeneratedContentForActivity(activityId, items);
-        if (!validated.length || validated.length !== items.length) {
-          throw new Error(`Check the format of ${AI_GENERATION_TARGET_LABELS[activityId] || activityId}. Every item must be valid. Survey points must total 100.`);
-        }
-        collection.activities[activityId] = validated;
-      }
+  parsed = TeamBuilderThemeContent.parseContentJSON(input?.value);
+  if (Array.isArray(parsed) && !parsed.some(item => item?.activities)) {
+    if (draft.selectedActivityIds.length !== 1) throw new Error('For a plain question array, select exactly one activity.');
+    parsed = { name: draft.packName || draft.themePreset || 'My question pack', activities: { [draft.selectedActivityIds[0]]: parsed } };
+  }
+  const rawCollections = Array.isArray(parsed) ? parsed : [parsed];
+  for (const collection of rawCollections) {
+    if (!collection?.activities || typeof collection.activities !== 'object') throw new Error('Each pack needs an activities object.');
+    for (const id of Object.keys(collection.activities)) {
+      if (!AI_GENERATION_TARGET_LABELS[id]) throw new Error(`Unsupported question activity: ${id}.`);
+      if (!Array.isArray(collection.activities[id]) || !collection.activities[id].length) throw new Error(`Add at least one item for ${AI_GENERATION_TARGET_LABELS[id]}.`);
     }
+  }
+  additions = normalizeClientCollections(rawCollections);
+  if (!additions.length) throw new Error('Use the complete content pack with a name and activities object.');
+  for (const collection of additions) {
+    for (const [activityId, items] of Object.entries(collection.activities)) {
+      const validated = validateGeneratedContentForActivity(activityId, items);
+      if (!validated.length || validated.length !== items.length) {
+        throw new Error(`Check the format of ${AI_GENERATION_TARGET_LABELS[activityId] || activityId}. Every item must be valid. Survey points must total 100.`);
+      }
+      collection.activities[activityId] = validated;
+    }
+  }
+  if (draft.packName && additions.length === 1) additions[0].name = draft.packName;
+  return additions;
+}
+
+function previewContentStudioImport() {
+  try {
+    APP.contentStudioPreview = readContentStudioImport();
+    APP.contentStudioStatus = 'Reply is valid. Review the questions below, then save the pack.';
   } catch (error) {
-    showError(`Content not imported: ${error.message}`);
+    APP.contentStudioPreview = null;
+    APP.contentStudioStatus = `Reply needs attention: ${error.message}`;
+  }
+  render();
+}
+
+async function addContentStudioCollectionFromInput() {
+  if (APP.contentStudioSaving) return;
+  const scope = String(document.getElementById('contentStudioScope')?.value || 'room');
+  const planId = String(document.getElementById('contentStudioPlanId')?.value || '');
+  let additions;
+  try { additions = readContentStudioImport(); }
+  catch (error) {
+    APP.contentStudioPreview = null;
+    APP.contentStudioStatus = `Content not imported: ${error.message}`;
+    render();
     return;
   }
   const existing = getContentStudioScopeCollections(scope, planId);
   const merged = new Map(existing.map(item => [item.id, item]));
   additions.forEach(item => merged.set(item.id, item));
-  await persistContentStudioCollections(scope, planId, Array.from(merged.values()));
-  APP.contentStudioStatus = `Imported ${additions.length} content pack${additions.length === 1 ? '' : 's'}. Start an activity to use these questions.`;
-  captureContentStudioDraftFromInputs();
-  APP.contentStudioDraft.collectionJson = '';
-  render();
+  APP.contentStudioSaving = true;
+  try {
+    await persistContentStudioCollections(scope, planId, Array.from(merged.values()));
+    APP.contentStudioStatus = `Saved ${additions.length} question pack${additions.length === 1 ? '' : 's'} to ${scope === 'admin' ? 'the global library' : scope === 'plan' ? 'this plan' : 'this session'}.`;
+    captureContentStudioDraftFromInputs();
+    APP.contentStudioDraft.collectionJson = '';
+    APP.contentStudioPreview = null;
+  } catch (error) {
+    APP.contentStudioStatus = `Questions were not saved: ${error.message}. Your reply is still here to retry.`;
+  } finally {
+    APP.contentStudioSaving = false;
+    render();
+  }
 }
 
 async function removeContentStudioCollection(collectionId) {
@@ -2635,6 +2690,17 @@ async function removeContentStudioCollection(collectionId) {
   await persistContentStudioCollections(scope, planId, nextCollections);
   APP.contentStudioStatus = 'Collection removed.';
   render();
+}
+
+function renderContentStudioPreviewItem(item) {
+  const title = typeof item === 'string' ? item : item.q || item.prompt || item.category || item.title || item.name || item.text || item.emojis || '';
+  let details = '';
+  if (Array.isArray(item?.opts)) details = item.opts.map((option, index) => `${escapeHtml(option)}${Number(item.ans) === index ? ' ✓' : ''}`).join(' · ');
+  else if (Array.isArray(item?.answers)) details = item.answers.map(answer => `${escapeHtml(answer.text)} (${Number(answer.points)} pts)`).join(' · ');
+  else if (item?.answer) details = `Answer: ${escapeHtml(item.answer)}`;
+  else if (Array.isArray(item?.words)) details = item.words.map(escapeHtml).join(' → ');
+  else if (Array.isArray(item?.clues)) details = `${item.clues.length} clues: ${item.clues.slice(0, 2).map(clue => escapeHtml(clue.q)).join(' · ')}`;
+  return `<li>${escapeHtml(title)}${details ? `<div class="studio-help">${details}</div>` : ''}</li>`;
 }
 
 function renderAIContentStudioSection(scope, { planId = '', compact = false } = {}) {
@@ -2647,15 +2713,24 @@ function renderAIContentStudioSection(scope, { planId = '', compact = false } = 
       <input type="hidden" id="contentStudioScope" value="${escapeHtml(context.scope)}">
       <input type="hidden" id="contentStudioPlanId" value="${escapeHtml(context.planId)}">
       <h3>Create questions for your theme</h3>
-      <p class="studio-help">Describe your theme, copy a prompt into your preferred AI app, then paste its JSON reply here. Questions replace sample content for the selected activities and are saved ${context.scope === 'admin' ? 'to the global library' : context.scope === 'plan' ? 'with this session plan' : 'to this session'}.</p>
-      <label class="form-label" for="contentStudioCustomTopic">1. What’s the theme?</label>
-      <textarea id="contentStudioCustomTopic" class="form-input" rows="2" maxlength="160" placeholder="e.g. Space exploration for a team kickoff — playful and beginner-friendly" oninput="APP.contentStudioDraft&&(APP.contentStudioDraft.customTopic=this.value)">${escapeHtml(draft.customTopic || '')}</textarea>
+      <p class="studio-help">Pick a theme and activities, copy a prompt into your AI app, then review and save its reply. Custom questions take priority over sample content.</p>
+      <div class="content-scope-note">${context.scope === 'admin' ? 'Global library: these question packs are available across sessions. Session-specific packs take priority.' : context.scope === 'plan' ? 'Saved with this plan and included when you launch its session.' : 'Session library: these questions apply only to this room.'}</div>
+      <label class="form-label" for="contentStudioThemePreset">1. Choose a theme</label>
+      <select id="contentStudioThemePreset" class="form-input">
+        <option value="">Custom theme</option>
+        ${Array.from(new Set(TEAM_BUILDER_CONTENT_THEMES.map(item => item.group))).map(group => `<optgroup label="${escapeHtml(group)}">${TEAM_BUILDER_CONTENT_THEMES.filter(item => item.group === group).map(item => `<option value="${escapeHtml(item.label)}" ${(draft.themeSelection || draft.themePreset) === item.label ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}</optgroup>`).join('')}
+        ${draft.themePreset && !TEAM_BUILDER_CONTENT_THEMES.some(item => item.label === draft.themePreset) && !String(draft.themeSelection).startsWith('saved:') ? `<option value="${escapeHtml(draft.themePreset)}" selected>${escapeHtml(draft.themePreset)}</option>` : ''}
+        ${getSavedContentThemes().length ? `<optgroup label="My saved themes">${getSavedContentThemes().map(item => `<option value="saved:${escapeHtml(item.id)}" ${draft.themeSelection === `saved:${item.id}` ? 'selected' : ''}>${escapeHtml(item.name)}</option>`).join('')}</optgroup>` : ''}
+      </select>
+      <label class="form-label" for="contentStudioCustomTopic" style="margin-top:12px;">${draft.themePreset ? 'Add a focus or instructions (optional)' : 'Describe your theme'}</label>
+      <textarea id="contentStudioCustomTopic" class="form-input" rows="2" maxlength="160" placeholder="e.g. Space exploration for a team kickoff — playful and beginner-friendly">${escapeHtml(draft.customTopic || '')}</textarea>
+      <details class="studio-details"><summary>Save this theme for reuse</summary><p class="studio-help">Saved on this browser, including audience, tone, count, and difficulty.</p><label class="form-label" for="contentStudioSavedThemeName">Theme name</label><input id="contentStudioSavedThemeName" class="form-input" maxlength="60" placeholder="e.g. Friday space quiz"><div class="admin-action-row"><button class="btn-secondary" data-action="content-studio-save-theme">Save theme</button>${String(draft.themeSelection).startsWith('saved:') ? '<button class="btn-secondary" data-action="content-studio-delete-theme">Remove saved theme</button>' : ''}</div></details>
       <fieldset class="studio-activities">
         <legend class="form-label">2. Choose activities</legend>
         <div class="studio-choice-grid">
           ${context.availableTargets.map(item => `
             <label class="studio-choice">
-              <input id="contentStudioActivity-${item.id}" type="checkbox" ${draft.selectedActivityIds?.includes(item.id) ? 'checked' : ''} onchange="captureContentStudioDraftFromInputs()">
+              <input id="contentStudioActivity-${item.id}" type="checkbox" ${draft.selectedActivityIds?.includes(item.id) ? 'checked' : ''}>
               <span>${escapeHtml(item.label)}</span>
             </label>`).join('')}
         </div>
@@ -2663,20 +2738,23 @@ function renderAIContentStudioSection(scope, { planId = '', compact = false } = 
       <details class="studio-details">
         <summary>Customize question count, difficulty & audience</summary>
         <div class="studio-choice-grid" style="margin-top:12px;">
-          <label>Questions per activity<input id="contentStudioCount" class="form-input" type="number" min="3" max="20" value="${draft.count || 8}" onchange="captureContentStudioDraftFromInputs()"></label>
-          <label>Difficulty<select id="contentStudioDifficulty" class="form-input" onchange="captureContentStudioDraftFromInputs()">
+          <label>Questions per activity<input id="contentStudioCount" class="form-input" type="number" min="3" max="20" value="${draft.count || 8}"></label>
+          <label>Difficulty<select id="contentStudioDifficulty" class="form-input">
             ${['easy', 'mixed', 'hard'].map(level => `<option value="${level}" ${draft.difficulty === level ? 'selected' : ''}>${level[0].toUpperCase() + level.slice(1)}</option>`).join('')}
           </select></label>
-          <label>Audience (optional)<input id="contentStudioAudience" class="form-input" maxlength="120" value="${escapeHtml(draft.audience || '')}" oninput="APP.contentStudioDraft&&(APP.contentStudioDraft.audience=this.value)"></label>
-          <label>Tone (optional)<input id="contentStudioTone" class="form-input" maxlength="120" value="${escapeHtml(draft.tone || '')}" oninput="APP.contentStudioDraft&&(APP.contentStudioDraft.tone=this.value)"></label>
+          <label>Audience (optional)<input id="contentStudioAudience" class="form-input" maxlength="120" value="${escapeHtml(draft.audience || '')}"></label>
+          <label>Tone (optional)<input id="contentStudioTone" class="form-input" maxlength="120" value="${escapeHtml(draft.tone || '')}"></label>
         </div>
       </details>
+      <label class="form-label" for="contentStudioPackName">Question pack name (optional)</label><input id="contentStudioPackName" class="form-input" maxlength="80" value="${escapeHtml(draft.packName || '')}" placeholder="e.g. Space kickoff — round 1">
       <button class="btn-primary" data-action="content-studio-generate-selected" style="margin:12px 0;">Copy AI prompt</button>
       ${APP.contentStudioLastPrompt ? `<details class="studio-details" open><summary>Your prompt — paste into your AI app</summary><textarea class="form-input" aria-label="Generated AI prompt" readonly rows="6">${escapeHtml(APP.contentStudioLastPrompt)}</textarea></details>` : ''}
       <label class="form-label" for="contentStudioCollectionJson">3. Paste the AI reply</label>
-      <textarea id="contentStudioCollectionJson" class="form-input" rows="5" placeholder='Paste the complete JSON content pack here. Markdown code fences are accepted.' oninput="APP.contentStudioDraft&&(APP.contentStudioDraft.collectionJson=this.value)">${escapeHtml(draft.collectionJson || '')}</textarea>
-      <button class="btn-primary" data-action="content-studio-add-collection" style="margin-top:10px;">Save questions to ${context.scope === 'admin' ? 'library' : context.scope === 'plan' ? 'plan' : 'session'}</button>
-      ${APP.contentStudioStatus ? `<p role="status" aria-live="polite" class="studio-help">${escapeHtml(APP.contentStudioStatus)}</p>` : ''}
+      <textarea id="contentStudioCollectionJson" class="form-input" rows="5" placeholder='Paste the complete JSON content pack here. Markdown code fences are accepted.'>${escapeHtml(draft.collectionJson || '')}</textarea>
+      <button class="btn-secondary" data-action="content-studio-preview-import" style="margin-top:10px;">Review questions</button>
+      <div id="contentStudioImportPreview">${APP.contentStudioPreview ? APP.contentStudioPreview.map(pack => `<article class="question-preview"><h4>${escapeHtml(pack.name)}</h4>${Object.entries(pack.activities).map(([id, items]) => `<p><strong>${escapeHtml(AI_GENERATION_TARGET_LABELS[id] || id)}</strong> · ${items.length} items</p><ol>${items.slice(0, 3).map(renderContentStudioPreviewItem).join('')}</ol>${items.length > 3 ? `<p class="studio-help">Plus ${items.length - 3} more items.</p>` : ''}`).join('')}</article>`).join('') : ''}</div>
+      <button class="btn-primary" data-action="content-studio-add-collection" ${APP.contentStudioSaving ? 'disabled aria-busy="true"' : ''} style="margin-top:10px;">Save questions to ${context.scope === 'admin' ? 'library' : context.scope === 'plan' ? 'plan' : 'session'}</button>
+      ${APP.contentStudioStatus ? `<p id="contentStudioStatus" role="status" aria-live="polite" class="studio-help">${escapeHtml(APP.contentStudioStatus)}</p>` : ''}
       <details class="studio-details" style="margin-top:18px;">
         <summary>Saved content packs (${context.scopeCollections.length})</summary>
         ${context.scopeCollections.length ? context.scopeCollections.map(collection => `
@@ -2801,7 +2879,7 @@ async function generateContentStudioActivityContent(activityIds = null) {
   const exampleKeys = selectedIds.map(id => '    "' + id + '": [ ... ]').join(',\n');
   const importNote = 'IMPORTANT: To import into the app, wrap your output in a collection object like this:\n{\n  "name": "My Content Pack",\n  "activities": {\n' + exampleKeys + '\n  }\n}\n\nPaste that complete JSON into the "Paste the AI reply" box in the app.';
 
-  const wrapperPrompt = 'You create accurate facilitator game content. Output strict JSON only.\n\nFor each section below, generate the requested content following the exact format and examples shown.\n\n' + fullPrompt + '\n\n--- FINAL OUTPUT FORMAT ---\n' + importNote;
+  const wrapperPrompt = `Name the content pack ${JSON.stringify(draft.packName || buildContentStudioTopic(draft))}.\n` + 'You create accurate facilitator game content. Output strict JSON only.\n\nFor each section below, generate the requested content following the exact format and examples shown.\n\n' + fullPrompt + '\n\n--- FINAL OUTPUT FORMAT ---\n' + importNote;
 
   try {
     await navigator.clipboard.writeText(wrapperPrompt);
@@ -5856,6 +5934,7 @@ function render() {
   html += renderFooter();
   
   app.innerHTML = html;
+  if (APP.screen === 'admin' && APP.admin.authenticated) restoreAdminSettingsDraft();
   applyActivityFilters();
   if (liveInput) {
     const replacement = document.getElementById(liveInput.id);
@@ -7977,6 +8056,19 @@ document.addEventListener('click', async (event) => {
     case 'open-admin-console':
       openAdminConsole();
       break;
+    case 'admin-discard-settings':
+      resetAdminSettingsDraft();
+      render();
+      break;
+    case 'admin-activity-preset': {
+      const defaults = normalizeAppPreferences({}).enabledActivities;
+      document.querySelectorAll('[id^="adminActivityEnabled-"]').forEach(input => {
+        const id = input.id.replace('adminActivityEnabled-', '');
+        input.checked = target.dataset.preset === 'all' || (target.dataset.preset === 'essentials' && defaults[id] !== false);
+      });
+      captureAdminSettingsDraft();
+      break;
+    }
     case 'admin-console-tab':
       switchAdminConsoleTab(tab || 'overview');
       break;
@@ -8015,6 +8107,15 @@ document.addEventListener('click', async (event) => {
       break;
     case 'content-studio-generate-selected':
       await generateContentStudioActivityContent();
+      break;
+    case 'content-studio-save-theme':
+      saveContentStudioTheme();
+      break;
+    case 'content-studio-delete-theme':
+      deleteContentStudioTheme();
+      break;
+    case 'content-studio-preview-import':
+      previewContentStudioImport();
       break;
     case 'content-studio-add-collection':
       await addContentStudioCollectionFromInput();

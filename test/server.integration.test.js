@@ -191,3 +191,85 @@ test('room mutations require participant identity and host controls require the 
   const config = await configResponse.json();
   assert.equal('communityHostAllowlist' in config.config.preferences, false);
 });
+
+
+test('admin Message Board preference persists and is returned to clients', async t => {
+  const { port } = await startTestServer(t);
+  const baseUrl = `http://127.0.0.1:${port}`;
+  const response = await fetch(`${baseUrl}/api/admin/config`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'x-admin-token': 'integration-admin-token' },
+    body: JSON.stringify({ preferences: { enableMessageBoard: false } })
+  });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).config.preferences.enableMessageBoard, false);
+  const publicResponse = await fetch(`${baseUrl}/api/config`);
+  assert.equal((await publicResponse.json()).config.preferences.enableMessageBoard, false);
+});
+
+test('Checkers supports late seating and validates turns, moves, stale requests, and host controls', async t => {
+  const Checkers = require('../assets/js/games/checkers-core');
+  const { port } = await startTestServer(t);
+  const socket = io(`http://127.0.0.1:${port}`, { transports: ['websocket'], forceNew: true });
+  t.after(() => socket.close());
+  await new Promise((resolve, reject) => { socket.once('connect', resolve); socket.once('connect_error', reject); });
+  const key = 'room:CHECK1';
+  const host = { actorToken: 'checkers_host_token_1234567890_abcdef', actorPlayerId: 'host-check', actorPlayerName: 'Host' };
+  const guest = { actorToken: 'checkers_guest_token_1234567890_abcdef', actorPlayerId: 'guest-check', actorPlayerName: 'Guest' };
+  const spectator = { actorToken: 'checkers_spectator_token_1234567890', actorPlayerId: 'watch-check', actorPlayerName: 'Watcher' };
+  let room = { code: 'CHECK1', host: 'Host', roomType: 'private', participants: [{ id: 'host-check', name: 'Host', isHost: true }], currentActivity: null, activityState: {}, activityQueue: [], queueSchedule: [], queueIndex: 0, queueActive: false, queueTiming: {}, hostSettings: {}, access: {}, created: Date.now() };
+  const created = await emitAck(socket, 'shared:set', { key, ...host, value: JSON.stringify(room) });
+  assert.equal(created.ok, true, created.error);
+  room = JSON.parse(created.value);
+  const started = await emitAck(socket, 'shared:set', { key, ...host, value: JSON.stringify({ ...room, currentActivity: 'checkers', activityState: {} }) });
+  assert.equal(started.ok, true);
+  assert.equal(JSON.parse(started.value).activityState.phase, 'waiting');
+  const join = await emitAck(socket, 'room:join', { key, actorToken: guest.actorToken, playerId: guest.actorPlayerId, playerName: 'Guest' });
+  assert.equal(join.ok, true);
+  room = JSON.parse(join.value);
+  const action = (actor, name, extra = {}) => emitAck(socket, 'checkers:action', { key, ...actor, action: name, gameId: room.activityState.startedAt, moveNumber: room.activityState.moveNumber, ...extra });
+  const seated = await action(guest, 'join');
+  assert.equal(seated.ok, true, seated.error);
+  room = JSON.parse(seated.value);
+  assert.equal(room.activityState.players.r.playerId, guest.actorPlayerId);
+  assert.equal(room.activityState.phase, 'playing');
+  const watched = await emitAck(socket, 'room:join', { key, actorToken: spectator.actorToken, playerId: spectator.actorPlayerId, playerName: 'Watcher' });
+  room = JSON.parse(watched.value);
+  assert.equal((await action(guest, 'move', { from: 17, to: 24 })).ok, false);
+  assert.equal((await action(spectator, 'move', { from: 40, to: 33 })).ok, false);
+  assert.equal((await action(host, 'move', { from: 40, to: 39 })).ok, false);
+  const move = Checkers.legalMoves(room.activityState)[0];
+  const before = room.activityState.moveNumber;
+  socket.emit('room:subscribe', { key });
+  const update = new Promise(resolve => socket.once('shared:update', resolve));
+  const moved = await action(host, 'move', move);
+  assert.equal(moved.ok, true, moved.error);
+  assert.equal(JSON.parse((await update).value).activityState.board[move.to], 'b');
+  room = JSON.parse(moved.value);
+  assert.equal(room.activityState.turn, 'r');
+  const stale = await action(host, 'move', { ...move, moveNumber: before });
+  assert.equal(stale.ok, false);
+  assert.match(stale.error, /board changed/);
+  assert.equal((await action(guest, 'restart')).ok, false);
+  const tamper = await emitAck(socket, 'shared:set', { key, ...host, value: JSON.stringify({ ...room, activityState: { ...room.activityState, winner: 'b' } }) });
+  assert.equal(tamper.ok, false);
+  const redMove = Checkers.legalMoves(room.activityState)[0];
+  const replied = await action(guest, 'move', redMove);
+  assert.equal(replied.ok, true, replied.error);
+  room = JSON.parse(replied.value);
+  const restarted = await action(host, 'restart');
+  assert.equal(restarted.ok, true);
+  room = JSON.parse(restarted.value);
+  assert.equal(room.activityState.moveNumber, 0);
+  assert.equal(room.activityState.board.filter(Boolean).length, 24);
+  const queuedRestart = await emitAck(socket, 'shared:set', {
+    key, ...host, value: JSON.stringify({ ...room, queueActive: true, queueIndex: 1, activityQueue: ['checkers'], activityState: {} })
+  });
+  assert.equal(queuedRestart.ok, true, queuedRestart.error);
+  room = JSON.parse(queuedRestart.value);
+  assert.equal(room.activityState.board.filter(Boolean).length, 24);
+
+  const ended = await emitAck(socket, 'shared:set', { key, ...host, value: JSON.stringify({ ...room, currentActivity: null, activityState: {} }) });
+  assert.equal(ended.ok, true);
+  assert.equal(JSON.parse(ended.value).participants.length, 3);
+});

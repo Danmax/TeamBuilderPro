@@ -56,6 +56,7 @@ The app runs locally with Socket.IO and JSON persistence by default. Runtime fil
 - Bingo
 - Backgammon
 - Connect 4
+- Checkers
 - Chess Lobby
 - Cosmos Bound
 
@@ -239,3 +240,13 @@ Slides Studio also supports copying an AI prompt and importing a JSON array of s
 Every activity has a host **Back to session** control, which pauses any running queue while keeping the agenda. The legacy standalone survey board links back to Team Builder and remains separate from the multiplayer session game.
 
 See [the app and UX review](UX_REVIEW.md) for findings, validation, and further improvements.
+
+The Admin Console separates live sessions, activity availability, app settings, questions/themes, and feedback. Unsaved app settings survive tab changes; use **Save app settings** or **Discard edits**. The Activities tab includes search and Essentials / Enable all / Disable all presets.
+
+The question builder includes grouped theme presets and reusable themes saved on the current browser. Name a question pack, copy its AI prompt, and use **Review questions** to validate and preview a reply before saving. A plain JSON question array is accepted when exactly one activity is selected; complete content-pack JSON supports multiple activities. Global admin packs and session-specific packs are labeled separately.
+
+## Checkers
+
+Start **Checkers** from the lobby or add it to the activity queue. The first two participants take Black and Red; other participants can watch. If the match starts with one player, a joining participant can choose **Join match**. Black moves first, and each player sees the board from their own side.
+
+Select a highlighted piece, then a legal destination. Captures are required, multiple jumps use the same piece, and promotion to a king ends the turn. Kings move and capture diagonally in both directions. Capturing all opposing pieces or blocking every opposing move wins; threefold repetition or 80 moves without capture/promotion ends in a draw. Moves and player turns are validated by the server. The host can start a new match to reseat current participants or use **Back to session**.

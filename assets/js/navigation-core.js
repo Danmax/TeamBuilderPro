@@ -47,7 +47,8 @@ TEAM_BUILDER_NAV_CORE.openAdminConsole = function openAdminConsole() {
 };
 
 TEAM_BUILDER_NAV_CORE.switchAdminConsoleTab = function switchAdminConsoleTab(tabId) {
-  const allowed = new Set(['overview', 'features', 'ai', 'feedback']);
+  const allowed = new Set(['overview', 'sessions', 'features', 'activities', 'ai', 'feedback']);
+  captureAdminSettingsDraft();
   APP.admin.activeTab = allowed.has(tabId) ? tabId : 'overview';
   render();
 };

@@ -313,6 +313,7 @@ TEAM_BUILDER_ADMIN_RUNTIME.adminLogin = async function adminLogin() {
 };
 
 TEAM_BUILDER_ADMIN_RUNTIME.adminLogout = function adminLogout() {
+  resetAdminSettingsDraft();
   APP.admin.authenticated = false;
   APP.admin.activeTab = 'overview';
   APP.admin.feedback = [];
@@ -446,7 +447,7 @@ TEAM_BUILDER_ADMIN_RUNTIME.saveAdminConfig = async function saveAdminConfig() {
   );
   const saveButton = document.querySelector('[data-action="save-admin-config"]');
   APP.admin.savingConfig = true;
-  setAsyncButtonState(saveButton, true, 'Save Branding & Preferences', 'Saving...');
+  setAsyncButtonState(saveButton, true, 'Save app settings', 'Saving...');
 
   try {
     const data = await apiRequest('/api/admin/config', {
@@ -474,10 +475,11 @@ TEAM_BUILDER_ADMIN_RUNTIME.saveAdminConfig = async function saveAdminConfig() {
     });
     APP.admin.savingConfig = false;
     TEAM_BUILDER_ADMIN_RUNTIME.applyConfigPayload(data);
+    resetAdminSettingsDraft();
     render();
   } catch (e) {
     APP.admin.savingConfig = false;
-    setAsyncButtonState(saveButton, false, 'Save Branding & Preferences', 'Saving...');
+    setAsyncButtonState(saveButton, false, 'Save app settings', 'Saving...');
     showError(e.message);
   }
 };

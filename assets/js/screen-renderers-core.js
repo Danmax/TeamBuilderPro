@@ -392,81 +392,31 @@ TEAM_BUILDER_SCREEN_RENDERERS.renderAdminConsole = function renderAdminConsole()
     `;
   }
 
-  const activeTab = ['overview', 'features', 'ai', 'feedback'].includes(admin.activeTab) ? admin.activeTab : 'overview';
+  const activeTab = ['overview', 'sessions', 'features', 'activities', 'ai', 'feedback'].includes(admin.activeTab) ? admin.activeTab : 'overview';
   return `
-    <div class="header">
+    <div class="header session-header">
       <h1 class="logo">Admin Console</h1>
       <p class="tagline">Manage branding, feature controls, datasets, and facilitator feedback from one place.</p>
     </div>
     <button class="btn-secondary" data-action="go-screen" data-screen="${backScreen}">${backLabel}</button>
     <button class="btn-secondary" data-action="admin-logout" style="margin-left:10px;">Log Out</button>
 
-    <div class="form-container" style="margin-top:20px;">
+    <div class="form-container admin-workspace" style="margin-top:20px;">
       <div class="host-tabs" role="tablist" aria-label="Admin console sections" style="margin-bottom:18px;">
         <button class="host-tab-btn ${activeTab === 'overview' ? 'active' : ''}" data-action="admin-console-tab" data-tab="overview" role="tab" aria-selected="${activeTab === 'overview' ? 'true' : 'false'}">Overview</button>
-        <button class="host-tab-btn ${activeTab === 'features' ? 'active' : ''}" data-action="admin-console-tab" data-tab="features" role="tab" aria-selected="${activeTab === 'features' ? 'true' : 'false'}">Features</button>
-        <button class="host-tab-btn ${activeTab === 'ai' ? 'active' : ''}" data-action="admin-console-tab" data-tab="ai" role="tab" aria-selected="${activeTab === 'ai' ? 'true' : 'false'}">AI Studio</button>
+        <button class="host-tab-btn ${activeTab === 'sessions' ? 'active' : ''}" data-action="admin-console-tab" data-tab="sessions" role="tab" aria-selected="${activeTab === 'sessions'}">Sessions</button>
+        <button class="host-tab-btn ${activeTab === 'activities' ? 'active' : ''}" data-action="admin-console-tab" data-tab="activities" role="tab" aria-selected="${activeTab === 'activities'}">Activities</button>
+        <button class="host-tab-btn ${activeTab === 'features' ? 'active' : ''}" data-action="admin-console-tab" data-tab="features" role="tab" aria-selected="${activeTab === 'features' ? 'true' : 'false'}">App settings</button>
+        <button class="host-tab-btn ${activeTab === 'ai' ? 'active' : ''}" data-action="admin-console-tab" data-tab="ai" role="tab" aria-selected="${activeTab === 'ai' ? 'true' : 'false'}">Questions & themes</button>
         <button class="host-tab-btn ${activeTab === 'feedback' ? 'active' : ''}" data-action="admin-console-tab" data-tab="feedback" role="tab" aria-selected="${activeTab === 'feedback' ? 'true' : 'false'}">Feedback</button>
       </div>
-      <div data-tab-panel="overview" class="host-tab-panel" ${activeTab !== 'overview' ? 'hidden' : ''}>
-        <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:14px;">Branding & Overview</h3>
-        <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:12px;">
-          Config storage: <strong>${dbConnected ? 'Database connected' : 'Local file fallback'}</strong>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="adminBrandAppName">App Name</label>
-          <input id="adminBrandAppName" class="form-input" value="${safeAppName}" maxlength="64">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="adminBrandTagline">Tagline</label>
-          <input id="adminBrandTagline" class="form-input" value="${safeTagline}" maxlength="140">
-        </div>
-        <div style="margin-bottom:18px;padding:16px;background:var(--surface-2);border:1px solid var(--border);border-radius:14px;">
-          <div style="font-weight:700;margin-bottom:12px;">Color Theme</div>
-          <div class="form-group" style="margin-bottom:12px;">
-            <label class="form-label" for="adminColorTheme">Theme Preset</label>
-            <select id="adminColorTheme" class="form-input">
-              <option value="default" ${safeColorTheme === 'default' ? 'selected' : ''}>Default (Dark)</option>
-              <option value="servicenow" ${safeColorTheme === 'servicenow' ? 'selected' : ''}>ServiceNow Branded</option>
-            </select>
-          </div>
-          <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:12px;">
-            Customize individual colors below. Leave blank to use theme defaults.
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">
-            <div class="form-group" style="margin:0;">
-              <label class="form-label" for="adminBrandAccent">Primary Accent</label>
-              <div style="display:flex;align-items:center;gap:6px;">
-                <input type="color" id="adminBrandAccentPicker" value="${safeAccent.startsWith('#') ? safeAccent : '#00d2d3'}" style="width:36px;height:36px;border:none;background:none;padding:0;cursor:pointer;border-radius:6px;overflow:hidden;" oninput="document.getElementById('adminBrandAccent').value=this.value">
-                <input id="adminBrandAccent" class="form-input" value="${safeAccent}" maxlength="7" placeholder="#00d2d3" style="flex:1;" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById('adminBrandAccentPicker').value=this.value">
-              </div>
-            </div>
-            <div class="form-group" style="margin:0;">
-              <label class="form-label" for="adminBrandAccentAlt">Secondary Accent</label>
-              <div style="display:flex;align-items:center;gap:6px;">
-                <input type="color" id="adminBrandAccentAltPicker" value="${safeAccentAlt.startsWith('#') ? safeAccentAlt : '#c56cf0'}" style="width:36px;height:36px;border:none;background:none;padding:0;cursor:pointer;border-radius:6px;overflow:hidden;" oninput="document.getElementById('adminBrandAccentAlt').value=this.value">
-                <input id="adminBrandAccentAlt" class="form-input" value="${safeAccentAlt}" maxlength="7" placeholder="Theme default" style="flex:1;" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById('adminBrandAccentAltPicker').value=this.value">
-              </div>
-            </div>
-            <div class="form-group" style="margin:0;">
-              <label class="form-label" for="adminBrandBgColor">Background</label>
-              <div style="display:flex;align-items:center;gap:6px;">
-                <input type="color" id="adminBrandBgColorPicker" value="${safeBgColor.startsWith('#') ? safeBgColor : '#07070d'}" style="width:36px;height:36px;border:none;background:none;padding:0;cursor:pointer;border-radius:6px;overflow:hidden;" oninput="document.getElementById('adminBrandBgColor').value=this.value">
-                <input id="adminBrandBgColor" class="form-input" value="${safeBgColor}" maxlength="7" placeholder="Theme default" style="flex:1;" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById('adminBrandBgColorPicker').value=this.value">
-              </div>
-            </div>
-          </div>
-          <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <div title="ServiceNow Green" style="width:24px;height:24px;border-radius:6px;background:#62D84E;cursor:pointer;border:2px solid rgba(255,255,255,0.2);" onclick="document.getElementById('adminBrandAccent').value='#62D84E';document.getElementById('adminBrandAccentPicker').value='#62D84E';"></div>
-              <div title="ServiceNow Teal" style="width:24px;height:24px;border-radius:6px;background:#00C7B1;cursor:pointer;border:2px solid rgba(255,255,255,0.2);" onclick="document.getElementById('adminBrandAccentAlt').value='#00C7B1';document.getElementById('adminBrandAccentAltPicker').value='#00C7B1';"></div>
-              <div title="ServiceNow Navy" style="width:24px;height:24px;border-radius:6px;background:#00182D;cursor:pointer;border:2px solid rgba(255,255,255,0.2);" onclick="document.getElementById('adminBrandBgColor').value='#00182D';document.getElementById('adminBrandBgColorPicker').value='#00182D';"></div>
-              <div title="Default Cyan" style="width:24px;height:24px;border-radius:6px;background:#00d2d3;cursor:pointer;border:2px solid rgba(255,255,255,0.2);" onclick="document.getElementById('adminBrandAccent').value='#00d2d3';document.getElementById('adminBrandAccentPicker').value='#00d2d3';"></div>
-              <div title="Default Purple" style="width:24px;height:24px;border-radius:6px;background:#c56cf0;cursor:pointer;border:2px solid rgba(255,255,255,0.2);" onclick="document.getElementById('adminBrandAccentAlt').value='#c56cf0';document.getElementById('adminBrandAccentAltPicker').value='#c56cf0';"></div>
-            </div>
-            <span style="font-size:0.75rem;color:var(--text-dim);align-self:center;">Quick colors</span>
-          </div>
-        </div>
+      <div class="admin-save-bar" data-settings-section="${['features', 'activities'].includes(activeTab)}">
+        <span id="adminSettingsStatus" role="status">Settings are up to date</span>
+        <button class="btn-secondary" data-action="admin-discard-settings" hidden>Discard edits</button>
+        <button class="btn-primary" data-action="save-admin-config" ${admin.savingConfig ? 'disabled aria-busy="true"' : ''}>${admin.savingConfig ? 'Saving…' : 'Save app settings'}</button>
+      </div>
+      <div data-tab-panel="overview" class="host-tab-panel" ${activeTab !== 'overview' ? 'hidden' : ''}><h3>Workspace overview</h3><p class="studio-help">Review session activity or jump straight to a common task.</p>
+        <div class="admin-action-row"><button class="btn-primary" data-action="admin-console-tab" data-tab="ai">Create a themed question pack</button><button class="btn-secondary" data-action="admin-console-tab" data-tab="activities">Choose available games</button><button class="btn-secondary" data-action="admin-console-tab" data-tab="sessions">Manage sessions</button></div>
         <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">
           <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px;">
             <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:6px;">Collections</div>
@@ -493,6 +443,11 @@ TEAM_BUILDER_SCREEN_RENDERERS.renderAdminConsole = function renderAdminConsole()
             <div style="font-size:1.28rem;font-weight:800;">${pendingCommunityHostRequests.length}</div>
           </div>
         </div>
+
+      </div>
+
+      <div data-tab-panel="sessions" class="host-tab-panel" ${activeTab !== 'sessions' ? 'hidden' : ''}>
+        <h3>Live sessions</h3><p class="studio-help">Monitor rooms, review participants, and close sessions that are no longer needed.</p>
         <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
             <div>
@@ -542,9 +497,85 @@ TEAM_BUILDER_SCREEN_RENDERERS.renderAdminConsole = function renderAdminConsole()
           }).join('')}
         </div>
       </div>
-
+      <div data-tab-panel="activities" class="host-tab-panel" ${activeTab !== 'activities' ? 'hidden' : ''}>
+        <h3>Activity library</h3><p class="studio-help">Choose which activities hosts can start. Changes apply after saving app settings.</p>
+        <div class="admin-action-row"><button class="btn-secondary" data-action="admin-activity-preset" data-preset="essentials">Essentials</button><button class="btn-secondary" data-action="admin-activity-preset" data-preset="all">Enable all</button><button class="btn-secondary" data-action="admin-activity-preset" data-preset="none">Disable all</button><span id="adminActivityCount" role="status"></span></div>
+        <label class="form-label" for="adminActivitySearch">Find an activity</label><input id="adminActivitySearch" class="form-input" type="search" placeholder="Search activities…">
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+          <div style="font-weight:700;margin-bottom:8px;">Enable Activities in Main Menu</div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+            ${ACTIVITY_QUEUE_ITEMS.map(item => `
+              <label data-admin-activity="${escapeHtml(item.id)}" class="studio-choice">
+                <input id="adminActivityEnabled-${item.id}" type="checkbox" ${enabledActivities[item.id] !== false ? 'checked' : ''}>
+                <span>${escapeHtml(item.icon)} ${escapeHtml(item.label)}</span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+      </div>
       <div data-tab-panel="features" class="host-tab-panel" ${activeTab !== 'features' ? 'hidden' : ''}>
-        <h3 style="font-family:'Fraunces',serif;font-size:1.3rem;margin-bottom:14px;">Feature Flags & Rules</h3>
+        <h3>App settings</h3><p class="studio-help">These defaults apply across the app. Question packs save separately in Questions & themes.</p>
+        <details class="studio-details"><summary>Branding & appearance</summary>
+        <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:12px;">
+          Config storage: <strong>${dbConnected ? 'Database connected' : 'Local file fallback'}</strong>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="adminBrandAppName">App Name</label>
+          <input id="adminBrandAppName" class="form-input" value="${safeAppName}" maxlength="64">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="adminBrandTagline">Tagline</label>
+          <input id="adminBrandTagline" class="form-input" value="${safeTagline}" maxlength="140">
+        </div>
+        <div style="margin-bottom:18px;padding:16px;background:var(--surface-2);border:1px solid var(--border);border-radius:14px;">
+          <div style="font-weight:700;margin-bottom:12px;">Color Theme</div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" for="adminColorTheme">Theme Preset</label>
+            <select id="adminColorTheme" class="form-input">
+              <option value="default" ${safeColorTheme === 'default' ? 'selected' : ''}>Default (Dark)</option>
+              <option value="servicenow" ${safeColorTheme === 'servicenow' ? 'selected' : ''}>ServiceNow Branded</option>
+            </select>
+          </div>
+          <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:12px;">
+            Customize individual colors below. Leave blank to use theme defaults.
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">
+            <div class="form-group" style="margin:0;">
+              <label class="form-label" for="adminBrandAccent">Primary Accent</label>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <input type="color" id="adminBrandAccentPicker" value="${safeAccent.startsWith('#') ? safeAccent : '#00d2d3'}" style="width:36px;height:36px;border:none;background:none;padding:0;cursor:pointer;border-radius:6px;overflow:hidden;" oninput="document.getElementById('adminBrandAccent').value=this.value">
+                <input id="adminBrandAccent" class="form-input" value="${safeAccent}" maxlength="7" placeholder="#00d2d3" style="flex:1;" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById('adminBrandAccentPicker').value=this.value">
+              </div>
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label class="form-label" for="adminBrandAccentAlt">Secondary Accent</label>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <input type="color" id="adminBrandAccentAltPicker" value="${safeAccentAlt.startsWith('#') ? safeAccentAlt : '#c56cf0'}" style="width:36px;height:36px;border:none;background:none;padding:0;cursor:pointer;border-radius:6px;overflow:hidden;" oninput="document.getElementById('adminBrandAccentAlt').value=this.value">
+                <input id="adminBrandAccentAlt" class="form-input" value="${safeAccentAlt}" maxlength="7" placeholder="Theme default" style="flex:1;" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById('adminBrandAccentAltPicker').value=this.value">
+              </div>
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label class="form-label" for="adminBrandBgColor">Background</label>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <input type="color" id="adminBrandBgColorPicker" value="${safeBgColor.startsWith('#') ? safeBgColor : '#07070d'}" style="width:36px;height:36px;border:none;background:none;padding:0;cursor:pointer;border-radius:6px;overflow:hidden;" oninput="document.getElementById('adminBrandBgColor').value=this.value">
+                <input id="adminBrandBgColor" class="form-input" value="${safeBgColor}" maxlength="7" placeholder="Theme default" style="flex:1;" oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value))document.getElementById('adminBrandBgColorPicker').value=this.value">
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button type="button" aria-label="ServiceNow Green" title="ServiceNow Green" data-admin-color-target="adminBrandAccent" data-color="#62D84E" style="width:24px;height:24px;border-radius:6px;background:#62D84E;cursor:pointer;border:2px solid rgba(255,255,255,0.2);"></button>
+              <button type="button" aria-label="ServiceNow Teal" title="ServiceNow Teal" data-admin-color-target="adminBrandAccentAlt" data-color="#00C7B1" style="width:24px;height:24px;border-radius:6px;background:#00C7B1;cursor:pointer;border:2px solid rgba(255,255,255,0.2);"></button>
+              <button type="button" aria-label="ServiceNow Navy" title="ServiceNow Navy" data-admin-color-target="adminBrandBgColor" data-color="#00182D" style="width:24px;height:24px;border-radius:6px;background:#00182D;cursor:pointer;border:2px solid rgba(255,255,255,0.2);"></button>
+              <button type="button" aria-label="Default Cyan" title="Default Cyan" data-admin-color-target="adminBrandAccent" data-color="#00d2d3" style="width:24px;height:24px;border-radius:6px;background:#00d2d3;cursor:pointer;border:2px solid rgba(255,255,255,0.2);"></button>
+              <button type="button" aria-label="Default Purple" title="Default Purple" data-admin-color-target="adminBrandAccentAlt" data-color="#c56cf0" style="width:24px;height:24px;border-radius:6px;background:#c56cf0;cursor:pointer;border:2px solid rgba(255,255,255,0.2);"></button>
+            </div>
+            <span style="font-size:0.75rem;color:var(--text-dim);align-self:center;">Quick colors</span>
+          </div>
+        </div>
+</details>
+        <h4 style="margin:18px 0 12px;">Session tools</h4>
+        <div class="admin-settings-grid">
         <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
           <input id="adminEnableFeedbackHub" type="checkbox" ${preferences.enableFeedbackHub !== false ? 'checked' : ''}>
           Enable user Feedback Hub
@@ -567,7 +598,7 @@ TEAM_BUILDER_SCREEN_RENDERERS.renderAdminConsole = function renderAdminConsole()
         </label>
         <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
           <input id="adminEnableAIGenerator" type="checkbox" ${preferences.enableAIGenerator !== false ? 'checked' : ''}>
-          Enable AI Content Generator
+          Enable AI prompt & question tools
         </label>
         <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
           <input id="adminEnableSampleQuestions" type="checkbox" ${preferences.enableSampleQuestions !== false ? 'checked' : ''}>
@@ -581,6 +612,7 @@ TEAM_BUILDER_SCREEN_RENDERERS.renderAdminConsole = function renderAdminConsole()
           <input id="adminEnableMessageBoard" type="checkbox" ${preferences.enableMessageBoard !== false ? 'checked' : ''}>
           Enable Message Board in session lobby (all rooms)
         </label>
+        </div>
         <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
           <div style="font-weight:700;margin-bottom:10px;">Global Game Rules</div>
           <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
@@ -624,17 +656,7 @@ TEAM_BUILDER_SCREEN_RENDERERS.renderAdminConsole = function renderAdminConsole()
             <div style="font-size:0.84rem;color:var(--text-dim);">No community host access requests yet.</div>
           `}
         </div>
-        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-          <div style="font-weight:700;margin-bottom:8px;">Enable Activities in Main Menu</div>
-          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
-            ${ACTIVITY_QUEUE_ITEMS.map(item => `
-              <label style="display:flex;align-items:center;gap:8px;">
-                <input id="adminActivityEnabled-${item.id}" type="checkbox" ${enabledActivities[item.id] !== false ? 'checked' : ''}>
-                <span>${escapeHtml(item.icon)} ${escapeHtml(item.label)}</span>
-              </label>
-            `).join('')}
-          </div>
-        </div>
+
       </div>
 
       <div data-tab-panel="ai" class="host-tab-panel" ${activeTab !== 'ai' ? 'hidden' : ''}>
@@ -669,9 +691,7 @@ TEAM_BUILDER_SCREEN_RENDERERS.renderAdminConsole = function renderAdminConsole()
         `).join('')}
       </div>
 
-      <button class="btn-primary" data-action="save-admin-config" ${admin.savingConfig ? 'disabled aria-busy="true"' : ''} style="margin-top:18px;">
-        ${admin.savingConfig ? 'Saving...' : 'Save Admin Settings'}
-      </button>
+
     </div>
   `;
 };

@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const Checkers = require('./assets/js/games/checkers-core');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -66,6 +67,7 @@ const ALL_ACTIVITY_IDS = [
   'bingo',
   'backgammon',
   'connect-4',
+  'checkers',
   'rock-paper-scissors',
   'chess-lobby',
   'cosmos-bound'
@@ -79,6 +81,7 @@ const FEATURE_FLAG_IDS = [
   'enableAIGenerator',
   'enableSampleQuestions',
   'enableFooterQuotes',
+  'enableMessageBoard',
   'autoRevealLightning',
   'allowAnswerChanges',
   'dynamicScoring'
@@ -130,7 +133,8 @@ function getDefaultPreferences() {
     'battleship',
     'survey-clash',
     'bingo',
-    'chess-lobby'
+    'chess-lobby',
+    'checkers'
   ]);
   return {
     enableFeedbackHub: true,
@@ -141,6 +145,7 @@ function getDefaultPreferences() {
     enableAIGenerator: true,
     enableSampleQuestions: true,
     enableFooterQuotes: false,
+    enableMessageBoard: true,
     autoRevealLightning: true,
     allowAnswerChanges: true,
     dynamicScoring: true,
@@ -1209,7 +1214,7 @@ const HOST_CONTROLLED_ROOM_FIELDS = [
 
 function participantCanApplyRoomUpdate(currentRoom, nextRoom, actorPlayerId) {
   if (!currentRoom || !nextRoom) return false;
-  if (currentRoom.currentActivity === 'survey-clash'
+  if (['survey-clash', 'checkers'].includes(currentRoom.currentActivity)
     && JSON.stringify(currentRoom.activityState) !== JSON.stringify(nextRoom.activityState)) return false;
   const fixedFieldsUnchanged = HOST_CONTROLLED_ROOM_FIELDS
     .filter(field => field !== 'participants')
@@ -2004,6 +2009,42 @@ io.on('connection', socket => {
     socket.leave(key);
   });
 
+  socket.on('checkers:action', (payload, ack) => {
+    const key = payload?.key;
+    if (!isRoomKey(key) || !isAuthorizedForRoom(key, getRequestRoomToken(payload))) {
+      ack?.({ ok: false, error: 'Room access denied.' }); return;
+    }
+    const room = getRoomSnapshot(key);
+    const actor = getRoomActor(key, payload, room);
+    if (!actor || room?.currentActivity !== 'checkers') {
+      ack?.({ ok: false, error: 'Join the room before playing Checkers.' }); return;
+    }
+    try {
+      const game = room.activityState;
+      if (payload.gameId !== game.startedAt || payload.moveNumber !== game.moveNumber) throw new Error('The board changed. Choose your move again.');
+      if (payload.action === 'restart') {
+        if (!actor.isHost) throw new Error('Only the host can start a new match.');
+        room.activityState = Checkers.createGame(room.participants);
+      } else if (payload.action === 'join') {
+        if (game.phase !== 'waiting') throw new Error('This match already has two players.');
+        if (Object.values(game.players).some(seat => seat?.playerId === actor.playerId)) throw new Error('You already have a seat.');
+        const side = !game.players.b ? 'b' : 'r';
+        game.players[side] = { playerId: actor.playerId, name: actor.participant.name };
+        if (game.players.b && game.players.r) game.phase = 'playing';
+      } else if (payload.action === 'move') {
+        if (game.players?.[game.turn]?.playerId !== actor.playerId) throw new Error('It is not your turn.');
+        room.activityState = Checkers.applyMove(game, payload.from, payload.to);
+      } else throw new Error('Unknown Checkers action.');
+      room.lastUpdate = Date.now();
+      room.revision = (Number(room.revision) || 0) + 1;
+      const value = JSON.stringify(room);
+      state.set(key, value);
+      schedulePersist();
+      io.to(key).emit('shared:update', { key, value });
+      ack?.({ ok: true, value });
+    } catch (error) { ack?.({ ok: false, error: error.message }); }
+  });
+
   socket.on('shared:get', (payload, ack) => {
     const key = payload?.key;
     const authToken = getRequestRoomToken(payload);
@@ -2083,6 +2124,15 @@ io.on('connection', socket => {
       if (!adminActor && !actor.isHost && !participantCanApplyRoomUpdate(existingRoom, nextRoom, actor.playerId)) {
         ack?.({ ok: false, error: 'Only the host can change room controls' });
         return;
+      }
+      const queuedCheckersRestart = nextRoom.queueActive === true
+        && Number(nextRoom.queueIndex) > Number(existingRoom.queueIndex)
+        && nextRoom.activityQueue?.[Number(nextRoom.queueIndex) - 1] === 'checkers';
+      if (nextRoom.currentActivity === 'checkers' && (existingRoom.currentActivity !== 'checkers' || queuedCheckersRestart)) {
+        nextRoom.activityState = Checkers.createGame(existingRoom.participants);
+      } else if (existingRoom.currentActivity === 'checkers' && nextRoom.currentActivity === 'checkers'
+        && JSON.stringify(existingRoom.activityState) !== JSON.stringify(nextRoom.activityState)) {
+        ack?.({ ok: false, error: 'Use Checkers controls to update the board.' }); return;
       }
       if (Number(nextRoom.revision) !== Number(existingRoom.revision)) {
         ack?.({ ok: false, error: 'Room changed before this update was saved. Please retry.' });
