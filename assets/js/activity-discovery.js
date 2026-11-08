@@ -2,7 +2,7 @@
   const state = root.TEAM_BUILDER_DISCOVERY = { query: '', category: 'All' };
   const categories = {
     'Warm-ups': ['icebreaker', 'pulse-check', 'values-vote', 'emoji-charades', 'spin-wheel'],
-    'Team games': ['lightning-trivia', 'regular-trivia', 'survey-clash', 'wordle', 'word-chain', 'team-jeopardy', 'cosmos-bound', 'bingo'],
+    'Team games': ['lightning-trivia', 'regular-trivia', 'survey-clash', 'wordle', 'word-chain', 'team-jeopardy', 'cosmos-bound', 'bingo', 'memory'],
     'Board games': ['uno', 'tic-tac-toe-blitz', 'battleship', 'backgammon', 'checkers', 'connect-4', 'chess-lobby', 'rock-paper-scissors'],
     'Present & create': ['presentation', 'slides-studio', 'dj-booth', 'brainstorm-canvas']
   };

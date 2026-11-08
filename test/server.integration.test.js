@@ -15,8 +15,8 @@ function emitAck(socket, eventName, payload) {
   });
 }
 
-function startTestServer(t) {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'team-builder-test-'));
+function startTestServer(t, options = {}) {
+  const dataDir = options.dataDir || fs.mkdtempSync(path.join(os.tmpdir(), 'team-builder-test-'));
   const child = spawn(process.execPath, ['server.js'], {
     cwd: path.resolve(__dirname, '..'),
     env: {
@@ -46,7 +46,7 @@ function startTestServer(t) {
       const match = /listening on http:\/\/localhost:(\d+)/.exec(output);
       if (!match) return;
       clearTimeout(timer);
-      resolve({ child, port: Number(match[1]) });
+      resolve({ child, port: Number(match[1]), dataDir });
     };
     child.stdout.on('data', onData);
     child.stderr.on('data', onData);
@@ -272,4 +272,111 @@ test('Checkers supports late seating and validates turns, moves, stale requests,
   const ended = await emitAck(socket, 'shared:set', { key, ...host, value: JSON.stringify({ ...room, currentActivity: null, activityState: {} }) });
   assert.equal(ended.ok, true);
   assert.equal(JSON.parse(ended.value).participants.length, 3);
+});
+
+test('Memory keeps answers private, validates turns, hides mismatches, and recovers a pending reveal after server restart', async t => {
+  const running = await startTestServer(t);
+  const key = 'room:MEMORY';
+  const host = { actorToken: 'memory_host_token_1234567890_abcdef', actorPlayerId: 'memory-host', actorPlayerName: 'Host' };
+  const guest = { actorToken: 'memory_guest_token_1234567890_abcdef', actorPlayerId: 'memory-guest', actorPlayerName: 'Guest' };
+  const connect = async port => {
+    const client = io(`http://127.0.0.1:${port}`, { transports: ['websocket'], forceNew: true });
+    t.after(() => client.close());
+    await new Promise((resolve, reject) => { client.once('connect', resolve); client.once('connect_error', reject); });
+    return client;
+  };
+  let socket = await connect(running.port);
+  let room = { code: 'MEMORY', host: 'Host', roomType: 'private', participants: [{ id: 'memory-host', name: 'Host', isHost: true }], currentActivity: null, activityState: {}, activityQueue: [], queueIndex: 0, queueActive: false, hostSettings: {}, access: {}, created: Date.now() };
+  const created = await emitAck(socket, 'shared:set', { key, ...host, value: JSON.stringify(room) });
+  assert.equal(created.ok, true, created.error);
+  room = JSON.parse(created.value);
+  const started = await emitAck(socket, 'shared:set', { key, ...host, value: JSON.stringify({ ...room, currentActivity: 'memory', activityState: {} }) });
+  assert.equal(started.ok, true, started.error);
+  room = JSON.parse(started.value);
+  assert.equal(room.activityState.cards.length, 16);
+  assert.ok(room.activityState.cards.every(card => card.value === null));
+  assert.equal('deck' in room.activityState, false);
+  await new Promise(resolve => setTimeout(resolve, 350));
+  const readSecret = () => JSON.parse(fs.readFileSync(path.join(running.dataDir, 'room-meta.json'), 'utf8'))[key].memory;
+  const firstSecret = readSecret();
+  assert.equal(firstSecret.gameId, room.activityState.id);
+  const action = async (actor, name, extra = {}) => emitAck(socket, 'memory:action', { key, ...actor, action: name, gameId: room.activityState.id, version: room.activityState.version, ...extra });
+  const pair = firstSecret.deck.flatMap((value, index) => value === firstSecret.deck[0] ? [index] : []);
+  const flip = await action(host, 'flip', { index: pair[0] });
+  assert.equal(flip.ok, true, flip.error);
+  room = JSON.parse(flip.value);
+  assert.equal(room.activityState.cards.filter(card => card.value !== null).length, 1);
+  assert.equal((await action(host, 'flip', { index: pair[0] })).ok, false);
+  assert.equal((await action(host, 'flip', { index: pair[1], version: 0 })).ok, false);
+  const tamper = await emitAck(socket, 'shared:set', { key, ...host, value: JSON.stringify({ ...room, activityState: { ...room.activityState, pairsMatched: 8 } }) });
+  assert.equal(tamper.ok, false);
+  const joinedRoom = await emitAck(socket, 'room:join', { key, actorToken: guest.actorToken, playerId: guest.actorPlayerId, playerName: 'Guest' });
+  room = JSON.parse(joinedRoom.value);
+  const joinedRound = await action(guest, 'join');
+  assert.equal(joinedRound.ok, true);
+  room = JSON.parse(joinedRound.value);
+  assert.equal(room.activityState.players[1].score, 0);
+  assert.equal((await action(guest, 'flip', { index: pair[1] })).ok, false);
+  assert.equal((await action(guest, 'restart')).ok, false);
+  const matched = await action(host, 'flip', { index: pair[1] });
+  assert.equal(matched.ok, true);
+  room = JSON.parse(matched.value);
+  assert.equal(room.activityState.players[0].score, 1);
+  assert.equal(room.activityState.turnId, host.actorPlayerId);
+  const remaining = firstSecret.deck.map((_, index) => index).filter(index => !pair.includes(index));
+  const one = remaining[0], two = remaining.find(index => firstSecret.deck[index] !== firstSecret.deck[one]);
+  room = JSON.parse((await action(host, 'flip', { index: one })).value);
+  room = JSON.parse((await action(host, 'flip', { index: two })).value);
+  assert.equal(room.activityState.flipped.length, 2);
+  const waitForHidden = client => new Promise((resolve, reject) => {
+    const timer = setTimeout(() => { client.off('shared:update', listener); reject(new Error('Memory mismatch did not resolve')); }, 4000);
+    const listener = payload => {
+      const snapshot = JSON.parse(payload.value);
+      if (payload.key !== key || snapshot.activityState?.flipped?.length !== 0) return;
+      clearTimeout(timer); client.off('shared:update', listener); resolve(snapshot);
+    };
+    client.on('shared:update', listener);
+  });
+  socket.emit('room:subscribe', { key });
+  room = await waitForHidden(socket);
+  assert.equal(room.activityState.turnId, guest.actorPlayerId);
+  assert.equal(room.activityState.cards[one].value, null);
+  assert.equal(room.activityState.cards[pair[0]].matchedBy, host.actorPlayerId);
+  room = JSON.parse((await action(guest, 'flip', { index: one })).value);
+  const left = await emitAck(socket, 'room:leave', { key, ...guest });
+  assert.equal(left.ok, true);
+  room = JSON.parse((await emitAck(socket, 'shared:get', { key })).value);
+  assert.equal(room.activityState.turnId, host.actorPlayerId);
+  assert.equal(room.activityState.flipped.length, 0);
+  const restarted = await action(host, 'restart', { theme: 'space', pairCount: 12 });
+  assert.equal(restarted.ok, true);
+  room = JSON.parse(restarted.value);
+  assert.equal(room.activityState.cards.length, 24);
+  assert.equal(room.activityState.theme, 'space');
+  await new Promise(resolve => setTimeout(resolve, 350));
+  const savedSecret = readSecret();
+  const different = savedSecret.deck.findIndex(value => value !== savedSecret.deck[0]);
+  room = JSON.parse((await action(host, 'flip', { index: 0 })).value);
+  room = JSON.parse((await action(host, 'flip', { index: different })).value);
+  const gameId = room.activityState.id;
+  socket.close();
+  const exited = new Promise(resolve => running.child.once('exit', resolve));
+  running.child.kill('SIGTERM'); await exited;
+  const resumed = await startTestServer(t, { dataDir: running.dataDir });
+  socket = await connect(resumed.port);
+  room = JSON.parse((await emitAck(socket, 'shared:get', { key })).value);
+  assert.equal(room.activityState.id, gameId);
+  socket.emit('room:subscribe', { key });
+  if (room.activityState.flipped.length === 2) room = await waitForHidden(socket);
+  assert.equal(room.activityState.flipped.length, 0);
+  const resumedFlip = await action(host, 'flip', { index: 0 });
+  assert.equal(resumedFlip.ok, true, resumedFlip.error);
+  room = JSON.parse(resumedFlip.value);
+  const queued = await emitAck(socket, 'shared:set', { key, ...host, value: JSON.stringify({ ...room, queueActive: true, activityQueue: ['memory'], queueIndex: 1, activityState: { theme: 'food', pairCount: 6 } }) });
+  assert.equal(queued.ok, true, queued.error);
+  room = JSON.parse(queued.value);
+  assert.equal(room.activityState.cards.length, 12);
+  assert.equal(room.activityState.theme, 'food');
+  const ended = await emitAck(socket, 'shared:set', { key, ...host, value: JSON.stringify({ ...room, currentActivity: null, activityState: {} }) });
+  assert.equal(ended.ok, true);
 });

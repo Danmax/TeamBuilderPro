@@ -2,6 +2,8 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const Checkers = require('./assets/js/games/checkers-core');
+const Memory = require('./assets/js/games/memory-core');
+const memoryTimers = new Map();
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -68,6 +70,7 @@ const ALL_ACTIVITY_IDS = [
   'backgammon',
   'connect-4',
   'checkers',
+  'memory',
   'rock-paper-scissors',
   'chess-lobby',
   'cosmos-bound'
@@ -134,7 +137,8 @@ function getDefaultPreferences() {
     'survey-clash',
     'bingo',
     'chess-lobby',
-    'checkers'
+    'checkers',
+    'memory'
   ]);
   return {
     enableFeedbackHub: true,
@@ -399,7 +403,8 @@ function loadRoomMetaFromDisk() {
         token,
         createdAt: Number(meta?.createdAt) || Date.now(),
         privateSession,
-        actorTokens: normalizeActorTokens(meta?.actorTokens)
+        actorTokens: normalizeActorTokens(meta?.actorTokens),
+        memory: Memory.normalizeSecret(meta?.memory)
       });
     });
   } catch (error) {
@@ -448,7 +453,8 @@ function persistRoomMetaToDisk() {
         token: meta.token,
         createdAt: meta.createdAt,
         privateSession: meta.privateSession === true,
-        actorTokens: normalizeActorTokens(meta.actorTokens)
+        actorTokens: normalizeActorTokens(meta.actorTokens),
+        memory: Memory.normalizeSecret(meta.memory)
       }
     ]));
     const tempFile = `${ROOM_META_FILE}.tmp`;
@@ -903,6 +909,7 @@ function listCommunityRooms() {
 }
 
 function deleteRoomState(key) {
+  clearMemoryTimer(key);
   if (!isRoomKey(key)) return false;
   const room = getRoomSnapshot(key);
   const library = Array.isArray(room?.activityState?.trackLibrary) ? room.activityState.trackLibrary : [];
@@ -1214,7 +1221,7 @@ const HOST_CONTROLLED_ROOM_FIELDS = [
 
 function participantCanApplyRoomUpdate(currentRoom, nextRoom, actorPlayerId) {
   if (!currentRoom || !nextRoom) return false;
-  if (['survey-clash', 'checkers'].includes(currentRoom.currentActivity)
+  if (['survey-clash', 'checkers', 'memory'].includes(currentRoom.currentActivity)
     && JSON.stringify(currentRoom.activityState) !== JSON.stringify(nextRoom.activityState)) return false;
   const fixedFieldsUnchanged = HOST_CONTROLLED_ROOM_FIELDS
     .filter(field => field !== 'participants')
@@ -1876,6 +1883,47 @@ app.patch('/api/admin/community-host-requests/:id', requireAdmin, async (req, re
   });
 });
 
+function clearMemoryTimer(key) {
+  if (memoryTimers.has(key)) clearTimeout(memoryTimers.get(key));
+  memoryTimers.delete(key);
+}
+
+function publishMemoryRoom(key, room) {
+  room.lastUpdate = Date.now();
+  room.revision = (Number(room.revision) || 0) + 1;
+  const value = JSON.stringify(room);
+  state.set(key, value);
+  schedulePersist();
+  io.to(key).emit('shared:update', { key, value });
+  return value;
+}
+
+function scheduleMemoryReveal(key, game) {
+  clearMemoryTimer(key);
+  if (game?.flipped?.length !== 2 || !game.hideAt) return;
+  const id = game.id;
+  const timer = setTimeout(() => {
+    memoryTimers.delete(key);
+    const room = getRoomSnapshot(key);
+    if (room?.currentActivity !== 'memory' || room.activityState?.id !== id) return;
+    const resolved = Memory.resolveMismatch(room.activityState, room.participants);
+    if (resolved !== room.activityState) {
+      room.activityState = resolved;
+      publishMemoryRoom(key, room);
+    } else scheduleMemoryReveal(key, room.activityState);
+  }, Math.max(0, game.hideAt - Date.now()));
+  timer.unref();
+  memoryTimers.set(key, timer);
+}
+
+function startMemoryRound(key, room, options = {}) {
+  clearMemoryTimer(key);
+  const { game, secret } = Memory.createGame(room.participants, { theme: options.theme, pairCount: options.pairCount, id: crypto.randomUUID() }, () => crypto.randomInt(0, 0x100000000) / 0x100000000);
+  room.activityState = game;
+  getRoomAccessMeta(key).memory = secret;
+  scheduleRoomMetaPersist();
+}
+
 io.on('connection', socket => {
   let eventWindowStartedAt = Date.now();
   let eventCount = 0;
@@ -1945,6 +1993,7 @@ io.on('connection', socket => {
       existingById.name = playerName;
       existingById.avatar = playerAvatar;
     }
+    if (room.currentActivity === 'memory') room.activityState = Memory.reconcilePlayers(room.activityState, room.participants);
     room.lastUpdate = Date.now();
     room.revision = Math.max(0, Number(room.revision) || 0) + 1;
     state.set(key, JSON.stringify(room));
@@ -1983,6 +2032,13 @@ io.on('connection', socket => {
       participant,
       participant.name === room.host
     )).filter(Boolean);
+    if (room.currentActivity === 'memory') {
+      room.activityState = Memory.reconcilePlayers(room.activityState, room.participants);
+      scheduleMemoryReveal(key, room.activityState);
+    } else if (!room.participants.length) {
+      clearMemoryTimer(key);
+      if (meta) meta.memory = null;
+    }
     room.lastUpdate = Date.now();
     room.revision = Math.max(0, Number(room.revision) || 0) + 1;
     state.set(key, JSON.stringify(room));
@@ -2007,6 +2063,33 @@ io.on('connection', socket => {
       removeSocketFromVoiceRoom(socket);
     }
     socket.leave(key);
+  });
+
+  socket.on('memory:action', (payload, ack) => {
+    const key = payload?.key;
+    if (!isRoomKey(key) || !isAuthorizedForRoom(key, getRequestRoomToken(payload))) {
+      ack?.({ ok: false, error: 'Room access denied.' }); return;
+    }
+    const room = getRoomSnapshot(key);
+    const actor = getRoomActor(key, payload, room);
+    if (!actor || room?.currentActivity !== 'memory') {
+      ack?.({ ok: false, error: 'Join the room before playing Memory.' }); return;
+    }
+    try {
+      const game = room.activityState;
+      if (payload.gameId !== game.id || payload.version !== game.version) throw new Error('The cards changed. Choose again.');
+      if (payload.action === 'restart') {
+        if (!actor.isHost) throw new Error('Only the host can start a new round.');
+        startMemoryRound(key, room, { theme: payload.theme, pairCount: payload.pairCount });
+      } else if (payload.action === 'join') {
+        room.activityState = Memory.join(game, actor.participant);
+      } else if (payload.action === 'flip') {
+        room.activityState = Memory.flip(game, getRoomAccessMeta(key)?.memory, actor.playerId, payload.index);
+      } else throw new Error('Unknown Memory action.');
+      const value = publishMemoryRoom(key, room);
+      scheduleMemoryReveal(key, room.activityState);
+      ack?.({ ok: true, value });
+    } catch (error) { ack?.({ ok: false, error: error.message }); }
   });
 
   socket.on('checkers:action', (payload, ack) => {
@@ -2086,6 +2169,7 @@ io.on('connection', socket => {
     }
     const desiredPrivateSession = extractRoomPrivacyFromValue(strValue);
     const existingRoom = getRoomSnapshot(key);
+    let initializeMemory = false;
     if (!ensureRoomAccess(key, authToken, desiredPrivateSession)) {
       ack?.({ ok: false, error: 'Unauthorized room write' });
       return;
@@ -2125,6 +2209,15 @@ io.on('connection', socket => {
         ack?.({ ok: false, error: 'Only the host can change room controls' });
         return;
       }
+      const queuedMemoryRestart = nextRoom.queueActive === true
+        && Number(nextRoom.queueIndex) > Number(existingRoom.queueIndex)
+        && nextRoom.activityQueue?.[Number(nextRoom.queueIndex) - 1] === 'memory';
+      if (nextRoom.currentActivity === 'memory' && (existingRoom.currentActivity !== 'memory' || queuedMemoryRestart)) {
+        initializeMemory = true;
+      } else if (existingRoom.currentActivity === 'memory' && nextRoom.currentActivity === 'memory'
+        && JSON.stringify(existingRoom.activityState) !== JSON.stringify(nextRoom.activityState)) {
+        ack?.({ ok: false, error: 'Use Memory controls to update the cards.' }); return;
+      }
       const queuedCheckersRestart = nextRoom.queueActive === true
         && Number(nextRoom.queueIndex) > Number(existingRoom.queueIndex)
         && nextRoom.activityQueue?.[Number(nextRoom.queueIndex) - 1] === 'checkers';
@@ -2146,6 +2239,13 @@ io.on('connection', socket => {
       .filter(Boolean)
       .slice(0, 100);
 
+    if (nextRoom.currentActivity === 'memory' && (!existingRoom || initializeMemory)) {
+      startMemoryRound(key, nextRoom, nextRoom.activityState || {});
+    } else if (existingRoom?.currentActivity === 'memory' && nextRoom.currentActivity !== 'memory') {
+      clearMemoryTimer(key);
+      getRoomAccessMeta(key).memory = null;
+      scheduleRoomMetaPersist();
+    }
     state.set(key, JSON.stringify(nextRoom));
     schedulePersist();
     io.to(key).emit('shared:update', { key, value: state.get(key) });
@@ -2428,6 +2528,10 @@ io.on('connection', socket => {
 loadStateFromDisk();
 loadFeedbackStateFromDisk();
 loadRoomMetaFromDisk();
+for (const [key, value] of state) {
+  const room = safeParseJsonObject(value);
+  if (room?.currentActivity === 'memory') scheduleMemoryReveal(key, room.activityState);
+}
 sweepExpiredRooms({ log: true });
 Promise.resolve()
   .then(() => initializeConfigDatabase())

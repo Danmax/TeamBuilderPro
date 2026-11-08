@@ -57,6 +57,7 @@ The app runs locally with Socket.IO and JSON persistence by default. Runtime fil
 - Backgammon
 - Connect 4
 - Checkers
+- Memory
 - Chess Lobby
 - Cosmos Bound
 
@@ -250,3 +251,11 @@ The question builder includes grouped theme presets and reusable themes saved on
 Start **Checkers** from the lobby or add it to the activity queue. The first two participants take Black and Red; other participants can watch. If the match starts with one player, a joining participant can choose **Join match**. Black moves first, and each player sees the board from their own side.
 
 Select a highlighted piece, then a legal destination. Captures are required, multiple jumps use the same piece, and promotion to a king ends the turn. Kings move and capture diagonally in both directions. Capturing all opposing pieces or blocking every opposing move wins; threefold repetition or 80 moves without capture/promotion ends in a draw. Moves and player turns are validated by the server. The host can start a new match to reseat current participants or use **Back to session**.
+
+## Memory
+
+Start **Memory** from the lobby or add it to the activity queue. Everyone present joins the round automatically; late arrivals can choose **Join this round**. One player can practice solo. Reveal two cards on your turn: matching pairs earn one point and keep your turn; mismatches stay visible for 1.4 seconds, then turn face down and pass play to the next player. The highest pair count wins, and equal scores tie.
+
+The host can choose **Animals**, **Space**, or **Food** and a **12-, 16-, or 24-card board** under **New round & options**. Starting a new round reshuffles the deck and resets scores. Options stay selected during live updates. Other room participants can watch without joining.
+
+The server validates flips and scores, keeps unrevealed card identities private, and handles mismatch timers. Reconnecting restores the visible board. The private deck is persisted with room metadata so an active round and its pending timer can recover after a normal server restart. **Back to session** ends the activity while retaining the room.

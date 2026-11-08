@@ -288,6 +288,10 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
           <p class="card-desc">Roll dice, move around the board, hit blots, and bear off all fifteen checkers first</p>
         </button>
 
+        <button type="button" class="card" data-action="start-memory" aria-label="Start Memory" style="${enabledActivities.memory === false ? 'display:none;' : ''}">
+          <div class="card-icon">🧠</div><h3 class="card-title">Memory</h3><p class="card-desc">Flip cards, find matching pairs, and compete for the best memory — or practice solo</p>
+        </button>
+
         <button type="button" class="card" data-action="start-checkers" aria-label="Start Checkers" style="${enabledActivities.checkers === false ? 'display:none;' : ''}">
           <div class="card-icon">⚫</div><h3 class="card-title">Checkers</h3><p class="card-desc">Play a shared two-player board with forced captures, multiple jumps, and kings</p>
         </button>
