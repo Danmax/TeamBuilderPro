@@ -18,6 +18,8 @@
 <script src="/socket.io/socket.io.js"></script>
 <script src="/assets/js/static-data.js"></script>
 <script src="/assets/js/runtime-utils.js"></script>
+<script src="/assets/js/theme-content-core.js"></script>
+<script src="/assets/js/activity-discovery.js"></script>
 <script src="/assets/js/storage-api.js"></script>
 <script src="/assets/js/navigation-core.js"></script>
 <script src="/assets/js/socket-core.js"></script>
@@ -538,6 +540,7 @@ function getEnabledActivityItems() {
 }
 
 function activityHasPlayableContent(activityId, room = APP.room) {
+  if (activityId === 'survey-clash') return SURVEY_CLASH_QUESTIONS.length > 0;
   if (activityId === 'lightning-trivia' || activityId === 'regular-trivia') {
     return TRIVIA_BANK.length > 0;
   }
@@ -631,7 +634,7 @@ function syncActiveContentBanks() {
   const collections = shouldUseRoomScopedCollections()
     ? getEffectiveCollectionsForContext({ scope: 'room' })
     : normalizeClientCollections(APP.admin.collections || []);
-  rehydrateActivityBanksFromConfig(collections);
+  rehydrateActivityBanksFromConfig(collections, shouldUseRoomScopedCollections() ? getRoomCollections() : []);
 }
 
 function getDefaultRoomHostSettings() {
@@ -2014,56 +2017,25 @@ function replaceArrayContents(target, items) {
   target.splice(0, target.length, ...items);
 }
 
-function rehydrateActivityBanksFromConfig(collections = []) {
+function rehydrateActivityBanksFromConfig(collections = [], scopedCollections = []) {
   const useSamples = APP.preferences?.enableSampleQuestions !== false;
-
-  replaceArrayContents(TRIVIA_BANK, useSamples ? SAMPLE_TRIVIA_BANK : []);
-  replaceArrayContents(ICEBREAKER_QUESTIONS, useSamples ? SAMPLE_ICEBREAKER_QUESTIONS : []);
-  replaceArrayContents(PULSE_QUESTIONS, useSamples ? SAMPLE_PULSE_QUESTIONS : []);
-  replaceArrayContents(TEAM_VALUES, useSamples ? SAMPLE_TEAM_VALUES : []);
-  replaceArrayContents(WORDLE_WORDS, useSamples ? SAMPLE_WORDLE_WORDS : []);
-  replaceArrayContents(WORD_CHAIN_PUZZLES, useSamples ? SAMPLE_WORD_CHAIN_PUZZLES : []);
-  replaceArrayContents(EMOJI_CHARADES_BANK, useSamples ? SAMPLE_EMOJI_CHARADES_BANK : []);
-  replaceArrayContents(TEAM_JEOPARDY_BOARD, useSamples ? SAMPLE_TEAM_JEOPARDY_BOARD : []);
-  replaceArrayContents(SPIN_WHEEL_DEFAULT_OPTIONS, useSamples ? SAMPLE_SPIN_WHEEL_DEFAULT_OPTIONS : []);
-
-  const safeCollections = Array.isArray(collections) ? collections : [];
-  safeCollections.forEach(collection => {
-    const activities = collection?.activities && typeof collection.activities === 'object'
-      ? collection.activities
-      : {};
-    Object.entries(activities).forEach(([activityId, items]) => {
-      if (!Array.isArray(items) || !items.length) return;
-      if (activityId === 'lightning-trivia' || activityId === 'regular-trivia') {
-        const validated = validateAIQuestions(items);
-        if (validated.length) TRIVIA_BANK.push(...validated);
-      } else if (activityId === 'icebreaker') {
-        const validated = validateAIIcebreakerQuestions(items);
-        if (validated.length) ICEBREAKER_QUESTIONS.push(...validated);
-      } else if (activityId === 'emoji-charades') {
-        const validated = validateAIEmojiCharades(items);
-        if (validated.length) EMOJI_CHARADES_BANK.push(...validated);
-      } else if (activityId === 'pulse-check') {
-        const validated = validateAIPulseQuestions(items);
-        if (validated.length) PULSE_QUESTIONS.push(...validated);
-      } else if (activityId === 'values-vote') {
-        const validated = validateAIValues(items);
-        if (validated.length) TEAM_VALUES.push(...validated);
-      } else if (activityId === 'wordle') {
-        const validated = validateAIWordleWords(items);
-        if (validated.length) WORDLE_WORDS.push(...validated);
-      } else if (activityId === 'word-chain') {
-        const validated = validateAIWordChainPuzzles(items);
-        if (validated.length) WORD_CHAIN_PUZZLES.push(...validated);
-      } else if (activityId === 'team-jeopardy') {
-        const validated = validateAITeamJeopardyBoard(items);
-        if (validated.length) replaceArrayContents(TEAM_JEOPARDY_BOARD, validated);
-      } else if (activityId === 'spin-wheel') {
-        const validated = validateAISpinWheelOptions(items);
-        if (validated.length) replaceArrayContents(SPIN_WHEEL_DEFAULT_OPTIONS, validated);
-      }
-    });
-  });
+  const banks = [
+    [TRIVIA_BANK, SAMPLE_TRIVIA_BANK, ['lightning-trivia', 'regular-trivia'], validateAIQuestions],
+    [SURVEY_CLASH_QUESTIONS, SAMPLE_SURVEY_CLASH_QUESTIONS, ['survey-clash'], TeamBuilderThemeContent.validateSurveyQuestions],
+    [ICEBREAKER_QUESTIONS, SAMPLE_ICEBREAKER_QUESTIONS, ['icebreaker'], validateAIIcebreakerQuestions],
+    [EMOJI_CHARADES_BANK, SAMPLE_EMOJI_CHARADES_BANK, ['emoji-charades'], validateAIEmojiCharades],
+    [PULSE_QUESTIONS, SAMPLE_PULSE_QUESTIONS, ['pulse-check'], validateAIPulseQuestions],
+    [TEAM_VALUES, SAMPLE_TEAM_VALUES, ['values-vote'], validateAIValues],
+    [WORDLE_WORDS, SAMPLE_WORDLE_WORDS, ['wordle'], validateAIWordleWords],
+    [WORD_CHAIN_PUZZLES, SAMPLE_WORD_CHAIN_PUZZLES, ['word-chain'], validateAIWordChainPuzzles],
+    [TEAM_JEOPARDY_BOARD, SAMPLE_TEAM_JEOPARDY_BOARD, ['team-jeopardy'], validateAITeamJeopardyBoard],
+    [SPIN_WHEEL_DEFAULT_OPTIONS, SAMPLE_SPIN_WHEEL_DEFAULT_OPTIONS, ['spin-wheel'], validateAISpinWheelOptions]
+  ];
+  for (const [bank, samples, activityIds, validate] of banks) {
+    replaceArrayContents(bank, TeamBuilderThemeContent.selectActivityContent(
+      collections, scopedCollections, activityIds, validate, useSamples ? samples : []
+    ));
+  }
 }
 
 function buildBrainstormSeedNotesFromCollections(collections = []) {
@@ -2158,6 +2130,8 @@ const SIMPLE_GAME_SOUNDS = {
   move: '/Sounds/move.wav'
 };
 const simpleGameSoundPlayers = {};
+const SAMPLE_SURVEY_CLASH_QUESTIONS = JSON.parse(JSON.stringify(SURVEY_CLASH_QUESTIONS));
+
 function playSimpleGameSound(key = 'move') {
   if (typeof Audio === 'undefined') return;
   const source = SIMPLE_GAME_SOUNDS[key] || SIMPLE_GAME_SOUNDS.move;
@@ -2184,13 +2158,14 @@ function maybePlayTicTacToeLastMoveSound(match) {
 }
 let surveyClashLastSoundStamp = 0;
 let surveyClashMuted = localStorage.getItem('surveyClashMuted') === 'true';
-let surveyClashVolume = Math.max(0, Math.min(1, Number.parseFloat(localStorage.getItem('surveyClashVolume') || '0.75') || 0.75));
+let surveyClashVolume = Math.max(0, Math.min(1, Number.parseFloat(localStorage.getItem('surveyClashVolume') ?? '0.75')));
 const AI_GENERATION_TARGETS = cloneStaticData('AI_GENERATION_TARGETS', []);
 const AI_GENERATION_TARGET_LABELS = Object.fromEntries(AI_GENERATION_TARGETS.map(item => [item.id, item.label]));
 const ACTIVITY_QUEUE_THEME_OPTIONS = cloneStaticData('ACTIVITY_QUEUE_THEME_OPTIONS', []);
 
 function getAIGenerationTargetCount(activityId) {
   if (activityId === 'lightning-trivia' || activityId === 'regular-trivia') return TRIVIA_BANK.length;
+  if (activityId === 'survey-clash') return SURVEY_CLASH_QUESTIONS.length;
   if (activityId === 'emoji-charades') return EMOJI_CHARADES_BANK.length;
   if (activityId === 'icebreaker') return ICEBREAKER_QUESTIONS.length;
   if (activityId === 'pulse-check') return PULSE_QUESTIONS.length;
@@ -2473,12 +2448,12 @@ function getContentStudioContext(scope, planId = '') {
     ? getQueueEligibleAIActivityIds(Array.isArray(APP.room?.activityQueue) ? APP.room.activityQueue : [])
         .map(activityId => AI_GENERATION_TARGETS.find(item => item.id === activityId))
         .filter(Boolean)
-    : AI_GENERATION_TARGETS;
+    : AI_GENERATION_TARGETS.filter(item => normalizedScope === 'admin' || isActivityEnabled(item.id));
   const selectedActivityIds = normalizedScope === 'queue'
     ? availableTargets.map(item => item.id)
     : (normalizedScope === 'plan' && editingPlan?.activityQueue?.length
       ? editingPlan.activityQueue.filter(activityId => AI_GENERATION_TARGET_LABELS[activityId])
-      : availableTargets.map(item => item.id));
+      : [availableTargets[0]?.id].filter(Boolean));
   const brief = normalizedScope === 'plan'
     ? normalizeContentBrief(editingPlan?.contentBrief)
     : normalizeContentBrief(APP.room?.contentBrief);
@@ -2514,13 +2489,14 @@ function getContentStudioDraftDefaults(scope, planId = '') {
     scope: context.scope,
     planId: context.planId,
     themePreset: context.brief.themePreset || 'Team Collaboration',
-    customTopic: context.brief.customTopic || '',
+    customTopic: context.brief.customTopic || context.brief.themePreset || '',
     audience: context.brief.audience || '',
     tone: context.brief.tone || '',
     difficulty: context.brief.difficulty || HOST_LOCAL_CONFIG.aiDefaultDifficulty || 'mixed',
     count: context.brief.count || HOST_LOCAL_CONFIG.aiDefaultCount || 8,
     apiKey: HOST_LOCAL_CONFIG.aiApiKey || localStorage.getItem('ai-question-api-key') || '',
-    selectedActivityIds: context.selectedActivityIds
+    selectedActivityIds: context.selectedActivityIds,
+    collectionJson: ''
   };
 }
 
@@ -2531,6 +2507,7 @@ function ensureContentStudioDraft(scope, planId = '') {
   }
   const nextDraft = getContentStudioDraftDefaults(scope, planId);
   APP.contentStudioDraft = nextDraft;
+  APP.contentStudioLastPrompt = null;
   APP.contentStudioStatus = null;
   return nextDraft;
 }
@@ -2544,13 +2521,14 @@ function captureContentStudioDraftFromInputs() {
   APP.contentStudioDraft = {
     scope,
     planId,
-    themePreset: String(document.getElementById('contentStudioThemePreset')?.value || 'Team Collaboration').trim(),
+    themePreset: '',
     customTopic: normalizeTopic(document.getElementById('contentStudioCustomTopic')?.value || ''),
     audience: normalizeTopic(document.getElementById('contentStudioAudience')?.value || ''),
     tone: normalizeTopic(document.getElementById('contentStudioTone')?.value || ''),
     difficulty: String(document.getElementById('contentStudioDifficulty')?.value || 'mixed'),
     count: Math.max(3, Math.min(20, Number.parseInt(document.getElementById('contentStudioCount')?.value || '8', 10) || 8)),
     apiKey: '',
+    collectionJson: String(document.getElementById('contentStudioCollectionJson')?.value || ''),
     selectedActivityIds
   };
   return APP.contentStudioDraft;
@@ -2558,7 +2536,6 @@ function captureContentStudioDraftFromInputs() {
 
 function buildContentStudioTopic(draft) {
   const pieces = [
-    String(draft?.themePreset || '').trim(),
     String(draft?.customTopic || '').trim(),
     draft?.audience ? `audience: ${draft.audience}` : '',
     draft?.tone ? `tone: ${draft.tone}` : ''
@@ -2622,21 +2599,32 @@ async function addContentStudioCollectionFromInput() {
   const scope = String(document.getElementById('contentStudioScope')?.value || 'room');
   const planId = String(document.getElementById('contentStudioPlanId')?.value || '');
   const input = document.getElementById('contentStudioCollectionJson');
-  const parsed = safeParseJson(input?.value || '');
-  if (!parsed) {
-    showError('Enter valid JSON for the content collection.');
-    return;
-  }
-  const additions = normalizeClientCollections(Array.isArray(parsed) ? parsed : [parsed]);
-  if (!additions.length) {
-    showError('No valid activity collections found in that JSON.');
+  let parsed;
+  let additions;
+  try {
+    parsed = TeamBuilderThemeContent.parseContentJSON(input?.value);
+    additions = normalizeClientCollections(Array.isArray(parsed) ? parsed : [parsed]);
+    if (!additions.length) throw new Error('Use the complete content pack with a name and activities object.');
+    for (const collection of additions) {
+      for (const [activityId, items] of Object.entries(collection.activities)) {
+        const validated = validateGeneratedContentForActivity(activityId, items);
+        if (!validated.length || validated.length !== items.length) {
+          throw new Error(`Check the format of ${AI_GENERATION_TARGET_LABELS[activityId] || activityId}. Every item must be valid. Survey points must total 100.`);
+        }
+        collection.activities[activityId] = validated;
+      }
+    }
+  } catch (error) {
+    showError(`Content not imported: ${error.message}`);
     return;
   }
   const existing = getContentStudioScopeCollections(scope, planId);
   const merged = new Map(existing.map(item => [item.id, item]));
   additions.forEach(item => merged.set(item.id, item));
   await persistContentStudioCollections(scope, planId, Array.from(merged.values()));
-  APP.contentStudioStatus = `Added ${additions.length} collection${additions.length === 1 ? '' : 's'} to this scope.`;
+  APP.contentStudioStatus = `Imported ${additions.length} content pack${additions.length === 1 ? '' : 's'}. Start an activity to use these questions.`;
+  captureContentStudioDraftFromInputs();
+  APP.contentStudioDraft.collectionJson = '';
   render();
 }
 
@@ -2653,125 +2641,55 @@ function renderAIContentStudioSection(scope, { planId = '', compact = false } = 
   const context = getContentStudioContext(scope, planId);
   const draft = ensureContentStudioDraft(context.scope, context.planId);
   const targetId = getAIBankEditorTargetOrDefault(APP.aiBankEditorTarget);
-  const bankItems = getContentStudioManagedItems(context.scope, context.planId, targetId);
-  const bankJson = JSON.stringify(bankItems, null, 2);
+  const bankJson = JSON.stringify(getContentStudioManagedItems(context.scope, context.planId, targetId), null, 2);
   return `
-    <div style="margin-top:${compact ? '0' : '18px'};background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;">
+    <section class="theme-studio" aria-label="Themed questions">
       <input type="hidden" id="contentStudioScope" value="${escapeHtml(context.scope)}">
       <input type="hidden" id="contentStudioPlanId" value="${escapeHtml(context.planId)}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
-        <div>
-          <h3 style="font-family:'Fraunces',serif;font-size:1.32rem;margin-bottom:6px;">${escapeHtml(context.title)}</h3>
-          <div style="font-size:0.84rem;color:var(--text-dim);max-width:760px;">${escapeHtml(context.description)}</div>
+      <h3>Create questions for your theme</h3>
+      <p class="studio-help">Describe your theme, copy a prompt into your preferred AI app, then paste its JSON reply here. Questions replace sample content for the selected activities and are saved ${context.scope === 'admin' ? 'to the global library' : context.scope === 'plan' ? 'with this session plan' : 'to this session'}.</p>
+      <label class="form-label" for="contentStudioCustomTopic">1. What’s the theme?</label>
+      <textarea id="contentStudioCustomTopic" class="form-input" rows="2" maxlength="160" placeholder="e.g. Space exploration for a team kickoff — playful and beginner-friendly" oninput="APP.contentStudioDraft&&(APP.contentStudioDraft.customTopic=this.value)">${escapeHtml(draft.customTopic || '')}</textarea>
+      <fieldset class="studio-activities">
+        <legend class="form-label">2. Choose activities</legend>
+        <div class="studio-choice-grid">
+          ${context.availableTargets.map(item => `
+            <label class="studio-choice">
+              <input id="contentStudioActivity-${item.id}" type="checkbox" ${draft.selectedActivityIds?.includes(item.id) ? 'checked' : ''} onchange="captureContentStudioDraftFromInputs()">
+              <span>${escapeHtml(item.label)}</span>
+            </label>`).join('')}
         </div>
-        <div style="font-size:0.78rem;color:var(--text-dim);text-align:right;">
-          Scope collections: <strong>${context.scopeCollections.length}</strong><br>
-          Managed set: <strong>${escapeHtml(getContentStudioManagedCollectionName(context.scope))}</strong>
+      </fieldset>
+      <details class="studio-details">
+        <summary>Customize question count, difficulty & audience</summary>
+        <div class="studio-choice-grid" style="margin-top:12px;">
+          <label>Questions per activity<input id="contentStudioCount" class="form-input" type="number" min="3" max="20" value="${draft.count || 8}" onchange="captureContentStudioDraftFromInputs()"></label>
+          <label>Difficulty<select id="contentStudioDifficulty" class="form-input" onchange="captureContentStudioDraftFromInputs()">
+            ${['easy', 'mixed', 'hard'].map(level => `<option value="${level}" ${draft.difficulty === level ? 'selected' : ''}>${level[0].toUpperCase() + level.slice(1)}</option>`).join('')}
+          </select></label>
+          <label>Audience (optional)<input id="contentStudioAudience" class="form-input" maxlength="120" value="${escapeHtml(draft.audience || '')}" oninput="APP.contentStudioDraft&&(APP.contentStudioDraft.audience=this.value)"></label>
+          <label>Tone (optional)<input id="contentStudioTone" class="form-input" maxlength="120" value="${escapeHtml(draft.tone || '')}" oninput="APP.contentStudioDraft&&(APP.contentStudioDraft.tone=this.value)"></label>
         </div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;">
-        ${context.availableTargets.map(item => {
-          const currentCount = getAIGenerationTargetCount(item.id);
-          const scopedCount = getScopedCollectionItemCount(context.scopeCollections, item.id);
-          return `
-            <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:12px;">
-              <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:6px;">${escapeHtml(item.label)}</div>
-              <div style="font-size:1.2rem;font-weight:800;">${Number.isFinite(currentCount) ? currentCount : 0}</div>
-              <div style="font-size:0.76rem;color:var(--text-dim);margin-top:4px;">
-                ${scopedCount ? `Scoped: ${scopedCount}` : 'Scoped: 0'}
-              </div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1.4fr 1fr 1fr;gap:10px;margin-bottom:10px;">
-        <select id="contentStudioThemePreset" class="form-input">
-          ${['Team Collaboration', ...ACTIVITY_QUEUE_THEME_OPTIONS.filter(item => item !== 'Random'), 'Random'].map(theme => `
-            <option value="${escapeHtml(theme)}" ${draft.themePreset === theme ? 'selected' : ''}>${escapeHtml(theme)}</option>
-          `).join('')}
-        </select>
-        <input id="contentStudioCustomTopic" class="form-input" maxlength="160" value="${escapeHtml(draft.customTopic || '')}" placeholder="Custom topic or sub-theme" oninput="APP.contentStudioDraft&&(APP.contentStudioDraft.customTopic=this.value)" autocomplete="off">
-        <input id="contentStudioAudience" class="form-input" maxlength="120" value="${escapeHtml(draft.audience || '')}" placeholder="Audience (optional)" oninput="APP.contentStudioDraft&&(APP.contentStudioDraft.audience=this.value)" autocomplete="off">
-        <input id="contentStudioTone" class="form-input" maxlength="120" value="${escapeHtml(draft.tone || '')}" placeholder="Tone (optional)" oninput="APP.contentStudioDraft&&(APP.contentStudioDraft.tone=this.value)" autocomplete="off">
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 0.7fr;gap:10px;margin-bottom:10px;">
-        <select id="contentStudioDifficulty" class="form-input">
-          <option value="easy" ${draft.difficulty === 'easy' ? 'selected' : ''}>Easy</option>
-          <option value="mixed" ${draft.difficulty !== 'easy' && draft.difficulty !== 'hard' ? 'selected' : ''}>Mixed</option>
-          <option value="hard" ${draft.difficulty === 'hard' ? 'selected' : ''}>Hard</option>
-        </select>
-        <input id="contentStudioCount" class="form-input" type="number" min="3" max="20" value="${Math.max(3, Math.min(20, Number(draft.count) || 8))}">
-      </div>
-
-      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px;">
-        ${context.availableTargets.map(item => `
-          <label style="display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
-            <input id="contentStudioActivity-${item.id}" type="checkbox" ${draft.selectedActivityIds?.includes(item.id) ? 'checked' : ''}>
-            <span>${escapeHtml(item.label)}</span>
-          </label>
-        `).join('')}
-      </div>
-
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-        <button class="btn-primary" data-action="content-studio-generate-selected">
-          Copy Prompt for Selected
-        </button>
-        <button class="btn-secondary" data-action="content-studio-generate-all">
-          Copy Prompt for All
-        </button>
-      </div>
-      <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:8px;">
-        Copy the generated prompt, paste it into your preferred AI tool, then import the JSON output in the <strong>Collections</strong> section below.
-      </div>
-      ${APP.contentStudioLastPrompt ? `
-        <div style="margin-bottom:12px;">
-          <div style="font-size:0.82rem;font-weight:700;margin-bottom:4px;">Generated Prompt:</div>
-          <textarea class="form-input" readonly style="min-height:140px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.78rem;">${escapeHtml(APP.contentStudioLastPrompt)}</textarea>
-          <button class="btn-secondary" style="margin-top:6px;" onclick="navigator.clipboard.writeText(document.querySelector('[readonly]').value).then(()=>this.textContent='Copied!').catch(()=>{})">Copy to Clipboard</button>
-        </div>
-      ` : ''}
-
-      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
-        <h4 style="margin-bottom:10px;">Managed Dataset Editor</h4>
-        <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:8px;">
-          <select id="contentStudioBankTarget" class="form-input">
-            ${AI_BANK_EDITOR_TARGETS.map(target => `
-              <option value="${target.id}" ${targetId === target.id ? 'selected' : ''}>${escapeHtml(target.label)}</option>
-            `).join('')}
-          </select>
-          <button class="btn-secondary" data-action="reload-content-studio-bank" style="width:auto;padding:0 14px;">Reload</button>
-        </div>
-        <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:8px;">
-          Edit the AI-managed collection for this scope. ${escapeHtml(getAIBankEditorTargetHelp(targetId))}
-        </div>
-        <textarea id="contentStudioBankEditorText" class="form-input" style="min-height:220px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">${escapeHtml(bankJson)}</textarea>
-        <button class="btn-primary" data-action="save-content-studio-bank" style="margin-top:10px;">Save Managed Dataset</button>
-      </div>
-
-      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
-        <h4 style="margin-bottom:10px;">Collections In This Scope</h4>
-        <textarea id="contentStudioCollectionJson" class="form-input" rows="6" placeholder='{"name":"Theme Pack","activities":{"lightning-trivia":[{"q":"...","opts":["A","B","C","D"],"ans":1}]}}'></textarea>
-        <button class="btn-secondary" data-action="content-studio-add-collection" style="margin-top:10px;">Add Collection JSON</button>
-        ${context.scopeCollections.length ? `
-          <div style="margin-top:12px;display:grid;gap:8px;">
-            ${context.scopeCollections.map(collection => `
-              <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px;display:flex;justify-content:space-between;gap:10px;align-items:center;">
-                <div>
-                  <div style="font-weight:700;">${escapeHtml(collection.name || collection.id)}</div>
-                  <div style="font-size:0.8rem;color:var(--text-dim);">${escapeHtml(collection.id || '')}</div>
-                </div>
-                <button class="btn-secondary" data-action="content-studio-remove-collection" data-key="${escapeHtml(collection.id || '')}" style="padding:6px 10px;">Remove</button>
-              </div>
-            `).join('')}
-          </div>
-        ` : '<div style="margin-top:10px;color:var(--text-dim);font-size:0.9rem;">No collections stored for this scope yet.</div>'}
-      </div>
-
-      ${APP.contentStudioStatus ? `<div role="status" aria-live="polite" style="margin-top:12px;color:var(--text-mid);font-size:0.9rem;">${escapeHtml(APP.contentStudioStatus)}</div>` : ''}
-    </div>
-  `;
+      </details>
+      <button class="btn-primary" data-action="content-studio-generate-selected" style="margin:12px 0;">Copy AI prompt</button>
+      ${APP.contentStudioLastPrompt ? `<details class="studio-details" open><summary>Your prompt — paste into your AI app</summary><textarea class="form-input" aria-label="Generated AI prompt" readonly rows="6">${escapeHtml(APP.contentStudioLastPrompt)}</textarea></details>` : ''}
+      <label class="form-label" for="contentStudioCollectionJson">3. Paste the AI reply</label>
+      <textarea id="contentStudioCollectionJson" class="form-input" rows="5" placeholder='Paste the complete JSON content pack here. Markdown code fences are accepted.' oninput="APP.contentStudioDraft&&(APP.contentStudioDraft.collectionJson=this.value)">${escapeHtml(draft.collectionJson || '')}</textarea>
+      <button class="btn-primary" data-action="content-studio-add-collection" style="margin-top:10px;">Save questions to ${context.scope === 'admin' ? 'library' : context.scope === 'plan' ? 'plan' : 'session'}</button>
+      ${APP.contentStudioStatus ? `<p role="status" aria-live="polite" class="studio-help">${escapeHtml(APP.contentStudioStatus)}</p>` : ''}
+      <details class="studio-details" style="margin-top:18px;">
+        <summary>Saved content packs (${context.scopeCollections.length})</summary>
+        ${context.scopeCollections.length ? context.scopeCollections.map(collection => `
+          <div class="studio-pack"><div><strong>${escapeHtml(collection.name)}</strong><div class="studio-help">${Object.entries(collection.activities).map(([id, items]) => `${escapeHtml(AI_GENERATION_TARGET_LABELS[id] || id)}: ${items.length}`).join(' · ')}</div></div><button class="btn-secondary" data-action="content-studio-remove-collection" data-key="${escapeHtml(collection.id)}">Remove</button></div>`).join('') : '<p class="studio-help">Your saved questions will appear here.</p>'}
+      </details>
+      <details class="studio-details">
+        <summary>Advanced: edit a dataset manually</summary>
+        <label class="form-label" for="contentStudioBankTarget">Dataset</label>
+        <select id="contentStudioBankTarget" class="form-input">${AI_BANK_EDITOR_TARGETS.map(item => `<option value="${item.id}" ${targetId === item.id ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}</select>
+        <textarea id="contentStudioBankEditorText" class="form-input" rows="6" aria-label="Dataset JSON">${escapeHtml(bankJson)}</textarea>
+        <button class="btn-secondary" data-action="save-content-studio-bank">Save dataset</button>
+      </details>
+    </section>`;
 }
 
 async function saveContentStudioBankEditor() {
@@ -2881,13 +2799,13 @@ async function generateContentStudioActivityContent(activityIds = null) {
 
   // Build a concrete example of the final wrapper object using the selected activity IDs
   const exampleKeys = selectedIds.map(id => '    "' + id + '": [ ... ]').join(',\n');
-  const importNote = 'IMPORTANT: To import into the app, wrap your output in a collection object like this:\n{\n  "name": "My Content Pack",\n  "activities": {\n' + exampleKeys + '\n  }\n}\n\nPaste that complete JSON into the "Collections" import box in the app.';
+  const importNote = 'IMPORTANT: To import into the app, wrap your output in a collection object like this:\n{\n  "name": "My Content Pack",\n  "activities": {\n' + exampleKeys + '\n  }\n}\n\nPaste that complete JSON into the "Paste the AI reply" box in the app.';
 
   const wrapperPrompt = 'You create accurate facilitator game content. Output strict JSON only.\n\nFor each section below, generate the requested content following the exact format and examples shown.\n\n' + fullPrompt + '\n\n--- FINAL OUTPUT FORMAT ---\n' + importNote;
 
   try {
     await navigator.clipboard.writeText(wrapperPrompt);
-    APP.contentStudioStatus = 'Prompt copied to clipboard! Paste into your preferred AI tool, then import the JSON output in the Collections section below.';
+    APP.contentStudioStatus = 'Prompt copied to clipboard! Paste into your preferred AI tool, then import the JSON output in the AI reply field below.';
     APP.contentStudioLastPrompt = wrapperPrompt;
   } catch (_err) {
     // Fallback: show in a textarea
@@ -2903,6 +2821,8 @@ function buildQueueCollectionTemplate(activityIds = []) {
   selectedIds.forEach(activityId => {
     if (activityId === 'lightning-trivia' || activityId === 'regular-trivia') {
       activities[activityId] = [{ q: 'Sample question', opts: ['Option A', 'Option B', 'Option C', 'Option D'], ans: 1 }];
+    } else if (activityId === 'survey-clash') {
+      activities[activityId] = [{ prompt: 'Name something you take into space.', answers: [{ text: 'Spacesuit', points: 60, aliases: ['suit'] }, { text: 'Food', points: 40, aliases: [] }] }];
     } else if (activityId === 'emoji-charades') {
       activities[activityId] = [{ emojis: '🦸‍♂️🛡️', answer: 'Superhero shield' }];
     } else if (activityId === 'icebreaker') {
@@ -4155,12 +4075,13 @@ function normalizeSurveyClashText(value) {
 }
 
 function getSurveyClashQuestion(state) {
+  const questions = Array.isArray(state?.questions) && state.questions.length ? state.questions : (SURVEY_CLASH_QUESTIONS.length ? SURVEY_CLASH_QUESTIONS : SAMPLE_SURVEY_CLASH_QUESTIONS);
   const order = Array.isArray(state?.questionOrder) && state.questionOrder.length
     ? state.questionOrder
-    : SURVEY_CLASH_QUESTIONS.map((_, idx) => idx);
+    : questions.map((_, idx) => idx);
   const round = Math.max(0, Number.parseInt(state?.roundIndex || 0, 10) || 0);
   const questionIndex = order[round % order.length] || 0;
-  return SURVEY_CLASH_QUESTIONS[questionIndex] || SURVEY_CLASH_QUESTIONS[0];
+  return questions[questionIndex] || questions[0];
 }
 
 function getSurveyClashMultiplier(state) {
@@ -4168,17 +4089,19 @@ function getSurveyClashMultiplier(state) {
 }
 
 function createSurveyClashState(participants = []) {
+  const questionOrder = buildShuffledQuestionOrder(SURVEY_CLASH_QUESTIONS.length);
   const names = (Array.isArray(participants) ? participants : [])
     .map(player => String(player?.name || '').trim())
     .filter(Boolean);
   return {
+    questions: JSON.parse(JSON.stringify(SURVEY_CLASH_QUESTIONS)),
     teamNames: [names[0] || 'Team 1', names[1] || 'Team 2'],
     scores: [0, 0],
     activeTeam: 0,
     roundIndex: 0,
     roundCount: Math.min(4, SURVEY_CLASH_QUESTIONS.length),
-    questionOrder: buildShuffledQuestionOrder(SURVEY_CLASH_QUESTIONS.length),
-    revealed: Array(6).fill(false),
+    questionOrder,
+    revealed: Array(SURVEY_CLASH_QUESTIONS[questionOrder[0]]?.answers.length || 6).fill(false),
     roundAwarded: false,
     strikes: 0,
     message: 'Board ready.',
@@ -4226,6 +4149,7 @@ async function updateSurveyClashState(mutator) {
   state.scores = Array.isArray(state.scores) ? state.scores.slice(0, 2).map(score => Number(score) || 0) : [0, 0];
   state.revealed = Array.isArray(state.revealed) ? state.revealed : Array(6).fill(false);
   state.roundAwarded = state.roundAwarded === true;
+  if (state.finished) return state;
   if (typeof mutator === 'function') mutator(state);
   state.updatedAt = Date.now();
   room.activityState = state;
@@ -4274,7 +4198,7 @@ async function surveyClashSubmitGuess() {
     state.revealed[answerIndex] = true;
     state.message = `${question.answers[answerIndex].text} is on the board.`;
     surveyClashSetSound(state, answerIndex === 0 ? 'top' : 'correct');
-    if (state.revealed.every(Boolean)) {
+    if (question.answers.every((_, idx) => state.revealed[idx])) {
       state.message = 'Board cleared. Award the bank or start the next round.';
       surveyClashSetSound(state, 'win');
     }
@@ -4361,8 +4285,7 @@ async function surveyClashSteal() {
 async function surveyClashNextRound() {
   await updateSurveyClashState(state => {
     if ((Number(state.roundIndex) || 0) >= (Number(state.roundCount) || 4) - 1) {
-      const winner = state.scores[0] === state.scores[1] ? 'Tie game' : state.teamNames[state.scores[0] > state.scores[1] ? 0 : 1];
-      state.message = `Game over. ${winner} wins.`;
+      state.message = getSurveyClashResult(state);
       surveyClashSetSound(state, 'win');
       return;
     }
@@ -4378,10 +4301,15 @@ async function surveyClashNextRound() {
   });
 }
 
+function getSurveyClashResult(state) {
+  return state.scores[0] === state.scores[1] ? 'Game over. It’s a tie!' : `Game over. ${state.teamNames[state.scores[0] > state.scores[1] ? 0 : 1]} wins.`;
+}
+
 async function surveyClashFinishGame() {
   await updateSurveyClashState(state => {
-    const winner = state.scores[0] === state.scores[1] ? 'Tie game' : state.teamNames[state.scores[0] > state.scores[1] ? 0 : 1];
-    state.message = `Game over. ${winner} wins.`;
+    state.message = getSurveyClashResult(state);
+    state.finished = true;
+    state.timerSeconds = 0;
     surveyClashSetSound(state, 'win');
   });
 }
@@ -4444,7 +4372,13 @@ function renderSurveyClash() {
       </div>
     `;
   }).join('');
-  const hostControls = isHost ? `
+  const hostControls = isHost ? state.finished ? `
+    <div style="padding:20px;background:var(--surface-solid);border:1px solid var(--border);border-radius:12px;">
+      <h3>Game complete</h3>
+      <p style="margin:12px 0;">${escapeHtml(state.message)}</p>
+      <button class="btn-primary" data-action="start-survey-clash">Play again</button>
+    </div>
+  ` : `
     <div style="display:grid;gap:14px;">
       <div style="padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface-solid);">
         <div style="font-size:0.78rem;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;">Guess</div>
@@ -4471,7 +4405,7 @@ function renderSurveyClash() {
         </div>
       </div>
       <div style="padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface-solid);">
-        <div style="font-size:0.78rem;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;">Sound</div>
+        <details><summary style="cursor:pointer;font-weight:700;margin-bottom:10px;">Sound & timer</summary>
         <label class="form-label" for="surveyClashVolume">Master volume</label>
         <input id="surveyClashVolume" type="range" min="0" max="100" value="${Math.round(surveyClashVolume * 100)}" style="width:100%;margin:6px 0 10px;">
         <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
@@ -4486,6 +4420,7 @@ function renderSurveyClash() {
           <button class="btn-secondary" data-action="survey-clash-timer" data-seconds="20">20 sec</button>
           <button class="btn-secondary" data-action="survey-clash-timer" data-seconds="30">30 sec</button>
         </div>
+        </details>
       </div>
     </div>
   ` : `
@@ -4542,7 +4477,7 @@ function renderSurveyClash() {
             <div style="font-family:'IBM Plex Mono',monospace;font-weight:900;margin-top:4px;">${remaining ? `${remaining}s` : '--'}</div>
           </div>
         </div>
-        <div style="margin-top:12px;padding:12px 14px;border-radius:8px;background:rgba(254,202,87,0.1);border:1px solid rgba(254,202,87,0.18);font-weight:800;color:var(--warning);">${escapeHtml(state.message || 'Board ready.')}</div>
+        <div role="status" aria-live="polite" style="margin-top:12px;padding:12px 14px;border-radius:8px;background:rgba(254,202,87,0.1);border:1px solid rgba(254,202,87,0.18);font-weight:800;color:var(--warning);">${escapeHtml(state.message || 'Board ready.')}</div>
       </div>
       ${hostControls}
     </div>
@@ -4957,8 +4892,9 @@ async function nextQuestion() {
   await RoomManager.updateRoom(APP.roomCode, room);
 }
 
-async function endActivity() {
+async function endActivity({ returnToSession = false } = {}) {
   const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.host !== APP.player?.name || !room.currentActivity) return;
   
   // Award XP based on activity type
   const activity = room.currentActivity;
@@ -5027,8 +4963,14 @@ async function endActivity() {
   
   room.currentActivity = null;
   room.activityState = {};
+  if (returnToSession) {
+    room.queueActive = false;
+    room.queueTiming = { ...(room.queueTiming || {}), currentEndsAt: 0 };
+  }
   
   await RoomManager.updateRoom(APP.roomCode, room);
+  APP.room = room;
+  render();
   ticTacToeFinalizePending = false;
   resetWordChainFocusState();
 
@@ -5862,11 +5804,13 @@ function render() {
   const app = document.getElementById('app');
   // Skip re-render if user is typing in a form input (prevents mobile keyboard dismissal)
   const activeEl = document.activeElement;
+  const liveInput = ['surveyClashGuessInput', 'activitySearch'].includes(activeEl?.id)
+    ? { id: activeEl.id, value: activeEl.value, start: activeEl.selectionStart, end: activeEl.selectionEnd } : null;
   const activeCosmosInput = getActiveCosmosBoundTextInput();
   if (activeCosmosInput && APP.cosmosBoundUi?.allowImmediateRender !== true) {
     return;
   }
-  if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+  if (!liveInput && activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
     const inputType = (activeEl.type || 'text').toLowerCase();
     if (!['checkbox', 'radio', 'range', 'file', 'color', 'hidden', 'submit', 'reset', 'button', 'image'].includes(inputType)) {
       return;
@@ -5912,6 +5856,15 @@ function render() {
   html += renderFooter();
   
   app.innerHTML = html;
+  applyActivityFilters();
+  if (liveInput) {
+    const replacement = document.getElementById(liveInput.id);
+    if (replacement) {
+      replacement.value = liveInput.value;
+      replacement.focus({ preventScroll: true });
+      replacement.setSelectionRange(liveInput.start, liveInput.end);
+    }
+  }
   restoreDjBoothPlayersAfterRender();
   updateVoiceMeterDom();
   if (APP.room?.currentActivity === 'dj-booth') {
@@ -6075,7 +6028,7 @@ function renderHostSettingsModal() {
           </button>
           ${globalAiEnabled ? `
             <button class="host-tab-btn ${activeTab === 'ai' ? 'active' : ''}" data-action="host-settings-tab" data-tab="ai" role="tab" aria-selected="${activeTab === 'ai' ? 'true' : 'false'}">
-              AI Settings
+              Themed questions
             </button>
           ` : ''}
         </div>
@@ -6186,10 +6139,6 @@ function renderHostSettingsModal() {
         </div>
 
         <div data-tab-panel="ai" class="host-tab-panel" ${activeTab !== 'ai' ? 'hidden' : ''} style="margin-bottom:18px;${globalAiEnabled ? '' : 'display:none;'}">
-          <h4 style="margin-bottom:6px;">Content Prompt Generator</h4>
-          <div style="font-size:0.84rem;color:var(--text-dim);margin-bottom:14px;">
-            Generate prompts for your preferred AI tool, then import the JSON output as a collection.
-          </div>
           ${roomSettings.enableAIGenerator ? `
             ${renderAIContentStudioSection('room', { compact: true })}
           ` : `
@@ -7056,6 +7005,8 @@ async function saveAIBankEditorCollection() {
 function buildAIPromptForActivity(activityId, topic, difficulty, count) {
   const targetTopic = topic || 'team collaboration';
   switch (activityId) {
+    case 'survey-clash':
+      return `Create ${count} Survey Clash rounds themed around "${targetTopic}" at ${difficulty} difficulty. Each round needs a prompt and 2–8 plausible answers. Use simulated points totaling exactly 100 per round; do not claim these are real survey results. Return a JSON array of {"prompt":"Name something…","answers":[{"text":"Answer","points":60,"aliases":["alternative"]},{"text":"Other answer","points":40,"aliases":[]}]}. Keep questions inclusive and suitable for a team event.`;
     case 'lightning-trivia':
     case 'regular-trivia':
       return `Generate ${count} multiple-choice trivia questions about "${targetTopic}" at ${difficulty} difficulty.
@@ -7175,6 +7126,7 @@ async function requestAIGeneratedArray() {
 }
 
 function validateGeneratedContentForActivity(activityId, parsed) {
+  if (activityId === 'survey-clash') return TeamBuilderThemeContent.validateSurveyQuestions(parsed);
   if (activityId === 'lightning-trivia' || activityId === 'regular-trivia') return validateAIQuestions(parsed);
   if (activityId === 'icebreaker') return validateAIIcebreakerQuestions(parsed);
   if (activityId === 'emoji-charades') return validateAIEmojiCharades(parsed);
@@ -8191,6 +8143,11 @@ document.addEventListener('click', async (event) => {
     case 'edit-profile':
       editProfile();
       break;
+    case 'open-themed-content':
+      APP.showHostSettings = true;
+      APP.hostSettingsTab = 'ai';
+      render();
+      break;
     case 'open-host-settings':
       openHostSettings();
       break;
@@ -8287,6 +8244,9 @@ document.addEventListener('click', async (event) => {
       break;
     case 'generate-ai-questions':
       await generateAIQuestions();
+      break;
+    case 'return-to-session':
+      await endActivity({ returnToSession: true });
       break;
     case 'end-activity':
       await endActivity();
@@ -8656,6 +8616,8 @@ function renderActivity() {
 
   return `
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+      <span style="margin-right:auto;align-self:center;color:var(--text-dim);">Session <strong>${escapeHtml(APP.roomCode)}</strong></span>
+      ${isHost ? '<button class="btn-secondary" data-action="return-to-session">← Back to session</button>' : '<span style="align-self:center;color:var(--text-dim);">Your host controls the activity</span>'}
       ${isHost ? '<button class="btn-secondary" data-action="open-admin-console" style="font-size:0.78rem;padding:6px 10px;">🛠️ Admin</button>' : ''}
       <button class="btn-secondary" data-action="leave-session" style="font-size:0.78rem;padding:6px 10px;">🚪 Leave</button>
     </div>

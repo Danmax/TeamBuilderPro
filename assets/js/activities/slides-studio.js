@@ -389,46 +389,37 @@ async function slidesStudioSaveCurrentSlide() {
 }
 
 async function generateSlidesStudioFromPrompt() {
-  if (!APP.roomCode || !APP.room || APP.room.currentActivity !== 'slides-studio') return;
-  if (APP.room.host !== APP.player?.name) return;
-  const promptText = String(document.getElementById('slidesStudioAIPrompt')?.value || '').trim();
-  const requestedCount = Math.max(3, Math.min(10, Number.parseInt(document.getElementById('slidesStudioAICount')?.value || '5', 10) || 5));
+  if (!APP.roomCode || APP.room?.currentActivity !== 'slides-studio' || APP.room.host !== APP.player?.name) return;
+  const promptText = String(document.getElementById('slidesStudioAIPrompt')?.value || APP.slidesStudioUi.aiPrompt || '').trim();
+  if (!promptText) { showError('Describe the slides you want to create.'); return; }
+  const count = Math.max(3, Math.min(10, Number(document.getElementById('slidesStudioAICount')?.value || APP.slidesStudioUi.aiCount) || 5));
   APP.slidesStudioUi.aiPrompt = promptText;
-  APP.slidesStudioUi.aiCount = requestedCount;
-  const apiKeyInput = String(document.getElementById('slidesStudioAIApiKey')?.value || '').trim();
-  const apiKey = apiKeyInput || HOST_LOCAL_CONFIG.aiApiKey || localStorage.getItem('ai-question-api-key') || '';
-  if (!promptText) {
-    showError('Add a prompt to generate slides.');
-    return;
-  }
-
-  APP.aiGenerating = true;
-  APP.aiStatus = `Generating ${requestedCount} slide${requestedCount === 1 ? '' : 's'}...`;
-  render();
-
+  APP.slidesStudioUi.aiCount = count;
+  APP.slidesStudioUi.generatedPrompt = buildAISlidesStudioPrompt(promptText, count);
   try {
-    if (apiKeyInput) {
-      HOST_LOCAL_CONFIG.aiApiKey = apiKeyInput;
-      localStorage.setItem('ai-question-api-key', apiKeyInput);
-      saveHostLocalConfig(HOST_LOCAL_CONFIG);
-    }
-    const generated = await requestAIGeneratedArray(buildAISlidesStudioPrompt(promptText, requestedCount), apiKey);
-    const slides = validateAISlidesStudioSlides(generated);
-    if (!slides.length) {
-      throw new Error('AI returned no valid slides.');
-    }
+    await navigator.clipboard.writeText(APP.slidesStudioUi.generatedPrompt);
+    APP.aiStatus = 'Prompt copied. Paste it into your AI app, then import the JSON reply below.';
+  } catch (_error) {
+    APP.aiStatus = 'Copy the prompt below into your AI app, then import its JSON reply.';
+  }
+  render();
+}
+
+async function importSlidesStudioAIReply() {
+  if (!APP.roomCode || APP.room?.currentActivity !== 'slides-studio' || APP.room.host !== APP.player?.name) return;
+  try {
+    const parsed = TeamBuilderThemeContent.parseContentJSON(document.getElementById('slidesStudioAIReply')?.value);
+    const slides = validateAISlidesStudioSlides(parsed);
+    if (!Array.isArray(parsed) || !slides.length || slides.length !== parsed.length) throw new Error('Paste a JSON array of up to 12 valid slides.');
     await updateSlidesStudioState(state => {
-      state.title = normalizeTopic(document.getElementById('slidesStudioDeckTitle')?.value || promptText) || state.title || 'Slides Studio';
       state.slides = slides;
       state.activeSlideId = slides[0].id;
     });
-    APP.aiStatus = `Generated ${slides.length} slide${slides.length === 1 ? '' : 's'} from prompt.`;
-  } catch (error) {
-    APP.aiStatus = error?.message || 'Slide generation failed.';
-    showError(APP.aiStatus);
-  } finally {
-    APP.aiGenerating = false;
+    APP.slidesStudioUi.aiReply = '';
+    APP.aiStatus = `Imported ${slides.length} slides into this session.`;
     render();
+  } catch (error) {
+    showError(`Slides not imported: ${error.message}`);
   }
 }
 
@@ -597,14 +588,14 @@ function renderSlidesStudio() {
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
         <div>
           <div style="font-weight:800;font-size:1.08rem;">Create Slides From Prompt</div>
-          <div style="color:var(--text-dim);font-size:0.84rem;">Generate a fresh deck using the same AI setup used elsewhere in Team Builder.</div>
+          <div style="color:var(--text-dim);font-size:0.84rem;">Copy a prompt into your AI app, then import its JSON reply into this session.</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           <button class="btn-secondary" data-action="slides-studio-toggle-generate" aria-label="${generateExpanded ? 'Collapse generate slides panel' : 'Expand generate slides panel'}" title="${generateExpanded ? 'Collapse generate slides panel' : 'Expand generate slides panel'}" style="width:auto;padding:10px 14px;min-width:46px;font-size:1.05rem;line-height:1;">
             ${generateExpanded ? '▴' : '▾'}
           </button>
           <button class="btn-primary" data-action="slides-studio-generate" ${APP.aiGenerating ? 'disabled' : ''} style="width:auto;padding:10px 18px;">
-            ${APP.aiGenerating ? 'Generating...' : 'Generate Slides'}
+            Copy AI prompt
           </button>
         </div>
       </div>
@@ -618,12 +609,13 @@ function renderSlidesStudio() {
             <label class="form-label" for="slidesStudioAICount">Slide count</label>
             <input id="slidesStudioAICount" class="form-input" type="number" min="3" max="10" value="${aiDefaultCount}">
           </div>
-          <div class="form-group">
-            <label class="form-label" for="slidesStudioAIApiKey">API key (optional fallback)</label>
-            <input id="slidesStudioAIApiKey" class="form-input" type="password" value="${escapeHtml(HOST_LOCAL_CONFIG.aiApiKey || '')}" placeholder="Uses server provider config when available">
-          </div>
+
         </div>
       ` : ''}
+      ${APP.slidesStudioUi.generatedPrompt ? `<details style="margin-top:12px;"><summary>View AI prompt</summary><textarea class="form-input" rows="5" readonly aria-label="Slide generation prompt">${escapeHtml(APP.slidesStudioUi.generatedPrompt)}</textarea></details>` : ''}
+      <label class="form-label" for="slidesStudioAIReply" style="margin-top:12px;">Paste AI slide reply (JSON array)</label>
+      <textarea id="slidesStudioAIReply" class="form-input" rows="4" oninput="APP.slidesStudioUi.aiReply=this.value">${escapeHtml(APP.slidesStudioUi.aiReply || '')}</textarea>
+      <button class="btn-secondary" data-action="slides-studio-import-ai" style="margin-top:10px;">Import slides</button>
       ${APP.aiStatus ? `<div role="status" aria-live="polite" style="margin-top:${generateExpanded ? '10px' : '0'};color:var(--text-mid);font-size:0.88rem;">${escapeHtml(APP.aiStatus)}</div>` : ''}
     </div>
 
@@ -802,3 +794,24 @@ function renderSlidesStudio() {
     </div>
   `;
 }
+
+window.TEAM_BUILDER_ACTIVITY_REGISTRY.registerActivity('slides-studio', {
+  createInitialState: () => createSlidesStudioState(),
+  render: () => renderSlidesStudio()
+});
+
+window.TEAM_BUILDER_ACTIVITY_REGISTRY.registerAction('slides-studio-import-ai', () => importSlidesStudioAIReply());
+
+for (const [action, handler] of Object.entries({
+  'start-slides-studio': () => startActivityById('slides-studio'),
+  'slides-studio-generate': () => generateSlidesStudioFromPrompt(),
+  'slides-studio-toggle-generate': () => toggleSlidesStudioGeneratePanel(),
+  'slides-studio-toggle-editor': () => toggleSlidesStudioEditorPanel(),
+  'slides-studio-prev': () => slidesStudioNavigate(-1),
+  'slides-studio-next': () => slidesStudioNavigate(1),
+  'slides-studio-add': () => slidesStudioAddSlide(),
+  'slides-studio-select': ({ dataset }) => slidesStudioSelectSlide(dataset.slideId),
+  'slides-studio-duplicate': ({ dataset }) => slidesStudioDuplicateSlide(dataset.slideId),
+  'slides-studio-remove': ({ dataset }) => slidesStudioRemoveSlide(dataset.slideId),
+  'slides-studio-save': () => slidesStudioSaveCurrentSlide()
+})) window.TEAM_BUILDER_ACTIVITY_REGISTRY.registerAction(action, handler);

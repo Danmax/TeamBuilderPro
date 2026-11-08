@@ -47,7 +47,7 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
       ${isHost ? `<button class="btn-secondary" data-action="open-host-settings" aria-keyshortcuts="Alt+S" style="font-size:0.78rem;padding:6px 10px;border-color:${raisedHandCount ? 'rgba(255,209,102,0.45)' : 'var(--border)'};color:${raisedHandCount ? '#ffd166' : 'var(--text)'};">⚙️ Settings${raisedHandCount ? ` (${raisedHandCount} ✋)` : ''}</button>` : ''}
     </div>
 
-    <div class="header">
+    <div class="header session-header">
       <h1 class="logo">${lobbyTitle}</h1>
       <p class="tagline">Room: ${safeRoomCode}${isCommunityRoom ? ' • Community Lobby' : ''}</p>
     </div>
@@ -78,41 +78,14 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
       </div>
     ` : ''}
     
-    <div style="background:rgba(0,210,211,0.05);border:2px solid var(--accent);
-      border-radius:var(--radius);padding:24px;margin-bottom:24px;">
-      <div class="qr-grid" style="display:grid;grid-template-columns:${isHost ? '1.4fr 1fr' : '1fr'};gap:18px;align-items:center;">
-        <div style="text-align:center;">
-          <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">
-            Room Code
-          </div>
-          <div style="font-family:'IBM Plex Mono',monospace;font-size:3rem;font-weight:700;
-            letter-spacing:12px;color:var(--accent);margin:10px 0;">
-            ${safeRoomCode}
-          </div>
-          <div style="font-size:0.85rem;color:var(--text-dim);">Share with your team</div>
-          ${isHost ? `
-            <div style="margin-top:10px;color:var(--text-dim);font-size:0.82rem;word-break:break-all;">
-              ${safeJoinUrl}
-            </div>
-            <div style="margin-top:8px;color:var(--text-dim);font-size:0.82rem;">
-              Access: <strong>${privateSession ? 'Private session (token required)' : 'Open session (room code only)'}</strong>
-            </div>
-            <button class="btn-secondary" data-action="copy-join-link" style="margin-top:10px;">Copy Join Link</button>
-          ` : ''}
-        </div>
-        ${isHost ? `
-          <div style="text-align:center;">
-            <div style="font-weight:700;margin-bottom:10px;">Scan to Join</div>
-            <img src="${qrImageUrl}" alt="QR code to join session" width="220" height="220"
-              style="width:220px;height:220px;max-width:100%;border-radius:12px;border:1px solid var(--border);background:#fff;padding:8px;">
-          </div>
-        ` : ''}
-      </div>
+    <div class="session-invite">
+      <div><div class="studio-help" style="margin:0;">Session code · ${APP.room.participants.length} ${APP.room.participants.length === 1 ? 'person' : 'people'}</div><strong class="session-code">${safeRoomCode}</strong></div>
+      ${isHost ? `
+        <div class="session-invite-actions">
+          <button class="btn-primary" data-action="copy-join-link">Copy invite link</button>
+          <details class="session-qr"><summary class="btn-secondary">Show QR code</summary><div class="session-qr-panel"><img src="${qrImageUrl}" alt="QR code to join session ${safeRoomCode}" width="220" height="220" loading="lazy"><p class="studio-help">${privateSession ? 'Private invite · token required' : 'Anyone with the room code can join'}</p></div></details>
+        </div>` : '<span class="studio-help">Share this code with your team.</span>'}
     </div>
-    <div style="text-align:center;margin:-10px 0 22px;color:var(--text-dim);font-size:0.84rem;">
-      Keyboard: <strong>${escapeHtml(formatModifierShortcut('L'))}</strong> lobby, <strong>${escapeHtml(formatModifierShortcut('P'))}</strong> presentation, <strong>${escapeHtml(formatModifierShortcut('S'))}</strong> host settings, <strong>?</strong> shortcuts
-    </div>
-
     <div style="display:none;">
     </div>
     
@@ -182,72 +155,17 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
       `).join('')}
     </div>
 
-    ${APP.preferences?.enableMessageBoard !== false ? `
-      <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:30px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
-          <h3 style="font-weight:700;">${isCommunityRoom ? '💬 Community Chat' : '📋 Session Message Board'}</h3>
-          <div style="font-size:0.82rem;color:var(--text-dim);">${isCommunityRoom ? 'Lobby-wide messages and emoji reactions' : 'Share notes, links, or reactions with the team'}</div>
-        </div>
-
-        <div data-community-chat-list="1" style="display:grid;gap:10px;max-height:420px;overflow:auto;padding-right:4px;">
-          ${communityChat.length ? communityChat.map(message => {
-            const isOwnMessage = message.playerId === APP.player?.id || normalizeName(message.playerName || '') === normalizeName(APP.player?.name || '');
-            return `
-              <div style="display:flex;justify-content:${isOwnMessage ? 'flex-end' : 'flex-start'};">
-                <div style="background:${isOwnMessage ? 'rgba(0,210,211,0.12)' : 'var(--surface-2)'};border:1px solid ${isOwnMessage ? 'rgba(0,210,211,0.24)' : 'var(--border)'};border-radius:14px;padding:12px 14px;max-width:min(82%, 620px);">
-                  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
-                    <div style="display:flex;align-items:flex-start;gap:10px;min-width:0;flex-direction:${isOwnMessage ? 'row-reverse' : 'row'};">
-                      ${isOwnMessage ? '' : `<div style="font-size:1.3rem;line-height:1;">${escapeHtml(message.avatar || '💬')}</div>`}
-                      <div style="min-width:0;text-align:${isOwnMessage ? 'right' : 'left'};">
-                        <div style="font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:${isOwnMessage ? 'flex-end' : 'flex-start'};">
-                          <span>${escapeHtml(message.playerName || 'Guest')}</span>
-                          <span style="font-size:0.75rem;color:var(--text-dim);font-weight:600;">${escapeHtml(formatCommunityChatTime(message.ts))}</span>
-                        </div>
-                        <div style="color:var(--text-mid);line-height:1.5;word-break:break-word;margin-top:4px;">${escapeHtml(message.text || '')}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            `;
-          }).join('') : `
-            <div style="background:var(--surface-2);border:1px dashed var(--border);border-radius:14px;padding:18px;color:var(--text-dim);text-align:center;">
-              ${isCommunityRoom ? 'No messages yet. Start the conversation or drop an emoji.' : 'No messages yet. Share a link, note, or quick reaction with the team.'}
-            </div>
-          `}
-        </div>
-
-        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-          <div class="form-group" style="margin:0 0 10px;">
-            <label class="form-label" for="communityChatInput">Message</label>
-            <input id="communityChatInput" class="form-input" maxlength="280" placeholder="${isCommunityRoom ? 'Say hi, react, or coordinate the next game' : 'Share a message, link, or note with the team'}">
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
-            <div style="position:relative;">
-              <details style="position:relative;">
-                <summary class="btn-secondary" style="list-style:none;width:auto;padding:10px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
-                  <span style="font-size:1rem;">😊</span>
-                  <span>React</span>
-                </summary>
-                <div style="position:absolute;left:0;bottom:calc(100% + 10px);z-index:4;min-width:220px;padding:10px;border-radius:16px;background:rgba(8,12,29,0.96);border:1px solid var(--border);box-shadow:0 18px 36px rgba(0,0,0,0.32);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;">
-                  ${COMMUNITY_CHAT_QUICK_EMOJIS.map(emoji => `
-                    <button class="btn-secondary" data-action="community-chat-emoji" data-emoji="${escapeHtml(emoji)}" style="width:auto;padding:10px 0;font-size:1rem;">${escapeHtml(emoji)}</button>
-                  `).join('')}
-                </div>
-              </details>
-            </div>
-            <button class="btn-primary" data-action="send-community-chat" style="width:auto;padding:12px 18px;">Send</button>
-          </div>
-        </div>
-      </div>
-    ` : ''}
-
     ${isHost ? `
-      <h3 style="text-align:center;font-family:'Fraunces',serif;font-size:1.5rem;margin-bottom:20px;">
-        Choose Activity
-      </h3>
-      
-      <div class="grid-2">
+      <section class="activity-picker" aria-label="Activity library">
+      <div class="activity-picker-header"><div><h3>Choose an activity</h3><p>Find a quick warm-up, a team challenge, or a shared workspace.</p></div>
+      ${APP.preferences.enableAIGenerator !== false && getRoomHostSettings(APP.room).enableAIGenerator ? '<button class="btn-secondary" data-action="open-themed-content">✨ Create themed questions</button>' : ''}</div>
+      <label class="form-label" for="activitySearch">Find an activity</label>
+      <input id="activitySearch" class="form-input" type="search" value="${escapeHtml(window.TEAM_BUILDER_DISCOVERY?.query || '')}" placeholder="Search games, trivia, polls…" autocomplete="off">
+      <div class="activity-filters" role="group" aria-label="Activity category">
+        ${['All', 'Warm-ups', 'Team games', 'Board games', 'Present & create'].map(category => `<button class="btn-secondary" data-activity-filter="${escapeHtml(category)}" aria-pressed="${(window.TEAM_BUILDER_DISCOVERY?.category || 'All') === category}">${escapeHtml(category)}</button>`).join('')}
+      </div>
+      <p id="activityFilterStatus" class="studio-help" role="status" aria-live="polite"></p>
+      <div class="grid-2" id="activityLibrary">
         <button type="button" class="card" data-action="start-lightning-trivia" aria-label="Start Lightning Trivia" style="${enabledActivities['lightning-trivia'] === false ? 'display:none;' : ''}">
           <div class="card-icon">⚡</div>
           <h3 class="card-title">Lightning Trivia</h3>
@@ -394,6 +312,8 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
           <p class="card-desc">Crew up and pilot a spacecraft through a full mission — each role controls a different station</p>
         </button>
       </div>
+      <p id="activityEmptyState" class="activity-empty" hidden>No activities match. Try a different name or choose All.</p>
+      </section>
     ` : `
       <div style="text-align:center;padding:60px 20px;">
         <div style="width:48px;height:48px;margin:0 auto 20px;border:4px solid var(--surface-2);
@@ -401,6 +321,68 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
         <p style="color:var(--text-dim);">Waiting for host to start an activity...</p>
       </div>
     `}
+
+    ${APP.preferences?.enableMessageBoard !== false ? `
+      <div style="background:var(--surface-solid);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:30px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+          <h3 style="font-weight:700;">${isCommunityRoom ? '💬 Community Chat' : '📋 Session Message Board'}</h3>
+          <div style="font-size:0.82rem;color:var(--text-dim);">${isCommunityRoom ? 'Lobby-wide messages and emoji reactions' : 'Share notes, links, or reactions with the team'}</div>
+        </div>
+
+        <div data-community-chat-list="1" style="display:grid;gap:10px;max-height:420px;overflow:auto;padding-right:4px;">
+          ${communityChat.length ? communityChat.map(message => {
+            const isOwnMessage = message.playerId === APP.player?.id || normalizeName(message.playerName || '') === normalizeName(APP.player?.name || '');
+            return `
+              <div style="display:flex;justify-content:${isOwnMessage ? 'flex-end' : 'flex-start'};">
+                <div style="background:${isOwnMessage ? 'rgba(0,210,211,0.12)' : 'var(--surface-2)'};border:1px solid ${isOwnMessage ? 'rgba(0,210,211,0.24)' : 'var(--border)'};border-radius:14px;padding:12px 14px;max-width:min(82%, 620px);">
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+                    <div style="display:flex;align-items:flex-start;gap:10px;min-width:0;flex-direction:${isOwnMessage ? 'row-reverse' : 'row'};">
+                      ${isOwnMessage ? '' : `<div style="font-size:1.3rem;line-height:1;">${escapeHtml(message.avatar || '💬')}</div>`}
+                      <div style="min-width:0;text-align:${isOwnMessage ? 'right' : 'left'};">
+                        <div style="font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:${isOwnMessage ? 'flex-end' : 'flex-start'};">
+                          <span>${escapeHtml(message.playerName || 'Guest')}</span>
+                          <span style="font-size:0.75rem;color:var(--text-dim);font-weight:600;">${escapeHtml(formatCommunityChatTime(message.ts))}</span>
+                        </div>
+                        <div style="color:var(--text-mid);line-height:1.5;word-break:break-word;margin-top:4px;">${escapeHtml(message.text || '')}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('') : `
+            <div style="background:var(--surface-2);border:1px dashed var(--border);border-radius:14px;padding:18px;color:var(--text-dim);text-align:center;">
+              ${isCommunityRoom ? 'No messages yet. Start the conversation or drop an emoji.' : 'No messages yet. Share a link, note, or quick reaction with the team.'}
+            </div>
+          `}
+        </div>
+
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+          <div class="form-group" style="margin:0 0 10px;">
+            <label class="form-label" for="communityChatInput">Message</label>
+            <input id="communityChatInput" class="form-input" maxlength="280" placeholder="${isCommunityRoom ? 'Say hi, react, or coordinate the next game' : 'Share a message, link, or note with the team'}">
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="position:relative;">
+              <details style="position:relative;">
+                <summary class="btn-secondary" style="list-style:none;width:auto;padding:10px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;">
+                  <span style="font-size:1rem;">😊</span>
+                  <span>React</span>
+                </summary>
+                <div style="position:absolute;left:0;bottom:calc(100% + 10px);z-index:4;min-width:220px;padding:10px;border-radius:16px;background:rgba(8,12,29,0.96);border:1px solid var(--border);box-shadow:0 18px 36px rgba(0,0,0,0.32);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;">
+                  ${COMMUNITY_CHAT_QUICK_EMOJIS.map(emoji => `
+                    <button class="btn-secondary" data-action="community-chat-emoji" data-emoji="${escapeHtml(emoji)}" style="width:auto;padding:10px 0;font-size:1rem;">${escapeHtml(emoji)}</button>
+                  `).join('')}
+                </div>
+              </details>
+            </div>
+            <button class="btn-primary" data-action="send-community-chat" style="width:auto;padding:12px 18px;">Send</button>
+          </div>
+        </div>
+      </div>
+    ` : ''}
+
+
   `;
 };
 

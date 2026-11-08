@@ -704,3 +704,17 @@ function renderBackgammon() {
     </div>
   `;
 }
+
+window.TEAM_BUILDER_ACTIVITY_REGISTRY.registerActivity('backgammon', {
+  createInitialState: room => createBackgammonState(room?.participants || []),
+  render: () => renderBackgammon()
+});
+
+for (const [action, handler] of Object.entries({
+  'start-backgammon': () => startActivityById('backgammon'),
+  'backgammon-roll': () => rollBackgammonDice(),
+  'backgammon-point': ({ parsed }) => Number.isInteger(parsed.index) ? backgammonHandlePointAction(parsed.index) : undefined,
+  'backgammon-bar': () => backgammonHandleBarAction(),
+  'backgammon-bear-off': () => backgammonHandlePointAction('off'),
+  'backgammon-restart': () => restartBackgammonMatch()
+})) window.TEAM_BUILDER_ACTIVITY_REGISTRY.registerAction(action, handler);

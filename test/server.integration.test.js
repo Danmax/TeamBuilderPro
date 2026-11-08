@@ -132,6 +132,42 @@ test('room mutations require participant identity and host controls require the 
   });
   assert.equal(guestActivityUpdate.ok, true);
 
+  // The host starts a survey with session-scoped questions. Guests see the same
+  // board but cannot reveal answers, change scores, or replace its content.
+  const surveyState = {
+    questions: [{ prompt: 'Name a planet.', answers: [{ text: 'Earth', points: 60 }, { text: 'Mars', points: 40 }] }],
+    questionOrder: [0], roundIndex: 0, scores: [0, 0], revealed: [false, false]
+  };
+  const hostSurvey = await emitAck(socket, 'shared:set', {
+    key, authToken: roomToken, actorToken: hostToken, actorPlayerId: 'host-1',
+    value: JSON.stringify({ ...JSON.parse(guestActivityUpdate.value), currentActivity: 'survey-clash', activityState: surveyState })
+  });
+  assert.equal(hostSurvey.ok, true);
+  const surveyRoom = JSON.parse(hostSurvey.value);
+  const guestReveal = await emitAck(socket, 'shared:set', {
+    key, actorToken: guestToken, actorPlayerId: 'guest-1',
+    value: JSON.stringify({ ...surveyRoom, activityState: { ...surveyState, revealed: [true, true] } })
+  });
+  assert.equal(guestReveal.ok, false);
+  const guestContentChange = await emitAck(socket, 'shared:set', {
+    key, actorToken: guestToken, actorPlayerId: 'guest-1',
+    value: JSON.stringify({ ...surveyRoom, contentCollections: [{ name: 'Replacement', activities: {} }] })
+  });
+  assert.equal(guestContentChange.ok, false);
+  const hostReveal = await emitAck(socket, 'shared:set', {
+    key, authToken: roomToken, actorToken: hostToken, actorPlayerId: 'host-1',
+    value: JSON.stringify({ ...surveyRoom, activityState: { ...surveyState, revealed: [true, false] } })
+  });
+  assert.equal(hostReveal.ok, true);
+  const guestView = await emitAck(socket, 'shared:get', { key });
+  assert.deepEqual(JSON.parse(guestView.value).activityState.revealed, [true, false]);
+  const returnToSession = await emitAck(socket, 'shared:set', {
+    key, authToken: roomToken, actorToken: hostToken, actorPlayerId: 'host-1',
+    value: JSON.stringify({ ...JSON.parse(hostReveal.value), currentActivity: null, activityState: {} })
+  });
+  assert.equal(returnToSession.ok, true);
+  assert.equal(JSON.parse(returnToSession.value).participants.length, 2);
+
   const guestDelete = await emitAck(socket, 'shared:delete', {
     key,
     actorToken: guestToken,

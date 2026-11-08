@@ -229,3 +229,13 @@ Notes:
 - `server.js` - realtime and API backend
 - `package.json` - scripts and backend dependencies
 - `.runtime-data/` - local persistence created at runtime
+
+## Themed Questions and Session Navigation
+
+From the session lobby, choose **Create themed questions**, describe a theme, and select the activities. Copy the prepared prompt into an AI app, then paste its JSON reply into Team Builder and save it to the session. Optional controls are under **Customize question count, difficulty & audience**. Session content takes priority over global and sample questions for those activities. Survey Clash supports themed rounds with 2–8 answers whose simulated points total 100.
+
+Slides Studio also supports copying an AI prompt and importing a JSON array of slides. Neither flow requires an API key or makes direct AI requests.
+
+Every activity has a host **Back to session** control, which pauses any running queue while keeping the agenda. The legacy standalone survey board links back to Team Builder and remains separate from the multiplayer session game.
+
+See [the app and UX review](UX_REVIEW.md) for findings, validation, and further improvements.

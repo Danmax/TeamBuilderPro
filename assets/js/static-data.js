@@ -418,6 +418,7 @@ window.TEAM_BUILDER_STATIC_DATA = {
     yellow: { label: 'Yellow', accent: '#ffe066', glow: 'rgba(255,224,102,0.42)', dark: '#7c5d00' }
   },
   AI_GENERATION_TARGETS: [
+    { id: 'survey-clash', label: 'Survey Clash' },
     { id: 'lightning-trivia', label: 'Lightning Trivia' },
     { id: 'emoji-charades', label: 'Emoji Charades' },
     { id: 'regular-trivia', label: 'Trivia Battle' },
