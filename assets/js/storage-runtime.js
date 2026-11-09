@@ -33,6 +33,10 @@ TEAM_BUILDER_STORAGE_RUNTIME.TeamBuilderStorage = {
         }
         return null;
       }
+      if (TEAM_BUILDER_STORAGE_RUNTIME.PermanentSettings?.allowed(key)) {
+        const value = localStorage.getItem(key);
+        return value === null ? null : { value };
+      }
       if (TEAM_BUILDER_STORAGE_RUNTIME.storage?.get) {
         return await TEAM_BUILDER_STORAGE_RUNTIME.storage.get(key, shared);
       }
@@ -61,6 +65,10 @@ TEAM_BUILDER_STORAGE_RUNTIME.TeamBuilderStorage = {
         }
         return null;
       }
+      if (TEAM_BUILDER_STORAGE_RUNTIME.PermanentSettings?.allowed(key)) {
+        TEAM_BUILDER_STORAGE_RUNTIME.PermanentSettings.set(key, value);
+        return { key, value };
+      }
       if (TEAM_BUILDER_STORAGE_RUNTIME.storage?.set) {
         return await TEAM_BUILDER_STORAGE_RUNTIME.storage.set(key, value, shared);
       }
@@ -87,6 +95,10 @@ TEAM_BUILDER_STORAGE_RUNTIME.TeamBuilderStorage = {
           return { key };
         }
         return null;
+      }
+      if (TEAM_BUILDER_STORAGE_RUNTIME.PermanentSettings?.allowed(key)) {
+        TEAM_BUILDER_STORAGE_RUNTIME.PermanentSettings.set(key, null);
+        return { key };
       }
       if (TEAM_BUILDER_STORAGE_RUNTIME.storage?.remove) {
         return await TEAM_BUILDER_STORAGE_RUNTIME.storage.remove(key, shared);

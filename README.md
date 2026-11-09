@@ -332,3 +332,14 @@ On application startup, the settings adapter creates `app_config` if needed, loa
 A new win shows a trophy, the winner's avatar or custom character, and a confetti celebration. The winner sees **Victory!**; other viewers see the winning player's name. It dismisses after 4.5 seconds, with **Back to board** and Escape available sooner. A winner banner stays on the board. Live updates and refreshes do not replay the celebration; rematches can celebrate again. Draws and old archived results do not trigger a win animation. Reduced-motion mode shows a static result without confetti.
 
 The next card games are described in [CARD_GAMES_PLAN.md](CARD_GAMES_PLAN.md).
+
+
+## Permanent settings
+
+With MySQL configured, `app_config` stores both application settings and private user preferences. Startup imports this installation's existing `feedback-state.json` when the global database record is first created. Branding, admin preferences, question collections, community host requests and approvals, and feedback survive server restarts. Older config-only records are upgraded using the existing local host requests and feedback. Global saves acknowledge success after the database write; a configured database outage returns a save error rather than silently falling back to files.
+
+Each browser identity has a separate `user_settings:<SHA-256 of user token>` record. It stores the character/profile, host room defaults, AI generation preferences (excluding API keys), session plans, saved themes, wheel favorites, and game sound preferences. Existing browser settings migrate automatically without replacing newer database values. Local changes stay queued through reloads if a request fails and retry when the browser reconnects or regains focus. Host settings saved in a room also become defaults for the next room; community rooms remain public and voice focus never carries between sessions.
+
+The browser identity is anonymous, not an account login. Keep its browser storage to retain access to its saved preferences; clearing all site data creates a new identity. Database storage does not add cross-device sign-in. Admin tokens, room access/actor tokens, AI API keys, active-session snapshots, and device-specific voice dock positions are excluded from this sync. Server-side AI credentials remain in environment variables.
+
+Without database configuration, development uses atomic files under `DATA_DIR`, including a private `user-settings/` directory. When switching this installation to MySQL, those user files are imported on the next settings sync. Deploy the updated server and frontend together and configure production database environment variables separately from the local `.env`; local configuration does not change the hosted app.

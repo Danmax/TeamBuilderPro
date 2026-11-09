@@ -90,7 +90,7 @@ TEAM_BUILDER_DOMAIN_MANAGERS.RoomManager = {
   },
 
   generateAccessToken() {
-    return randomAlphaNum(24);
+    return createRoomActorToken();
   },
 
   async createRoom(hostId, hostName, hostAvatar, options = {}) {
@@ -106,6 +106,9 @@ TEAM_BUILDER_DOMAIN_MANAGERS.RoomManager = {
       ? String(options.communityDescription || 'Open lobby for drop-in games and social play.').replace(/\s+/g, ' ').trim().slice(0, 220)
       : '';
     const maxParticipants = Math.max(2, Math.min(MAX_ROOM_PARTICIPANTS, Number(options.maxParticipants) || 24));
+    const savedDefaults = safeParseJson(localStorage.getItem('host-room-defaults') || '') || {};
+    const hostSettings = { ...getDefaultRoomHostSettings(), ...savedDefaults, voice: { ...getDefaultVoiceHostSettings(), ...(savedDefaults.voice || {}), focusParticipantId: '' } };
+    if (roomType === 'community') hostSettings.privateSession = false;
     const room = normalizeRoom({
       code: code,
       roomType,
@@ -127,9 +130,9 @@ TEAM_BUILDER_DOMAIN_MANAGERS.RoomManager = {
         currentEndsAt: 0
       },
       access: {
-        privateSession: false
+        privateSession: hostSettings.privateSession === true
       },
-      hostSettings: getDefaultRoomHostSettings(),
+      hostSettings,
       created: createdAt,
       lastUpdate: createdAt
     });

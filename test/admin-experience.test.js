@@ -37,6 +37,7 @@ test('saved themes store reusable options without importing replies or changing 
   const context = vm.createContext({
     APP: app, document: { addEventListener() {}, getElementById: () => ({ value: 'Space kickoff' }) },
     localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value) },
+    PermanentSettings: { set: (key, value) => storage.set(key, value) },
     captureContentStudioDraftFromInputs: () => app.contentStudioDraft,
     render() {}, showError(message) { throw new Error(message); }
   }); context.window = context;

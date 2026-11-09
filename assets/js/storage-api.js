@@ -101,7 +101,7 @@ TEAM_BUILDER_STORAGE_API.getRoomAccessTokenForKey = function getRoomAccessTokenF
 TEAM_BUILDER_STORAGE_API.getFeedbackUserToken = function getFeedbackUserToken() {
   let token = localStorage.getItem(STORAGE_FEEDBACK_USER_TOKEN_KEY) || '';
   if (!token) {
-    token = `u_${randomAlphaNum(18)}`;
+    token = `u_${TEAM_BUILDER_STORAGE_API.createRoomActorToken()}`;
     localStorage.setItem(STORAGE_FEEDBACK_USER_TOKEN_KEY, token);
   }
   return token;
@@ -137,6 +137,7 @@ TEAM_BUILDER_STORAGE_API.apiRequest = async function apiRequest(path, options = 
 
   const response = await fetch(`${TEAM_BUILDER_STORAGE_API.TEAM_BUILDER_ENDPOINTS.API_BASE_URL}${path}`, {
     method: options.method || 'GET',
+    signal: options.signal,
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined
   });

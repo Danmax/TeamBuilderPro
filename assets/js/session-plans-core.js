@@ -42,7 +42,7 @@ TEAM_BUILDER_SESSION_PLANS_CORE.persistSessionPlans = function persistSessionPla
   const normalized = Array.isArray(plans)
     ? plans.map((plan, idx) => TEAM_BUILDER_SESSION_PLANS_CORE.normalizeSessionPlan(plan, idx)).filter(Boolean)
     : [];
-  localStorage.setItem(SESSION_PLANS_STORAGE_KEY, JSON.stringify(normalized));
+  PermanentSettings.set(SESSION_PLANS_STORAGE_KEY, JSON.stringify(normalized));
   APP.sessionManager.plans = normalized;
 };
 

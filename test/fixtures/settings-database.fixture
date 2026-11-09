@@ -1,0 +1,23 @@
+// A durable test database outside DATA_DIR; loaded only by the integration child.
+const fs = require('node:fs');
+const path = require('node:path');
+const { setTimeout: pause } = require('node:timers/promises');
+const adapter = require('../../lib/config-database');
+const dir = process.env.TEST_SETTINGS_DB_DIR;
+if (dir) adapter.openConfigDatabase = async () => {
+  fs.mkdirSync(dir, { recursive: true });
+  return {
+    kind: 'Integration test database', async end() {},
+    async load(key) {
+      try { return JSON.parse(fs.readFileSync(path.join(dir, `${key}.json`), 'utf8')); }
+      catch (error) { if (error.code === 'ENOENT') return null; throw error; }
+    },
+    async save(key, value) {
+      await pause(30);
+      if (fs.existsSync(path.join(dir, 'fail-writes'))) throw new Error('Simulated database outage');
+      const file = path.join(dir, `${key}.json`);
+      fs.writeFileSync(`${file}.tmp`, JSON.stringify(value));
+      fs.renameSync(`${file}.tmp`, file);
+    }
+  };
+};

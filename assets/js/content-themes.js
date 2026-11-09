@@ -47,9 +47,9 @@
     const id = existing?.id || `theme-${Date.now().toString(36)}`;
     const settings = Object.fromEntries(['themePreset', 'customTopic', 'audience', 'tone', 'difficulty', 'count'].map(field => [field, draft[field]]));
     try {
-      localStorage.setItem(key, JSON.stringify([{ id, name, draft: settings }, ...themes.filter(item => item.id !== id)].slice(0, 20)));
+      root.PermanentSettings.set(key, JSON.stringify([{ id, name, draft: settings }, ...themes.filter(item => item.id !== id)].slice(0, 20)));
       draft.themeSelection = `saved:${id}`;
-      APP.contentStudioStatus = `Saved “${name}” on this browser. Reuse it from the theme menu.`;
+      APP.contentStudioStatus = `Saved “${name}” and queued for database sync. Reuse it from the theme menu.`;
       render();
     } catch (_error) { showError('This browser could not save the theme.'); }
   };
@@ -57,9 +57,9 @@
     const draft = captureContentStudioDraftFromInputs();
     const id = String(draft.themeSelection || '').replace(/^saved:/, '');
     try {
-      localStorage.setItem(key, JSON.stringify(root.getSavedContentThemes().filter(item => item.id !== id)));
+      root.PermanentSettings.set(key, JSON.stringify(root.getSavedContentThemes().filter(item => item.id !== id)));
       draft.themeSelection = draft.themePreset;
-      APP.contentStudioStatus = 'Saved theme removed from this browser.';
+      APP.contentStudioStatus = 'Saved theme removed.';
       render();
     } catch (_error) { showError('This browser could not remove the theme.'); }
   };

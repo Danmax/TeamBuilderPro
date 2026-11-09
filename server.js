@@ -21,6 +21,8 @@ const { Server } = require('socket.io');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { openConfigDatabase } = require('./lib/config-database');
+const { createPermanentSettingsStore, normalizePatch } = require('./lib/permanent-settings');
+const databaseRequired = Boolean(process.env.DATABASE_URL || process.env.DB_HOST || process.env.DB_NAME || process.env.DB_USER);
 
 const app = express();
 const server = http.createServer(app);
@@ -35,6 +37,16 @@ const io = new Server(server, {
     origin: String(process.env.NODE_ENV || '').trim().toLowerCase() === 'production'
       ? (configuredSocketOrigins.length ? configuredSocketOrigins : false)
       : '*'
+  },
+  allowRequest(req, done) {
+    const origin = req.headers.origin;
+    if (!origin) return done(null, true); // Non-browser clients still need room credentials.
+    if (String(process.env.NODE_ENV || '').toLowerCase() !== 'production') return done(null, true);
+    try {
+      const parsed = new URL(origin);
+      const sameHost = ['http:', 'https:'].includes(parsed.protocol) && parsed.host === req.headers.host;
+      done(null, sameHost || configuredSocketOrigins.includes(parsed.origin));
+    } catch (_) { done(null, false); }
   },
   maxHttpBufferSize: 300000
 });
@@ -94,7 +106,6 @@ const FEATURE_FLAG_IDS = [
   'dynamicScoring'
 ];
 let persistTimer = null;
-let feedbackPersistTimer = null;
 let roomMetaPersistTimer = null;
 let configDb = null;
 const roomSecrets = new Map();
@@ -125,7 +136,7 @@ function maskConfiguredSecret(secret) {
   const normalized = String(secret || '').trim();
   if (!normalized) return 'missing';
   if (normalized.length <= 4) return `${'*'.repeat(normalized.length)} (len=${normalized.length})`;
-  return `${normalized.slice(0, 2)}${'*'.repeat(Math.max(0, normalized.length - 4))}${normalized.slice(-2)} (len=${normalized.length})`;
+  return `configured (len=${normalized.length})`;
 }
 
 function getDefaultPreferences() {
@@ -291,13 +302,6 @@ const feedbackState = {
 };
 
 app.use(express.json({ limit: '1mb' }));
-app.use('/media/dj', express.static(DJ_UPLOAD_DIR, {
-  fallthrough: false,
-  index: false,
-  setHeaders: res => {
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-  }
-}));
 
 // Security: Add Helmet for secure headers
 app.use(helmet({
@@ -328,6 +332,19 @@ const apiLimiter = rateLimit({
 app.use('/api/', apiLimiter);
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/sounds', express.static(path.join(__dirname, 'Sounds')));
+
+// Room privacy also applies to direct audio and HTTP Range requests.
+app.get('/media/dj/:fileName', (req, res) => {
+  const fileName = req.params.fileName;
+  const roomCode = String(fileName).slice(0, 6);
+  if (!isDjStorageKeyForRoom(roomCode, fileName)) return res.sendStatus(404);
+  res.set('Cache-Control', 'private, no-store');
+  if (!isAuthorizedForRoom(`room:${roomCode}`, String(req.header('x-room-token') || req.query.roomToken || ''))) return res.sendStatus(403);
+  res.sendFile(path.join(DJ_UPLOAD_DIR, fileName), { cacheControl: false }, error => {
+    if (error && !res.headersSent) res.sendStatus(error.statusCode || 404);
+  });
+});
+
 
 app.get('/healthz', (_req, res) => {
   res.json({ ok: true, uptimeSeconds: Math.floor(process.uptime()) });
@@ -433,7 +450,7 @@ function persistStateToDisk() {
   }
 }
 
-function persistFeedbackStateToDisk() {
+function persistFeedbackStateToDisk({ required = false } = {}) {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -444,6 +461,7 @@ function persistFeedbackStateToDisk() {
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Failed to persist feedback state:', error.message);
+    if (required) throw error;
   }
 }
 
@@ -479,14 +497,6 @@ function schedulePersist() {
   }, 150);
 }
 
-function scheduleFeedbackPersist() {
-  if (feedbackPersistTimer) clearTimeout(feedbackPersistTimer);
-  feedbackPersistTimer = setTimeout(() => {
-    feedbackPersistTimer = null;
-    persistFeedbackStateToDisk();
-  }, 150);
-}
-
 function scheduleRoomMetaPersist() {
   if (roomMetaPersistTimer) clearTimeout(roomMetaPersistTimer);
   roomMetaPersistTimer = setTimeout(() => {
@@ -507,31 +517,77 @@ async function loadConfigFromDatabase() {
   if (!configDb) return;
   try {
     const stored = await configDb.load(GLOBAL_CONFIG_DB_KEY);
-    if (!stored || typeof stored !== 'object') return;
+    if (!stored || typeof stored !== 'object') {
+      // Import this installation's existing settings on first database startup.
+      await configDb.save(GLOBAL_CONFIG_DB_KEY, feedbackState);
+      return;
+    }
     feedbackState.config = normalizeConfig(stored.config || {});
     feedbackState.collections = normalizeCollections(stored.collections || []);
+    // Preserve file data when upgrading the older config-only database payload.
+    if (Array.isArray(stored.communityHostRequests)) feedbackState.communityHostRequests = normalizeCommunityHostRequests(stored.communityHostRequests);
+    if (Array.isArray(stored.feedback)) feedbackState.feedback = stored.feedback.slice(0, 1000);
+    await configDb.save(GLOBAL_CONFIG_DB_KEY, feedbackState);
+    persistFeedbackStateToDisk();
   } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('Failed to load config from database:', error.message);
+    console.error(`Failed to load permanent settings (${error.code || 'DATABASE_ERROR'}).`);
+    await configDb.end().catch(() => {});
+    configDb = null;
   }
 }
 
-async function persistConfigToDatabase() {
-  if (!configDb) return;
-  const value = {
-    config: feedbackState.config,
-    collections: feedbackState.collections
+let permanentMutationQueue = Promise.resolve();
+// Serialize settings mutations and acknowledge only after the durable write.
+function permanentRoute(handler) {
+  return (req, res) => {
+    const work = permanentMutationQueue.catch(() => {}).then(async () => {
+      const snapshot = JSON.parse(JSON.stringify(feedbackState));
+      const send = res.json.bind(res);
+      let body;
+      res.json = value => { body = value; return res; };
+      try {
+        if (databaseRequired && !configDb) throw new Error('Database unavailable');
+        await handler(req, res);
+        const draft = JSON.parse(JSON.stringify(feedbackState));
+        // Reads and authorization keep using committed settings while MySQL writes.
+        Object.assign(feedbackState, snapshot);
+        if (res.statusCode < 400) {
+          if (configDb) await configDb.save(GLOBAL_CONFIG_DB_KEY, draft);
+          Object.assign(feedbackState, draft);
+          persistFeedbackStateToDisk({ required: !configDb });
+        }
+        send(body);
+      } catch (error) {
+        Object.assign(feedbackState, snapshot);
+        console.error(`Unable to save permanent settings (${error.code || 'STORAGE_ERROR'}).`);
+        res.status(503);
+        send({ ok: false, error: 'Settings could not be saved. Please try again.' });
+      } finally { res.json = send; }
+    });
+    permanentMutationQueue = work;
   };
-  try {
-    await configDb.save(GLOBAL_CONFIG_DB_KEY, value);
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('Failed to persist config to database:', error.message);
-  }
 }
+
+const permanentSettings = createPermanentSettingsStore({ database: () => configDb, databaseRequired, dataDir: DATA_DIR });
+app.get('/api/user/settings', async (req, res) => {
+  const token = getUserToken(req);
+  res.set('Cache-Control', 'no-store');
+  if (!token) return res.status(401).json({ ok: false, error: 'Missing user token.' });
+  try { res.json({ ok: true, settings: await permanentSettings.load(token), storage: configDb ? 'database' : 'file' }); }
+  catch (_) { res.status(503).json({ ok: false, error: 'Saved settings are temporarily unavailable.' }); }
+});
+app.patch('/api/user/settings', async (req, res) => {
+  const token = getUserToken(req);
+  res.set('Cache-Control', 'no-store');
+  if (!token) return res.status(401).json({ ok: false, error: 'Missing user token.' });
+  try { normalizePatch(req.body?.settings); }
+  catch (_) { return res.status(400).json({ ok: false, error: 'Invalid or unsupported settings.' }); }
+  try { res.json({ ok: true, settings: await permanentSettings.patch(token, req.body.settings, req.body.onlyMissing === true), storage: configDb ? 'database' : 'file' }); }
+  catch (_) { res.status(503).json({ ok: false, error: 'Settings could not be saved. Please try again.' }); }
+});
 
 function isRoomKey(key) {
-  return /^room:[A-Z0-9]{6}$/.test(key || '');
+  return typeof key === 'string' && /^room:[A-Z0-9]{6}$/.test(key);
 }
 
 function isValidRoomToken(token) {
@@ -667,6 +723,12 @@ function getDjRoomDiskUsage(roomCode) {
   }, { bytes: 0, files: 0 });
 }
 
+function isDjStorageKeyForRoom(roomCode, storageKey) {
+  return /^[A-Z0-9]{6}$/.test(roomCode) && typeof storageKey === 'string'
+    && storageKey.startsWith(`${roomCode}_`)
+    && /^[A-Z0-9]{6}_dj_[0-9]+_[a-f0-9]{8}\.(mp3|wav|m4a|aac|ogg|webm)$/.test(storageKey);
+}
+
 function normalizeDjLibraryTrack(rawTrack, idx = 0) {
   if (!rawTrack || typeof rawTrack !== 'object') return null;
   const id = String(rawTrack.id || `track_${idx + 1}`).trim().slice(0, 80);
@@ -693,7 +755,7 @@ function isLocalDevRequest(req) {
   const remoteAddress = String(req.ip || req.socket?.remoteAddress || '').trim().replace(/^::ffff:/, '');
   const isLoopbackHost = host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
   const isLoopbackIp = remoteAddress === '127.0.0.1' || remoteAddress === '::1';
-  return !IS_PRODUCTION && (isLoopbackHost || isLoopbackIp);
+  return !IS_PRODUCTION && isLoopbackHost && isLoopbackIp;
 }
 
 function isValidAdminToken(token, req) {
@@ -896,7 +958,7 @@ function deleteRoomState(key) {
   const library = Array.isArray(room?.activityState?.trackLibrary) ? room.activityState.trackLibrary : [];
   library.forEach((track, idx) => {
     const normalized = normalizeDjLibraryTrack(track, idx);
-    if (!normalized?.storageKey) return;
+    if (!normalized?.storageKey || !isDjStorageKeyForRoom(key.slice(5), normalized.storageKey)) return;
     const filePath = path.join(DJ_UPLOAD_DIR, path.basename(normalized.storageKey));
     try {
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
@@ -1491,7 +1553,9 @@ app.post('/api/dj/library/upload', express.raw({ type: () => true, limit: '30mb'
   const playerName = String(req.header('x-player-name') || '').replace(/\s+/g, ' ').trim().slice(0, 32);
   const actorPlayerId = String(req.header('x-player-id') || '').trim().slice(0, 64);
   const actorToken = String(req.header('x-actor-token') || '').trim();
-  const rawFileName = sanitizeDjFileName(decodeURIComponent(String(req.header('x-file-name') || 'track').trim()));
+  let rawFileName;
+  try { rawFileName = sanitizeDjFileName(decodeURIComponent(String(req.header('x-file-name') || 'track').trim())); }
+  catch (_) { return res.status(400).json({ ok: false, error: 'Invalid file name.' }); }
   const fileName = rawFileName || 'track';
   const contentType = String(req.header('content-type') || 'application/octet-stream').trim().toLowerCase();
   const room = roomKey ? getRoomSnapshot(roomKey) : null;
@@ -1589,6 +1653,7 @@ app.delete('/api/dj/library/:trackId', (req, res) => {
 
   try {
     if (match.storageKey) {
+      if (!isDjStorageKeyForRoom(roomCode, match.storageKey)) return res.status(403).json({ ok: false, error: 'Track does not belong to this room.' });
       const filePath = path.join(DJ_UPLOAD_DIR, path.basename(match.storageKey));
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
@@ -1600,7 +1665,7 @@ app.delete('/api/dj/library/:trackId', (req, res) => {
 
 // AI generate endpoint removed — content creation uses prompt-copy + manual import workflow
 
-app.post('/api/feedback', (req, res) => {
+app.post('/api/feedback', permanentRoute((req, res) => {
   const userToken = getUserToken(req);
   if (!userToken) {
     res.status(400).json({ ok: false, error: 'Missing user token' });
@@ -1635,10 +1700,9 @@ app.post('/api/feedback', (req, res) => {
 
   feedbackState.feedback.unshift(feedback);
   feedbackState.feedback = feedbackState.feedback.slice(0, 1000);
-  scheduleFeedbackPersist();
 
   res.json({ ok: true, feedback });
-});
+}));
 
 app.get('/api/feedback/mine', (req, res) => {
   const userToken = getUserToken(req);
@@ -1662,7 +1726,7 @@ app.get('/api/community/host-access-request/mine', (req, res) => {
   res.json({ ok: true, requests });
 });
 
-app.post('/api/community/host-access-request', (req, res) => {
+app.post('/api/community/host-access-request', permanentRoute((req, res) => {
   const userToken = getUserToken(req);
   if (!userToken) {
     res.status(400).json({ ok: false, error: 'Missing user token' });
@@ -1686,8 +1750,7 @@ app.post('/api/community/host-access-request', (req, res) => {
     existingPending.userName = userName;
     existingPending.reason = reason;
     existingPending.updatedAt = nowIso();
-    scheduleFeedbackPersist();
-    res.json({ ok: true, request: existingPending });
+      res.json({ ok: true, request: existingPending });
     return;
   }
 
@@ -1705,9 +1768,8 @@ app.post('/api/community/host-access-request', (req, res) => {
   });
   feedbackState.communityHostRequests.unshift(request);
   feedbackState.communityHostRequests = normalizeCommunityHostRequests(feedbackState.communityHostRequests);
-  scheduleFeedbackPersist();
   res.json({ ok: true, request });
-});
+}));
 
 app.post('/api/admin/login', requireAdmin, (_req, res) => {
   res.json({ ok: true });
@@ -1717,7 +1779,7 @@ app.get('/api/admin/feedback', requireAdmin, (_req, res) => {
   res.json({ ok: true, feedback: feedbackState.feedback });
 });
 
-app.patch('/api/admin/feedback/:id', requireAdmin, (req, res) => {
+app.patch('/api/admin/feedback/:id', requireAdmin, permanentRoute((req, res) => {
   const item = feedbackState.feedback.find(f => f.id === req.params.id);
   if (!item) {
     res.status(404).json({ ok: false, error: 'Feedback not found' });
@@ -1735,10 +1797,9 @@ app.patch('/api/admin/feedback/:id', requireAdmin, (req, res) => {
   item.adminNotes = adminNotes;
   item.updatedAt = nowIso();
   item.resolvedAt = status === 'resolved' ? nowIso() : null;
-  scheduleFeedbackPersist();
 
   res.json({ ok: true, feedback: item });
-});
+}));
 
 app.get('/api/admin/config', requireAdmin, (_req, res) => {
   res.json({
@@ -1790,7 +1851,7 @@ app.post('/api/admin/sessions/cleanup-abandoned', requireAdmin, (_req, res) => {
   });
 });
 
-app.put('/api/admin/config', requireAdmin, async (req, res) => {
+app.put('/api/admin/config', requireAdmin, permanentRoute(async (req, res) => {
   const branding = req.body?.branding || {};
   const preferences = req.body?.preferences || {};
   const collections = normalizeCollections(req.body?.collections || feedbackState.collections);
@@ -1825,8 +1886,6 @@ app.put('/api/admin/config', requireAdmin, async (req, res) => {
   };
   feedbackState.collections = collections;
 
-  scheduleFeedbackPersist();
-  await persistConfigToDatabase();
   res.json({
     ok: true,
     config: feedbackState.config,
@@ -1834,9 +1893,9 @@ app.put('/api/admin/config', requireAdmin, async (req, res) => {
     communityHostRequests: feedbackState.communityHostRequests,
     sessions: listAdminRooms()
   });
-});
+}));
 
-app.patch('/api/admin/community-host-requests/:id', requireAdmin, async (req, res) => {
+app.patch('/api/admin/community-host-requests/:id', requireAdmin, permanentRoute(async (req, res) => {
   const request = feedbackState.communityHostRequests.find(item => item.id === req.params.id);
   if (!request) {
     res.status(404).json({ ok: false, error: 'Community host request not found' });
@@ -1855,8 +1914,6 @@ app.patch('/api/admin/community-host-requests/:id', requireAdmin, async (req, re
   request.resolvedAt = status === 'pending' ? null : nowIso();
 
   feedbackState.communityHostRequests = normalizeCommunityHostRequests(feedbackState.communityHostRequests);
-  scheduleFeedbackPersist();
-  await persistConfigToDatabase();
   res.json({
     ok: true,
     request,
@@ -1864,7 +1921,7 @@ app.patch('/api/admin/community-host-requests/:id', requireAdmin, async (req, re
     communityHostRequests: feedbackState.communityHostRequests,
     sessions: listAdminRooms()
   });
-});
+}));
 
 function clearMemoryTimer(key) {
   if (memoryTimers.has(key)) clearTimeout(memoryTimers.get(key));
@@ -1993,6 +2050,18 @@ function createChineseCheckersRound(room, playerCount = 2, previousSeats = null)
 }
 
 io.on('connection', socket => {
+  function onRealtime(event, handler) {
+    socket.on(event, (...args) => {
+      const [payload, ack] = args;
+      if (args.length > 2 || (ack !== undefined && typeof ack !== 'function')) return;
+      try { handler(payload, ack); }
+      catch (_) {
+        console.warn(`Rejected malformed realtime event: ${event}`);
+        if (ack) ack({ ok: false, error: 'Invalid realtime request.' });
+      }
+    });
+  }
+
   let eventWindowStartedAt = Date.now();
   let eventCount = 0;
   socket.use((_packet, next) => {
@@ -2009,7 +2078,7 @@ io.on('connection', socket => {
     next();
   });
 
-  socket.on('room:join', (payload, ack) => {
+  onRealtime('room:join', (payload, ack) => {
     const key = payload?.key;
     const authToken = getRequestRoomToken(payload);
     const actorToken = String(payload?.actorToken || '').trim();
@@ -2033,6 +2102,10 @@ io.on('connection', socket => {
     meta.actorTokens = normalizeActorTokens(meta.actorTokens);
     const existingById = getRoomParticipant(room, playerId, '');
     const existingByName = getRoomParticipant(room, '', playerName);
+    if (existingByName && existingByName.id !== playerId) {
+      ack?.({ ok: false, error: 'That display name is already in use in this room' });
+      return;
+    }
     if (existingById) {
       const expectedToken = meta.actorTokens[playerId];
       if (expectedToken && !safeTokenEqual(expectedToken, actorToken)) {
@@ -2074,7 +2147,7 @@ io.on('connection', socket => {
     ack?.({ ok: true, value: state.get(key) });
   });
 
-  socket.on('room:character', (payload, ack) => {
+  onRealtime('room:character', (payload, ack) => {
     const key = payload?.key;
     if (!isRoomKey(key) || !isAuthorizedForRoom(key, getRequestRoomToken(payload))) { ack?.({ ok: false, error: 'Room access denied.' }); return; }
     const room = getRoomSnapshot(key), actor = getRoomActor(key, payload, room);
@@ -2086,7 +2159,7 @@ io.on('connection', socket => {
     ack?.({ ok: true, value });
   });
 
-  socket.on('room:leave', (payload, ack) => {
+  onRealtime('room:leave', (payload, ack) => {
     const key = payload?.key;
     const authToken = getRequestRoomToken(payload);
     if (!isRoomKey(key) || !isAuthorizedForRoom(key, authToken)) {
@@ -2138,14 +2211,14 @@ io.on('connection', socket => {
     ack?.({ ok: true });
   });
 
-  socket.on('room:subscribe', payload => {
+  onRealtime('room:subscribe', payload => {
     const key = typeof payload === 'string' ? payload : payload?.key;
     const authToken = getRequestRoomToken(payload);
     if (!isRoomKey(key) || !isAuthorizedForRoom(key, authToken)) return;
     socket.join(key);
   });
 
-  socket.on('room:unsubscribe', payload => {
+  onRealtime('room:unsubscribe', payload => {
     const key = typeof payload === 'string' ? payload : payload?.key;
     if (!isRoomKey(key)) return;
     if (socket.data.voiceKey === key) {
@@ -2154,7 +2227,7 @@ io.on('connection', socket => {
     socket.leave(key);
   });
 
-  socket.on('memory:action', (payload, ack) => {
+  onRealtime('memory:action', (payload, ack) => {
     const key = payload?.key;
     if (!isRoomKey(key) || !isAuthorizedForRoom(key, getRequestRoomToken(payload))) {
       ack?.({ ok: false, error: 'Room access denied.' }); return;
@@ -2181,7 +2254,7 @@ io.on('connection', socket => {
     } catch (error) { ack?.({ ok: false, error: error.message }); }
   });
 
-  socket.on('family-face-off:action', (payload, ack) => {
+  onRealtime('family-face-off:action', (payload, ack) => {
     const key = payload?.key;
     if (!isRoomKey(key) || !isAuthorizedForRoom(key, getRequestRoomToken(payload))) { ack?.({ ok: false, error: 'Room access denied.' }); return; }
     const room = getRoomSnapshot(key), actor = getRoomActor(key, payload, room);
@@ -2202,7 +2275,7 @@ io.on('connection', socket => {
     } catch (error) { ack?.({ ok: false, error: error.message }); }
   });
 
-  socket.on('spin-wheel:action', (payload, ack) => {
+  onRealtime('spin-wheel:action', (payload, ack) => {
     const key = payload?.key;
     if (!isRoomKey(key) || !isAuthorizedForRoom(key, getRequestRoomToken(payload))) { ack?.({ ok: false, error: 'Room access denied.' }); return; }
     const room = getRoomSnapshot(key), actor = getRoomActor(key, payload, room);
@@ -2241,7 +2314,7 @@ io.on('connection', socket => {
     } catch (error) { ack?.({ ok: false, error: error.message }); }
   });
 
-  socket.on('chinese-checkers:action', (payload, ack) => {
+  onRealtime('chinese-checkers:action', (payload, ack) => {
     const key = payload?.key;
     if (!isRoomKey(key) || !isAuthorizedForRoom(key, getRequestRoomToken(payload))) {
       ack?.({ ok: false, error: 'Room access denied.' }); return;
@@ -2288,7 +2361,7 @@ io.on('connection', socket => {
     } catch (error) { ack?.({ ok: false, error: error.message }); }
   });
 
-  socket.on('checkers:action', (payload, ack) => {
+  onRealtime('checkers:action', (payload, ack) => {
     const key = payload?.key;
     if (!isRoomKey(key) || !isAuthorizedForRoom(key, getRequestRoomToken(payload))) {
       ack?.({ ok: false, error: 'Room access denied.' }); return;
@@ -2324,7 +2397,7 @@ io.on('connection', socket => {
     } catch (error) { ack?.({ ok: false, error: error.message }); }
   });
 
-  socket.on('shared:get', (payload, ack) => {
+  onRealtime('shared:get', (payload, ack) => {
     const key = payload?.key;
     const authToken = getRequestRoomToken(payload);
     if (!isRoomKey(key)) {
@@ -2339,7 +2412,7 @@ io.on('connection', socket => {
     ack?.({ ok: true, value });
   });
 
-  socket.on('shared:set', (payload, ack) => {
+  onRealtime('shared:set', (payload, ack) => {
     const key = payload?.key;
     const value = payload?.value;
     const authToken = getRequestRoomToken(payload);
@@ -2396,6 +2469,12 @@ io.on('connection', socket => {
       scheduleRoomMetaPersist();
     } else {
       const adminActor = isValidAdminToken(payload?.adminToken, null);
+      if (String(nextRoom.roomType || '').trim().toLowerCase() === 'community'
+        && existingRoom.roomType !== 'community'
+        && !adminActor && !isApprovedCommunityHost(payload?.userToken, nextRoom.host)) {
+        ack?.({ ok: false, error: 'Approved community-host access is required' });
+        return;
+      }
       const actor = adminActor ? null : getRoomActor(key, payload, existingRoom, { allowLegacyClaim: true });
       if (!adminActor && !actor) {
         ack?.({ ok: false, error: 'Participant authentication required' });
@@ -2480,7 +2559,7 @@ io.on('connection', socket => {
     ack?.({ ok: true, value: state.get(key) });
   });
 
-  socket.on('shared:delete', (payload, ack) => {
+  onRealtime('shared:delete', (payload, ack) => {
     const key = payload?.key;
     const authToken = getRequestRoomToken(payload);
     if (!isRoomKey(key)) {
@@ -2501,7 +2580,7 @@ io.on('connection', socket => {
     ack?.({ ok: deleted });
   });
 
-  socket.on('voice:join', (payload, ack) => {
+  onRealtime('voice:join', (payload, ack) => {
     const key = payload?.key;
     const authToken = getRequestRoomToken(payload);
     const playerId = String(payload?.playerId || '').trim();
@@ -2544,12 +2623,12 @@ io.on('connection', socket => {
     ack?.({ ok: true, state: buildVoiceStatePayload(key, room) });
   });
 
-  socket.on('voice:leave', (_payload, ack) => {
+  onRealtime('voice:leave', (_payload, ack) => {
     removeSocketFromVoiceRoom(socket);
     ack?.({ ok: true });
   });
 
-  socket.on('voice:request-talk', (_payload, ack) => {
+  onRealtime('voice:request-talk', (_payload, ack) => {
     const key = socket.data.voiceKey;
     const member = getVoiceMemberForSocket(socket);
     const room = getRoomSnapshot(key);
@@ -2565,7 +2644,7 @@ io.on('connection', socket => {
     ack?.({ ok: true });
   });
 
-  socket.on('voice:toggle-hand', (payload, ack) => {
+  onRealtime('voice:toggle-hand', (payload, ack) => {
     const key = socket.data.voiceKey;
     const member = getVoiceMemberForSocket(socket);
     const room = getRoomSnapshot(key);
@@ -2607,7 +2686,7 @@ io.on('connection', socket => {
     ack?.({ ok: true, raised: shouldRaise });
   });
 
-  socket.on('voice:grant-talk', (payload, ack) => {
+  onRealtime('voice:grant-talk', (payload, ack) => {
     const key = socket.data.voiceKey;
     const member = getVoiceMemberForSocket(socket);
     const room = getRoomSnapshot(key);
@@ -2633,7 +2712,7 @@ io.on('connection', socket => {
     ack?.({ ok: true });
   });
 
-  socket.on('voice:revoke-talk', (payload, ack) => {
+  onRealtime('voice:revoke-talk', (payload, ack) => {
     const key = socket.data.voiceKey;
     const member = getVoiceMemberForSocket(socket);
     const room = getRoomSnapshot(key);
@@ -2655,7 +2734,7 @@ io.on('connection', socket => {
     ack?.({ ok: true });
   });
 
-  socket.on('voice:force-stop', (payload, ack) => {
+  onRealtime('voice:force-stop', (payload, ack) => {
     const key = socket.data.voiceKey;
     const member = getVoiceMemberForSocket(socket);
     const room = getRoomSnapshot(key);
@@ -2677,7 +2756,7 @@ io.on('connection', socket => {
     ack?.({ ok: true });
   });
 
-  socket.on('voice:ptt:start', (_payload, ack) => {
+  onRealtime('voice:ptt:start', (_payload, ack) => {
     const key = socket.data.voiceKey;
     const member = getVoiceMemberForSocket(socket);
     const room = getRoomSnapshot(key);
@@ -2707,7 +2786,7 @@ io.on('connection', socket => {
     ack?.({ ok: true });
   });
 
-  socket.on('voice:ptt:stop', (_payload, ack) => {
+  onRealtime('voice:ptt:stop', (_payload, ack) => {
     const key = socket.data.voiceKey;
     const member = getVoiceMemberForSocket(socket);
     if (!isRoomKey(key) || !member?.playerId) {
@@ -2723,7 +2802,7 @@ io.on('connection', socket => {
     ack?.({ ok: true });
   });
 
-  socket.on('voice:signal', (payload, ack) => {
+  onRealtime('voice:signal', (payload, ack) => {
     const key = socket.data.voiceKey;
     const member = getVoiceMemberForSocket(socket);
     const targetPlayerId = String(payload?.targetPlayerId || '').trim();
@@ -2805,7 +2884,6 @@ Promise.resolve()
 
 process.on('SIGINT', () => {
   if (persistTimer) clearTimeout(persistTimer);
-  if (feedbackPersistTimer) clearTimeout(feedbackPersistTimer);
   if (roomMetaPersistTimer) clearTimeout(roomMetaPersistTimer);
   if (sessionCleanupInterval) clearInterval(sessionCleanupInterval);
   persistStateToDisk();
@@ -2819,7 +2897,6 @@ process.on('SIGINT', () => {
 
 process.on('SIGTERM', () => {
   if (persistTimer) clearTimeout(persistTimer);
-  if (feedbackPersistTimer) clearTimeout(feedbackPersistTimer);
   if (roomMetaPersistTimer) clearTimeout(roomMetaPersistTimer);
   if (sessionCleanupInterval) clearInterval(sessionCleanupInterval);
   persistStateToDisk();

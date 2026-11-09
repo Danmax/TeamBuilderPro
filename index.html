@@ -28,6 +28,7 @@
 <script src="/assets/js/content-themes.js"></script>
 <script src="/assets/js/activity-discovery.js"></script>
 <script src="/assets/js/storage-api.js"></script>
+<script src="/assets/js/permanent-settings.js"></script>
 <script src="/assets/js/navigation-core.js"></script>
 <script src="/assets/js/socket-core.js"></script>
 <script src="/assets/js/storage-runtime.js"></script>
@@ -4299,14 +4300,14 @@ async function surveyClashPlaySound(key) {
 
 function setSurveyClashMuted(muted) {
   surveyClashMuted = Boolean(muted);
-  localStorage.setItem('surveyClashMuted', surveyClashMuted ? 'true' : 'false');
+  PermanentSettings.set('surveyClashMuted', surveyClashMuted ? 'true' : 'false');
   if (!surveyClashMuted) surveyClashFeedback.unlock();
   render();
 }
 
 function setSurveyClashVolume(value) {
   surveyClashVolume = Math.max(0, Math.min(1, Number(value) || 0));
-  localStorage.setItem('surveyClashVolume', String(surveyClashVolume));
+  PermanentSettings.set('surveyClashVolume', String(surveyClashVolume));
 }
 
 function renderSurveyClash() {
@@ -5200,7 +5201,7 @@ function getSpinWheelFavorites() {
 }
 
 function saveSpinWheelFavorites(items) {
-  localStorage.setItem(getSpinWheelFavoritesStorageKey(), JSON.stringify(items.slice(0, 20)));
+  PermanentSettings.set(getSpinWheelFavoritesStorageKey(), JSON.stringify(items.slice(0, 20)));
 }
 
 async function saveCurrentSpinWheelFavorite() {
@@ -5937,6 +5938,7 @@ function renderHostSettingsModal() {
           `}
         </div>
 
+        <p style="color:var(--text-dim);font-size:0.85rem;">Saved host options are reused for your next session.</p>
         <button class="btn-primary" data-action="save-host-settings" ${APP.hostSettingsSaving ? 'disabled aria-busy="true"' : ''}>
           ${APP.hostSettingsSaving ? 'Saving...' : 'Save Host Settings'}
         </button>
@@ -6744,6 +6746,9 @@ async function saveHostSettings() {
       privateSession: roomSettings.privateSession === true
     };
     await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
+    const { focusParticipantId, ...voiceDefaults } = roomSettings.voice;
+    PermanentSettings.set('host-room-defaults', JSON.stringify({ ...roomSettings, voice: voiceDefaults }));
+    await PermanentSettings.flush();
     APP.roomAccessToken = roomSettings.privateSession === true
       ? getRoomAccessTokenForKey(`room:${APP.roomCode}`, APP.roomAccessToken || '')
       : '';
@@ -8210,7 +8215,7 @@ document.addEventListener('click', async (event) => {
     }
     case 'spin-wheel-toggle-sound':
       spinWheelMuted = !spinWheelMuted;
-      localStorage.setItem('spinWheelMuted', String(spinWheelMuted));
+      PermanentSettings.set('spinWheelMuted', String(spinWheelMuted));
       if (!spinWheelMuted) playSpinWheelTone(false);
       render();
       break;
@@ -11430,6 +11435,13 @@ function renderTriviaResults() {
 // Initialize
 async function init() {
   APP.footerQuoteIndex = Math.floor(Math.random() * TEAM_BUILDING_QUOTES.length);
+  getFeedbackUserToken();
+  try { await PermanentSettings.initialize(); await PermanentSettings.flush(); }
+  catch (error) { console.warn('Using cached preferences:', error.message); }
+  HOST_LOCAL_CONFIG = loadHostLocalConfig();
+  surveyClashMuted = localStorage.getItem('surveyClashMuted') === 'true';
+  surveyClashVolume = Math.max(0, Math.min(1, Number.parseFloat(localStorage.getItem('surveyClashVolume') ?? '0.75')));
+  spinWheelMuted = localStorage.getItem('spinWheelMuted') !== 'false';
   APP.sessionManager.plans = loadSessionPlans();
   const params = new URLSearchParams(window.location.search);
   const deepJoinCode = normalizeRoomCode(params.get('join') || params.get('room') || params.get('code') || '');

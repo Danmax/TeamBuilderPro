@@ -17,14 +17,15 @@ function emitAck(socket, eventName, payload) {
 
 function startTestServer(t, options = {}) {
   const dataDir = options.dataDir || fs.mkdtempSync(path.join(os.tmpdir(), 'team-builder-test-'));
-  const child = spawn(process.execPath, ['server.js'], {
+  const child = spawn(process.execPath, [...(options.preload ? ['--require', options.preload] : []), 'server.js'], {
     cwd: path.resolve(__dirname, '..'),
     env: {
       ...process.env,
       PORT: '0',
       NODE_ENV: 'production',
       DATA_DIR: dataDir,
-      ADMIN_TOKEN: 'integration-admin-token'
+      ADMIN_TOKEN: 'integration-admin-token',
+      ...options.env
     },
     stdio: ['ignore', 'pipe', 'pipe']
   });
@@ -737,4 +738,167 @@ test('saved characters join rooms, update only their owner and appear in public 
   assert.equal(JSON.stringify(directory).includes('character-guest'), false);
   const legacyRejoin = await emitAck(socket, 'room:join', { key, actorToken: guest.actorToken, playerId: guest.actorPlayerId, playerName: guest.actorPlayerName, playerAvatar: '🐨' });
   assert.equal(legacyRejoin.ok, true); assert.deepEqual(JSON.parse(legacyRejoin.value).participants[1].character, room.participants[1].character);
+});
+
+test('permanent preferences and approved community hosts survive restart and stay private to their owner', async t => {
+  const running = await startTestServer(t);
+  let base = `http://127.0.0.1:${running.port}`;
+  const owner = 'u_settings_owner_123456789', other = 'u_settings_other_123456789';
+  const call = async (route, method = 'GET', body, token = owner, admin = false) => {
+    const response = await fetch(`${base}${route}`, { method, headers: { 'Content-Type': 'application/json', 'x-user-token': token, ...(admin ? { 'x-admin-token': 'integration-admin-token' } : {}) }, body: body ? JSON.stringify(body) : undefined });
+    return { status: response.status, data: await response.json() };
+  };
+  assert.equal((await call('/api/user/settings', 'GET', null, '')).status, 401);
+  assert.equal((await call('/api/user/settings', 'PATCH', { settings: { 'admin-token': 'secret' } })).status, 400);
+  const config = JSON.stringify({ aiApiKey: 'must-stay-local', aiModel: 'test-model', aiDefaultCount: 12 });
+  const saved = await call('/api/user/settings', 'PATCH', { settings: { 'host-local-config': config, 'host-room-defaults': JSON.stringify({ privateSession: true, voice: { enabled: true, focusParticipantId: 'old-player' } }), 'player-profile': JSON.stringify({ id: 'owner', name: 'Owner', character: { hair: 'short' } }) } });
+  assert.equal(saved.status, 200);
+  assert.equal(JSON.parse(saved.data.settings['host-local-config']).aiApiKey, undefined);
+  assert.equal(JSON.parse(saved.data.settings['host-room-defaults']).voice.focusParticipantId, undefined);
+  const request = await call('/api/community/host-access-request', 'POST', { userName: 'Owner', reason: 'Host team events' });
+  assert.equal(request.status, 200);
+  const approved = await call(`/api/admin/community-host-requests/${request.data.request.id}`, 'PATCH', { status: 'approved' }, owner, true);
+  assert.equal(approved.status, 200);
+  assert.equal((await call('/api/admin/config', 'PUT', { preferences: { enableMessageBoard: false } }, owner, true)).status, 200);
+  const exited = new Promise(resolve => running.child.once('exit', resolve));
+  running.child.kill('SIGTERM'); await exited;
+  const resumed = await startTestServer(t, { dataDir: running.dataDir });
+  base = `http://127.0.0.1:${resumed.port}`;
+  const restored = await call('/api/user/settings');
+  assert.deepEqual(restored.data.settings, saved.data.settings);
+  assert.deepEqual((await call('/api/user/settings', 'GET', null, other)).data.settings, {});
+  const publicConfig = (await call('/api/config')).data;
+  assert.equal(publicConfig.config.preferences.communityHostApproved, true);
+  assert.equal(publicConfig.config.preferences.enableMessageBoard, false);
+  assert.equal((await call('/api/config', 'GET', null, other)).data.config.preferences.communityHostApproved, false);
+  assert.equal(JSON.stringify(publicConfig).includes('test-model'), false);
+});
+
+
+test('database records restore settings without runtime files and failed writes never grant host access', async t => {
+  const databaseDir = fs.mkdtempSync(path.join(os.tmpdir(), 'team-builder-settings-db-'));
+  t.after(() => fs.rmSync(databaseDir, { recursive: true, force: true }));
+  const options = { preload: path.join(__dirname, 'fixtures/settings-database.fixture'), env: { TEST_SETTINGS_DB_DIR: databaseDir, DB_HOST: 'test-database.invalid' } };
+  const running = await startTestServer(t, options);
+  let base = `http://127.0.0.1:${running.port}`;
+  const userToken = 'u_database_settings_owner_12345';
+  const request = async (route, method = 'GET', body) => {
+    const response = await fetch(`${base}${route}`, { method, headers: { 'Content-Type': 'application/json', 'x-user-token': userToken, 'x-admin-token': 'integration-admin-token' }, body: body ? JSON.stringify(body) : undefined });
+    return { status: response.status, data: await response.json() };
+  };
+  const hostRequest = await request('/api/community/host-access-request', 'POST', { userName: 'Database Host', reason: 'Team events' });
+  assert.equal(hostRequest.status, 200);
+  const id = hostRequest.data.request.id;
+  fs.writeFileSync(path.join(databaseDir, 'fail-writes'), '1');
+  assert.equal((await request(`/api/admin/community-host-requests/${id}`, 'PATCH', { status: 'approved' })).status, 503);
+  assert.equal((await request('/api/config')).data.config.preferences.communityHostApproved, false);
+  assert.equal((await request('/api/user/settings', 'PATCH', { settings: { spinWheelMuted: 'false' } })).status, 503);
+  fs.unlinkSync(path.join(databaseDir, 'fail-writes'));
+  assert.equal((await request(`/api/admin/community-host-requests/${id}`, 'PATCH', { status: 'approved' })).status, 200);
+  assert.equal((await request('/api/admin/config', 'PUT', { branding: { appName: 'Database Restored' } })).status, 200);
+  assert.equal((await request('/api/user/settings', 'PATCH', { settings: { spinWheelMuted: 'false' } })).status, 200);
+  const exited = new Promise(resolve => running.child.once('exit', resolve));
+  running.child.kill('SIGTERM'); await exited;
+  fs.rmSync(running.dataDir, { recursive: true, force: true });
+  const resumed = await startTestServer(t, { ...options, dataDir: running.dataDir });
+  base = `http://127.0.0.1:${resumed.port}`;
+  const restored = (await request('/api/config')).data;
+  assert.equal(restored.storage.configDatabaseConnected, true);
+  assert.equal(restored.config.branding.appName, 'Database Restored');
+  assert.equal(restored.config.preferences.communityHostApproved, true);
+  assert.equal((await request('/api/user/settings')).data.settings.spinWheelMuted, 'false');
+});
+
+async function securityRoom(socket, code = 'SEC123', hostId = 'security-host') {
+  const identity = { actorToken: `${hostId}_actor_token_12345678901234567890`, actorPlayerId: hostId, actorPlayerName: hostId, authToken: `${code}_room_token_12345678901234567890` };
+  const room = { code, host: hostId, roomType: 'private', participants: [{ id: hostId, name: hostId }], access: { privateSession: false }, hostSettings: { privateSession: false }, activityState: {}, currentActivity: null, created: Date.now(), lastUpdate: Date.now() };
+  const result = await emitAck(socket, 'shared:set', { key: `room:${code}`, ...identity, value: JSON.stringify(room) });
+  assert.equal(result.ok, true, result.error);
+  return { key: `room:${code}`, identity, room: JSON.parse(result.value) };
+}
+
+async function securitySocket(t, port) {
+  const socket = io(`http://127.0.0.1:${port}`, { transports: ['websocket'], forceNew: true, reconnection: false });
+  t.after(() => socket.close());
+  await new Promise((resolve, reject) => { socket.once('connect', resolve); socket.once('connect_error', reject); });
+  return socket;
+}
+
+test('security: reconnecting guests cannot take the host name or host privileges', async t => {
+  const running = await startTestServer(t), socket = await securitySocket(t, running.port);
+  const { key, room } = await securityRoom(socket);
+  const guest = { key, actorToken: 'security_guest_actor_12345678901234567890', playerId: 'security-guest', playerName: 'Guest' };
+  assert.equal((await emitAck(socket, 'room:join', guest)).ok, true);
+  const impersonation = await emitAck(socket, 'room:join', { ...guest, playerName: room.host });
+  assert.equal(impersonation.ok, false);
+  const current = JSON.parse((await emitAck(socket, 'shared:get', { key })).value);
+  const deleted = await emitAck(socket, 'shared:delete', { key, actorToken: guest.actorToken, actorPlayerId: guest.playerId });
+  assert.equal(deleted.ok, false);
+  assert.equal(current.participants.find(player => player.id === guest.playerId).name, 'Guest');
+});
+
+test('security: private-room conversion cannot bypass community host approval', async t => {
+  const running = await startTestServer(t), socket = await securitySocket(t, running.port);
+  const { key, identity, room } = await securityRoom(socket);
+  const converted = await emitAck(socket, 'shared:set', { key, ...identity, value: JSON.stringify({ ...room, roomType: 'community', communityTitle: 'Unapproved room' }) });
+  assert.equal(converted.ok, false);
+  const adminConversion = await emitAck(socket, 'shared:set', { key, ...identity, adminToken: 'integration-admin-token', value: JSON.stringify({ ...room, roomType: 'community', communityTitle: 'Approved room' }) });
+  assert.equal(adminConversion.ok, true, adminConversion.error);
+});
+
+test('security: another room cannot delete a DJ file through its library or room cleanup', async t => {
+  const running = await startTestServer(t), socket = await securitySocket(t, running.port);
+  await securityRoom(socket, 'VICT12', 'victim-host');
+  const attacker = await securityRoom(socket, 'ATCK12', 'attacker-host');
+  const dir = path.join(running.dataDir, 'dj-library'); fs.mkdirSync(dir, { recursive: true });
+  const storageKey = 'VICT12_dj_1700000000000_1234abcd.mp3', file = path.join(dir, storageKey);
+  fs.writeFileSync(file, Buffer.from('ID3 victim audio'));
+  const forged = { id: 'forged', name: 'Forged', url: `/media/dj/${storageKey}`, storageKey };
+  const updated = await emitAck(socket, 'shared:set', { key: attacker.key, ...attacker.identity, value: JSON.stringify({ ...attacker.room, activityState: { trackLibrary: [forged] } }) });
+  assert.equal(updated.ok, true);
+  const deleted = await fetch(`http://127.0.0.1:${running.port}/api/dj/library/forged?roomCode=ATCK12`, { method: 'DELETE', headers: { 'x-player-name': attacker.identity.actorPlayerName, 'x-player-id': attacker.identity.actorPlayerId, 'x-actor-token': attacker.identity.actorToken } });
+  assert.equal(deleted.status, 403);
+  assert.equal(fs.existsSync(file), true);
+  assert.equal((await emitAck(socket, 'shared:delete', { key: attacker.key, ...attacker.identity })).ok, true);
+  assert.equal(fs.existsSync(file), true);
+});
+
+test('security: malformed realtime arguments and coercion objects do not crash the server', async t => {
+  const running = await startTestServer(t), socket = await securitySocket(t, running.port);
+  socket.emit('shared:get', {}, { fake: 'acknowledgement' });
+  await new Promise(resolve => setTimeout(resolve, 100));
+  assert.equal(running.child.exitCode, null, 'fake acknowledgements must not terminate the process');
+  const malformed = await emitAck(socket, 'shared:get', { key: { toString: null } });
+  assert.equal(malformed.ok, false);
+  const badIdentity = await emitAck(socket, 'room:join', { key: 'room:SEC123', actorToken: { toString: null } });
+  assert.equal(badIdentity.ok, false);
+  assert.equal((await fetch(`http://127.0.0.1:${running.port}/healthz`)).status, 200);
+});
+
+test('security: private DJ media requires room access, keeps Range support, and is never public-cacheable', async t => {
+  const running = await startTestServer(t), socket = await securitySocket(t, running.port);
+  const { key, identity, room } = await securityRoom(socket, 'PRIV12');
+  const privateRoom = await emitAck(socket, 'shared:set', { key, ...identity, value: JSON.stringify({ ...room, access: { privateSession: true }, hostSettings: { privateSession: true } }) });
+  assert.equal(privateRoom.ok, true);
+  const dir = path.join(running.dataDir, 'dj-library'); fs.mkdirSync(dir, { recursive: true });
+  const fileName = 'PRIV12_dj_1700000000000_1234abcd.mp3';
+  fs.writeFileSync(path.join(dir, fileName), Buffer.from('ID3 private test audio'));
+  const url = `http://127.0.0.1:${running.port}/media/dj/${fileName}`;
+  assert.equal((await fetch(url)).status, 403);
+  assert.equal((await fetch(`${url}?roomToken=incorrect`)).status, 403);
+  const authorized = await fetch(`${url}?roomToken=${identity.authToken}`, { headers: { Range: 'bytes=0-2' } });
+  assert.equal(authorized.status, 206);
+  assert.equal(await authorized.text(), 'ID3');
+  assert.match(authorized.headers.get('cache-control'), /private.*no-store/);
+  assert.equal(authorized.headers.get('x-content-type-options'), 'nosniff');
+});
+
+test('security: hostile browser origins cannot open WebSocket connections', async t => {
+  const running = await startTestServer(t);
+  const socket = io(`http://127.0.0.1:${running.port}`, { transports: ['websocket'], extraHeaders: { Origin: 'https://untrusted.invalid' }, reconnection: false });
+  t.after(() => socket.close());
+  await new Promise((resolve, reject) => { socket.once('connect_error', resolve); socket.once('connect', () => reject(new Error('Untrusted origin was accepted'))); });
+  const sameOrigin = io(`http://127.0.0.1:${running.port}`, { transports: ['websocket'], extraHeaders: { Origin: `http://127.0.0.1:${running.port}` }, reconnection: false });
+  t.after(() => sameOrigin.close());
+  await new Promise((resolve, reject) => { sameOrigin.once('connect', resolve); sameOrigin.once('connect_error', reject); });
 });

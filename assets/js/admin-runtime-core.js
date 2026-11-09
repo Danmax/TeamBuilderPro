@@ -117,7 +117,7 @@ TEAM_BUILDER_ADMIN_RUNTIME.loadHostLocalConfig = function loadHostLocalConfig() 
 };
 
 TEAM_BUILDER_ADMIN_RUNTIME.saveHostLocalConfig = function saveHostLocalConfig(config) {
-  localStorage.setItem('host-local-config', JSON.stringify(config));
+  PermanentSettings.set('host-local-config', JSON.stringify(config));
 };
 
 TEAM_BUILDER_ADMIN_RUNTIME.loadCommunityRooms = async function loadCommunityRooms(options = {}) {

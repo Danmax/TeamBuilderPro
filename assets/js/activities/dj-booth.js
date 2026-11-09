@@ -609,7 +609,14 @@ function ensureDjBoothSharedDeckAudio(deckKey, deck) {
     return existingAudio;
   }
   clearDjBoothLocalDeckAudio(deckKey);
-  const audio = new Audio(safeDeck.sourceUrl);
+  // Add access only to our own media route; never send room tokens to an external URL.
+  let mediaUrl;
+  try { mediaUrl = new URL(safeDeck.sourceUrl, API_BASE_URL); } catch (_) { return null; }
+  const apiOrigin = new URL(API_BASE_URL).origin;
+  if (mediaUrl.origin === apiOrigin && mediaUrl.pathname.startsWith('/media/dj/') && isRoomPrivateSession(APP.room)) {
+    mediaUrl.searchParams.set('roomToken', getRoomAccessTokenForKey(`room:${APP.roomCode}`, APP.roomAccessToken || ''));
+  }
+  const audio = new Audio(mediaUrl.toString());
   audio.preload = 'auto';
   audio.crossOrigin = 'anonymous';
   audio.loop = false;
