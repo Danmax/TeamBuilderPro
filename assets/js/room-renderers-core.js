@@ -38,6 +38,7 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
   
   return `
     <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+      ${isCommunityRoom ? '<button class="btn-secondary" data-action="go-screen" data-screen="community" style="font-size:0.78rem;padding:6px 10px;">← Community Plaza</button>' : ''}
       <button class="btn-secondary" data-action="edit-profile" style="font-size:0.78rem;padding:6px 10px;">✏️ Profile</button>
       ${showFeedback ? '<button class="btn-secondary" data-action="open-feedback" style="font-size:0.78rem;padding:6px 10px;">🗣️ Feedback</button>' : ''}
       ${isHost ? '<button class="btn-secondary" data-action="open-admin-console" style="font-size:0.78rem;padding:6px 10px;">🛠️ Admin</button>' : ''}
@@ -51,6 +52,8 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
       <h1 class="logo">${lobbyTitle}</h1>
       <p class="tagline">Room: ${safeRoomCode}${isCommunityRoom ? ' • Community Lobby' : ''}</p>
     </div>
+
+    ${isCommunityRoom ? TeamBuilderCommunityPlaza.renderRoomPlaza(APP.room) : ''}
 
     ${canManageCommunity ? `
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
@@ -117,7 +120,7 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
         <div style="display:flex;justify-content:space-between;align-items:center;
           background:${isHost && focusedVoiceParticipantId === p.id ? 'rgba(0,210,211,0.08)' : 'var(--surface-2)'};border:${isHost && focusedVoiceParticipantId === p.id ? '1px solid rgba(0,210,211,0.26)' : '1px solid transparent'};border-radius:10px;padding:14px;margin-bottom:10px;gap:12px;flex-wrap:wrap;">
           <div style="display:flex;align-items:center;gap:12px;min-width:0;">
-            <div style="font-size:1.8rem;">${escapeHtml(p.avatar)}</div>
+            <div style="${isCommunityRoom ? 'width:44px;height:65px;' : 'font-size:1.8rem;'}">${isCommunityRoom ? TeamBuilderCommunityPlazaCore.avatar(TeamBuilderCommunityPlazaCore.seedFor(APP.room.code, p.id || p.name), p.avatar) : escapeHtml(p.avatar)}</div>
             <div>
               <div style="font-weight:600;">${escapeHtml(p.name)}</div>
               <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">

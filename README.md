@@ -294,3 +294,11 @@ Players now answer from their own devices in the shared session (the standalone 
 5. During the main round, members of the controlling team can type answers. Three strikes give the other team one answer to steal the bank. Successful steals include the new answer's points; failed steals award the existing bank to the controlling team. The host opens the next round after scoring.
 
 Face-off deadlines, buzz order, answer permissions, review, and scoring are server-controlled and survive refreshes and server restarts. Players joining during a round watch until the next setup. Representatives rotate by default between rounds. If a representative leaves, the host can use **Host controls → Restart this face-off** to choose replacements before points are awarded.
+
+### Community Plaza
+
+The **Community Lobby** now opens a bright avatar plaza with public-session cards. Each room shows a bounded preview of its members, its host, current game, voice availability, occupancy, and an explicit **Join session** button. Open rooms appear first, followed by games in progress and full rooms. Full rooms remain visible with joining disabled; a game in progress can be joined, with seating handled by that game. Closed, expired, and private rooms are excluded from discovery.
+
+Search by room title, host, room code, description, or game. Filters show all rooms, rooms waiting to play, active games, or rooms with voice. The directory refreshes every 15 seconds while visible. Failed refreshes retain the last-known list and display a retry message. Search focus and host-request drafts survive refreshes.
+
+Approved hosts can start rooms; other players can expand **Request host access** below the room list. Community rooms have a matching avatar welcome area, a link back to the plaza, and a return-to-room action. Switching sessions joins the new room before releasing the old seat. Avatars are generated locally from room-scoped seeds and retain the player's emoji badge; public previews contain no raw player IDs or guest names. Reduced-motion preferences disable avatar movement.

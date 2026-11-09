@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="/assets/css/base.css">
 <link rel="stylesheet" href="/assets/css/survey-board.css">
 <link rel="stylesheet" href="/assets/css/spin-wheel.css">
+<link rel="stylesheet" href="/assets/css/community-plaza.css">
 </head>
 <body>
 <div class="atmosphere"><div class="mesh"></div><div class="mesh"></div><div class="mesh"></div></div>
@@ -36,6 +37,8 @@
 <script src="/assets/js/screen-renderers-core.js"></script>
 <script src="/assets/js/room-renderers-core.js"></script>
 <script src="/assets/js/core/activity-registry.js"></script>
+<script src="/assets/js/community-plaza-core.js"></script>
+<script src="/assets/js/community-plaza.js"></script>
 <script src="/assets/js/activities/cosmos-bound.js"></script>
 <script src="/assets/js/activities/dj-booth.js"></script>
 <script src="/assets/js/activities/slides-studio.js"></script>
@@ -1955,6 +1958,12 @@ const APP = {
   community: {
     rooms: [],
     loading: false,
+    refreshing: false,
+    error: '',
+    lastLoadedAt: 0,
+    filter: 'all',
+    search: '',
+    joiningCode: '',
     requests: [],
     requestsLoading: false,
     requestSubmitting: false
@@ -5573,7 +5582,7 @@ function render() {
   const app = document.getElementById('app');
   // Skip re-render if user is typing in a form input (prevents mobile keyboard dismissal)
   const activeEl = document.activeElement;
-  const liveInput = ['surveyClashGuessInput', 'activitySearch', 'spinWheelTitleInput', 'spinWheelOptionsInput'].includes(activeEl?.id)
+  const liveInput = ['surveyClashGuessInput', 'activitySearch', 'spinWheelTitleInput', 'spinWheelOptionsInput', 'communitySearch'].includes(activeEl?.id)
     ? { id: activeEl.id, value: activeEl.value, start: activeEl.selectionStart, end: activeEl.selectionEnd } : null;
   const activeCosmosInput = getActiveCosmosBoundTextInput();
   if (activeCosmosInput && APP.cosmosBoundUi?.allowImmediateRender !== true) {

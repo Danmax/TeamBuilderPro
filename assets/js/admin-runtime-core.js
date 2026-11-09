@@ -120,18 +120,21 @@ TEAM_BUILDER_ADMIN_RUNTIME.saveHostLocalConfig = function saveHostLocalConfig(co
   localStorage.setItem('host-local-config', JSON.stringify(config));
 };
 
-TEAM_BUILDER_ADMIN_RUNTIME.loadCommunityRooms = async function loadCommunityRooms() {
-  APP.community.loading = true;
-  render();
+TEAM_BUILDER_ADMIN_RUNTIME.loadCommunityRooms = async function loadCommunityRooms(options = {}) {
+  if (APP.community.loading || APP.community.refreshing) return;
+  const silent = options.silent === true;
+  if (silent) APP.community.refreshing = true; else APP.community.loading = true;
+  if (!silent && APP.screen === 'community') render();
   try {
     const data = await apiRequest('/api/community/rooms');
     APP.community.rooms = Array.isArray(data?.rooms) ? data.rooms : [];
+    APP.community.lastLoadedAt = Date.now();
+    APP.community.error = '';
   } catch (_error) {
-    APP.community.rooms = [];
-    showError('Unable to load community lobbies right now.');
+    APP.community.error = APP.community.rooms.length ? 'We couldn’t refresh the plaza. These are the last known sessions.' : 'The plaza couldn’t connect. Try refreshing in a moment.';
   } finally {
-    APP.community.loading = false;
-    render();
+    APP.community.loading = false; APP.community.refreshing = false;
+    if (APP.screen === 'community') render();
   }
 };
 

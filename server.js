@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const CommunityPlaza = require('./assets/js/community-plaza-core');
 const Checkers = require('./assets/js/games/checkers-core');
 const ChineseCheckers = require('./assets/js/games/chinese-checkers-core');
 const FamilyFaceOff = require('./assets/js/games/family-face-off-core');
@@ -878,7 +879,7 @@ function getCommunityRoomSummary(key, room) {
   if (!isRoomKey(key) || !room || typeof room !== 'object') return null;
   const roomType = String(room.roomType || '').trim().toLowerCase();
   const isPrivate = room?.access?.privateSession === true || room?.hostSettings?.privateSession === true;
-  if (roomType !== 'community' || isPrivate) return null;
+  if (roomType !== 'community' || isPrivate || getRoomCleanupReason(key, room)) return null;
   const participants = Array.isArray(room.participants)
     ? room.participants.filter(participant => participant && typeof participant === 'object' && String(participant.name || '').trim())
     : [];
@@ -891,6 +892,11 @@ function getCommunityRoomSummary(key, room) {
     roomType: 'community',
     host: String(room.host || '').trim(),
     participantCount,
+    avatarPreview: participants.slice(0, 6).map(participant => ({
+      seed: CommunityPlaza.seedFor(String(room.code || key.replace(/^room:/, '')), participant.id || participant.name),
+      avatar: String(participant.avatar || '👤').replace(/[<>]/g, '').slice(0, 8),
+      isHost: participant.name === room.host
+    })),
     maxParticipants,
     currentActivity: String(room.currentActivity || '').trim() || null,
     queueLength: Array.isArray(room.activityQueue) ? room.activityQueue.length : 0,

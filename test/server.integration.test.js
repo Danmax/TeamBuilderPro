@@ -672,3 +672,38 @@ test('Family Face-Off arbitrates simultaneous buzzes, protects answers and resto
   assert.equal((await action(actors[0], 'next-round')).ok, true);
   assert.equal((await action(actors[0], 'start-faceoff', { reps: ['faceoff-1', 'faceoff-2'], version: oldVersion })).ok, false);
 });
+
+test('community discovery returns bounded avatar previews and excludes private and closed rooms', async t => {
+  const { port } = await startTestServer(t);
+  const socket = io(`http://127.0.0.1:${port}`, { transports: ['websocket'], forceNew: true }); t.after(() => socket.close());
+  await new Promise((resolve, reject) => { socket.once('connect', resolve); socket.once('connect_error', reject); });
+  const actor = { actorToken: 'plaza_host_actor_1234567890_abcdef', actorPlayerId: 'plaza-host', actorPlayerName: 'Host' };
+  const participants = [{ id: 'plaza-host', name: 'Host', avatar: '🦊' }, ...Array.from({ length: 7 }, (_, index) => ({ id: `secret-player-id-${index}`, name: `Guest ${index}`, avatar: '🐨' }))];
+  const base = { host: 'Host', participants, roomType: 'community', communityTitle: 'Open plaza', communityDescription: 'A place to play', maxParticipants: 12, currentActivity: null, activityState: {}, activityQueue: [], queueIndex: 0, hostSettings: { voice: { enabled: true } }, access: {}, created: Date.now() };
+  let publicRoom;
+  for (const [code, extra] of [ ['PLAZA1', {}], ['PLAZA2', { hostSettings: { privateSession: true }, access: { privateSession: true } }], ['PLAZA3', { host: '', participants: [] }]]) {
+    const source = { ...base, ...extra, code };
+    // Create normally; closed and expired state are then seeded through the authorized admin path.
+    const created = await emitAck(socket, 'shared:set', { key: `room:${code}`, ...actor, adminToken: 'integration-admin-token', authToken: 'plaza_room_token_1234567890_abcdef', value: JSON.stringify({ ...source, host: 'Host', participants }) });
+    assert.equal(created.ok, true, created.error);
+    const stored = JSON.parse(created.value);
+    if (code === 'PLAZA1') publicRoom = stored;
+    if (code === 'PLAZA3') {
+      const closed = await emitAck(socket, 'shared:set', { key: `room:${code}`, adminToken: 'integration-admin-token', value: JSON.stringify({ ...stored, host: '', participants: [], currentActivity: null }) }); assert.equal(closed.ok, true, closed.error);
+    }
+  }
+  const response = await fetch(`http://127.0.0.1:${port}/api/community/rooms`); const directory = await response.json();
+  assert.equal(directory.ok, true);
+  assert.equal(directory.rooms.some(room => room.code === 'PLAZA2'), false);
+  assert.equal(directory.rooms.some(room => room.code === 'PLAZA3'), false);
+  const room = directory.rooms.find(room => room.code === 'PLAZA1');
+  assert.equal(room.participantCount, 8); assert.equal(room.avatarPreview.length, 6);
+  assert.deepEqual(room.avatarPreview.map(item => Object.keys(item).sort()), Array(6).fill(['avatar', 'isHost', 'seed']));
+  assert.equal(room.avatarPreview[0].isHost, true); assert.equal(room.avatarPreview[0].avatar, '🦊');
+  assert.equal(JSON.stringify(directory).includes('secret-player-id'), false);
+  const again = await (await fetch(`http://127.0.0.1:${port}/api/community/rooms`)).json();
+  assert.deepEqual(again.rooms.find(item => item.code === 'PLAZA1').avatarPreview, room.avatarPreview);
+  const madeFull = await emitAck(socket, 'shared:set', { key: 'room:PLAZA1', ...actor, value: JSON.stringify({ ...publicRoom, maxParticipants: 8 }) }); assert.equal(madeFull.ok, true);
+  const fullDirectory = await (await fetch(`http://127.0.0.1:${port}/api/community/rooms`)).json();
+  assert.equal(fullDirectory.rooms.find(item => item.code === 'PLAZA1').presenceStatus, 'full');
+});
