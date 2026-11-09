@@ -273,7 +273,7 @@ The host can pause/resume without losing a hop chain, start a new round, or retu
 
 ### Family Face-Off game-show board
 
-Family Face-Off (formerly Survey Clash) has a blue-and-gold game-show stage, team score displays, a round bank, and numbered answer panels. Hosts can click a panel or submit a matching guess to flip down the answer and its points for everyone in the room. Reveals animate once, continue through live updates, and respect reduced-motion preferences. Existing sessions, themed question packs, and the standalone `survey-clash.html` URL remain compatible.
+Family Face-Off (formerly Survey Clash) has a blue-and-gold game-show stage, team score displays, a round bank, and numbered answer panels. Hosts can click a panel or submit a matching guess to flip down the answer and its points for everyone in the room. Reveals animate once, continue through live updates, and respect reduced-motion preferences. Strikes display one to three large red X tiles over the screen, fade out after three seconds, and play a synthesized buzzer. Correct answers play a bell, including the last answer. Everyone has a local sound toggle; mute and volume settings are respected. Browser interaction enables audio, and saved events do not replay when reconnecting. Existing sessions, themed question packs, and the standalone `survey-clash.html` URL remain compatible.
 
 ### Spin the Wheel
 
