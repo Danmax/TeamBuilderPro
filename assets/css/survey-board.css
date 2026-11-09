@@ -67,3 +67,39 @@
 @media (prefers-reduced-motion:reduce) { .ff-strike-display { animation:none; } }
 .ff-sound-toggle { display:block; margin:0 0 12px auto; border:1px solid #dfbd764d; border-radius:20px; background:#ffffff08; color:#ffdda4; padding:7px 12px; font:600 .72rem 'Outfit',sans-serif; cursor:pointer; }
 .ff-sound-toggle:focus-visible { outline:2px solid #fff; outline-offset:3px; }
+
+.ff-play-panel { min-width:0; }
+.ff-player-identity { padding:11px 14px; border:1px solid #d7a75b55; border-radius:12px; color:#ffdda4; font-size:.8rem; background:#d7a75b0b; }
+.ff-play-card { padding:17px; border:1px solid var(--border); border-radius:14px; background:var(--surface-solid); min-width:0; }
+.ff-play-card h3 { font-size:1.1rem; line-height:1.25; margin:0 0 10px; overflow-wrap:anywhere; }
+.ff-play-card p { color:var(--text-dim); font-size:.81rem; line-height:1.5; margin:9px 0 13px; overflow-wrap:anywhere; }
+.ff-play-card .form-label { font-size:.78rem; margin:14px 0 6px; }
+.ff-play-card .form-input { width:100%; min-width:0; margin:6px 0 9px; }
+.ff-play-card > button { width:100%; margin:8px 0; }
+.ff-play-card button { font-size:.78rem; overflow-wrap:anywhere; }
+.ff-play-card summary { cursor:pointer; font-size:.88rem; font-weight:700; }
+.ff-play-card details { margin-top:14px; }
+.ff-team-choices,.ff-answer-actions,.ff-host-utility { display:grid; gap:8px; }
+.ff-team-choices button[aria-pressed="true"] { border:2px solid #ffdda4; }
+.ff-player-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(95px,1fr); align-items:center; gap:7px; font-size:.77rem; }
+.ff-player-row > span { overflow-wrap:anywhere; }
+.ff-player-row select { font-size:.75rem; padding:8px; }
+.ff-faceoff-players { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:15px 0; }
+.ff-faceoff-players > div { min-width:0; border:1px solid #e6b65d44; background:#163b8629; padding:10px; border-radius:10px; font-size:.8rem; overflow-wrap:anywhere; }
+.ff-faceoff-players small { display:block; color:#d8ba84; font-size:.68rem; margin-top:4px; }
+.ff-play-card .ff-buzzer { min-height:110px; padding:17px 12px; border:3px solid #ffa2a2; border-radius:24px; background:radial-gradient(ellipse at 35% 10%,#ff8880,#d52235 55%,#7c0e23); color:white; font:900 1.6rem 'Outfit',sans-serif; box-shadow:0 7px #6d0c1e,0 12px 22px #0006,inset 0 2px #ffd9d9; cursor:pointer; }
+.ff-buzzer small { display:block; font-size:.68rem; font-weight:500; margin-top:6px; }
+.ff-play-card .ff-buzzer:disabled { background:#3b3543; box-shadow:none; border-color:#66586a; color:#c2b5c6; font-size:1rem; cursor:default; }
+.ff-buzzer:not(:disabled):active { transform:translateY(4px); box-shadow:0 3px #6d0c1e; }
+.ff-buzzer:focus-visible { outline:3px solid white; outline-offset:5px; }
+.ff-answer-clock { display:flex; align-items:center; gap:12px; padding:12px; border:1px solid #f9c46b66; border-radius:12px; margin:12px 0; background:#f9c46b0b; }
+.ff-answer-clock strong { font:800 2.6rem 'IBM Plex Mono',monospace; color:#ffda90; }
+.ff-answer-clock span { font-size:.74rem; color:#e2cda9; line-height:1.35; }
+.ff-pending-answer { border:1px solid #b491e966; border-radius:12px; padding:12px; background:#b491e90b; overflow-wrap:anywhere; }
+.ff-pending-answer p { margin-bottom:0; }
+.ff-judge-list { display:grid; gap:7px; margin-top:14px; }
+.ff-host-utility { margin-top:14px; }
+@media(max-width:1100px) { .ff-play-panel { grid-row:1; } }
+
+.ff-mobile-question { display:none; }
+@media(max-width:1100px) { .ff-play-card .ff-mobile-question { display:block; font-size:1rem; color:#ffdda4; font-weight:700; } }

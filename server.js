@@ -3,6 +3,9 @@ const fs = require('fs');
 const crypto = require('crypto');
 const Checkers = require('./assets/js/games/checkers-core');
 const ChineseCheckers = require('./assets/js/games/chinese-checkers-core');
+const FamilyFaceOff = require('./assets/js/games/family-face-off-core');
+const { validateSurveyQuestions } = require('./assets/js/theme-content-core');
+const familyFaceOffTimers = new Map();
 const SpinWheel = require('./assets/js/games/spin-wheel-core');
 const spinWheelTimers = new Map();
 const ChineseCheckersAI = require('./assets/js/games/chinese-checkers-ai');
@@ -916,6 +919,7 @@ function listCommunityRooms() {
 }
 
 function deleteRoomState(key) {
+  clearFamilyFaceOffTimer(key);
   clearSpinWheelTimer(key);
   clearChineseCheckersTimer(key);
   clearMemoryTimer(key);
@@ -1934,6 +1938,33 @@ function startMemoryRound(key, room, options = {}) {
   scheduleRoomMetaPersist();
 }
 
+function clearFamilyFaceOffTimer(key) {
+  clearTimeout(familyFaceOffTimers.get(key)); familyFaceOffTimers.delete(key);
+}
+
+function createFamilyFaceOffRound(room, source = {}) {
+  const questions = validateSurveyQuestions(source.questions || []);
+  if (!questions.length) throw new Error('Add a valid survey question pack before starting Family Face-Off.');
+  const requestedOrder = Array.isArray(source.questionOrder) ? source.questionOrder : [];
+  const order = requestedOrder.filter((index, position) => Number.isInteger(index) && index >= 0 && index < questions.length && requestedOrder.indexOf(index) === position);
+  const questionOrder = [...order, ...questions.map((_, index) => index).filter(index => !order.includes(index))];
+  return FamilyFaceOff.create({ ...source, questions, questionOrder, roundCount: Math.max(1, Math.min(questions.length, Number(source.roundCount) || 4)), startedAt: Date.now() }, room.participants.map(player => ({ ...player, isHost: player.name === room.host })), crypto.randomUUID());
+}
+
+function scheduleFamilyFaceOff(key, game) {
+  clearFamilyFaceOffTimer(key);
+  if (game?.phase !== 'answering' || !game.faceoff?.deadline || game.pendingAnswer) return;
+  const timer = setTimeout(() => {
+    familyFaceOffTimers.delete(key);
+    const room = getRoomSnapshot(key);
+    if (room?.currentActivity !== 'survey-clash' || room.activityState?.id !== game.id || room.activityState.version !== game.version) return;
+    room.activityState = FamilyFaceOff.expire(room.activityState);
+    publishGameRoom(key, room);
+    scheduleFamilyFaceOff(key, room.activityState);
+  }, Math.max(0, game.faceoff.deadline - Date.now()) + 10);
+  timer.unref(); familyFaceOffTimers.set(key, timer);
+}
+
 function clearSpinWheelTimer(key) {
   clearTimeout(spinWheelTimers.get(key));
   spinWheelTimers.delete(key);
@@ -2108,6 +2139,7 @@ io.on('connection', socket => {
       room.activityState = Memory.reconcilePlayers(room.activityState, room.participants);
       scheduleMemoryReveal(key, room.activityState);
     } else if (!room.participants.length) {
+      clearFamilyFaceOffTimer(key);
       clearSpinWheelTimer(key);
       clearChineseCheckersTimer(key);
       clearMemoryTimer(key);
@@ -2162,6 +2194,27 @@ io.on('connection', socket => {
       } else throw new Error('Unknown Memory action.');
       const value = publishGameRoom(key, room);
       scheduleMemoryReveal(key, room.activityState);
+      ack?.({ ok: true, value });
+    } catch (error) { ack?.({ ok: false, error: error.message }); }
+  });
+
+  socket.on('family-face-off:action', (payload, ack) => {
+    const key = payload?.key;
+    if (!isRoomKey(key) || !isAuthorizedForRoom(key, getRequestRoomToken(payload))) { ack?.({ ok: false, error: 'Room access denied.' }); return; }
+    const room = getRoomSnapshot(key), actor = getRoomActor(key, payload, room);
+    if (!actor || room?.currentActivity !== 'survey-clash') { ack?.({ ok: false, error: 'Join the room before playing Family Face-Off.' }); return; }
+    try {
+      const game = room.activityState;
+      const expired = FamilyFaceOff.expire(game);
+      if (expired !== game) {
+        room.activityState = expired; publishGameRoom(key, room); scheduleFamilyFaceOff(key, expired);
+        throw new Error('Time is up. The next answer turn has started.');
+      }
+      if (payload.gameId !== game.id || payload.roundIndex !== game.roundIndex) throw new Error('The round changed. Try again.');
+      if (payload.action !== 'buzz' && payload.version !== game.version) throw new Error('The game changed. Try again.');
+      room.activityState = FamilyFaceOff.action(game, actor, payload.action, payload, room.participants);
+      const value = publishGameRoom(key, room);
+      scheduleFamilyFaceOff(key, room.activityState);
       ack?.({ ok: true, value });
     } catch (error) { ack?.({ ok: false, error: error.message }); }
   });
@@ -2369,6 +2422,16 @@ io.on('connection', socket => {
         ack?.({ ok: false, error: 'Only the host can change room controls' });
         return;
       }
+      const queuedFamilyFaceOff = nextRoom.queueActive === true && Number(nextRoom.queueIndex) > Number(existingRoom.queueIndex)
+        && nextRoom.activityQueue?.[Number(nextRoom.queueIndex) - 1] === 'survey-clash';
+      if (nextRoom.currentActivity === 'survey-clash' && (existingRoom.currentActivity !== 'survey-clash' || queuedFamilyFaceOff
+        || (Number.isFinite(nextRoom.activityState?.startedAt) && nextRoom.activityState.startedAt !== existingRoom.activityState?.startedAt && !nextRoom.activityState?.id))) {
+        try { nextRoom.activityState = createFamilyFaceOffRound(existingRoom, nextRoom.activityState); }
+        catch (error) { ack?.({ ok: false, error: error.message }); return; }
+      } else if (existingRoom.currentActivity === 'survey-clash' && nextRoom.currentActivity === 'survey-clash'
+        && JSON.stringify(existingRoom.activityState) !== JSON.stringify(nextRoom.activityState)) {
+        ack?.({ ok: false, error: 'Use Family Face-Off controls to update this game.' }); return;
+      }
       if (existingRoom.currentActivity === 'spin-wheel' && nextRoom.currentActivity === 'spin-wheel' && existingRoom.activityState?.isSpinning
         && JSON.stringify(existingRoom.activityState) !== JSON.stringify(nextRoom.activityState)) {
         ack?.({ ok: false, error: 'Wait for the spin to finish before changing the wheel.' }); return;
@@ -2412,6 +2475,10 @@ io.on('connection', socket => {
       .filter(Boolean)
       .slice(0, 100);
 
+    if (!existingRoom && nextRoom.currentActivity === 'survey-clash') {
+      try { nextRoom.activityState = createFamilyFaceOffRound(nextRoom, nextRoom.activityState); }
+      catch (error) { deleteRoomState(key); ack?.({ ok: false, error: error.message }); return; }
+    }
     if (!existingRoom && nextRoom.currentActivity === 'chinese-checkers') nextRoom.activityState = createChineseCheckersRound(nextRoom, nextRoom.activityState?.playerCount);
     if (nextRoom.currentActivity === 'memory' && (!existingRoom || initializeMemory)) {
       startMemoryRound(key, nextRoom, nextRoom.activityState || {});
@@ -2421,6 +2488,7 @@ io.on('connection', socket => {
       scheduleRoomMetaPersist();
     }
     state.set(key, JSON.stringify(nextRoom));
+    scheduleFamilyFaceOff(key, nextRoom.currentActivity === 'survey-clash' ? nextRoom.activityState : null);
     scheduleSpinWheel(key, nextRoom.currentActivity === 'spin-wheel' ? nextRoom.activityState : null);
     scheduleChineseCheckersTurn(key, nextRoom.currentActivity === 'chinese-checkers' ? nextRoom.activityState : null);
     schedulePersist();
@@ -2706,6 +2774,24 @@ loadFeedbackStateFromDisk();
 loadRoomMetaFromDisk();
 for (const [key, value] of state) {
   const room = safeParseJsonObject(value);
+  if (room?.currentActivity === 'survey-clash') {
+    if (!room.activityState?.id) {
+      try {
+        const legacy = room.activityState;
+        const upgraded = createFamilyFaceOffRound(room, legacy);
+        upgraded.scores = Array.isArray(legacy.scores) ? legacy.scores.slice(0, 2).map(value => Number(value) || 0) : [0, 0];
+        upgraded.roundIndex = Math.max(0, Math.min(upgraded.roundCount - 1, Number(legacy.roundIndex) || 0));
+        upgraded.revealed = FamilyFaceOff.question(upgraded).answers.map((_, index) => Boolean(legacy.revealed?.[index]));
+        upgraded.strikes = Math.max(0, Math.min(3, Number(legacy.strikes) || 0));
+        upgraded.roundAwarded = legacy.roundAwarded === true;
+        upgraded.phase = legacy.finished ? 'finished' : upgraded.roundAwarded ? 'round-over' : upgraded.strikes === 3 ? 'steal' : upgraded.revealed.some(Boolean) || upgraded.strikes ? 'playing' : 'setup';
+        upgraded.finished = legacy.finished === true;
+        room.activityState = upgraded; state.set(key, JSON.stringify(room)); schedulePersist();
+      }
+      catch (_) { continue; }
+    }
+    scheduleFamilyFaceOff(key, room.activityState);
+  }
   if (room?.currentActivity === 'spin-wheel') scheduleSpinWheel(key, room.activityState);
   if (room?.currentActivity === 'memory') scheduleMemoryReveal(key, room.activityState);
   if (room?.currentActivity === 'chinese-checkers') scheduleChineseCheckersTurn(key, room.activityState);

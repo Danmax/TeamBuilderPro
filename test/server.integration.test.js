@@ -158,12 +158,18 @@ test('room mutations require participant identity and host controls require the 
     key, authToken: roomToken, actorToken: hostToken, actorPlayerId: 'host-1',
     value: JSON.stringify({ ...surveyRoom, activityState: { ...surveyState, revealed: [true, false] } })
   });
-  assert.equal(hostReveal.ok, true);
+  assert.equal(hostReveal.ok, false, 'host uses validated game actions too');
+  const hostControls = await emitAck(socket, 'family-face-off:action', {
+    key, authToken: roomToken, actorToken: hostToken, actorPlayerId: 'host-1', action: 'names',
+    gameId: surveyRoom.activityState.id, roundIndex: 0, version: surveyRoom.activityState.version, names: ['Earthlings', 'Martians']
+  });
+  assert.equal(hostControls.ok, true, hostControls.error);
   const guestView = await emitAck(socket, 'shared:get', { key });
-  assert.deepEqual(JSON.parse(guestView.value).activityState.revealed, [true, false]);
+  assert.deepEqual(JSON.parse(guestView.value).activityState.teamNames, ['Earthlings', 'Martians']);
+  assert.deepEqual(JSON.parse(guestView.value).activityState.revealed, [false, false]);
   const returnToSession = await emitAck(socket, 'shared:set', {
     key, authToken: roomToken, actorToken: hostToken, actorPlayerId: 'host-1',
-    value: JSON.stringify({ ...JSON.parse(hostReveal.value), currentActivity: null, activityState: {} })
+    value: JSON.stringify({ ...JSON.parse(hostControls.value), currentActivity: null, activityState: {} })
   });
   assert.equal(returnToSession.ok, true);
   assert.equal(JSON.parse(returnToSession.value).participants.length, 2);
@@ -617,4 +623,52 @@ test('wheel locks predictions and permissions and settles after the spinner disc
   const firstClaim = await action(guest, 'claim-winner');
   assert.equal(firstClaim.claimed, room.activityState.currentResult === 'Bonus');
   assert.equal((await action(guest, 'claim-winner')).claimed, false);
+});
+
+test('Family Face-Off arbitrates simultaneous buzzes, protects answers and restores a timed face-off', async t => {
+  const running = await startTestServer(t);
+  const connect = async port => { const socket = io(`http://127.0.0.1:${port}`, { transports: ['websocket'], forceNew: true }); t.after(() => socket.close()); await new Promise((resolve, reject) => { socket.once('connect', resolve); socket.once('connect_error', reject); }); return socket; };
+  let socket = await connect(running.port);
+  const key = 'room:FACE09';
+  const actors = ['Host', 'Alice', 'Bob', 'Charlie'].map((name, index) => ({ actorToken: `faceoff_actor_${index}_1234567890_abcdef`, actorPlayerId: `faceoff-${index}`, actorPlayerName: name }));
+  const q = { prompt: 'Name a pet.', answers: [{ text: 'Cat', points: 30, aliases: ['kitten'] }, { text: 'Dog', points: 50 }, { text: 'Fish', points: 20 }] };
+  let room = { code: 'FACE09', host: 'Host', participants: [{ id: actors[0].actorPlayerId, name: 'Host' }], currentActivity: 'survey-clash', activityState: { questions: [q, q], questionOrder: [0, 1], roundCount: 2 }, activityQueue: [], queueIndex: 0, hostSettings: {}, access: {}, created: Date.now() };
+  const created = await emitAck(socket, 'shared:set', { key, ...actors[0], value: JSON.stringify(room) });
+  assert.equal(created.ok, true, created.error); room = JSON.parse(created.value);
+  for (const actor of actors.slice(1)) { const joined = await emitAck(socket, 'room:join', { key, actorToken: actor.actorToken, playerId: actor.actorPlayerId, playerName: actor.actorPlayerName }); assert.equal(joined.ok, true); room = JSON.parse(joined.value); }
+  const action = async (actor, action, extra = {}) => { const response = await emitAck(socket, 'family-face-off:action', { key, ...actor, action, gameId: room.activityState.id, roundIndex: room.activityState.roundIndex, version: room.activityState.version, ...extra }); if (response.ok) room = JSON.parse(response.value); return response; };
+  for (let index = 1; index < 4; index++) assert.equal((await action(actors[index], 'team', { team: index === 2 ? 1 : 0 })).ok, true);
+  assert.equal((await action(actors[1], 'start-faceoff', { reps: ['faceoff-1', 'faceoff-2'] })).ok, false);
+  assert.equal((await action(actors[0], 'start-faceoff', { reps: ['faceoff-1', 'faceoff-2'], seconds: 5 })).ok, true);
+  assert.equal((await action(actors[3], 'buzz')).ok, false);
+  const payload = { key, action: 'buzz', gameId: room.activityState.id, roundIndex: 0, version: room.activityState.version };
+  const buzzes = await Promise.all(actors.slice(1, 3).map(actor => emitAck(socket, 'family-face-off:action', { ...payload, ...actor })));
+  assert.equal(buzzes.filter(result => result.ok).length, 1);
+  room = JSON.parse(buzzes.find(result => result.ok).value);
+  const firstTeam = room.activityState.faceoff.answeringTeam;
+  const firstActor = actors[firstTeam === 0 ? 1 : 2], secondActor = actors[firstTeam === 0 ? 2 : 1];
+  assert.equal((await action(secondActor, 'answer', { text: 'Dog' })).ok, false);
+  assert.equal((await action(firstActor, 'answer', { text: 'kitten' })).ok, true);
+  assert.equal(room.activityState.faceoff.answeringTeam, 1 - firstTeam);
+  const forged = await emitAck(socket, 'shared:set', { key, ...firstActor, value: JSON.stringify({ ...room, activityState: { ...room.activityState, scores: [999, 0] } }) }); assert.equal(forged.ok, false);
+  const hostForged = await emitAck(socket, 'shared:set', { key, ...actors[0], value: JSON.stringify({ ...room, activityState: { ...room.activityState, scores: [999, 0] } }) }); assert.equal(hostForged.ok, false);
+  socket.close();
+  await new Promise(resolve => { running.child.once('exit', resolve); running.child.kill('SIGTERM'); });
+  const restarted = await startTestServer(t, { dataDir: running.dataDir }); socket = await connect(restarted.port);
+  for (let attempt = 0; attempt < 60; attempt++) { const result = await emitAck(socket, 'shared:get', { key }); room = JSON.parse(result.value); if (room.activityState.phase === 'choice') break; await new Promise(resolve => setTimeout(resolve, 100)); }
+  assert.equal(room.activityState.phase, 'choice'); assert.equal(room.activityState.faceoff.winnerTeam, firstTeam);
+  assert.equal((await action(firstActor, 'choose', { choice: 'pass' })).ok, true);
+  assert.equal(room.activityState.activeTeam, 1 - firstTeam);
+  assert.equal((await action(firstActor, 'answer', { text: 'Dog' })).ok, false);
+  assert.equal((await action(secondActor, 'answer', { text: 'a puppy' })).ok, true);
+  assert.equal(room.activityState.pendingAnswer.text, 'a puppy');
+  assert.equal((await action(secondActor, 'judge', { index: 1 })).ok, false);
+  assert.equal((await action(actors[0], 'judge', { index: 1 })).ok, true);
+  assert.equal(room.activityState.revealed[1], true);
+  assert.equal((await action(secondActor, 'answer', { text: 'Fish' })).ok, true);
+  assert.equal(room.activityState.phase, 'round-over');
+  assert.equal(room.activityState.scores[1 - firstTeam], 100);
+  const oldVersion = room.activityState.version;
+  assert.equal((await action(actors[0], 'next-round')).ok, true);
+  assert.equal((await action(actors[0], 'start-faceoff', { reps: ['faceoff-1', 'faceoff-2'], version: oldVersion })).ok, false);
 });

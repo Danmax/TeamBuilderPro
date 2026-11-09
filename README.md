@@ -282,3 +282,15 @@ The wheel now puts the stage, result, and player predictions together, with a co
 Hosts can hand the next spin to a participant, turn predictions on/off, or load **Break the ice**, **Celebrate**, **Pick a person**, and **Truth or dare** presets. **Customize your wheel** holds the name and one-choice-per-line editor; points, prompts, and activity actions remain available under **Add points or activities**. Larger pools sample up to eight choices. Changing choices resets the result and recent history; changing only the title preserves the current choices. Edits are disabled during spins, and unsaved editor text survives live updates.
 
 The wheel lands on the slice under the top pointer and displays the same result to everyone. Spin timing and result settlement run on the server, survive a spinner refresh/disconnect and server restarts, and cannot be overwritten by player room updates. Live renders continue from elapsed animation time. Recent spins, earned spin points, and saved favorites remain available. Wheel sounds are optional and muted initially; reduced-motion mode skips rotation and confetti.
+
+### Family Face-Off teams, buzzers, and player answers
+
+Players now answer from their own devices in the shared session (the standalone board remains a host-operated screen):
+
+1. Join a team during setup. The host can assign players, rename the teams, and choose one representative per team.
+2. The host chooses a 5, 8 (default), 10, or 15-second answer window and selects **Open the buzzers**. The question appears for everyone. Only the nominated players can buzz; the server accepts the first buzz.
+3. The winner types an answer and presses Enter/**Send answer**, or speaks and selects **I answered out loud**. Exact matches and aliases reveal automatically. Other wording and spoken answers wait for host judgment; the host selects a matching answer or **Not on the board**. Submitting before the deadline stops the clock for review.
+4. A highest-scoring answer wins the face-off immediately. Otherwise the opposing representative gets a timed chance to beat it. Ties favor the first answer. If both miss or time out, the buzzers reopen. The winner chooses **Play** or **Pass**.
+5. During the main round, members of the controlling team can type answers. Three strikes give the other team one answer to steal the bank. Successful steals include the new answer's points; failed steals award the existing bank to the controlling team. The host opens the next round after scoring.
+
+Face-off deadlines, buzz order, answer permissions, review, and scoring are server-controlled and survive refreshes and server restarts. Players joining during a round watch until the next setup. Representatives rotate by default between rounds. If a representative leaves, the host can use **Host controls → Restart this face-off** to choose replacements before points are awarded.

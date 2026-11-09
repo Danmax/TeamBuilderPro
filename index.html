@@ -43,6 +43,8 @@
 <script src="/assets/js/activities/bingo.js"></script>
 <script src="/assets/js/activities/backgammon.js"></script>
 <script src="/assets/js/activities/connect-4.js"></script>
+<script src="/assets/js/games/family-face-off-core.js"></script>
+<script src="/assets/js/activities/family-face-off.js"></script>
 <script src="/assets/js/games/spin-wheel-core.js"></script>
 <script src="/assets/js/games/checkers-core.js"></script>
 <script src="/assets/js/activities/checkers.js"></script>
@@ -2174,6 +2176,7 @@ function maybePlayTicTacToeLastMoveSound(match) {
 const renderSurveyAnswerBoard = TeamBuilderSurveyBoard.createBoardRenderer();
 let surveyClashMuted = localStorage.getItem('surveyClashMuted') === 'true';
 let surveyClashVolume = Math.max(0, Math.min(1, Number.parseFloat(localStorage.getItem('surveyClashVolume') ?? '0.75')));
+let familyFaceOffBusy = false;
 const surveyClashFeedback = TeamBuilderSurveyBoard.createFeedback(() => ({ muted: surveyClashMuted, volume: surveyClashVolume }), SURVEY_CLASH_SOUNDS);
 const AI_GENERATION_TARGETS = cloneStaticData('AI_GENERATION_TARGETS', []);
 const AI_GENERATION_TARGET_LABELS = Object.fromEntries(AI_GENERATION_TARGETS.map(item => [item.id, item.label]));
@@ -4199,29 +4202,17 @@ function maybePlaySurveyClashRenderSound(state) {
   surveyClashFeedback.update(`${APP.roomCode}:${state.startedAt}`, state);
 }
 
-async function updateSurveyClashState(mutator) {
-  if (!APP.roomCode || APP.room?.currentActivity !== 'survey-clash') return null;
-  const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
-  if (!room || room.currentActivity !== 'survey-clash') return null;
-  if (room.host !== APP.player?.name) {
-    showError('Only the host can control Family Face-Off.');
-    return null;
-  }
-  const state = room.activityState && typeof room.activityState === 'object'
-    ? room.activityState
-    : createSurveyClashState(room.participants || []);
-  state.teamNames = Array.isArray(state.teamNames) ? state.teamNames.slice(0, 2) : ['Team 1', 'Team 2'];
-  state.scores = Array.isArray(state.scores) ? state.scores.slice(0, 2).map(score => Number(score) || 0) : [0, 0];
-  state.revealed = Array.isArray(state.revealed) ? state.revealed : Array(6).fill(false);
-  state.roundAwarded = state.roundAwarded === true;
-  if (state.finished) return state;
-  if (typeof mutator === 'function') mutator(state);
-  state.updatedAt = Date.now();
-  room.activityState = state;
-  await RoomManager.updateRoom(APP.roomCode, room, APP.roomAccessToken || '');
-  APP.room = room;
-  render();
-  return state;
+async function updateSurveyClashState(actionName, extraFields = {}) {
+  if (familyFaceOffBusy || APP.room?.currentActivity !== 'survey-clash') return null;
+  const action = actionName, extra = extraFields;
+  const game = APP.room.activityState, key = `room:${APP.roomCode}`;
+  familyFaceOffBusy = true; render();
+  try {
+    const response = await socketEmitAck('family-face-off:action', { key, ...getSharedActorPayload(key), authToken: APP.roomAccessToken || '', action, gameId: game.id, version: game.version, roundIndex: game.roundIndex, ...extra }, 5000);
+    if (response.value) APP.room = normalizeRoom(JSON.parse(response.value));
+    return APP.room.activityState;
+  } catch (error) { showError(error.message); return null; }
+  finally { familyFaceOffBusy = false; render(); }
 }
 
 function surveyClashSetSound(state, key) {
@@ -4242,127 +4233,38 @@ function surveyClashAnswerMatches(answer, guess) {
 }
 
 async function surveyClashSubmitGuess() {
-  const input = document.getElementById('surveyClashGuessInput');
-  const guess = normalizeSurveyClashText(input?.value || '');
-  if (input) input.value = '';
-  if (!guess) return;
-  await updateSurveyClashState(state => {
-    const question = getSurveyClashQuestion(state);
-    const answerIndex = question.answers.findIndex((answer, idx) => {
-      if (state.revealed[idx]) return false;
-      return surveyClashAnswerMatches(answer, guess);
-    });
-    if (answerIndex < 0) {
-      state.strikes = Math.min(3, (Number(state.strikes) || 0) + 1);
-      state.message = state.strikes >= 3
-        ? `Three strikes. ${state.teamNames[1 - (Number(state.activeTeam) || 0)]} can steal.`
-        : `Strike ${state.strikes}.`;
-      surveyClashSetSound(state, 'strike');
-      return;
-    }
-    state.revealed[answerIndex] = true;
-    state.message = `${question.answers[answerIndex].text} is on the board.`;
-    surveyClashSetSound(state, answerIndex === 0 ? 'top' : 'correct');
-    if (question.answers.every((_, idx) => state.revealed[idx])) {
-      state.message = 'Board cleared. Award the bank or start the next round.';
-    }
-  });
+  const input = document.getElementById('surveyClashGuessInput'), text = input?.value || '';
+  if (!text.trim()) return;
+  const result = await updateSurveyClashState(APP.room.host === APP.player?.name ? 'host-answer' : 'answer', { text });
+  if (result) { const replacement = document.getElementById('surveyClashGuessInput'); if (replacement) replacement.value = ''; }
 }
 
 async function surveyClashRevealAnswer(index) {
-  await updateSurveyClashState(state => {
-    const question = getSurveyClashQuestion(state);
-    const answerIndex = Number.isInteger(index) ? index : state.revealed.findIndex(BooleanFalse => !BooleanFalse);
-    if (answerIndex < 0 || answerIndex >= question.answers.length || state.revealed[answerIndex]) return;
-    state.revealed[answerIndex] = true;
-    state.message = `${question.answers[answerIndex].text} revealed.`;
-    surveyClashSetSound(state, answerIndex === 0 ? 'top' : 'correct');
-  });
+  await updateSurveyClashState('reveal', { index });
 }
 
 async function surveyClashAddStrike() {
-  await updateSurveyClashState(state => {
-    state.strikes = Math.min(3, (Number(state.strikes) || 0) + 1);
-    state.message = state.strikes >= 3
-      ? `Three strikes. ${state.teamNames[1 - (Number(state.activeTeam) || 0)]} can steal.`
-      : `Strike ${state.strikes}.`;
-    surveyClashSetSound(state, 'strike');
-  });
+  await updateSurveyClashState('strike');
 }
 
 async function surveyClashClearStrike() {
-  await updateSurveyClashState(state => {
-    state.strikes = Math.max(0, (Number(state.strikes) || 0) - 1);
-    state.message = 'Strike cleared.';
-  });
+  await updateSurveyClashState('clear-strike');
 }
 
 async function surveyClashSwitchTeam() {
-  await updateSurveyClashState(state => {
-    state.activeTeam = 1 - (Number(state.activeTeam) || 0);
-    state.strikes = 0;
-    state.message = `${state.teamNames[state.activeTeam]} has control.`;
-  });
+  await updateSurveyClashState('switch-team');
 }
 
 async function surveyClashAwardBank(teamIndex = null) {
-  await updateSurveyClashState(state => {
-    const activeTeam = Number(state.activeTeam) || 0;
-    const targetTeam = Number.isInteger(teamIndex) ? Math.max(0, Math.min(1, teamIndex)) : activeTeam;
-    if (state.roundAwarded === true) {
-      state.message = 'This round has already been awarded.';
-      return;
-    }
-    const bank = getSurveyClashBank(state);
-    if (!bank) {
-      state.message = 'No revealed points in the bank yet.';
-      return;
-    }
-    state.scores[targetTeam] = (Number(state.scores[targetTeam]) || 0) + bank;
-    state.roundAwarded = true;
-    state.message = `${state.teamNames[targetTeam]} takes ${bank} points.`;
-    surveyClashSetSound(state, 'win');
-  });
+  await updateSurveyClashState('award-bank');
 }
 
 async function surveyClashSteal() {
-  await updateSurveyClashState(state => {
-    const stealingTeam = 1 - (Number(state.activeTeam) || 0);
-    if (state.roundAwarded === true) {
-      state.message = 'This round has already been awarded.';
-      return;
-    }
-    const bank = getSurveyClashBank(state);
-    if (!bank) {
-      state.message = 'No revealed points in the bank yet.';
-      return;
-    }
-    state.scores[stealingTeam] = (Number(state.scores[stealingTeam]) || 0) + bank;
-    state.roundAwarded = true;
-    state.activeTeam = stealingTeam;
-    state.strikes = 0;
-    state.message = `${state.teamNames[stealingTeam]} steals ${bank} points.`;
-    surveyClashSetSound(state, 'win');
-  });
+  await updateSurveyClashState('award-steal');
 }
 
 async function surveyClashNextRound() {
-  await updateSurveyClashState(state => {
-    if ((Number(state.roundIndex) || 0) >= (Number(state.roundCount) || 4) - 1) {
-      state.message = getSurveyClashResult(state);
-      surveyClashSetSound(state, 'win');
-      return;
-    }
-    state.roundIndex = (Number(state.roundIndex) || 0) + 1;
-    state.activeTeam = state.roundIndex % 2;
-    state.strikes = 0;
-    state.roundAwarded = false;
-    state.revealed = Array(getSurveyClashQuestion(state).answers.length).fill(false);
-    state.timerSeconds = 0;
-    state.timerStartedAt = 0;
-    state.message = `Round ${state.roundIndex + 1}. ${state.teamNames[state.activeTeam]} starts.`;
-    surveyClashSetSound(state, 'round');
-  });
+  await updateSurveyClashState('next-round');
 }
 
 function getSurveyClashResult(state) {
@@ -4370,27 +4272,15 @@ function getSurveyClashResult(state) {
 }
 
 async function surveyClashFinishGame() {
-  await updateSurveyClashState(state => {
-    state.message = getSurveyClashResult(state);
-    state.finished = true;
-    state.timerSeconds = 0;
-    surveyClashSetSound(state, 'win');
-  });
+  await updateSurveyClashState('finish');
 }
 
 async function surveyClashStartTimer(seconds) {
-  await updateSurveyClashState(state => {
-    state.timerSeconds = Math.max(1, Math.min(90, Number(seconds) || 20));
-    state.timerStartedAt = Date.now();
-    state.message = `${state.timerSeconds} second timer started.`;
-    surveyClashSetSound(state, 'timer');
-  });
+  await updateSurveyClashState('timer', { seconds });
 }
 
 async function surveyClashPlaySound(key) {
-  await updateSurveyClashState(state => {
-    surveyClashSetSound(state, key);
-  });
+  await updateSurveyClashState('sound', { key });
 }
 
 function setSurveyClashMuted(muted) {
@@ -4416,6 +4306,7 @@ function renderSurveyClash() {
   const teamNames = Array.isArray(state.teamNames) ? state.teamNames : ['Team 1', 'Team 2'];
   const scores = Array.isArray(state.scores) ? state.scores : [0, 0];
   const activeTeam = Number(state.activeTeam) === 1 ? 1 : 0;
+  const controlPhase = ['playing', 'steal'].includes(state.phase);
   const bank = getSurveyClashBank(state);
   const strikes = Math.max(0, Math.min(3, Number(state.strikes) || 0));
   const roundIndex = Math.max(0, Number(state.roundIndex) || 0);
@@ -4426,64 +4317,8 @@ function renderSurveyClash() {
     ? Math.max(0, timerSeconds - Math.floor((Date.now() - timerStartedAt) / 1000))
     : 0;
   const boardKey = JSON.stringify([APP.roomCode, state.startedAt, roundIndex, state.questionOrder?.[roundIndex], question.prompt]);
-  const answerRows = renderSurveyAnswerBoard(question, revealed, isHost && !state.finished, boardKey);
-  const hostControls = isHost ? state.finished ? `
-    <div style="padding:20px;background:var(--surface-solid);border:1px solid var(--border);border-radius:12px;">
-      <h3>Game complete</h3>
-      <p style="margin:12px 0;">${escapeHtml(state.message)}</p>
-      <button class="btn-primary" data-action="start-survey-clash">Play again</button>
-    </div>
-  ` : `
-    <div class="ff-host-panel">
-      <div style="padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface-solid);">
-        <div style="font-size:0.78rem;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;">Guess</div>
-        <label class="form-label" for="surveyClashGuessInput">Player answer</label>
-        <input id="surveyClashGuessInput" autocomplete="off" class="form-input" placeholder="Type a player guess" maxlength="80" style="margin-bottom:8px;">
-        <button class="btn-primary" data-action="survey-clash-submit-guess" style="width:100%;">Submit Guess</button>
-      </div>
-      <div style="padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface-solid);">
-        <div style="font-size:0.78rem;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;">Host Controls</div>
-        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
-          <button class="btn-secondary" data-action="survey-clash-strike">Strike</button>
-          <button class="btn-secondary" data-action="survey-clash-clear-strike">Clear Strike</button>
-          <button class="btn-primary" data-action="survey-clash-award-bank">Award Bank</button>
-          <button class="btn-secondary" data-action="survey-clash-steal">Steal</button>
-          <button class="btn-secondary" data-action="survey-clash-switch-team">Switch Team</button>
-          <button class="btn-secondary" data-action="survey-clash-reveal-next">Reveal Next</button>
-          <button class="btn-primary" data-action="survey-clash-next-round" ${roundIndex >= roundCount - 1 ? 'disabled' : ''}>Next Round</button>
-          <button class="btn-secondary" data-action="survey-clash-finish">Finish</button>
-        </div>
-      </div>
-      <div style="padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface-solid);">
-        <div style="font-size:0.78rem;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;">Reveal Board</div>
-        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
-          ${question.answers.map((answer, idx) => `<button class="btn-secondary" data-action="survey-clash-reveal-answer" data-index="${idx}" ${revealed[idx] ? 'disabled' : ''}>${idx + 1}</button>`).join('')}
-        </div>
-      </div>
-      <div style="padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface-solid);">
-        <details><summary style="cursor:pointer;font-weight:700;margin-bottom:10px;">Sound & timer</summary>
-        <label class="form-label" for="surveyClashVolume">Master volume</label>
-        <input id="surveyClashVolume" type="range" min="0" max="100" value="${Math.round(surveyClashVolume * 100)}" style="width:100%;margin:6px 0 10px;">
-        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
-          <button class="btn-secondary" data-action="survey-clash-sound" data-key="correct">Correct</button>
-          <button class="btn-secondary" data-action="survey-clash-sound" data-key="top">Top</button>
-          <button class="btn-secondary" data-action="survey-clash-sound" data-key="strike">Strike</button>
-          <button class="btn-secondary" data-action="survey-clash-sound" data-key="win">Win</button>
-          <button class="btn-secondary" data-action="survey-clash-sound" data-key="timer">Tick</button>
-          <button class="btn-secondary" data-action="survey-clash-toggle-mute">${surveyClashMuted ? 'Unmute' : 'Mute'}</button>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px;">
-          <button class="btn-secondary" data-action="survey-clash-timer" data-seconds="20">20 sec</button>
-          <button class="btn-secondary" data-action="survey-clash-timer" data-seconds="30">30 sec</button>
-        </div>
-        </details>
-      </div>
-    </div>
-  ` : `
-    <div style="padding:18px;border:1px solid var(--border);border-radius:8px;background:var(--surface-solid);color:var(--text-dim);line-height:1.5;">
-      The host controls the board, scoring, strikes, and sounds.
-    </div>
-  `;
+  const answerRows = renderSurveyAnswerBoard(question, revealed, isHost && !familyFaceOffBusy && ['answering', 'playing', 'steal'].includes(state.phase), boardKey);
+  const hostControls = TeamBuilderFamilyFaceOffUI.render(state);
 
   return `
     <div class="survey-clash-app">
@@ -4495,19 +4330,19 @@ function renderSurveyClash() {
           <p class="ff-round">Round ${roundIndex + 1} of ${roundCount} · ${question.answers.length} answers on the board</p>
         </header>
         <div class="ff-scoreboard" aria-label="Scores">
-          <div class="ff-score ${activeTeam === 0 ? 'ff-active' : ''}"><span class="ff-score-label">${escapeHtml(teamNames[0] || 'Team 1')}${activeTeam === 0 ? ' · Playing' : ''}</span><strong>${Number(scores[0]) || 0}</strong></div>
+          <div class="ff-score ${controlPhase && activeTeam === 0 ? 'ff-active' : ''}"><span class="ff-score-label">${escapeHtml(teamNames[0] || 'Team 1')}${controlPhase && activeTeam === 0 ? ' · Playing' : ''}</span><strong>${Number(scores[0]) || 0}</strong></div>
           <div class="ff-score ff-bank"><span class="ff-score-label">Round bank</span><strong>${bank}</strong></div>
-          <div class="ff-score ${activeTeam === 1 ? 'ff-active' : ''}"><span class="ff-score-label">${escapeHtml(teamNames[1] || 'Team 2')}${activeTeam === 1 ? ' · Playing' : ''}</span><strong>${Number(scores[1]) || 0}</strong></div>
+          <div class="ff-score ${controlPhase && activeTeam === 1 ? 'ff-active' : ''}"><span class="ff-score-label">${escapeHtml(teamNames[1] || 'Team 2')}${controlPhase && activeTeam === 1 ? ' · Playing' : ''}</span><strong>${Number(scores[1]) || 0}</strong></div>
         </div>
-        <div class="ff-question"><p class="ff-kicker">Survey says…</p><h3>${escapeHtml(question.prompt)}</h3></div>
+        <div class="ff-question"><p class="ff-kicker">Survey says…</p><h3>${escapeHtml(state.phase === 'setup' ? 'Get your teams ready. The question appears when the buzzers open.' : question.prompt)}</h3></div>
         <div class="ff-marquee"><div class="ff-answers" role="group" aria-label="Survey answer board">${answerRows}</div></div>
         <div class="ff-stage-footer">
-          <div class="ff-turn">At the podium<strong>${escapeHtml(teamNames[activeTeam] || 'Team')}</strong></div>
+          <div class="ff-turn">At the podium<strong>${escapeHtml(state.phase === 'setup' ? 'Choose teams' : state.phase === 'faceoff' ? 'Face-off players' : state.phase === 'answering' ? APP.room.participants.find(player => player.id === state.faceoff.reps[state.faceoff.answeringTeam])?.name || 'Face-off player' : state.phase === 'choice' ? teamNames[state.faceoff.winnerTeam] : teamNames[activeTeam] || 'Team')}</strong></div>
           <div class="ff-strikes" role="img" aria-label="${strikes} of 3 strikes">${Array.from({ length: 3 }, (_, index) => `<span class="ff-strike ${index < strikes ? 'ff-on' : ''}" aria-hidden="true">✕</span>`).join('')}</div>
-          <div class="ff-timer" role="timer" aria-label="Time remaining">${remaining ? `${remaining}s on the clock` : 'Timer ready'}</div>
+          <div class="ff-timer" role="timer" aria-label="Time remaining">${state.faceoff?.deadline ? `<span data-ff-deadline="${state.faceoff.deadline}">${Math.max(0, Math.ceil((state.faceoff.deadline - Date.now()) / 1000))}</span>s to answer` : state.pendingAnswer ? 'Host is reviewing' : remaining ? `${remaining}s on the clock` : 'Timer ready'}</div>
         </div>
         <div class="ff-message" role="status" aria-live="polite">${escapeHtml(state.message || 'Board ready.')}</div>
-        <p class="ff-board-hint">${isHost ? 'Click a numbered panel to reveal it, or submit a player’s guess.' : 'Play along out loud. Your host reveals the answers and awards points.'}</p>
+        <p class="ff-board-hint">${state.phase === 'setup' ? 'Join a team. Your host chooses one face-off player from each side.' : state.phase === 'faceoff' ? 'Face-off players: hit your buzzer! Everyone else can cheer them on.' : 'Type an answer on your turn, or say it aloud and let the host judge.'}</p>
       </section>
       ${hostControls}
     </div>
