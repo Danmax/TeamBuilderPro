@@ -2,6 +2,9 @@
   let selected = null;
   let busy = false;
   let selectionVersion = '';
+  let optionsGameId = null;
+  let optionsDraft = null;
+  let optionsOpen = false;
   const core = root.TeamBuilderCheckers;
   const label = color => color === 'b' ? 'Black' : 'Red';
   const squareName = square => `${'ABCDEFGH'[square % 8]}${8 - Math.floor(square / 8)}`;
@@ -22,6 +25,9 @@
   function renderCheckers() {
     const game = APP.room.activityState;
     if (!Array.isArray(game?.board)) return '<p>Waiting for the Checkers board…</p>';
+    const rules = core.normalizeRules(game.rules);
+    if (optionsGameId !== game.startedAt) { optionsGameId = game.startedAt; optionsDraft = { ...rules }; optionsOpen = false; }
+    else optionsOpen = document.getElementById('checkersOptions')?.open ?? optionsOpen;
     const version = `${game.startedAt}:${game.moveNumber}`;
     if (version !== selectionVersion) { selected = null; selectionVersion = version; }
     const color = ['b', 'r'].find(side => game.players?.[side]?.playerId === APP.player?.id) || '';
@@ -51,19 +57,27 @@
     return `<section class="checkers-game" aria-label="Checkers">
       <div class="checkers-heading"><div><h2>Checkers</h2><p class="studio-help">${color ? `You play ${label(color)}. Select a piece, then a highlighted square.` : 'Watch the match live.'}</p></div>${isHost ? '<button class="btn-secondary" data-action="checkers-restart">New match</button>' : ''}</div>
       <div class="checkers-status" role="status" aria-live="polite">${escapeHtml(status)}</div>
+      <p class="studio-help" id="checkersRulesSummary">${rules.flyingKings ? 'Flying kings' : 'Single-step kings'} · ${rules.mandatoryCaptures ? 'Required captures' : 'Optional captures'}</p>
       ${missingPlayer ? '<p class="studio-help">A player has left the room. The host can start a new match with the current players.</p>' : ''}
       ${game.phase === 'waiting' && !color ? '<button class="btn-primary" data-action="checkers-join">Join match</button>' : ''}
       <div class="checkers-layout"><div class="checkers-board" role="group" aria-label="Checkers board">${cells}</div><aside class="checkers-sidebar">
         ${['b', 'r'].map(side => `<div class="checkers-seat ${game.phase === 'playing' && game.turn === side ? 'checkers-active-seat' : ''}"><span class="checkers-piece checkers-${side}" aria-hidden="true"></span><div><strong>${escapeHtml(game.players[side]?.name || 'Open seat')}</strong><p>${label(side)} · ${counts(side)} pieces</p></div></div>`).join('')}
-        <p class="studio-help">${game.phase === 'waiting' ? 'Invite another participant. They can join this match from their screen.' : game.phase === 'finished' ? 'The host can start a new match or return to the session.' : Number.isInteger(game.forcedFrom) ? 'Continue jumping with the same piece.' : moves.some(move => move.capture !== null) ? 'Capture required. Choose a highlighted piece to jump.' : canMove ? 'Your move.' : color ? 'Waiting for your opponent.' : 'Spectating — the two seated players control the board.'}</p>
-        <details class="studio-details"><summary>How to play</summary><p class="studio-help">Black moves first. Pieces move and capture diagonally forward; kings move and capture in either direction. Captures are required. Continue a multiple jump with the same piece. Reaching the far edge crowns a king and ends that turn. Win by capturing every opposing piece or blocking all opposing moves. A repeated position three times, or 80 moves without a capture or promotion, ends in a draw.</p></details>
+        <p class="studio-help">${game.phase === 'waiting' ? 'Invite another participant. They can join this match from their screen.' : game.phase === 'finished' ? 'The host can start a new match or return to the session.' : Number.isInteger(game.forcedFrom) ? 'Continue jumping with the same piece.' : moves.some(move => move.capture !== null) ? rules.mandatoryCaptures ? 'Capture required. Choose a highlighted piece to jump.' : 'A capture is available. You can jump or move another free piece.' : canMove ? 'Your move.' : color ? 'Waiting for your opponent.' : 'Spectating — the two seated players control the board.'}</p>
+        <details class="studio-details"><summary>How to play</summary><p class="studio-help">Black moves first. Pieces move and capture diagonally forward; kings move and capture in either direction. ${rules.flyingKings ? 'Flying kings can slide along an open diagonal and capture one opposing piece from a distance, landing on any empty square beyond it. They cannot pass over friendly pieces or two pieces in one jump.' : 'Kings move one diagonal square at a time, or jump an adjacent opposing piece.'} ${rules.mandatoryCaptures ? 'Captures are required when available.' : 'Captures are optional: a free move is allowed even when a capture is available.'} Once you start capturing, continue any further jumps with the same piece. Reaching the far edge crowns a king and ends that turn. Win by capturing every opposing piece or blocking all opposing moves. A repeated position three times, or 80 moves without a capture or promotion, ends in a draw.</p></details>
+        ${isHost ? `<details id="checkersOptions" class="studio-details" ${optionsOpen ? 'open' : ''}><summary>Match rules</summary><label class="form-label" for="checkersKingMovement">King movement</label><select id="checkersKingMovement" class="form-input"><option value="single" ${!optionsDraft.flyingKings ? 'selected' : ''}>One square at a time</option><option value="flying" ${optionsDraft.flyingKings ? 'selected' : ''}>Flying kings — any diagonal distance</option></select><label style="display:flex;align-items:center;gap:10px;margin:14px 0;"><input id="checkersOptionalCaptures" type="checkbox" ${!optionsDraft.mandatoryCaptures ? 'checked' : ''}>Allow free moves when a capture is available</label><p class="studio-help">Rules apply to a new match. Starting one resets the board. Multiple jumps must still be completed once a capture starts.</p><button class="btn-primary" data-action="checkers-apply-rules">Apply rules & start new match</button></details>` : ''}
       </aside></div></section>`;
   }
 
+  document.addEventListener('change', event => {
+    if (!optionsDraft) return;
+    if (event.target.id === 'checkersKingMovement') optionsDraft.flyingKings = event.target.value === 'flying';
+    if (event.target.id === 'checkersOptionalCaptures') optionsDraft.mandatoryCaptures = !event.target.checked;
+  });
   const registry = root.TEAM_BUILDER_ACTIVITY_REGISTRY;
   registry.registerActivity('checkers', { createInitialState: room => core.createGame(room?.participants || []), render: renderCheckers });
   registry.registerAction('start-checkers', () => startActivityById('checkers'));
   registry.registerAction('checkers-restart', () => request('restart'));
+  registry.registerAction('checkers-apply-rules', () => request('restart', { rules: { flyingKings: document.getElementById('checkersKingMovement')?.value === 'flying', mandatoryCaptures: !document.getElementById('checkersOptionalCaptures')?.checked } }));
   registry.registerAction('checkers-join', () => request('join'));
   registry.registerAction('checkers-square', ({ parsed }) => {
     if (busy) return;

@@ -2107,7 +2107,7 @@ io.on('connection', socket => {
       if (payload.gameId !== game.startedAt || payload.moveNumber !== game.moveNumber) throw new Error('The board changed. Choose your move again.');
       if (payload.action === 'restart') {
         if (!actor.isHost) throw new Error('Only the host can start a new match.');
-        room.activityState = Checkers.createGame(room.participants);
+        room.activityState = Checkers.createGame(room.participants, payload.rules ?? game.rules);
       } else if (payload.action === 'join') {
         if (game.phase !== 'waiting') throw new Error('This match already has two players.');
         if (Object.values(game.players).some(seat => seat?.playerId === actor.playerId)) throw new Error('You already have a seat.');
@@ -2222,7 +2222,7 @@ io.on('connection', socket => {
         && Number(nextRoom.queueIndex) > Number(existingRoom.queueIndex)
         && nextRoom.activityQueue?.[Number(nextRoom.queueIndex) - 1] === 'checkers';
       if (nextRoom.currentActivity === 'checkers' && (existingRoom.currentActivity !== 'checkers' || queuedCheckersRestart)) {
-        nextRoom.activityState = Checkers.createGame(existingRoom.participants);
+        nextRoom.activityState = Checkers.createGame(existingRoom.participants, nextRoom.activityState?.rules);
       } else if (existingRoom.currentActivity === 'checkers' && nextRoom.currentActivity === 'checkers'
         && JSON.stringify(existingRoom.activityState) !== JSON.stringify(nextRoom.activityState)) {
         ack?.({ ok: false, error: 'Use Checkers controls to update the board.' }); return;

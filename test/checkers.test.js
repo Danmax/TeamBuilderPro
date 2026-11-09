@@ -81,3 +81,61 @@ test('repetition and eighty moves without capture or promotion produce a draw', 
   assert.equal(quiet.winner, '');
   assert.match(quiet.drawReason, /80 moves/);
 });
+
+test('flying kings move along open diagonals while regular pieces keep short moves', () => {
+  const game = position({ 42: 'B', 7: 'r' }, { rules: { flyingKings: true, mandatoryCaptures: false } });
+  assert.ok(Checkers.legalMoves(game).some(move => move.to === 24 && move.capture === null));
+  assert.ok(Checkers.legalMoves(game).some(move => move.to === 60 && move.capture === null));
+  assert.equal(Checkers.applyMove(game, 42, 24).board[24], 'B');
+  game.board[42] = 'b';
+  assert.equal(Checkers.legalMoves(game).some(move => move.to === 24 || move.to === 60), false);
+});
+
+test('flying captures offer every empty landing beyond one opponent and respect blockers', () => {
+  const rules = { flyingKings: true, mandatoryCaptures: true };
+  const game = position({ 42: 'B', 28: 'r' }, { rules });
+  assert.deepEqual(Checkers.legalMoves(game), [21, 14, 7].map(to => ({ from: 42, to, capture: 28 })));
+  const landed = Checkers.applyMove(game, 42, 14);
+  assert.equal(landed.board[28], '');
+  assert.equal(landed.board[14], 'B');
+  game.board[14] = 'r';
+  assert.deepEqual(Checkers.legalMoves(game), [{ from: 42, to: 21, capture: 28 }]);
+  assert.throws(() => Checkers.applyMove(game, 42, 7), /not legal/);
+  game.board[28] = 'b';
+  assert.equal(Checkers.legalMoves(game).some(move => move.from === 42 && [21, 14, 7].includes(move.to)), false);
+});
+
+test('flying kings continue a distant multi-jump with the same piece', () => {
+  const game = position({ 42: 'B', 28: 'r', 12: 'r', 1: 'r' }, { rules: { flyingKings: true, mandatoryCaptures: false } });
+  const first = Checkers.applyMove(game, 42, 21);
+  assert.equal(first.turn, 'b');
+  assert.equal(first.forcedFrom, 21);
+  assert.deepEqual(Checkers.legalMoves(first), [{ from: 21, to: 3, capture: 12 }]);
+  assert.throws(() => Checkers.applyMove(first, 21, 30), /Continue jumping/);
+  const second = Checkers.applyMove(first, 21, 3);
+  assert.equal(second.turn, 'r');
+  assert.equal(second.forcedFrom, null);
+  assert.equal(second.board[12], '');
+});
+
+test('optional captures permit another free piece to move but still finish a started multi-jump', () => {
+  const game = position({ 42: 'b', 40: 'b', 35: 'r', 21: 'r', 1: 'r' }, { rules: { flyingKings: false, mandatoryCaptures: false } });
+  const moves = Checkers.legalMoves(game);
+  assert.ok(moves.some(move => move.from === 42 && move.to === 28));
+  assert.ok(moves.some(move => move.from === 40 && move.to === 33));
+  assert.equal(Checkers.applyMove(game, 40, 33).turn, 'r');
+  const jumping = Checkers.applyMove(game, 42, 28);
+  assert.equal(jumping.forcedFrom, 28);
+  assert.deepEqual(Checkers.legalMoves(jumping), [{ from: 28, to: 14, capture: 21 }]);
+});
+
+test('rules normalize safely and older matches keep their original movement and capture rules', () => {
+  assert.deepEqual(Checkers.createGame(players).rules, { flyingKings: false, mandatoryCaptures: true });
+  assert.deepEqual(Checkers.normalizeRules({ flyingKings: 'true', mandatoryCaptures: 'false' }), { flyingKings: false, mandatoryCaptures: true });
+  const legacy = position({ 42: 'B', 28: 'r', 1: 'r' });
+  delete legacy.rules;
+  assert.equal(Checkers.legalMoves(legacy).some(move => move.to === 21), false);
+  const forced = position({ 42: 'b', 40: 'b', 35: 'r', 1: 'r' });
+  delete forced.rules;
+  assert.deepEqual(Checkers.legalMoves(forced), [{ from: 42, to: 28, capture: 35 }]);
+});

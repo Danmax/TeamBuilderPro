@@ -257,11 +257,17 @@ test('Checkers supports late seating and validates turns, moves, stale requests,
   const replied = await action(guest, 'move', redMove);
   assert.equal(replied.ok, true, replied.error);
   room = JSON.parse(replied.value);
-  const restarted = await action(host, 'restart');
+  const restarted = await action(host, 'restart', { rules: { flyingKings: true, mandatoryCaptures: false } });
   assert.equal(restarted.ok, true);
   room = JSON.parse(restarted.value);
   assert.equal(room.activityState.moveNumber, 0);
   assert.equal(room.activityState.board.filter(Boolean).length, 24);
+  assert.deepEqual(room.activityState.rules, { flyingKings: true, mandatoryCaptures: false });
+  const preserved = await action(host, 'restart');
+  assert.equal(preserved.ok, true);
+  room = JSON.parse(preserved.value);
+  assert.deepEqual(room.activityState.rules, { flyingKings: true, mandatoryCaptures: false });
+
   const queuedRestart = await emitAck(socket, 'shared:set', {
     key, ...host, value: JSON.stringify({ ...room, queueActive: true, queueIndex: 1, activityQueue: ['checkers'], activityState: {} })
   });
