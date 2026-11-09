@@ -1,6 +1,8 @@
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const Character = require('./assets/js/character-core');
+const normalizeCharacter = value => value && typeof value === 'object' && !Array.isArray(value) ? Character.normalize(value) : null;
 const CommunityPlaza = require('./assets/js/community-plaza-core');
 const Checkers = require('./assets/js/games/checkers-core');
 const ChineseCheckers = require('./assets/js/games/chinese-checkers-core');
@@ -895,7 +897,8 @@ function getCommunityRoomSummary(key, room) {
     avatarPreview: participants.slice(0, 6).map(participant => ({
       seed: CommunityPlaza.seedFor(String(room.code || key.replace(/^room:/, '')), participant.id || participant.name),
       avatar: String(participant.avatar || '👤').replace(/[<>]/g, '').slice(0, 8),
-      isHost: participant.name === room.host
+      isHost: participant.name === room.host,
+      character: normalizeCharacter(participant.character)
     })),
     maxParticipants,
     currentActivity: String(room.currentActivity || '').trim() || null,
@@ -1262,8 +1265,8 @@ function participantCanApplyRoomUpdate(currentRoom, nextRoom, actorPlayerId) {
     if (participantId !== actorPlayerId) {
       return JSON.stringify(currentParticipant) === JSON.stringify(nextParticipant);
     }
-    const { name: _oldName, avatar: _oldAvatar, ...currentRest } = currentParticipant;
-    const { name: _newName, avatar: _newAvatar, ...nextRest } = nextParticipant;
+    const { name: _oldName, avatar: _oldAvatar, character: _oldCharacter, ...currentRest } = currentParticipant;
+    const { name: _newName, avatar: _newAvatar, character: _newCharacter, ...nextRest } = nextParticipant;
     return JSON.stringify(currentRest) === JSON.stringify(nextRest);
   });
 }
@@ -1292,6 +1295,7 @@ function normalizeServerParticipant(rawParticipant, isHost = false) {
     avatar: String(rawParticipant.avatar || '👤').replace(/[<>]/g, '').trim().slice(0, 8) || '👤',
     score: Number.isFinite(Number(rawParticipant.score)) ? Number(rawParticipant.score) : 0,
     isComputer: false,
+    character: normalizeCharacter(rawParticipant.character),
     isHost,
     ready: rawParticipant.ready !== false
   };
@@ -2090,6 +2094,7 @@ io.on('connection', socket => {
         id: playerId,
         name: playerName,
         avatar: playerAvatar,
+        character: normalizeCharacter(payload?.playerCharacter),
         ready: true
       }, false));
     }
@@ -2097,6 +2102,7 @@ io.on('connection', socket => {
     if (existingById) {
       existingById.name = playerName;
       existingById.avatar = playerAvatar;
+      if (Object.hasOwn(payload, 'playerCharacter')) existingById.character = normalizeCharacter(payload.playerCharacter);
     }
     if (room.currentActivity === 'memory') room.activityState = Memory.reconcilePlayers(room.activityState, room.participants);
     room.lastUpdate = Date.now();
@@ -2107,6 +2113,18 @@ io.on('connection', socket => {
     socket.join(key);
     io.to(key).emit('shared:update', { key, value: state.get(key) });
     ack?.({ ok: true, value: state.get(key) });
+  });
+
+  socket.on('room:character', (payload, ack) => {
+    const key = payload?.key;
+    if (!isRoomKey(key) || !isAuthorizedForRoom(key, getRequestRoomToken(payload))) { ack?.({ ok: false, error: 'Room access denied.' }); return; }
+    const room = getRoomSnapshot(key), actor = getRoomActor(key, payload, room);
+    if (!actor) { ack?.({ ok: false, error: 'Participant authentication required.' }); return; }
+    const character = normalizeCharacter(payload.character);
+    if (!character) { ack?.({ ok: false, error: 'Choose a valid character.' }); return; }
+    actor.participant.character = character;
+    const value = publishGameRoom(key, room);
+    ack?.({ ok: true, value });
   });
 
   socket.on('room:leave', (payload, ack) => {

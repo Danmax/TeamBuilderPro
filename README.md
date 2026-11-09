@@ -302,3 +302,16 @@ The **Community Lobby** now opens a bright avatar plaza with public-session card
 Search by room title, host, room code, description, or game. Filters show all rooms, rooms waiting to play, active games, or rooms with voice. The directory refreshes every 15 seconds while visible. Failed refreshes retain the last-known list and display a retry message. Search focus and host-request drafts survive refreshes.
 
 Approved hosts can start rooms; other players can expand **Request host access** below the room list. Community rooms have a matching avatar welcome area, a link back to the plaza, and a return-to-room action. Switching sessions joins the new room before releasing the old seat. Avatars are generated locally from room-scoped seeds and retain the player's emoji badge; public previews contain no raw player IDs or guest names. Reduced-motion preferences disable avatar movement.
+
+### Create your character
+
+Open **Create Character** from the dashboard, **Customize your character** in Edit Profile, or **Create your character** in the Community Plaza. The creator has six sections with a live preview:
+
+- **Character:** person, robot, or cat; body shape; skin, fur, or shell color.
+- **Face:** eyes and eye color, nose, and mouth.
+- **Hair:** hairstyle and color.
+- **Outfit:** shirt, pants, and shoes, with separate colors.
+- **Extras:** hand gestures or mittens, hats, and accessories such as glasses, headphones, and scarves.
+- **Background:** scene style and background color, including a transparent option.
+
+Choose a palette color or use the custom color picker. **Surprise me** creates a random draft you can continue editing. **Save character** stores it in the player profile and updates the current room; **Cancel** discards the draft. Saved characters survive a page reload, travel with the player into new rooms, and appear on the dashboard, profile, community session previews, and member gatherings. The existing emoji remains as the character's badge.

@@ -2,7 +2,8 @@
   const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
   function hash(value) { let number = 2166136261; for (const char of String(value)) number = Math.imul(number ^ char.charCodeAt(0), 16777619); return number >>> 0; }
   function seedFor(code, playerId) { return hash(`${code}:${playerId}`); }
-  function avatar(seed, emoji = '', className = '') {
+  function avatar(seed, emoji = '', className = '', character = null) {
+    if (character) { const characterCore = typeof module !== 'undefined' && module.exports ? require('./character-core') : root.TeamBuilderCharacter; return characterCore.render(character, emoji, className); }
     const number = hash(seed), skin = ['#f4c5a0', '#dba77e', '#b87d57', '#895636', '#f8dbbf', '#603d2d'][(number >>> 3) % 6];
     const hair = ['#362c31', '#503c2c', '#a66535', '#d8b56c', '#303141'][(number >>> 7) % 5];
     const shirt = ['#7cb9cf', '#c787a3', '#e6ad5d', '#80b69e', '#9592c9', '#cb876e'][(number >>> 11) % 6];

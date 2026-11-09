@@ -698,7 +698,7 @@ test('community discovery returns bounded avatar previews and excludes private a
   assert.equal(directory.rooms.some(room => room.code === 'PLAZA3'), false);
   const room = directory.rooms.find(room => room.code === 'PLAZA1');
   assert.equal(room.participantCount, 8); assert.equal(room.avatarPreview.length, 6);
-  assert.deepEqual(room.avatarPreview.map(item => Object.keys(item).sort()), Array(6).fill(['avatar', 'isHost', 'seed']));
+  assert.deepEqual(room.avatarPreview.map(item => Object.keys(item).sort()), Array(6).fill(['avatar', 'character', 'isHost', 'seed']));
   assert.equal(room.avatarPreview[0].isHost, true); assert.equal(room.avatarPreview[0].avatar, '🦊');
   assert.equal(JSON.stringify(directory).includes('secret-player-id'), false);
   const again = await (await fetch(`http://127.0.0.1:${port}/api/community/rooms`)).json();
@@ -706,4 +706,35 @@ test('community discovery returns bounded avatar previews and excludes private a
   const madeFull = await emitAck(socket, 'shared:set', { key: 'room:PLAZA1', ...actor, value: JSON.stringify({ ...publicRoom, maxParticipants: 8 }) }); assert.equal(madeFull.ok, true);
   const fullDirectory = await (await fetch(`http://127.0.0.1:${port}/api/community/rooms`)).json();
   assert.equal(fullDirectory.rooms.find(item => item.code === 'PLAZA1').presenceStatus, 'full');
+});
+
+test('saved characters join rooms, update only their owner and appear in public previews', async t => {
+  const C = require('../assets/js/character-core');
+  const { port } = await startTestServer(t); const socket = io(`http://127.0.0.1:${port}`, { transports: ['websocket'], forceNew: true }); t.after(() => socket.close());
+  await new Promise((resolve, reject) => { socket.once('connect', resolve); socket.once('connect_error', reject); });
+  const host = { actorToken: 'character_host_actor_1234567890_abcdef', actorPlayerId: 'character-host', actorPlayerName: 'Host' };
+  const guest = { actorToken: 'character_guest_actor_1234567890_abcdef', actorPlayerId: 'character-guest', actorPlayerName: 'Guest' };
+  const character = C.normalize({ type: 'robot', hands: 'wave', hat: 'cap', hairColor: '#123456' });
+  const key = 'room:CHAR01';
+  const created = await emitAck(socket, 'shared:set', { key, ...host, adminToken: 'integration-admin-token', value: JSON.stringify({ code: 'CHAR01', host: 'Host', participants: [{ id: host.actorPlayerId, name: 'Host', avatar: '🦊', character: { ...character, unsafe: '<script>' } }], roomType: 'community', currentActivity: null, activityState: {}, activityQueue: [], queueIndex: 0, access: {}, hostSettings: {}, created: Date.now() }) });
+  // Unsafe markup is rejected on generic writes; the dedicated character endpoint sanitizes unknown fields.
+  assert.equal(created.ok, false);
+  const valid = await emitAck(socket, 'shared:set', { key, ...host, adminToken: 'integration-admin-token', value: JSON.stringify({ code: 'CHAR01', host: 'Host', participants: [{ id: host.actorPlayerId, name: 'Host', avatar: '🦊', character }], roomType: 'community', currentActivity: null, activityState: {}, activityQueue: [], queueIndex: 0, access: {}, hostSettings: {}, created: Date.now() }) });
+  assert.equal(valid.ok, true, valid.error);
+  const joined = await emitAck(socket, 'room:join', { key, actorToken: guest.actorToken, playerId: guest.actorPlayerId, playerName: guest.actorPlayerName, playerAvatar: '🐨', playerCharacter: { ...character, type: 'cat', svg: '<script>' } });
+  assert.equal(joined.ok, true, joined.error);
+  assert.equal(JSON.parse(joined.value).participants[1].character.type, 'cat');
+  assert.equal('svg' in JSON.parse(joined.value).participants[1].character, false);
+  const denied = await emitAck(socket, 'room:character', { key, ...guest, actorPlayerId: host.actorPlayerId, character: { type: 'cat' } }); assert.equal(denied.ok, false);
+  const updated = await emitAck(socket, 'room:character', { key, ...guest, playerId: host.actorPlayerId, character: { ...character, type: 'cat', hands: 'peace', shirtColor: 'javascript:bad', name: 'Hacked', svg: '<img>' } });
+  assert.equal(updated.ok, true, updated.error);
+  const room = JSON.parse(updated.value);
+  assert.deepEqual(room.participants[0].character, character); assert.equal(room.participants[1].name, 'Guest');
+  assert.equal(room.participants[1].character.hands, 'peace'); assert.equal(room.participants[1].character.shirtColor, C.DEFAULT.shirtColor);
+  assert.deepEqual(room.activityState, {});
+  const directory = await (await fetch(`http://127.0.0.1:${port}/api/community/rooms`)).json();
+  assert.deepEqual(directory.rooms[0].avatarPreview[1].character, room.participants[1].character);
+  assert.equal(JSON.stringify(directory).includes('character-guest'), false);
+  const legacyRejoin = await emitAck(socket, 'room:join', { key, actorToken: guest.actorToken, playerId: guest.actorPlayerId, playerName: guest.actorPlayerName, playerAvatar: '🐨' });
+  assert.equal(legacyRejoin.ok, true); assert.deepEqual(JSON.parse(legacyRejoin.value).participants[1].character, room.participants[1].character);
 });

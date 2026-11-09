@@ -113,7 +113,7 @@ TEAM_BUILDER_DOMAIN_MANAGERS.RoomManager = {
       communityDescription,
       maxParticipants,
       host: hostName,
-      participants: [createRoomParticipant(hostId, hostName, hostAvatar, true)],
+      participants: [{ ...createRoomParticipant(hostId, hostName, hostAvatar, true), character: APP.player?.id === hostId && APP.player.character ? TeamBuilderCharacter.normalize(APP.player.character) : null }],
       currentActivity: null,
       activityState: {},
       activityQueue: [],
@@ -154,7 +154,8 @@ TEAM_BUILDER_DOMAIN_MANAGERS.RoomManager = {
         actorToken,
         playerId,
         playerName,
-        playerAvatar
+        playerAvatar,
+        playerCharacter: APP.player?.id === playerId && APP.player.character ? TeamBuilderCharacter.normalize(APP.player.character) : null
       }, 3000);
       setStoredRoomActorToken(code, actorToken);
       if (normalizedToken) setStoredRoomAccessToken(code, normalizedToken);
@@ -172,7 +173,7 @@ TEAM_BUILDER_DOMAIN_MANAGERS.RoomManager = {
       if ((room.participants?.length || 0) >= maxParticipants) {
         throw new Error(`This room is full (${maxParticipants} participants max).`);
       }
-      room.participants.push(createRoomParticipant(playerId, playerName, playerAvatar, false));
+      room.participants.push({ ...createRoomParticipant(playerId, playerName, playerAvatar, false), character: APP.player?.id === playerId && APP.player.character ? TeamBuilderCharacter.normalize(APP.player.character) : null });
       room.participants = normalizeRoomParticipants(room.participants, room.host);
       room.lastUpdate = Date.now();
       await Storage.set(`room:${code}`, JSON.stringify(room), true, normalizedToken);

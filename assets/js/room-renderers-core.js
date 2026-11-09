@@ -120,7 +120,7 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
         <div style="display:flex;justify-content:space-between;align-items:center;
           background:${isHost && focusedVoiceParticipantId === p.id ? 'rgba(0,210,211,0.08)' : 'var(--surface-2)'};border:${isHost && focusedVoiceParticipantId === p.id ? '1px solid rgba(0,210,211,0.26)' : '1px solid transparent'};border-radius:10px;padding:14px;margin-bottom:10px;gap:12px;flex-wrap:wrap;">
           <div style="display:flex;align-items:center;gap:12px;min-width:0;">
-            <div style="${isCommunityRoom ? 'width:44px;height:65px;' : 'font-size:1.8rem;'}">${isCommunityRoom ? TeamBuilderCommunityPlazaCore.avatar(TeamBuilderCommunityPlazaCore.seedFor(APP.room.code, p.id || p.name), p.avatar) : escapeHtml(p.avatar)}</div>
+            <div style="${isCommunityRoom || p.character ? 'width:44px;height:65px;' : 'font-size:1.8rem;'}">${isCommunityRoom || p.character ? TeamBuilderCommunityPlazaCore.avatar(TeamBuilderCommunityPlazaCore.seedFor(APP.room.code, p.id || p.name), p.avatar, '', p.character) : escapeHtml(p.avatar)}</div>
             <div>
               <div style="font-weight:600;">${escapeHtml(p.name)}</div>
               <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">

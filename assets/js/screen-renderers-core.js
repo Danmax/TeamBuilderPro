@@ -19,7 +19,7 @@ TEAM_BUILDER_SCREEN_RENDERERS.renderDashboard = function renderDashboard() {
     </div>
     
     <div class="player-card">
-      <div class="avatar-circle">${APP.player.avatar}</div>
+      <div class="avatar-circle ${APP.player.character ? 'character-dashboard-avatar' : ''}">${APP.player.character ? TeamBuilderCharacter.render(APP.player.character) : escapeHtml(APP.player.avatar)}</div>
       <div class="player-info">
         <div class="player-name">${safePlayerName}</div>
         <div class="player-stats">
@@ -72,6 +72,7 @@ TEAM_BUILDER_SCREEN_RENDERERS.renderDashboard = function renderDashboard() {
     <div style="text-align:center;margin-top:40px;">
       <button class="btn-secondary" data-action="view-stats">ℹ️ About App</button>
       <button class="btn-secondary" data-action="edit-profile" style="margin-left:10px;">✏️ Edit Profile</button>
+      <button class="btn-secondary" data-action="open-character-creator" style="margin-left:10px;">🧑‍🎨 ${APP.player.character ? 'Edit Character' : 'Create Character'}</button>
       ${showFeedback ? '<button class="btn-secondary" data-action="open-feedback" style="margin-left:10px;" aria-keyshortcuts="Alt+F">🗣️ Feedback Hub</button>' : ''}
       <button class="btn-secondary" data-action="open-admin-console" style="margin-left:10px;" aria-keyshortcuts="Alt+A">🛠️ Admin Console</button>
     </div>
