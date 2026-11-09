@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;800&family=Outfit:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;600&family=Orbitron:wght@400;500;600;700;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/base.css">
 <link rel="stylesheet" href="/assets/css/survey-board.css">
+<link rel="stylesheet" href="/assets/css/spin-wheel.css">
 </head>
 <body>
 <div class="atmosphere"><div class="mesh"></div><div class="mesh"></div><div class="mesh"></div></div>
@@ -42,6 +43,7 @@
 <script src="/assets/js/activities/bingo.js"></script>
 <script src="/assets/js/activities/backgammon.js"></script>
 <script src="/assets/js/activities/connect-4.js"></script>
+<script src="/assets/js/games/spin-wheel-core.js"></script>
 <script src="/assets/js/games/checkers-core.js"></script>
 <script src="/assets/js/activities/checkers.js"></script>
 <script src="/assets/js/games/chinese-checkers-core.js"></script>
@@ -2135,9 +2137,6 @@ const SURVEY_CLASH_QUESTIONS = [
   }
 ];
 const SURVEY_CLASH_SOUNDS = {
-  correct: '/sounds/eaglaxle-electronic-beep-2-453382.mp3',
-  top: '/sounds/lubecin123-info-computer-sound-299367.mp3',
-  strike: '/sounds/freesound_community-laser-gun-72558.mp3',
   win: '/sounds/freesound_community-launch-85216.mp3',
   timer: '/sounds/beep-sound-short-237619.mp3',
   round: '/sounds/freesound_community-cinematic-glitch-transition-sfx-27806.mp3'
@@ -2173,9 +2172,9 @@ function maybePlayTicTacToeLastMoveSound(match) {
   playSimpleGameSound('move');
 }
 const renderSurveyAnswerBoard = TeamBuilderSurveyBoard.createBoardRenderer();
-let surveyClashLastSoundStamp = 0;
 let surveyClashMuted = localStorage.getItem('surveyClashMuted') === 'true';
 let surveyClashVolume = Math.max(0, Math.min(1, Number.parseFloat(localStorage.getItem('surveyClashVolume') ?? '0.75')));
+const surveyClashFeedback = TeamBuilderSurveyBoard.createFeedback(() => ({ muted: surveyClashMuted, volume: surveyClashVolume }), SURVEY_CLASH_SOUNDS);
 const AI_GENERATION_TARGETS = cloneStaticData('AI_GENERATION_TARGETS', []);
 const AI_GENERATION_TARGET_LABELS = Object.fromEntries(AI_GENERATION_TARGETS.map(item => [item.id, item.label]));
 const ACTIVITY_QUEUE_THEME_OPTIONS = cloneStaticData('ACTIVITY_QUEUE_THEME_OPTIONS', []);
@@ -3357,6 +3356,9 @@ function normalizeBrainstormTitle(value) {
 
 function resetSpinWheelProgress(state) {
   if (!state || typeof state !== 'object') return state;
+  state.spinToken = (Number(state.spinToken) || 0) + 1;
+  state.history = [];
+  state.startedAt = Date.now();
   state.pendingSelectedIndex = null;
   state.selectedIndex = null;
   state.playerSelections = {};
@@ -3429,27 +3431,8 @@ function getSpinWheelFunPrompt(label) {
 }
 
 function buildSpinWheelSegments(options) {
-  const baseEntries = normalizeSpinWheelEntries(options);
-  const fallback = baseEntries.length ? baseEntries : sampleSpinWheelEntries(SPIN_WHEEL_DEFAULT_OPTIONS);
-  const duplicateFactor = fallback.length <= 6 ? 2 : 1;
-  const expanded = Array.from({ length: fallback.length * duplicateFactor }, (_, idx) => fallback[idx % fallback.length]);
-  const sectionAngle = 360 / expanded.length;
-  let cursor = 0;
-  return expanded.map((entry, idx) => {
-    const angle = sectionAngle;
-    const start = cursor;
-    const end = cursor + angle;
-    cursor = end;
-    return {
-      id: `${idx}:${entry.label}`,
-      label: entry.label,
-      entry,
-      start,
-      end,
-      center: start + (angle / 2),
-      percent: 100 / expanded.length
-    };
-  });
+  const entries = normalizeSpinWheelEntries(options);
+  return TeamBuilderSpinWheel.segments(entries.length ? entries : sampleSpinWheelEntries(SPIN_WHEEL_DEFAULT_OPTIONS));
 }
 
 function formatSpinWheelOptionsForEditor(options) {
@@ -4209,18 +4192,11 @@ function getSurveyClashBank(state) {
 }
 
 function playSurveyClashSound(key) {
-  if (surveyClashMuted || !SURVEY_CLASH_SOUNDS[key]) return;
-  const audio = new Audio(SURVEY_CLASH_SOUNDS[key]);
-  audio.volume = surveyClashVolume;
-  audio.play().catch(() => {});
+  surveyClashFeedback.play(key);
 }
 
 function maybePlaySurveyClashRenderSound(state) {
-  const stamp = Number(state?.lastSound?.stamp) || 0;
-  const key = String(state?.lastSound?.key || '');
-  if (!stamp || !key || stamp <= surveyClashLastSoundStamp) return;
-  surveyClashLastSoundStamp = stamp;
-  playSurveyClashSound(key);
+  surveyClashFeedback.update(`${APP.roomCode}:${state.startedAt}`, state);
 }
 
 async function updateSurveyClashState(mutator) {
@@ -4249,7 +4225,7 @@ async function updateSurveyClashState(mutator) {
 }
 
 function surveyClashSetSound(state, key) {
-  state.lastSound = { key, stamp: Date.now() };
+  state.lastSound = { key, stamp: Math.max(Date.now(), (Number(state.lastSound?.stamp) || 0) + 1) };
 }
 
 function surveyClashAnswerMatches(answer, guess) {
@@ -4289,7 +4265,6 @@ async function surveyClashSubmitGuess() {
     surveyClashSetSound(state, answerIndex === 0 ? 'top' : 'correct');
     if (question.answers.every((_, idx) => state.revealed[idx])) {
       state.message = 'Board cleared. Award the bank or start the next round.';
-      surveyClashSetSound(state, 'win');
     }
   });
 }
@@ -4421,6 +4396,7 @@ async function surveyClashPlaySound(key) {
 function setSurveyClashMuted(muted) {
   surveyClashMuted = Boolean(muted);
   localStorage.setItem('surveyClashMuted', surveyClashMuted ? 'true' : 'false');
+  if (!surveyClashMuted) surveyClashFeedback.unlock();
   render();
 }
 
@@ -4513,6 +4489,7 @@ function renderSurveyClash() {
     <div class="survey-clash-app">
       <section class="ff-stage" aria-label="Family Face-Off game board">
         <header class="ff-show-heading">
+          <button class="ff-sound-toggle" data-action="survey-clash-toggle-mute" aria-pressed="${!surveyClashMuted}">${surveyClashMuted ? '♫ Enable sound' : '♫ Sound on'}</button>
           <p class="ff-kicker">The team survey showdown</p>
           <h2 class="ff-show-title">Family Face-Off</h2>
           <p class="ff-round">Round ${roundIndex + 1} of ${roundCount} · ${question.answers.length} answers on the board</p>
@@ -5193,6 +5170,7 @@ async function saveSpinWheelOptions() {
     showError('Wheel of Fun mode is active. Turn it off on this page to edit custom wheel options.');
     return;
   }
+  if (room.activityState?.isSpinning) { showError('Wait for the spin to finish before editing.'); return; }
   const titleInput = document.getElementById('spinWheelTitleInput');
   const input = document.getElementById('spinWheelOptionsInput');
   const title = normalizeSpinWheelTitle(titleInput?.value || '') || SPIN_WHEEL_DEFAULT_TITLE;
@@ -5213,7 +5191,7 @@ async function saveSpinWheelOptions() {
     ));
 
   state.title = title;
-  applySpinWheelPoolToState(state, optionPool);
+  if (optionsChanged) applySpinWheelPoolToState(state, optionPool);
   state.customTitleBeforeFun = title;
   state.customOptionsBeforeFun = [...optionPool];
   if (optionsChanged) {
@@ -5221,6 +5199,8 @@ async function saveSpinWheelOptions() {
   }
   room.activityState = state;
   await RoomManager.updateRoom(APP.roomCode, room);
+  spinWheelDraft = null;
+  APP.room = room; render();
 }
 
 async function toggleSpinWheelFunMode() {
@@ -5230,6 +5210,8 @@ async function toggleSpinWheelFunMode() {
   if (room.host !== APP.player?.name) return;
 
   const currentSettings = getRoomHostSettings(room);
+  if (room.activityState?.isSpinning) return;
+  spinWheelDraft = null;
   const nextFunMode = currentSettings.spinWheelFunMode !== true;
   room.hostSettings = {
     ...(room.hostSettings && typeof room.hostSettings === 'object' ? room.hostSettings : {}),
@@ -5271,180 +5253,89 @@ async function toggleHostVoiceEnabled() {
   render();
 }
 
-async function setSpinWheelSpinnerTurn(playerName) {
-  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
-  const room = await RoomManager.loadRoom(APP.roomCode);
-  if (!room || room.currentActivity !== 'spin-wheel') return;
-  if (room.host !== APP.player?.name) return;
+let spinWheelBusy = false;
+let spinWheelDraft = null;
+let spinWheelMuted = localStorage.getItem('spinWheelMuted') !== 'false';
+let spinWheelSoundStamp = '';
+let spinWheelAudio = null;
 
-  const normalizedPlayer = String(playerName || '').trim();
-  const allowedPlayer = normalizedPlayer
-    && normalizedPlayer !== room.host
-    && Array.isArray(room.participants)
-    && room.participants.some(participant => participant?.name === normalizedPlayer)
-      ? normalizedPlayer
-      : null;
-
-  const state = room.activityState || {};
-  if (state.isSpinning) return;
-  state.spinnerTurnPlayer = allowedPlayer;
-  room.activityState = state;
-  await RoomManager.updateRoom(APP.roomCode, room);
+async function requestSpinWheel(action, extra = {}) {
+  if (spinWheelBusy || APP.room?.currentActivity !== 'spin-wheel') return null;
+  spinWheelBusy = true;
+  if (action === 'spin') playSpinWheelTone(false);
+  render();
+  try {
+    const key = `room:${APP.roomCode}`, state = APP.room.activityState || {};
+    const response = await socketEmitAck('spin-wheel:action', { key, ...getSharedActorPayload(key), authToken: APP.roomAccessToken || '', action, spinToken: Number(state.spinToken) || 0, startedAt: state.startedAt, ...extra }, 5000);
+    if (response.value) APP.room = normalizeRoom(JSON.parse(response.value));
+    return response;
+  } catch (error) { showError(error.message); return null; }
+  finally { spinWheelBusy = false; render(); }
 }
 
-async function spinWheelNow() {
-  if (!APP.roomCode) return;
-  const room = await RoomManager.loadRoom(APP.roomCode);
-  if (!room || room.currentActivity !== 'spin-wheel') return;
-  const state = room.activityState || {};
-  const assignedSpinnerRaw = String(state.spinnerTurnPlayer || '').trim();
-  const assignedSpinner = assignedSpinnerRaw
-    && assignedSpinnerRaw !== room.host
-    && Array.isArray(room.participants)
-    && room.participants.some(participant => participant?.name === assignedSpinnerRaw)
-      ? assignedSpinnerRaw
-      : '';
-  const canCurrentPlayerSpin = APP.player?.name === room.host
-    ? !assignedSpinner
-    : assignedSpinner === APP.player?.name;
-  if (!canCurrentPlayerSpin) return;
-  if (state.isSpinning) return;
-  const activeEntries = getSpinWheelSessionEntries(state);
-  const segments = buildSpinWheelSegments(activeEntries);
-  if (segments.length < 2) {
-    showError('Wheel needs at least 2 options.');
-    return;
-  }
-  const selectedIndex = Math.floor(Math.random() * segments.length);
-  const centerDeg = segments[selectedIndex].center;
-  const targetDeg = (360 - centerDeg + 360) % 360;
-  const fullTurns = 6 + Math.floor(Math.random() * 3);
-  const currentRotation = Number(state.wheelRotation) || 0;
-  const normalizedCurrent = ((currentRotation % 360) + 360) % 360;
-  const deltaToTarget = ((targetDeg - normalizedCurrent) + 360) % 360;
-  const nextRotation = currentRotation + (fullTurns * 360) + deltaToTarget;
-  const spinDurationMs = 4800;
-  const spinToken = (Number(state.spinToken) || 0) + 1;
-
-  state.optionEntries = activeEntries;
-  state.options = activeEntries.map(entry => entry.label);
-  state.spinnerTurnPlayer = null;
-  state.pendingSelectedIndex = selectedIndex;
-  state.selectedIndex = null;
-  state.spinWinners = [];
-  state.winnerXpClaimed = {};
-  state.currentResult = '';
-  state.currentResultAction = null;
-  state.currentResultPrompt = '';
-  state.lastResult = '';
-  state.lastSpinner = assignedSpinner || room.host || APP.player?.name || '';
-  state.spinCount = (Number(state.spinCount) || 0) + 1;
-  state.spinDurationMs = spinDurationMs;
-  state.lastSpinAt = Date.now();
-  state.spinSettledAt = 0;
-  state.isSpinning = true;
-  state.spinToken = spinToken;
-  state.prevWheelRotation = currentRotation;
-  state.wheelRotation = nextRotation;
-  room.activityState = state;
-  await RoomManager.updateRoom(APP.roomCode, room);
-
-  window.setTimeout(async () => {
-    const latestRoom = await RoomManager.loadRoom(APP.roomCode);
-    if (!latestRoom || latestRoom.currentActivity !== 'spin-wheel') return;
-    const latestState = latestRoom.activityState || {};
-    if ((Number(latestState.spinToken) || 0) !== spinToken) return;
-    const pendingIndex = Number.isInteger(latestState.pendingSelectedIndex) ? latestState.pendingSelectedIndex : null;
-    const latestEntries = getSpinWheelSessionEntries(latestState);
-    const latestSegments = buildSpinWheelSegments(latestEntries);
-    if (pendingIndex === null || !latestSegments[pendingIndex]) return;
-    const landedIndex = findSpinWheelLandedIndex(latestSegments, Number(latestState.wheelRotation) || nextRotation);
-    const landedEntry = latestSegments[landedIndex]?.entry || latestSegments[pendingIndex].entry || null;
-    const landedLabel = landedEntry?.label || latestSegments[landedIndex]?.label || latestSegments[pendingIndex].label;
-    const selections = latestState.playerSelections && typeof latestState.playerSelections === 'object'
-      ? latestState.playerSelections
-      : {};
-    const winners = Object.entries(selections)
-      .filter(([, idx]) => Number(idx) === landedIndex)
-      .map(([playerName]) => playerName);
-    const spinnerName = String(latestState.lastSpinner || latestRoom.host || '').trim();
-    if (!latestState.spinPoints || typeof latestState.spinPoints !== 'object') latestState.spinPoints = {};
-    let actionPrompt = landedEntry?.prompt || '';
-    if (landedEntry?.action?.type === 'points' && spinnerName) {
-      latestState.spinPoints[spinnerName] = (Number(latestState.spinPoints[spinnerName]) || 0) + (Number(landedEntry.action.points) || 0);
-      actionPrompt = `${spinnerName} banks ${Number(landedEntry.action.points) || 0} spin points.`;
-    } else if (landedEntry?.action?.type === 'activity') {
-      actionPrompt = `Host can launch ${ACTIVITY_QUEUE_ITEM_MAP[landedEntry.action.activityId]?.label || landedEntry.action.activityId} as a mini session.`;
-    } else if (landedEntry?.action?.type === 'prompt') {
-      actionPrompt = landedEntry.action.prompt || actionPrompt;
-    }
-    latestState.selectedIndex = landedIndex;
-    latestState.currentResult = landedLabel;
-    latestState.currentResultAction = landedEntry?.action || null;
-    latestState.currentResultPrompt = actionPrompt;
-    latestState.lastResult = landedLabel;
-    latestState.spinWinners = winners;
-    latestState.pendingSelectedIndex = null;
-    latestState.isSpinning = false;
-    latestState.spinSettledAt = Date.now();
-    latestRoom.activityState = latestState;
-    await RoomManager.updateRoom(APP.roomCode, latestRoom);
-  }, spinDurationMs + 60);
+function playSpinWheelTone(result) {
+  if (spinWheelMuted) return;
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    spinWheelAudio ||= new AudioContext();
+    void spinWheelAudio.resume();
+    const time = spinWheelAudio.currentTime;
+    (result ? [523.25, 659.25, 783.99] : [330, 440]).forEach((frequency, index) => {
+      const tone = spinWheelAudio.createOscillator(), gain = spinWheelAudio.createGain();
+      tone.type = 'sine'; tone.frequency.value = frequency;
+      gain.gain.setValueAtTime(0, time + index * .1);
+      gain.gain.linearRampToValueAtTime(.06, time + index * .1 + .02);
+      gain.gain.exponentialRampToValueAtTime(.001, time + index * .1 + .4);
+      tone.connect(gain); gain.connect(spinWheelAudio.destination);
+      tone.start(time + index * .1); tone.stop(time + index * .1 + .42);
+    });
+  } catch (_) { /* Sound is optional when a browser blocks audio. */ }
 }
 
-async function selectSpinWheelSection(sectionIndex) {
-  if (!APP.roomCode || !Number.isInteger(sectionIndex)) return;
-  const room = await RoomManager.loadRoom(APP.roomCode);
-  if (!room || room.currentActivity !== 'spin-wheel') return;
-  const roomSettings = getRoomHostSettings(room);
-  if (roomSettings.spinWheelAllowPlayerPicks === false) return;
-  const state = room.activityState || {};
-  if (state.isSpinning) return;
-  const segments = buildSpinWheelSegments(getSpinWheelSessionEntries(state));
-  if (sectionIndex < 0 || sectionIndex >= segments.length) return;
-  if (!state.playerSelections || typeof state.playerSelections !== 'object') state.playerSelections = {};
-  state.playerSelections[APP.player.name] = sectionIndex;
-  room.activityState = state;
-  await RoomManager.updateRoom(APP.roomCode, room);
-}
+async function setSpinWheelSpinnerTurn(playerName) { return requestSpinWheel('assign', { player: String(playerName || '') }); }
+async function spinWheelNow() { return requestSpinWheel('spin'); }
+async function selectSpinWheelSection(sectionIndex) { return requestSpinWheel('pick', { index: sectionIndex }); }
 
 let spinWheelXpClaimPending = false;
 async function maybeClaimSpinWheelWinnerXp() {
-  if (spinWheelXpClaimPending || !APP.roomCode || !APP.player?.name) return;
-  const room = APP.room;
-  if (!room || room.currentActivity !== 'spin-wheel') return;
-  const state = room.activityState || {};
-  if (state.selectedIndex === null || state.isSpinning) return;
-  const winners = Array.isArray(state.spinWinners) ? state.spinWinners : [];
-  if (!winners.includes(APP.player.name)) return;
-  const claimed = state.winnerXpClaimed && typeof state.winnerXpClaimed === 'object' ? state.winnerXpClaimed : {};
-  if (claimed[APP.player.name]) return;
-
+  const state = APP.room?.activityState;
+  if (spinWheelXpClaimPending || APP.room?.currentActivity !== 'spin-wheel' || state?.isSpinning || !state?.spinWinners?.includes(APP.player?.name) || state.winnerXpClaimed?.[APP.player.name]) return;
   spinWheelXpClaimPending = true;
   try {
-    const freshRoom = await RoomManager.loadRoom(APP.roomCode);
-    if (!freshRoom || freshRoom.currentActivity !== 'spin-wheel') return;
-    const freshState = freshRoom.activityState || {};
-    const freshWinners = Array.isArray(freshState.spinWinners) ? freshState.spinWinners : [];
-    if (!freshWinners.includes(APP.player.name)) return;
-    if (!freshState.winnerXpClaimed || typeof freshState.winnerXpClaimed !== 'object') {
-      freshState.winnerXpClaimed = {};
+    const key = `room:${APP.roomCode}`;
+    const response = await socketEmitAck('spin-wheel:action', { key, ...getSharedActorPayload(key), authToken: APP.roomAccessToken || '', action: 'claim-winner', spinToken: Number(state.spinToken) || 0, startedAt: state.startedAt }, 5000);
+    if (response.claimed) {
+      const profile = await PlayerManager.awardXP(50, 'spin-wheel-winner');
+      if (profile) APP.player = profile;
     }
-    if (freshState.winnerXpClaimed[APP.player.name]) return;
-
-    const updatedProfile = await PlayerManager.awardXP(50, 'spin-wheel-winner');
-    if (updatedProfile) APP.player = updatedProfile;
-    freshState.winnerXpClaimed[APP.player.name] = true;
-    freshRoom.activityState = freshState;
-    await RoomManager.updateRoom(APP.roomCode, freshRoom);
-    APP.room = freshRoom;
-    render();
-  } catch (_) {
-    // Ignore claim retries; room sync will attempt again.
-  } finally {
-    spinWheelXpClaimPending = false;
-  }
+  } catch (_) { /* The next room update can retry a failed claim. */ }
+  finally { spinWheelXpClaimPending = false; }
 }
+
+async function applySpinWheelPreset(preset) {
+  const presets = {
+    icebreakers: { title: 'Break the Ice', options: ['Dream trip | prompt:Where would you go if travel were free?', 'Hidden talent | prompt:Show or tell us a hidden talent.', 'Plot twist | prompt:Tell us something surprising about yourself.', 'Your soundtrack | prompt:What song describes your week?', 'Small win | prompt:Share a small win from today.', 'Time machine | prompt:Which year would you visit and why?'] },
+    celebration: { title: 'Good Vibes Only', options: ['Team shoutout | prompt:Give someone in the room a shoutout.', 'Victory dance | prompt:Show us your five-second victory dance.', 'Bonus 100 | points:100', 'Pass the mic | prompt:Invite someone to share a recent win.', 'Bonus 50 | points:50', 'Applause break | prompt:Give the whole team a round of applause!'] },
+    people: { title: 'Who’s Up Next?', options: APP.room.participants.map(player => player.name) }
+  };
+  const pack = presets[preset];
+  if (!pack || APP.room?.host !== APP.player?.name) return;
+  if (normalizeSpinWheelEntries(pack.options).length < 2) { showError('Invite at least one other person to make a people wheel.'); return; }
+  const room = await RoomManager.loadRoom(APP.roomCode);
+  if (!room || room.currentActivity !== 'spin-wheel' || room.activityState?.isSpinning) return;
+  const state = room.activityState;
+  room.hostSettings = { ...(room.hostSettings || {}), spinWheelFunMode: false };
+  state.title = pack.title;
+  applySpinWheelPoolToState(state, pack.options); resetSpinWheelProgress(state);
+  state.customTitleBeforeFun = pack.title; state.customOptionsBeforeFun = normalizeSpinWheelEntries(pack.options);
+  spinWheelDraft = null;
+  await RoomManager.updateRoom(APP.roomCode, room);
+}
+
+document.addEventListener('change', event => {
+  if (event.target.id === 'spinWheelSpinnerSelect') void setSpinWheelSpinnerTurn(event.target.value);
+});
 
 function getSpinWheelFavoritesStorageKey() {
   return `${SPIN_WHEEL_FAVORITES_KEY}:${APP.player?.id || APP.player?.name || 'guest'}`;
@@ -5478,7 +5369,6 @@ async function saveCurrentSpinWheelFavorite() {
   });
   deduped.unshift(favorite);
   saveSpinWheelFavorites(deduped);
-  showError('Saved to favorites.');
   render();
 }
 
@@ -5848,7 +5738,7 @@ function render() {
   const app = document.getElementById('app');
   // Skip re-render if user is typing in a form input (prevents mobile keyboard dismissal)
   const activeEl = document.activeElement;
-  const liveInput = ['surveyClashGuessInput', 'activitySearch'].includes(activeEl?.id)
+  const liveInput = ['surveyClashGuessInput', 'activitySearch', 'spinWheelTitleInput', 'spinWheelOptionsInput'].includes(activeEl?.id)
     ? { id: activeEl.id, value: activeEl.value, start: activeEl.selectionStart, end: activeEl.selectionEnd } : null;
   const activeCosmosInput = getActiveCosmosBoundTextInput();
   if (activeCosmosInput && APP.cosmosBoundUi?.allowImmediateRender !== true) {
@@ -5900,6 +5790,7 @@ function render() {
   html += renderFooter();
   
   app.innerHTML = html;
+  if (APP.screen !== 'lobby' || APP.room?.currentActivity !== 'survey-clash') surveyClashFeedback.clear();
   if (APP.screen === 'admin' && APP.admin.authenticated) restoreAdminSettingsDraft();
   applyActivityFilters();
   if (liveInput) {
@@ -8454,6 +8345,24 @@ document.addEventListener('click', async (event) => {
       break;
     case 'spin-wheel-assign-turn':
       await setSpinWheelSpinnerTurn(player || null);
+      break;
+    case 'spin-wheel-preset':
+      await applySpinWheelPreset(target.dataset.preset);
+      break;
+    case 'spin-wheel-show-picks': {
+      const predictions = document.getElementById('spinWheelPredictions');
+      predictions?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
+      predictions?.querySelector('.sw-choice:not(:disabled)')?.focus({ preventScroll: true });
+      break;
+    }
+    case 'spin-wheel-toggle-sound':
+      spinWheelMuted = !spinWheelMuted;
+      localStorage.setItem('spinWheelMuted', String(spinWheelMuted));
+      if (!spinWheelMuted) playSpinWheelTone(false);
+      render();
+      break;
+    case 'spin-wheel-toggle-picks':
+      await requestSpinWheel('picks-enabled', { enabled: getRoomHostSettings(APP.room).spinWheelAllowPlayerPicks === false });
       break;
     case 'spin-wheel-spin':
       await spinWheelNow();
@@ -11136,379 +11045,75 @@ function renderUno() {
 }
 
 function renderSpinWheel() {
-  const state = APP.room.activityState || {};
-  const isHost = APP.room.host === APP.player.name;
-  const hostName = APP.room.host;
-  const wheelTitle = normalizeSpinWheelTitle(state.title || '') || SPIN_WHEEL_DEFAULT_TITLE;
-  const safeRoomCode = escapeHtml(APP.roomCode);
-  const roomSettings = getRoomHostSettings(APP.room);
-  const funMode = roomSettings.spinWheelFunMode === true;
-  const allowPlayerPicks = roomSettings.spinWheelAllowPlayerPicks !== false;
-  const participantList = Array.isArray(APP.room.participants) ? APP.room.participants : [];
-  const nonHostParticipants = participantList.filter(participant => participant?.name && participant.name !== hostName);
-  const assignedSpinnerRaw = String(state.spinnerTurnPlayer || '').trim();
-  const assignedSpinner = nonHostParticipants.some(participant => participant.name === assignedSpinnerRaw) ? assignedSpinnerRaw : '';
-  const mySpinTurn = isHost ? !assignedSpinner : assignedSpinner === APP.player.name;
-  const turnLabel = assignedSpinner ? `${assignedSpinner} spins next.` : 'Host controls the spin.';
-  const optionPoolEntries = normalizeSpinWheelEntries(state.optionPool || SPIN_WHEEL_DEFAULT_OPTIONS);
-  const displayEntries = getSpinWheelSessionEntries(state);
-  const displayOptions = displayEntries.map(entry => entry.label);
-  const segments = buildSpinWheelSegments(displayEntries);
-  const optionCount = Math.max(1, segments.length);
-  const optionSummary = displayEntries.map(entry => {
-    const sectionCount = segments.filter(segment => segment.label === entry.label).length;
-    return {
-      label: entry.label,
-      actionSummary: getSpinWheelEntryActionSummary(entry),
-      sectionCount,
-      percent: (sectionCount / Math.max(1, segments.length)) * 100
-    };
-  });
-  const wheelRotation = Number(state.wheelRotation) || 0;
-  const prevWheelRotation = Number(state.prevWheelRotation ?? wheelRotation) || 0;
-  const now = Date.now();
-  const spinning = Boolean(state.isSpinning);
-  const selectedIndex = Number.isInteger(state.selectedIndex) ? state.selectedIndex : null;
-  const currentResult = String(state.currentResult || '').trim();
-  const spinDurationMs = Math.max(1500, Number(state.spinDurationMs) || 4800);
-  const isAnimating = spinning && state.lastSpinAt && (now - Number(state.lastSpinAt) < spinDurationMs + 250);
-  const isCelebrating = Boolean(currentResult) && state.spinSettledAt && (now - Number(state.spinSettledAt) < 1800);
-  const segmentColors = funMode
-    ? ['#ef4335', '#f7d13a', '#19984b', '#1b61b9', '#ff9252', '#d6452c', '#f0d94f', '#0f8f58', '#2b73d2', '#ffb347', '#da5534', '#1976c8']
-    : ['#00d2d3', '#feca57', '#ff6b6b', '#6c5ce7', '#00d26a', '#ff9f43', '#54a0ff', '#ff7fbb', '#10ac84', '#a29bfe', '#f368e0', '#2e86de'];
-  const gradientParts = segments.map((segment, idx) => {
-    const start = segment.start.toFixed(3);
-    const end = segment.end.toFixed(3);
-    const color = segmentColors[idx % segmentColors.length];
-    return `${color} ${start}deg ${end}deg`;
-  }).join(', ');
-  const selectedStart = selectedIndex !== null ? segments[selectedIndex]?.start?.toFixed(3) : null;
-  const selectedEnd = selectedIndex !== null ? segments[selectedIndex]?.end?.toFixed(3) : null;
-  const playerSelections = state.playerSelections && typeof state.playerSelections === 'object' ? state.playerSelections : {};
-  const selectedByMe = Number.isInteger(playerSelections[APP.player.name]) ? playerSelections[APP.player.name] : null;
-  const spinWinners = Array.isArray(state.spinWinners) ? state.spinWinners : [];
-  const spinPoints = state.spinPoints && typeof state.spinPoints === 'object' ? state.spinPoints : {};
-  const currentResultAction = state.currentResultAction && typeof state.currentResultAction === 'object' ? state.currentResultAction : null;
-  const currentResultPrompt = String(state.currentResultPrompt || '').trim();
-  const favorites = getSpinWheelFavorites();
-  const wheelStyle = `
-    position:relative;
-    width:100%;
-    aspect-ratio:1/1;
-    --wheel-spin-from:${prevWheelRotation}deg;
-    --wheel-spin-to:${wheelRotation}deg;
-    ${isAnimating
-      ? `animation:wheelSpinBetween ${spinDurationMs}ms cubic-bezier(.16,1,.3,1) both;`
-      : `transform:rotate(${wheelRotation}deg);`
-    }
-  `;
-  const wheelFaceStyle = `
-    position:absolute;
-    inset:0;
-    border-radius:50%;
-    border:6px solid ${funMode ? 'rgba(255,223,145,0.92)' : 'rgba(255,255,255,0.85)'};
-    box-shadow:${funMode ? '0 20px 50px rgba(0,0,0,0.32), inset 0 0 0 3px rgba(90,47,5,0.25), 0 0 0 10px rgba(255,209,102,0.08)' : '0 18px 50px rgba(0,0,0,0.25), inset 0 0 0 3px rgba(0,0,0,0.1)'};
-    background:conic-gradient(from -90deg, ${gradientParts || '#00d2d3 0deg 360deg'});
-  `;
-  // Place labels near each sector centroid and scale for option count/text length.
-  const labelRadius = optionCount >= 10 ? 29 : optionCount >= 8 ? 31 : 32;
-  const labelsSvg = segments.map((segment, idx) => {
-    const option = segment.label;
-    const thetaDeg = -90 + segment.center;
-    const theta = (thetaDeg * Math.PI) / 180;
-    const x = 50 + (labelRadius * Math.cos(theta));
-    const y = 50 + (labelRadius * Math.sin(theta));
-    // Align text with each wedge centerline.
-    const rotate = thetaDeg;
-    const optionLen = String(option || '').length;
-    const baseSize = optionCount >= 10 ? 2.6 : optionCount >= 8 ? 2.95 : 3.25;
-    const sizeByLen = optionLen > 16 ? -0.4 : optionLen > 12 ? -0.2 : 0;
-    const fontSize = Math.max(2.0, baseSize + sizeByLen);
-    const isWinner = !isAnimating && selectedIndex === idx;
-    const labelY = y - 2;
-    return `
-      <text
-        x="${x.toFixed(3)}"
-        y="${labelY.toFixed(3)}"
-        text-anchor="middle"
-        dominant-baseline="middle"
-        transform="rotate(${rotate.toFixed(3)} ${x.toFixed(3)} ${y.toFixed(3)})"
-        fill="${isWinner ? '#ffffff' : 'rgba(255,255,255,0.92)'}"
-        font-size="${fontSize.toFixed(2)}"
-        font-weight="${isWinner ? '800' : '700'}"
-        style="paint-order:stroke;stroke:rgba(0,0,0,0.6);stroke-width:${isWinner ? '1.05' : '0.88'};stroke-linejoin:round;letter-spacing:0.15px;"
-      >${escapeHtml(option)}</text>
-    `;
+  const state = APP.room.activityState || {}, isHost = APP.room.host === APP.player.name;
+  const settings = getRoomHostSettings(APP.room), funMode = settings.spinWheelFunMode === true;
+  const allowPicks = settings.spinWheelAllowPlayerPicks !== false;
+  const participants = APP.room.participants || [];
+  const guests = participants.filter(player => player.name !== APP.room.host);
+  const assigned = guests.some(player => player.name === state.spinnerTurnPlayer) ? state.spinnerTurnPlayer : '';
+  const spinner = assigned || APP.room.host;
+  const myTurn = spinner === APP.player.name;
+  const spinning = Boolean(state.isSpinning), busy = spinning || spinWheelBusy;
+  const timing = TeamBuilderSpinWheel.timing(state);
+  const entries = getSpinWheelSessionEntries(state), segments = buildSpinWheelSegments(entries);
+  const pool = normalizeSpinWheelEntries(state.optionPool || state.options);
+  const title = normalizeSpinWheelTitle(state.title) || SPIN_WHEEL_DEFAULT_TITLE;
+  const selected = Number.isInteger(state.selectedIndex) ? state.selectedIndex : null;
+  const result = String(state.currentResult || '');
+  const detail = (funMode ? getSpinWheelFunPrompt(result) : '') || state.currentResultPrompt || '';
+  const action = state.currentResultAction;
+  const picks = state.playerSelections || {};
+  const picked = Number.isInteger(picks[APP.player.name]) ? segments[picks[APP.player.name]]?.label : '';
+  const pickCount = participants.filter(player => Number.isInteger(picks[player.name])).length;
+  const winners = (state.spinWinners || []).filter(name => participants.some(player => player.name === name));
+  const celebrating = result && Date.now() - Number(state.spinSettledAt) < 1800;
+  const soundKey = `${APP.roomCode}:${state.startedAt}:${state.spinToken}`;
+  if (result && soundKey !== spinWheelSoundStamp) {
+    spinWheelSoundStamp = soundKey;
+    if (celebrating) queueMicrotask(() => playSpinWheelTone(true));
+  }
+  const draftKey = `${APP.roomCode}:${state.startedAt}:${funMode}`;
+  if (spinWheelDraft?.key !== draftKey) spinWheelDraft = { key: draftKey, title, options: formatSpinWheelOptionsForEditor(pool) };
+  const titleInput = document.getElementById('spinWheelTitleInput'), optionsInput = document.getElementById('spinWheelOptionsInput');
+  if (titleInput?.dataset.wheelDraftKey === draftKey) spinWheelDraft.title = titleInput.value;
+  if (optionsInput?.dataset.wheelDraftKey === draftKey) spinWheelDraft.options = optionsInput.value;
+  const colors = ['#c94668', '#7258bd', '#276d9e', '#167d74', '#a36721', '#a84730', '#4e61ad', '#a34087'];
+  const wheelSvg = segments.map((segment, index) => {
+    const point = (degrees, radius) => { const angle = (degrees - 90) * Math.PI / 180; return [200 + radius * Math.cos(angle), 200 + radius * Math.sin(angle)]; };
+    const start = point(segment.start, 193), end = point(segment.end, 193), label = point(segment.center, 127);
+    const angle = segment.center - 90, rotate = angle > 90 ? angle + 180 : angle;
+    const words = segment.label.split(' '), lines = [''];
+    words.forEach(word => { const last = lines.length - 1; if ((lines[last] + ' ' + word).trim().length > 15 && lines[last]) lines.push(word); else lines[last] = (lines[last] + ' ' + word).trim(); });
+    const textLines = lines.slice(0, 2).map((line, row) => `<tspan x="0" dy="${row ? '13' : lines.length > 1 ? '-4' : '0'}">${escapeHtml(line.slice(0, 16))}${(row === 1 && lines.length > 2) || line.length > 16 ? '…' : ''}</tspan>`).join('');
+    const number = entries.findIndex(entry => entry.label === segment.label) + 1;
+    return `<g><title>${escapeHtml(segment.label)}</title><path d="M200,200 L${start.join(',')} A193,193 0 ${segment.end - segment.start > 180 ? 1 : 0},1 ${end.join(',')} Z" fill="${colors[(number - 1) % colors.length]}" stroke="${!spinning && selected === index ? '#fff3b9' : '#ffffff35'}" stroke-width="${!spinning && selected === index ? 5 : 1.5}"/><text transform="translate(${label.join(',')}) rotate(${rotate})" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="11" font-weight="700">${textLines}</text></g>`;
   }).join('');
-  const winnerOutlineSvg = (!isAnimating && selectedIndex !== null && selectedStart !== null && selectedEnd !== null)
-    ? (() => {
-      const segment = segments[selectedIndex];
-      if (!segment) return '';
-      const startDeg = -90 + segment.start;
-      const endDeg = -90 + segment.end;
-      const innerR = 13;
-      const outerR = 48;
-      const toXY = (deg, radius) => {
-        const rad = (deg * Math.PI) / 180;
-        return { x: 50 + (radius * Math.cos(rad)), y: 50 + (radius * Math.sin(rad)) };
-      };
-      const pOuterStart = toXY(startDeg, outerR);
-      const pOuterEnd = toXY(endDeg, outerR);
-      const pInnerEnd = toXY(endDeg, innerR);
-      const pInnerStart = toXY(startDeg, innerR);
-      const largeArc = (segment.end - segment.start) > 180 ? 1 : 0;
-      const outerArc = [
-        `M ${pOuterStart.x.toFixed(3)} ${pOuterStart.y.toFixed(3)}`,
-        `A ${outerR} ${outerR} 0 ${largeArc} 1 ${pOuterEnd.x.toFixed(3)} ${pOuterEnd.y.toFixed(3)}`
-      ].join(' ');
-      const sideA = `M ${pInnerStart.x.toFixed(3)} ${pInnerStart.y.toFixed(3)} L ${pOuterStart.x.toFixed(3)} ${pOuterStart.y.toFixed(3)}`;
-      const sideB = `M ${pInnerEnd.x.toFixed(3)} ${pInnerEnd.y.toFixed(3)} L ${pOuterEnd.x.toFixed(3)} ${pOuterEnd.y.toFixed(3)}`;
-      return `
-        <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true" style="display:block;position:absolute;inset:0;pointer-events:none;">
-          <defs>
-            <linearGradient id="winnerBorderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#9be4ff"/>
-              <stop offset="100%" stop-color="#63f3c7"/>
-            </linearGradient>
-          </defs>
-          <path d="${outerArc}" fill="none" stroke="url(#winnerBorderGrad)" stroke-width="1.5" stroke-linecap="round" style="filter:drop-shadow(0 0 5px rgba(126,228,255,0.95));"/>
-          <path d="${sideA}" fill="none" stroke="url(#winnerBorderGrad)" stroke-width="1.25" stroke-linecap="round" style="filter:drop-shadow(0 0 4px rgba(126,228,255,0.85));"/>
-          <path d="${sideB}" fill="none" stroke="url(#winnerBorderGrad)" stroke-width="1.25" stroke-linecap="round" style="filter:drop-shadow(0 0 4px rgba(126,228,255,0.85));"/>
-        </svg>
-      `;
-    })()
-    : '';
-  const confetti = isCelebrating ? buildCelebrationConfettiPieces(20) : '';
-  const optionsEditorValue = formatSpinWheelOptionsForEditor(optionPoolEntries);
-  const funPrompt = funMode ? getSpinWheelFunPrompt(currentResult) : '';
-  const resultDetail = funMode ? funPrompt : currentResultPrompt;
-  const funSign = funMode ? `
-    <div class="wheel-of-fun-sign">
-      <div class="wheel-of-fun-kicker">Spin the Wheel</div>
-      <div class="wheel-of-fun-title">
-        The Wheel of <span class="wheel-of-fun-slash">Doom</span> <strong>I mean Fun!</strong>
-      </div>
-      <div class="wheel-of-fun-subtitle">Spin the wheel to find out what the future holds. </div>
-    </div>
-  ` : '';
-  const standardHero = !funMode ? `
-    <div class="spin-wheel-hero">
-      <span class="spin-wheel-chip">🎯 Quick decider</span>
-      <span class="spin-wheel-chip">✨ Crowd favorite</span>
-      <span class="spin-wheel-chip">⚡ Instant tie-breaker</span>
-    </div>
-  ` : '';
-  const shellClass = funMode ? 'wheel-of-fun-shell' : 'spin-wheel-shell';
-  const resultCardClass = funMode ? 'wheel-of-fun-prompt-card' : 'spin-wheel-result-card';
-  const settingsCardClass = funMode ? 'wheel-of-fun-settings' : 'spin-wheel-settings';
-  const stageClass = funMode ? '' : 'spin-wheel-stage';
-  const pointerClass = funMode ? '' : 'spin-wheel-pointer';
-  const spinButtonClass = funMode ? '' : 'spin-wheel-spin-btn';
-  const statusClass = funMode ? '' : 'spin-wheel-status';
-  const picksWrapClass = funMode ? '' : 'spin-wheel-picks';
-  const picksGridClass = funMode ? '' : 'spin-wheel-pick-grid';
-  const pickButtonClass = funMode ? '' : 'spin-wheel-pick-btn';
-  const winnersClass = funMode ? '' : 'spin-wheel-winners';
-
-  return `
-    <div class="header">
-      <h1 style="font-size:2rem;font-weight:700;">${funMode ? '🎪' : '🎡'} ${escapeHtml(wheelTitle)}</h1>
-      <p class="tagline">${funMode ? 'Spin for a work-safe truth or dare challenge' : 'Spin to decide what happens next'} • Room: ${safeRoomCode}</p>
-    </div>
-
-    ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
-
-    <div style="display:grid;grid-template-columns:1fr;gap:16px;max-width:920px;margin:18px auto 0;">
-      <div class="${shellClass}" style="position:relative;overflow:hidden;${funMode ? 'background:transparent;border:1px solid rgba(255, 199, 95, 0.22);' : ''}border-radius:16px;padding:18px;">
-        ${isCelebrating ? `<div class="trivia-confetti" aria-hidden="true">${confetti}</div>` : ''}
-        ${funSign}
-        ${standardHero}
-        <div class="${stageClass}" style="position:relative;max-width:460px;margin:0 auto;">
-          <div class="${pointerClass}" style="position:absolute;left:50%;top:-14px;transform:translateX(-50%);width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:24px solid #ffd166;filter:drop-shadow(0 2px 2px rgba(0,0,0,0.3));z-index:3;"></div>
-          ${(!isAnimating && selectedIndex !== null) ? '<div style="position:absolute;left:50%;top:-20px;transform:translateX(-50%);width:26px;height:26px;border-radius:50%;background:rgba(255,209,102,0.35);filter:blur(6px);z-index:2;"></div>' : ''}
-          <div style="${wheelStyle}">
-            <div style="${wheelFaceStyle}"></div>
-            <div style="position:absolute;inset:0;border-radius:50%;overflow:hidden;">
-              <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true" style="display:block;">
-                ${labelsSvg}
-              </svg>
-            </div>
-            ${winnerOutlineSvg}
-          </div>
-          <button type="button" class="${spinButtonClass}" ${mySpinTurn ? 'data-action="spin-wheel-spin"' : 'disabled'} style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:78px;height:78px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;letter-spacing:0.5px;z-index:4;cursor:${mySpinTurn && !isAnimating ? 'pointer' : 'default'};opacity:${isAnimating ? '0.8' : mySpinTurn ? '1' : '0.5'};${funMode ? 'background:radial-gradient(circle at 35% 30%, #ffe8a0, #f2b431 62%, #8a4c06 100%);color:#5b2400;box-shadow:0 5px 16px rgba(0,0,0,0.36), inset 0 2px 8px rgba(255,255,255,0.22);border:2px solid rgba(126,69,8,0.55);' : ''}" ${isAnimating ? 'disabled' : ''}>
-            ${isAnimating
-              ? '<span style="width:18px;height:18px;border:2px solid rgba(255,255,255,0.35);border-top-color:#ffffff;border-radius:50%;animation:spin 0.8s linear infinite;display:inline-block;" aria-label="Spinning"></span>'
-              : 'SPIN'
-            }
-          </button>
+  const status = spinning ? 'The wheel is turning. Picks are locked!' : result ? `The wheel chose ${result}.` : myTurn ? 'The spotlight is yours. Give it a spin!' : `${spinner} is up next. Make your prediction!`;
+  const spinLabel = spinning ? 'Spinning…' : spinWheelBusy ? 'One moment…' : result ? 'Spin again' : 'Let’s spin!';
+  const spinButton = `<button class="sw-spin-cta" data-action="spin-wheel-spin" ${busy || !myTurn ? 'disabled' : ''}>${spinLabel}<span aria-hidden="true">↗</span></button>`;
+  return `<section class="sw-experience" aria-label="Spin the Wheel">
+    <header class="sw-heading"><div><p class="sw-eyebrow">${funMode ? 'A little courage. A lot of fun.' : 'Big spins. Little surprises.'}</p><h1>${escapeHtml(title)}</h1><p>${funMode ? 'Work-safe challenges for your whole crew.' : 'Pick a favorite. Cheer it on. Let the wheel decide.'}</p></div><button class="btn-secondary sw-sound" data-action="spin-wheel-toggle-sound" aria-pressed="${!spinWheelMuted}" aria-label="${spinWheelMuted ? 'Enable wheel sounds' : 'Mute wheel sounds'}">${spinWheelMuted ? '♪ Sound off' : '♫ Sound on'}</button></header>
+    <div class="sw-layout"><div class="sw-main">
+      <section class="sw-theater ${spinning ? 'sw-is-spinning' : ''}">
+        ${celebrating ? `<div class="trivia-confetti" aria-hidden="true">${buildCelebrationConfettiPieces(20)}</div>` : ''}
+        <div class="sw-stage-meta"><span class="sw-live-dot">${spinning ? 'In motion' : 'Ready to roll'}</span><span>${entries.length} choices · Spin ${Number(state.spinCount) || 0}</span></div>${allowPicks && !spinning ? `<button class="sw-picks-link" data-action="spin-wheel-show-picks">${picked ? `✓ Your pick: ${escapeHtml(picked)}` : 'Make a prediction ↓'}</button>` : ''}
+        <div class="sw-wheel-wrap"><div class="sw-rim" aria-hidden="true">${Array.from({ length: 32 }, (_, index) => `<i style="--bulb:${index}"></i>`).join('')}</div><div class="sw-pointer" aria-hidden="true"></div>
+          <div class="sw-rotor" role="img" aria-label="${escapeHtml(`Wheel with ${entries.length} equally likely choices${result ? `. Last result: ${result}` : ''}`)}" style="--wheel-spin-from:${Number(state.prevWheelRotation) || 0}deg;--wheel-spin-to:${Number(state.wheelRotation) || 0}deg;transform:rotate(${Number(state.wheelRotation) || 0}deg);${timing.animating ? `animation:wheelSpinBetween ${timing.duration}ms cubic-bezier(.16,1,.3,1) -${timing.elapsed}ms both;` : ''}"><svg viewBox="0 0 400 400" aria-hidden="true">${wheelSvg}</svg></div>
+          <button class="sw-hub" data-action="spin-wheel-spin" ${busy || !myTurn ? 'disabled' : ''} aria-label="${myTurn ? 'Spin the wheel' : `Waiting for ${escapeHtml(spinner)} to spin`}"><span aria-hidden="true">${spinning ? '✦' : '↗'}</span><small>${spinning ? 'GO GO GO' : 'SPIN'}</small></button>
         </div>
-        <div class="${statusClass}" style="text-align:center;margin-top:14px;color:var(--text-mid);">${isAnimating ? 'Spinning...' : ''}</div>
-        ${currentResult ? `
-          <div style="
-            margin:10px auto 0;
-            width:min(420px,92%);
-            text-align:center;
-            border-radius:12px;
-            border:2px solid ${funMode ? 'rgba(133, 75, 8, 0.45)' : 'rgba(116, 193, 255, 0.7)'};
-            background:${funMode ? 'linear-gradient(135deg, rgba(255,239,196,0.94), rgba(255,213,95,0.94))' : 'linear-gradient(135deg, rgba(155,228,255,0.93), rgba(124,189,255,0.93))'};
-            box-shadow:0 8px 20px rgba(0,0,0,0.28);
-            color:${funMode ? '#5d2404' : '#073a66'};
-            font-weight:800;
-            padding:10px 14px;
-            letter-spacing:0.2px;
-            animation:${isCelebrating ? 'wheelWinnerBounce 700ms ease-out 1' : 'none'};
-          " class="${resultCardClass}">
-            ${`Landed on: ${escapeHtml(currentResult)}`}
-            ${resultDetail ? `<div style="margin-top:6px;font-size:0.94rem;font-weight:700;line-height:1.35;">${escapeHtml(resultDetail)}</div>` : ''}
-            ${!funMode && currentResultAction?.type === 'points' ? `<div style="margin-top:6px;font-size:0.82rem;font-weight:700;letter-spacing:0.03em;text-transform:uppercase;">${escapeHtml(String(currentResultAction.points || 0))} spin points</div>` : ''}
-            ${!funMode && currentResultAction?.type === 'activity' && isHost ? `<div style="margin-top:10px;"><button class="btn-secondary" data-action="spin-wheel-start-mini-session" style="width:auto;padding:8px 14px;">Launch Mini Session</button></div>` : ''}
-            ${!funMode ? `
-              <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:10px;">
-                <button class="btn-secondary" data-action="spin-wheel-save-favorite" style="width:auto;padding:8px 14px;">Save Favorite</button>
-                <button class="btn-secondary" data-action="spin-wheel-share-favorites" style="width:auto;padding:8px 14px;">Share Favorites</button>
-              </div>
-            ` : ''}
-          </div>
-        ` : ''}
-        <div style="text-align:center;margin-top:10px;color:var(--text-dim);">${isAnimating ? 'Wheel is in motion.' : escapeHtml(turnLabel)}</div>
-        ${assignedSpinner ? `
-          <div style="text-align:center;margin-top:8px;color:${APP.player.name === assignedSpinner ? 'var(--accent-2)' : 'var(--text-dim)'};font-weight:${APP.player.name === assignedSpinner ? '700' : '500'};">
-            ${APP.player.name === assignedSpinner ? 'It is your turn to spin.' : `${escapeHtml(assignedSpinner)} has the next spin.`}
-          </div>
-        ` : ''}
-        ${allowPlayerPicks ? `
-          <div class="${picksWrapClass}" style="margin:14px auto 0;max-width:640px;">
-            <div style="font-size:0.84rem;color:var(--text-dim);text-align:center;margin-bottom:8px;">Pick a section before the spin</div>
-            <div class="${picksGridClass}" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;">
-              ${segments.map((segment, idx) => {
-                const pickedCount = Object.values(playerSelections).filter(value => Number(value) === idx).length;
-                const pickedByMe = selectedByMe === idx;
-                const winner = !isAnimating && selectedIndex === idx;
-                return `
-                  <button type="button" class="btn-secondary ${pickButtonClass}" data-action="spin-wheel-pick-section" data-index="${idx}"
-                    style="margin:0;padding:8px 10px;border:${winner ? '2px solid #8de8ff' : pickedByMe ? '2px solid var(--accent)' : '1px solid var(--border)'};background:${winner ? 'rgba(141,232,255,0.16)' : pickedByMe ? 'rgba(0,210,211,0.12)' : 'var(--surface-2)'};">
-                    <div style="font-weight:700;font-size:0.9rem;">${escapeHtml(segment.label)}</div>
-                    <div style="font-size:0.75rem;color:var(--text-dim);">Section ${idx + 1}${pickedCount ? ` • ${pickedCount} pick${pickedCount === 1 ? '' : 's'}` : ''}</div>
-                  </button>
-                `;
-              }).join('')}
-            </div>
-          </div>
-        ` : ''}
-        ${currentResult ? `
-          <div class="${winnersClass}" style="margin:14px auto 0;max-width:520px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;">
-            <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:6px;">Winners</div>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;">
-              ${spinWinners.length
-                ? spinWinners.map(name => {
-                  const avatar = APP.room?.participants?.find(p => p.name === name)?.avatar || '🏅';
-                  return `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,210,106,0.14);border:1px solid rgba(0,210,106,0.35);border-radius:999px;padding:5px 10px;font-size:0.84rem;"><span>${escapeHtml(avatar)}</span><strong>${escapeHtml(name)}</strong></span>`;
-                }).join('')
-                : '<span style="color:var(--text-dim);font-size:0.84rem;">No winners this spin.</span>'
-              }
-            </div>
-          </div>
-        ` : ''}
-        ${!funMode && Object.keys(spinPoints).length ? `
-          <div style="margin:14px auto 0;max-width:520px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;">
-            <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:6px;">Spin Points</div>
-            <div style="display:grid;gap:8px;">
-              ${Object.entries(spinPoints)
-                .sort((a, b) => (b[1] || 0) - (a[1] || 0))
-                .map(([name, points]) => {
-                  const avatar = APP.room?.participants?.find(p => p.name === name)?.avatar || '🏅';
-                  return `<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.04);border-radius:10px;padding:8px 10px;"><span>${escapeHtml(avatar)} <strong>${escapeHtml(name)}</strong></span><span style="font-weight:800;color:var(--warning);">${Number(points) || 0}</span></div>`;
-                }).join('')}
-            </div>
-          </div>
-        ` : ''}
-      </div>
-
-      <div class="${settingsCardClass}" style="${funMode ? 'background:var(--surface-solid);border:1px solid var(--border);' : ''}border-radius:16px;padding:16px;">
-        <h3 style="margin-bottom:8px;">Wheel Settings</h3>
-        <div style="font-size:0.86rem;color:var(--text-dim);margin-bottom:10px;">${funMode ? 'Wheel of Fun uses a preset list of work-safe truth or dare prompts. Turn it off here to return to your custom wheel.' : `Each session spins from 8 options sampled from your pool of ${optionPoolEntries.length}. Add plain labels or actions like "Bonus 100 | points:100" or "Lightning Jump | activity:lightning-trivia".`}</div>
-        ${isHost ? `
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;padding:12px;background:${funMode ? 'rgba(255,239,196,0.08)' : 'var(--surface-2)'};border:1px solid ${funMode ? 'rgba(255,205,102,0.2)' : 'var(--border)'};border-radius:12px;">
-            <div>
-              <div style="font-size:0.86rem;font-weight:700;margin-bottom:4px;">Wheel of Doom... I mean Fun!</div>
-              <div style="font-size:0.8rem;color:var(--text-dim);">Switch between the carnival preset and your custom wheel options.</div>
-            </div>
-            <button class="btn-secondary" data-action="spin-wheel-toggle-fun-mode" style="width:auto;padding:8px 14px;${funMode ? 'border-color:#ffcf66;background:rgba(255,209,102,0.14);' : ''}">
-              ${funMode ? 'Disable' : 'Enable'}
-            </button>
-          </div>
-          <div style="margin-bottom:12px;padding:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;">
-            <div style="font-size:0.86rem;font-weight:700;margin-bottom:8px;">Spin Turn</div>
-            <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:10px;">Choose who gets the next spin. After they spin, control returns to the host.</div>
-            <div style="display:flex;flex-wrap:wrap;gap:8px;">
-              <button class="btn-secondary" data-action="spin-wheel-assign-turn" style="${!assignedSpinner ? 'border-color:var(--accent);background:rgba(0,210,211,0.12);' : ''}">Host Spins</button>
-              ${nonHostParticipants.map(participant => `
-                <button class="btn-secondary" data-action="spin-wheel-assign-turn" data-player="${escapeHtml(participant.name)}" style="${assignedSpinner === participant.name ? 'border-color:var(--accent);background:rgba(0,210,211,0.12);' : ''}">
-                  ${escapeHtml(participant.avatar || '🎯')} ${escapeHtml(participant.name)}
-                </button>
-              `).join('')}
-            </div>
-            ${nonHostParticipants.length === 0 ? '<div style="margin-top:8px;font-size:0.8rem;color:var(--text-dim);">Add participants to hand off the spin.</div>' : ''}
-          </div>
-          ${funMode ? `
-            <div style="margin-bottom:12px;padding:12px;background:rgba(255,239,196,0.08);border:1px solid rgba(255,205,102,0.2);border-radius:12px;">
-              <div style="font-size:0.86rem;font-weight:700;margin-bottom:8px;color:#ffe09a;">Wheel of Fun Prompt Set</div>
-              <div class="wheel-of-fun-grid">
-                ${SPIN_WHEEL_FUN_PROMPTS.map(item => `
-                  <div class="wheel-of-fun-mini">
-                    <strong>${escapeHtml(item.label)}</strong>
-                    <span>${escapeHtml(item.prompt)}</span>
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-          ` : `
-            <label class="form-label" for="spinWheelTitleInput">Wheel Title</label>
-            <input id="spinWheelTitleInput" class="form-input" maxlength="48" value="${escapeHtml(wheelTitle)}" placeholder="Spin Wheel">
-            <div style="height:8px;"></div>
-            <label class="form-label" for="spinWheelOptionsInput">Wheel Options</label>
-            <textarea id="spinWheelOptionsInput" class="form-input" rows="8" placeholder="Team Shoutout&#10;Bonus 100 | points:100&#10;Lightning Jump | activity:lightning-trivia">${escapeHtml(optionsEditorValue)}</textarea>
-            <div style="display:flex;gap:10px;margin-top:10px;">
-              <button class="btn-secondary" data-action="spin-wheel-save-options" style="flex:1;">Save Wheel Settings</button>
-            </div>
-          `}
-          <div style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;">
-            ${optionSummary.map(item => `
-              <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:0.85rem;">
-                <strong>${escapeHtml(item.label)}</strong>
-                <div style="color:var(--text-dim);">${item.sectionCount} section${item.sectionCount === 1 ? '' : 's'} • ${item.percent.toFixed(1)}%</div>
-                ${item.actionSummary ? `<div style="color:var(--text-dim);margin-top:4px;font-size:0.78rem;line-height:1.35;">${escapeHtml(item.actionSummary)}</div>` : ''}
-              </div>
-            `).join('')}
-          </div>
-        ` : `
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
-            ${optionSummary.map(item => `
-              <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
-                ${escapeHtml(item.label)} <span style="color:var(--text-dim);">(${item.sectionCount} sections • ${item.percent.toFixed(1)}%)</span>
-                ${item.actionSummary ? `<div style="color:var(--text-dim);margin-top:4px;font-size:0.78rem;line-height:1.35;">${escapeHtml(item.actionSummary)}</div>` : ''}
-              </div>
-            `).join('')}
-          </div>
-        `}
-        ${!funMode ? `
-          <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-            <div style="font-size:0.86rem;font-weight:700;margin-bottom:8px;">Your Favorites</div>
-            ${favorites.length ? `
-              <div style="display:grid;gap:8px;">
-                ${favorites.slice(0, 5).map(item => `
-                  <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:9px 10px;">
-                    <strong>${escapeHtml(item.label || '')}</strong>
-                    ${getSpinWheelEntryActionSummary(item) ? `<div style="color:var(--text-dim);margin-top:4px;font-size:0.78rem;line-height:1.35;">${escapeHtml(getSpinWheelEntryActionSummary(item))}</div>` : ''}
-                  </div>
-                `).join('')}
-              </div>
-            ` : '<div style="color:var(--text-dim);font-size:0.84rem;">Save results you like, then share them from the result card.</div>'}
-          </div>
-        ` : ''}
-      </div>
+        <p class="sw-stage-status" role="status" aria-live="polite">${escapeHtml(status)}</p>
+        <div class="sw-result ${result ? 'sw-result-ready' : ''}" aria-live="polite" aria-atomic="true">${result ? `<span class="sw-eyebrow">${winners.includes(APP.player.name) ? 'You called it! +50 XP' : 'And the wheel says…'}</span><h2>${escapeHtml(result)}</h2>${detail ? `<p>${escapeHtml(detail)}</p>` : ''}<div class="sw-result-actions">${action?.type === 'activity' && isHost ? '<button class="btn-primary" data-action="spin-wheel-start-mini-session">Launch activity</button>' : ''}<button class="btn-secondary" data-action="spin-wheel-save-favorite">${getSpinWheelFavorites().some(item => item.label === result && JSON.stringify(item.action || null) === JSON.stringify(action || null)) ? '♥ Saved result' : '♡ Save result'}</button></div>${winners.length ? `<p class="sw-winner-names">✦ Called it: ${escapeHtml(winners.join(', '))}</p>` : ''}` : `<span class="sw-eyebrow">${spinning ? 'Hold that thought…' : 'A surprise is waiting'}</span><p>${spinning ? 'Your next moment is one spin away.' : 'The result and any challenge will appear right here.'}</p>`}</div>
+      </section>
+      ${allowPicks ? `<section class="sw-predictions" id="spinWheelPredictions"><div class="sw-section-heading"><div><h2>Call your shot</h2><p>${spinning ? 'Picks locked. Good luck!' : 'Choose what you think will land. A correct prediction earns 50 XP.'}</p></div><span class="sw-count">${pickCount}/${participants.length} picked</span></div><div class="sw-choice-grid">${entries.map((entry, index) => { const sectionIndex = segments.findIndex(segment => segment.label === entry.label); return `<button class="sw-choice ${picked === entry.label ? 'sw-choice-selected' : ''}" data-action="spin-wheel-pick-section" data-index="${sectionIndex}" aria-pressed="${picked === entry.label}" ${busy ? 'disabled' : ''}><span class="sw-choice-number" style="--choice-color:${colors[index % colors.length]}">${index + 1}</span><span>${escapeHtml(entry.label)}<small>${getSpinWheelEntryActionSummary(entry) ? escapeHtml(getSpinWheelEntryActionSummary(entry)) : `${(100 / entries.length).toFixed(1)}% chance`}</small></span><span aria-hidden="true">${picked === entry.label ? '✓' : ''}</span></button>`; }).join('')}</div>${picked ? `<p class="sw-your-pick">Your pick: <strong>${escapeHtml(picked)}</strong>${spinning ? ' · Locked in' : ' · Change it any time before the spin'}</p>` : ''}</section>` : '<p class="sw-note">Predictions are off. Enjoy the spin and join the challenge!</p>'}
     </div>
-  `;
+    <aside class="sw-sidebar" aria-label="${isHost ? 'Host controls' : 'Your game'}">
+      <section class="sw-panel"><p class="sw-eyebrow">${isHost ? 'You’re the host' : 'At the controls'}</p><h2>${escapeHtml(myTurn ? 'Your turn to shine' : `${spinner}’s turn`)}</h2><p>${isHost ? 'Invite predictions, then start the show. You can pass the next spin to someone else.' : myTurn ? 'Your host passed you the wheel. Ready when you are!' : 'Pick a favorite below the wheel and cheer it on.'}</p>${spinButton}${isHost ? `<label class="form-label" for="spinWheelSpinnerSelect">Who spins next?</label><select id="spinWheelSpinnerSelect" class="form-input" ${busy ? 'disabled' : ''}><option value="">${escapeHtml(APP.room.host)} (host)</option>${guests.map(player => `<option value="${escapeHtml(player.name)}" ${assigned === player.name ? 'selected' : ''}>${escapeHtml(player.name)}</option>`).join('')}</select><button class="sw-toggle" data-action="spin-wheel-toggle-picks" aria-pressed="${allowPicks}" ${busy ? 'disabled' : ''}><span>Player predictions</span><strong>${allowPicks ? 'On' : 'Off'}</strong></button>` : `<p class="sw-note">${spinning ? 'Everyone sees the same spin and result.' : 'Your host can hand you the next spin.'}</p>`}</section>
+      ${isHost ? `<section class="sw-panel"><h2>Set the mood</h2><p>Load a ready-to-play wheel.</p><div class="sw-presets"><button data-action="spin-wheel-preset" data-preset="icebreakers" ${busy ? 'disabled' : ''}><span>🧊</span>Break the ice</button><button data-action="spin-wheel-preset" data-preset="celebration" ${busy ? 'disabled' : ''}><span>🎉</span>Celebrate</button><button data-action="spin-wheel-preset" data-preset="people" ${busy ? 'disabled' : ''}><span>👋</span>Pick a person</button><button data-action="spin-wheel-toggle-fun-mode" aria-pressed="${funMode}" ${busy ? 'disabled' : ''}><span>🎪</span>${funMode ? 'Back to custom' : 'Truth or dare'}</button></div></section>
+      <details class="sw-panel sw-customize"><summary>Customize your wheel</summary>${funMode ? '<p>Switch back to custom to edit your own choices. Your previous custom wheel is saved.</p>' : `<p>Add one choice per line. Up to 8 choices are sampled from larger pools.</p><label class="form-label" for="spinWheelTitleInput">Wheel name</label><input class="form-input" id="spinWheelTitleInput" data-wheel-draft-key="${escapeHtml(draftKey)}" maxlength="48" value="${escapeHtml(spinWheelDraft.title)}" ${busy ? 'disabled' : ''}><label class="form-label" for="spinWheelOptionsInput">Choices</label><textarea class="form-input" id="spinWheelOptionsInput" data-wheel-draft-key="${escapeHtml(draftKey)}" rows="7" ${busy ? 'disabled' : ''}>${escapeHtml(spinWheelDraft.options)}</textarea><button class="btn-primary" data-action="spin-wheel-save-options" ${busy ? 'disabled' : ''}>Apply changes</button><details class="sw-advanced"><summary>Add points or activities</summary><p>Use <code>Bonus | points:100</code>, <code>Quiz | activity:lightning-trivia</code>, or <code>Shoutout | prompt:Thank a teammate.</code></p></details>`}</details>` : ''}
+      ${state.history?.length ? `<section class="sw-panel"><h2>Recent spins</h2><ol class="sw-history">${state.history.map(item => `<li><span>${escapeHtml(item.label)}<small>${escapeHtml(item.spinner || '')}</small></span><span>#${Number(item.spin) || 0}</span></li>`).join('')}</ol></section>` : ''}
+      ${Object.keys(state.spinPoints || {}).length ? `<section class="sw-panel"><h2>Spin points</h2><ol class="sw-history">${Object.entries(state.spinPoints).sort((a,b) => b[1]-a[1]).map(([name, points]) => `<li><span>${escapeHtml(name)}</span><strong>${Number(points) || 0}</strong></li>`).join('')}</ol></section>` : ''}
+      ${getSpinWheelFavorites().length ? `<details class="sw-panel"><summary>Your saved results</summary><ul class="sw-favorites">${getSpinWheelFavorites().slice(0,5).map(item => `<li>${escapeHtml(item.label)}</li>`).join('')}</ul><button class="btn-secondary" data-action="spin-wheel-share-favorites">Share favorites</button></details>` : ''}
+    </aside></div></section>`;
 }
 
 function renderTicTacToeBlitz() {

@@ -54,3 +54,16 @@
   .ff-stage-footer { margin-top: 19px; }
 }
 @media (prefers-reduced-motion: reduce) { .ff-revealing .ff-flipper { animation: none; } }
+
+.ff-strike-overlay { position:fixed; inset:0; z-index:10000; display:grid; place-items:center; padding:18px; pointer-events:none; background:radial-gradient(ellipse at center,#1b00084d,transparent 70%); animation:ff-strike-fade 3s ease-out both; }
+.ff-strike-display { display:flex; justify-content:center; align-items:center; gap:clamp(7px,2vw,24px); width:min(94vw,980px); filter:drop-shadow(0 18px 25px #000b); animation:ff-strike-hit 260ms cubic-bezier(.2,.8,.3,1) both; }
+.ff-strike-tile { display:grid; place-items:center; flex:0 1 275px; min-width:0; aspect-ratio:1; border:clamp(4px,.8vw,9px) solid #ff6f6f; border-radius:18%; background:linear-gradient(140deg,#ff433e 0%,#a60810 12%,#330006 18%,#090207 48%,#3c0007 84%,#ba141a 94%,#ff6c5f); box-shadow:inset 0 0 0 3px #630006,inset 0 0 12px #ff5e5366,0 0 0 3px #74050a,0 0 35px #fa1c3544; }
+.ff-strike-tile > span { color:#f62b30; font-family:Arial,Helvetica,sans-serif; font-size:clamp(90px,21vw,265px); font-weight:900; line-height:.8; text-shadow:0 3px #ff9292,0 7px #85030b,0 12px 9px #000; transform:translateY(-2%); }
+.ff-strike-display[data-strikes="1"] .ff-strike-tile { flex-basis:340px; }
+.ff-strike-display[data-strikes="1"] .ff-strike-tile > span { font-size:clamp(140px,38vw,325px); }
+.ff-strike-display[data-strikes="2"] .ff-strike-tile > span { font-size:clamp(90px,29vw,265px); }
+@keyframes ff-strike-hit { 0% { transform:scale(1.35); } 70% { transform:scale(.97); } 100% { transform:scale(1); } }
+@keyframes ff-strike-fade { 0% { opacity:0; } 5%,72% { opacity:1; } 100% { opacity:0; } }
+@media (prefers-reduced-motion:reduce) { .ff-strike-display { animation:none; } }
+.ff-sound-toggle { display:block; margin:0 0 12px auto; border:1px solid #dfbd764d; border-radius:20px; background:#ffffff08; color:#ffdda4; padding:7px 12px; font:600 .72rem 'Outfit',sans-serif; cursor:pointer; }
+.ff-sound-toggle:focus-visible { outline:2px solid #fff; outline-offset:3px; }

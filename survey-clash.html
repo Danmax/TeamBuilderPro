@@ -671,10 +671,6 @@
   </section>
 </main>
 
-<div id="strikeOverlay" class="overlay" aria-hidden="true">
-  <div class="strike-burst">X</div>
-</div>
-
 <div id="winnerOverlay" class="overlay" aria-hidden="true">
   <div class="winner-card">
     <div class="subtitle">Winner</div>
@@ -746,9 +742,6 @@ const QUESTIONS = [
 ];
 
 const SOUND_FILES = {
-  correct: "/sounds/eaglaxle-electronic-beep-2-453382.mp3",
-  top: "/sounds/lubecin123-info-computer-sound-299367.mp3",
-  strike: "/sounds/freesound_community-laser-gun-72558.mp3",
   win: "/sounds/freesound_community-launch-85216.mp3",
   timer: "/sounds/beep-sound-short-237619.mp3",
   round: "/sounds/freesound_community-cinematic-glitch-transition-sfx-27806.mp3"
@@ -771,6 +764,7 @@ const state = {
   lastSound: null
 };
 
+const surveyFeedback = TeamBuilderSurveyBoard.createFeedback(() => ({ muted: state.muted, volume: state.volume }), SOUND_FILES);
 const audio = {};
 Object.entries(SOUND_FILES).forEach(([key, src]) => {
   audio[key] = new Audio(src);
@@ -804,10 +798,7 @@ function loadPrefs() {
 
 function playSound(key) {
   state.lastSound = key;
-  if (state.muted || !audio[key]) return;
-  const sound = audio[key].cloneNode();
-  sound.volume = state.volume;
-  sound.play().catch(() => {});
+  surveyFeedback.play(key);
 }
 
 function bankTotal() {
@@ -923,7 +914,6 @@ function revealAnswer(index) {
   setToast(`${currentQuestion().answers[index].text} is on the board.`);
   if (state.revealed.every(Boolean)) {
     setToast("Board cleared. Award the bank or move to the next round.");
-    playSound("win");
   }
   render();
 }
@@ -934,9 +924,7 @@ function revealNext() {
 }
 
 function showStrikeBurst() {
-  const overlay = $("#strikeOverlay");
-  overlay.classList.add("show");
-  window.setTimeout(() => overlay.classList.remove("show"), 720);
+  surveyFeedback.showStrike(state.strikes);
 }
 
 function addStrike() {
@@ -1043,6 +1031,7 @@ function finishGame() {
 }
 
 function resetGame() {
+  surveyFeedback.clear();
   stopTimer();
   $("#winnerOverlay").classList.remove("show");
   $("#game").classList.add("hidden");

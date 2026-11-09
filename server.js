@@ -3,6 +3,8 @@ const fs = require('fs');
 const crypto = require('crypto');
 const Checkers = require('./assets/js/games/checkers-core');
 const ChineseCheckers = require('./assets/js/games/chinese-checkers-core');
+const SpinWheel = require('./assets/js/games/spin-wheel-core');
+const spinWheelTimers = new Map();
 const ChineseCheckersAI = require('./assets/js/games/chinese-checkers-ai');
 const chineseCheckersTimers = new Map();
 const Memory = require('./assets/js/games/memory-core');
@@ -914,6 +916,7 @@ function listCommunityRooms() {
 }
 
 function deleteRoomState(key) {
+  clearSpinWheelTimer(key);
   clearChineseCheckersTimer(key);
   clearMemoryTimer(key);
   if (!isRoomKey(key)) return false;
@@ -1227,7 +1230,7 @@ const HOST_CONTROLLED_ROOM_FIELDS = [
 
 function participantCanApplyRoomUpdate(currentRoom, nextRoom, actorPlayerId) {
   if (!currentRoom || !nextRoom) return false;
-  if (['survey-clash', 'checkers', 'memory', 'chinese-checkers'].includes(currentRoom.currentActivity)
+  if (['survey-clash', 'checkers', 'memory', 'chinese-checkers', 'spin-wheel'].includes(currentRoom.currentActivity)
     && JSON.stringify(currentRoom.activityState) !== JSON.stringify(nextRoom.activityState)) return false;
   const fixedFieldsUnchanged = HOST_CONTROLLED_ROOM_FIELDS
     .filter(field => field !== 'participants')
@@ -1931,6 +1934,25 @@ function startMemoryRound(key, room, options = {}) {
   scheduleRoomMetaPersist();
 }
 
+function clearSpinWheelTimer(key) {
+  clearTimeout(spinWheelTimers.get(key));
+  spinWheelTimers.delete(key);
+}
+
+function scheduleSpinWheel(key, game) {
+  clearSpinWheelTimer(key);
+  if (!game?.isSpinning) return;
+  const timer = setTimeout(() => {
+    spinWheelTimers.delete(key);
+    const room = getRoomSnapshot(key);
+    if (room?.currentActivity !== 'spin-wheel' || room.activityState?.spinToken !== game.spinToken || room.activityState?.lastSpinAt !== game.lastSpinAt) return;
+    room.activityState = SpinWheel.settle(room.activityState);
+    publishGameRoom(key, room);
+  }, Math.max(0, Number(game.lastSpinAt) + Number(game.spinDurationMs || 4800) - Date.now()) + 20);
+  timer.unref();
+  spinWheelTimers.set(key, timer);
+}
+
 function clearChineseCheckersTimer(key) {
   clearTimeout(chineseCheckersTimers.get(key));
   chineseCheckersTimers.delete(key);
@@ -2086,6 +2108,7 @@ io.on('connection', socket => {
       room.activityState = Memory.reconcilePlayers(room.activityState, room.participants);
       scheduleMemoryReveal(key, room.activityState);
     } else if (!room.participants.length) {
+      clearSpinWheelTimer(key);
       clearChineseCheckersTimer(key);
       clearMemoryTimer(key);
       if (meta) meta.memory = null;
@@ -2140,6 +2163,45 @@ io.on('connection', socket => {
       const value = publishGameRoom(key, room);
       scheduleMemoryReveal(key, room.activityState);
       ack?.({ ok: true, value });
+    } catch (error) { ack?.({ ok: false, error: error.message }); }
+  });
+
+  socket.on('spin-wheel:action', (payload, ack) => {
+    const key = payload?.key;
+    if (!isRoomKey(key) || !isAuthorizedForRoom(key, getRequestRoomToken(payload))) { ack?.({ ok: false, error: 'Room access denied.' }); return; }
+    const room = getRoomSnapshot(key), actor = getRoomActor(key, payload, room);
+    if (!actor || room?.currentActivity !== 'spin-wheel') { ack?.({ ok: false, error: 'Join this room before playing.' }); return; }
+    try {
+      const game = room.activityState;
+      if (payload.spinToken !== (Number(game.spinToken) || 0) || payload.startedAt !== game.startedAt) throw new Error('The wheel changed. Try again.');
+      const name = actor.participant.name;
+      const assigned = room.participants.some(player => player.name === game.spinnerTurnPlayer && player.name !== room.host) ? game.spinnerTurnPlayer : '';
+      let claimed = false;
+      if (payload.action === 'spin') {
+        if (assigned ? assigned !== name : !actor.isHost) throw new Error('Wait for your turn to spin.');
+        room.activityState = SpinWheel.spin(game, name, Date.now(), () => crypto.randomInt(0, 0x100000000) / 0x100000000);
+      } else if (payload.action === 'pick') {
+        if (game.isSpinning) throw new Error('Picks are locked while the wheel spins.');
+        if (room.hostSettings?.spinWheelAllowPlayerPicks === false) throw new Error('Predictions are turned off for this wheel.');
+        const slices = SpinWheel.segments(SpinWheel.entries(game));
+        if (!Number.isInteger(payload.index) || !slices[payload.index]) throw new Error('Choose an option on this wheel.');
+        game.playerSelections = { ...(game.playerSelections || {}), [name]: payload.index };
+      } else if (payload.action === 'assign') {
+        if (!actor.isHost || game.isSpinning) throw new Error('The host can change turns between spins.');
+        if (payload.player && !room.participants.some(player => player.name === payload.player && player.name !== room.host)) throw new Error('Choose a participant in this room.');
+        game.spinnerTurnPlayer = payload.player || null;
+      } else if (payload.action === 'picks-enabled') {
+        if (!actor.isHost || game.isSpinning) throw new Error('The host can change predictions between spins.');
+        room.hostSettings = { ...(room.hostSettings || {}), spinWheelAllowPlayerPicks: payload.enabled === true };
+        if (!payload.enabled) game.playerSelections = {};
+      } else if (payload.action === 'claim-winner') {
+        if (!game.isSpinning && game.spinWinners?.includes(name) && !game.winnerXpClaimed?.[name]) {
+          game.winnerXpClaimed = { ...(game.winnerXpClaimed || {}), [name]: true }; claimed = true;
+        }
+      } else throw new Error('Unknown wheel action.');
+      const value = publishGameRoom(key, room);
+      scheduleSpinWheel(key, room.activityState);
+      ack?.({ ok: true, value, claimed });
     } catch (error) { ack?.({ ok: false, error: error.message }); }
   });
 
@@ -2307,6 +2369,10 @@ io.on('connection', socket => {
         ack?.({ ok: false, error: 'Only the host can change room controls' });
         return;
       }
+      if (existingRoom.currentActivity === 'spin-wheel' && nextRoom.currentActivity === 'spin-wheel' && existingRoom.activityState?.isSpinning
+        && JSON.stringify(existingRoom.activityState) !== JSON.stringify(nextRoom.activityState)) {
+        ack?.({ ok: false, error: 'Wait for the spin to finish before changing the wheel.' }); return;
+      }
       const queuedChineseCheckers = nextRoom.queueActive === true
         && Number(nextRoom.queueIndex) > Number(existingRoom.queueIndex)
         && nextRoom.activityQueue?.[Number(nextRoom.queueIndex) - 1] === 'chinese-checkers';
@@ -2355,6 +2421,7 @@ io.on('connection', socket => {
       scheduleRoomMetaPersist();
     }
     state.set(key, JSON.stringify(nextRoom));
+    scheduleSpinWheel(key, nextRoom.currentActivity === 'spin-wheel' ? nextRoom.activityState : null);
     scheduleChineseCheckersTurn(key, nextRoom.currentActivity === 'chinese-checkers' ? nextRoom.activityState : null);
     schedulePersist();
     io.to(key).emit('shared:update', { key, value: state.get(key) });
@@ -2639,6 +2706,7 @@ loadFeedbackStateFromDisk();
 loadRoomMetaFromDisk();
 for (const [key, value] of state) {
   const room = safeParseJsonObject(value);
+  if (room?.currentActivity === 'spin-wheel') scheduleSpinWheel(key, room.activityState);
   if (room?.currentActivity === 'memory') scheduleMemoryReveal(key, room.activityState);
   if (room?.currentActivity === 'chinese-checkers') scheduleChineseCheckersTurn(key, room.activityState);
 }

@@ -274,3 +274,11 @@ The host can pause/resume without losing a hop chain, start a new round, or retu
 ### Family Face-Off game-show board
 
 Family Face-Off (formerly Survey Clash) has a blue-and-gold game-show stage, team score displays, a round bank, and numbered answer panels. Hosts can click a panel or submit a matching guess to flip down the answer and its points for everyone in the room. Reveals animate once, continue through live updates, and respect reduced-motion preferences. Existing sessions, themed question packs, and the standalone `survey-clash.html` URL remain compatible.
+
+### Spin the Wheel
+
+The wheel now puts the stage, result, and player predictions together, with a compact host panel beside them on desktop. Players choose a named option under **Call your shot**; predictions lock during a spin, reset afterward, and award 50 XP for a correct choice. When choices appear on more than one slice, either matching slice counts. Each choice has equal odds.
+
+Hosts can hand the next spin to a participant, turn predictions on/off, or load **Break the ice**, **Celebrate**, **Pick a person**, and **Truth or dare** presets. **Customize your wheel** holds the name and one-choice-per-line editor; points, prompts, and activity actions remain available under **Add points or activities**. Larger pools sample up to eight choices. Changing choices resets the result and recent history; changing only the title preserves the current choices. Edits are disabled during spins, and unsaved editor text survives live updates.
+
+The wheel lands on the slice under the top pointer and displays the same result to everyone. Spin timing and result settlement run on the server, survive a spinner refresh/disconnect and server restarts, and cannot be overwritten by player room updates. Live renders continue from elapsed animation time. Recent spins, earned spin points, and saved favorites remain available. Wheel sounds are optional and muted initially; reduced-motion mode skips rotation and confetti.

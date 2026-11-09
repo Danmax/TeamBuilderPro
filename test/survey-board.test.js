@@ -30,3 +30,15 @@ test('answer boards keep hidden text out of the DOM, disable guest controls and 
   assert.equal(settled.includes('ff-revealing'), false);
   assert.ok(settled.includes('ff-revealed'));
 });
+
+test('strike and correct effects play once, ignore saved events on reconnect and expire stale events', () => {
+  const { STRIKE_MS, createFeedbackTracker } = require('../assets/js/survey-board');
+  const track = createFeedbackTracker();
+  assert.equal(track('room-a:game-1', { key: 'strike', stamp: 1000 }, 1200), null);
+  assert.equal(track('room-a:game-1', { key: 'strike', stamp: 1300 }, 1400), 'strike');
+  assert.equal(track('room-a:game-1', { key: 'strike', stamp: 1300 }, 1800), null);
+  assert.equal(track('room-a:game-1', { key: 'correct', stamp: 1800 }, 1900), 'correct');
+  assert.equal(track('room-a:game-1', { key: 'strike', stamp: 1900 }, 1900 + STRIKE_MS + 1), null);
+  assert.equal(track('room-b:game-1', { key: 'strike', stamp: 6000 }, 6000), null);
+  assert.equal(track('room-b:game-1', { key: 'top', stamp: 6100 }, 6100), 'top');
+});

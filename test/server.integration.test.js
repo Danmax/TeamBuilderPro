@@ -558,3 +558,63 @@ test('Chinese Checkers computers are host managed and take server turns across p
   assert.equal(room.activityState.seats[1].isComputer, true);
   assert.equal(room.activityState.moves, 0);
 });
+
+test('wheel locks predictions and permissions and settles after the spinner disconnects and server restarts', async t => {
+  const running = await startTestServer(t);
+  const connect = async port => {
+    const client = io(`http://127.0.0.1:${port}`, { transports: ['websocket'], forceNew: true });
+    t.after(() => client.close());
+    await new Promise((resolve, reject) => { client.once('connect', resolve); client.once('connect_error', reject); });
+    return client;
+  };
+  let socket = await connect(running.port);
+  const key = 'room:WHEEL9';
+  const host = { actorToken: 'wheel_host_token_1234567890_abcdef', actorPlayerId: 'wheel-host', actorPlayerName: 'Host' };
+  const guest = { actorToken: 'wheel_guest_token_1234567890_abcdef', actorPlayerId: 'wheel-guest', actorPlayerName: 'Guest' };
+  let room = { code: 'WHEEL9', host: 'Host', participants: [{ id: host.actorPlayerId, name: 'Host' }], currentActivity: 'spin-wheel', activityState: { startedAt: 123, spinToken: 0, optionEntries: [{ label: 'Bonus', action: { type: 'points', points: 100 } }, { label: 'Cheers' }], wheelRotation: 0 }, activityQueue: [], queueIndex: 0, hostSettings: {}, access: {}, created: Date.now() };
+  const created = await emitAck(socket, 'shared:set', { key, ...host, value: JSON.stringify(room) });
+  assert.equal(created.ok, true, created.error); room = JSON.parse(created.value);
+  const joined = await emitAck(socket, 'room:join', { key, actorToken: guest.actorToken, playerId: guest.actorPlayerId, playerName: guest.actorPlayerName });
+  room = JSON.parse(joined.value);
+  const action = async (actor, action, extra = {}) => {
+    const result = await emitAck(socket, 'spin-wheel:action', { key, ...actor, action, startedAt: room.activityState.startedAt, spinToken: Number(room.activityState.spinToken) || 0, ...extra });
+    if (result.ok) room = JSON.parse(result.value);
+    return result;
+  };
+  assert.equal((await action(guest, 'spin')).ok, false);
+  assert.equal((await action(guest, 'assign', { player: 'Guest' })).ok, false);
+  assert.equal((await action(host, 'picks-enabled', { enabled: false })).ok, true);
+  assert.equal((await action(guest, 'pick', { index: 0 })).ok, false);
+  assert.equal((await action(host, 'picks-enabled', { enabled: true })).ok, true);
+  assert.equal((await action(guest, 'pick', { index: 50 })).ok, false);
+  assert.equal((await action(guest, 'pick', { index: 2 })).ok, true);
+  assert.equal((await action(host, 'assign', { player: 'Guest' })).ok, true);
+  assert.equal((await action(host, 'spin')).ok, false);
+  assert.equal((await action(guest, 'spin')).ok, true);
+  const spinToken = room.activityState.spinToken;
+  assert.equal((await action(guest, 'pick', { index: 1 })).ok, false);
+  assert.equal((await action(host, 'assign', { player: '' })).ok, false);
+  assert.equal((await action(host, 'spin')).ok, false);
+  const forged = await emitAck(socket, 'shared:set', { key, ...guest, value: JSON.stringify({ ...room, activityState: { ...room.activityState, currentResult: 'Forged' } }) });
+  assert.equal(forged.ok, false);
+  const edited = await emitAck(socket, 'shared:set', { key, ...host, value: JSON.stringify({ ...room, activityState: { ...room.activityState, title: 'Changed mid-spin' } }) });
+  assert.equal(edited.ok, false);
+  socket.close();
+  await new Promise(resolve => { running.child.once('exit', resolve); running.child.kill('SIGTERM'); });
+  const restarted = await startTestServer(t, { dataDir: running.dataDir });
+  socket = await connect(restarted.port);
+  for (let attempt = 0; attempt < 60; attempt++) {
+    const read = await emitAck(socket, 'shared:get', { key }); room = JSON.parse(read.value);
+    if (!room.activityState.isSpinning) break;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  assert.equal(room.activityState.isSpinning, false);
+  assert.equal(room.activityState.spinToken, spinToken);
+  assert.equal(room.activityState.history.length, 1);
+  assert.equal(room.activityState.lastSpinner, 'Guest');
+  assert.ok(['Bonus', 'Cheers'].includes(room.activityState.currentResult));
+  assert.equal((await action(host, 'spin', { spinToken: spinToken - 1 })).ok, false);
+  const firstClaim = await action(guest, 'claim-winner');
+  assert.equal(firstClaim.claimed, room.activityState.currentResult === 'Bonus');
+  assert.equal((await action(guest, 'claim-winner')).claimed, false);
+});
