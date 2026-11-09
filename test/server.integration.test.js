@@ -386,3 +386,102 @@ test('Memory keeps answers private, validates turns, hides mismatches, and recov
   const ended = await emitAck(socket, 'shared:set', { key, ...host, value: JSON.stringify({ ...room, currentActivity: null, activityState: {} }) });
   assert.equal(ended.ok, true);
 });
+
+test('Chinese Checkers validates six-player setup and turns and restores a paused hop chain after restart', async t => {
+  const C = require('../assets/js/games/chinese-checkers-core');
+  const running = await startTestServer(t);
+  const key = 'room:STAR66';
+  const actors = Array.from({ length: 7 }, (_, index) => ({ actorToken: `chinese_actor_token_${index}_1234567890_abcdef`, actorPlayerId: `star-${index}`, actorPlayerName: index ? `Guest ${index}` : 'Host' }));
+  const connect = async port => {
+    const client = io(`http://127.0.0.1:${port}`, { transports: ['websocket'], forceNew: true });
+    t.after(() => client.close());
+    await new Promise((resolve, reject) => { client.once('connect', resolve); client.once('connect_error', reject); });
+    return client;
+  };
+  let socket = await connect(running.port);
+  let room = { code: 'STAR66', host: 'Host', roomType: 'private', participants: [{ id: 'star-0', name: 'Host', isHost: true }], currentActivity: null, activityState: {}, activityQueue: [], queueIndex: 0, queueActive: false, hostSettings: {}, access: {}, created: Date.now() };
+  const created = await emitAck(socket, 'shared:set', { key, ...actors[0], value: JSON.stringify(room) });
+  assert.equal(created.ok, true, created.error); room = JSON.parse(created.value);
+  const launched = await emitAck(socket, 'shared:set', { key, ...actors[0], value: JSON.stringify({ ...room, currentActivity: 'chinese-checkers', activityState: {} }) });
+  assert.equal(launched.ok, true, launched.error); room = JSON.parse(launched.value);
+  assert.equal(room.activityState.phase, 'setup');
+  assert.equal(Object.keys(room.activityState.board).length, 121);
+  const action = async (actor, name, extra = {}) => {
+    const result = await emitAck(socket, 'chinese-checkers:action', { key, ...actor, action: name, gameId: room.activityState.id, version: room.activityState.version, ...extra });
+    if (result.ok) room = JSON.parse(result.value);
+    return result;
+  };
+  assert.equal((await action(actors[0], 'start')).ok, false);
+  assert.equal((await action(actors[0], 'configure', { playerCount: 6 })).ok, true);
+  for (let index = 1; index < actors.length; index++) {
+    const actor = actors[index];
+    const joined = await emitAck(socket, 'room:join', { key, actorToken: actor.actorToken, playerId: actor.actorPlayerId, playerName: actor.actorPlayerName });
+    assert.equal(joined.ok, true); room = JSON.parse(joined.value);
+    if (index < 6) assert.equal((await action(actor, 'join', { seatIndex: index })).ok, true);
+  }
+  assert.equal((await action(actors[6], 'join', { seatIndex: 0 })).ok, false);
+  assert.equal((await action(actors[1], 'start')).ok, false);
+  assert.equal((await action(actors[0], 'start')).ok, true);
+  assert.equal((await action(actors[6], 'join')).ok, false);
+  assert.equal((await action(actors[0], 'configure', { playerCount: 2 })).ok, false);
+  assert.equal((await action(actors[0], 'pass')).ok, false);
+  const first = C.allLegalMoves(room.activityState).find(move => move.kind === 'step');
+  assert.equal((await action(actors[1], 'move', first)).ok, false);
+  assert.equal((await action(actors[6], 'move', first)).ok, false);
+  const tampered = await emitAck(socket, 'shared:set', { key, ...actors[0], value: JSON.stringify({ ...room, activityState: { ...room.activityState, winner: actors[0].actorPlayerId } }) });
+  assert.equal(tampered.ok, false);
+  const oldVersion = room.activityState.version;
+  for (let index = 0; index < 6; index++) {
+    assert.equal(room.activityState.turnIndex, index);
+    const choice = C.allLegalMoves(room.activityState).find(move => move.kind === 'step');
+    assert.equal((await action(actors[index], 'move', choice)).ok, true);
+  }
+  assert.equal(room.activityState.turnIndex, 0);
+  assert.equal((await action(actors[0], 'move', { ...first, version: oldVersion })).ok, false);
+  let chain = null;
+  const last = {};
+  for (let attempt = 0; attempt < 80 && !chain; attempt++) {
+    const game = room.activityState, index = game.turnIndex;
+    const choices = C.allLegalMoves(game);
+    chain = choices.find(move => C.move(game, actors[index].actorPlayerId, move.from, move.to).jumpPath.length);
+    if (chain) break;
+    const camp = C.CAMP_HOLES[game.seats[index].goal].map(id => C.BY_ID[id]);
+    const q = camp.reduce((sum, hole) => sum + hole.q, 0) / 10, r = camp.reduce((sum, hole) => sum + hole.r, 0) / 10;
+    const distance = id => { const hole = C.BY_ID[id], dq = hole.q - q, dr = hole.r - r; return (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2; };
+    const score = move => distance(move.from) - distance(move.to) - (last[index] === move.to ? 3 : 0);
+    choices.sort((a, b) => score(b) - score(a)); last[index] = choices[0].from;
+    assert.equal((await action(actors[index], 'move', choices[0])).ok, true);
+  }
+  assert.ok(chain, 'a reachable multi-hop position must be exercised');
+  const activeIndex = room.activityState.turnIndex;
+  assert.equal((await action(actors[activeIndex], 'move', chain)).ok, true);
+  const path = room.activityState.jumpPath;
+  assert.ok(path.length >= 2);
+  assert.equal((await action(actors[(activeIndex + 1) % 6], 'end-turn')).ok, false);
+  assert.equal((await action(actors[1], 'pause', { paused: true })).ok, false);
+  assert.equal((await action(actors[0], 'pause', { paused: true })).ok, true);
+  assert.equal((await action(actors[activeIndex], 'end-turn')).ok, false);
+  socket.close();
+  const exited = new Promise(resolve => running.child.once('exit', resolve)); running.child.kill('SIGTERM'); await exited;
+  const resumed = await startTestServer(t, { dataDir: running.dataDir });
+  socket = await connect(resumed.port);
+  room = JSON.parse((await emitAck(socket, 'shared:get', { key })).value);
+  assert.deepEqual(room.activityState.jumpPath, path);
+  assert.equal(room.activityState.paused, true);
+  assert.equal((await action(actors[0], 'pause', { paused: false })).ok, true);
+  assert.equal((await action(actors[activeIndex], 'end-turn')).ok, true);
+  assert.equal(room.activityState.turnIndex, (activeIndex + 1) % 6);
+  assert.deepEqual(room.activityState.jumpPath, []);
+  const previousId = room.activityState.id;
+  assert.equal((await action(actors[1], 'restart')).ok, false);
+  assert.equal((await action(actors[0], 'restart')).ok, true);
+  assert.notEqual(room.activityState.id, previousId);
+  assert.equal(room.activityState.phase, 'setup');
+  assert.equal(room.activityState.seats.filter(Boolean).length, 6);
+  const queued = await emitAck(socket, 'shared:set', { key, ...actors[0], value: JSON.stringify({ ...room, queueActive: true, queueIndex: 1, activityQueue: ['chinese-checkers'], activityState: { playerCount: 3 } }) });
+  assert.equal(queued.ok, true, queued.error); room = JSON.parse(queued.value);
+  assert.equal(room.activityState.playerCount, 3);
+  assert.equal(room.activityState.seats.filter(Boolean).length, 1);
+  const ended = await emitAck(socket, 'shared:set', { key, ...actors[0], value: JSON.stringify({ ...room, currentActivity: null, activityState: {} }) });
+  assert.equal(ended.ok, true);
+});

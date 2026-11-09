@@ -292,6 +292,10 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
           <div class="card-icon">🧠</div><h3 class="card-title">Memory</h3><p class="card-desc">Flip cards, find matching pairs, and compete for the best memory — or practice solo</p>
         </button>
 
+        <button type="button" class="card" data-action="start-chinese-checkers" aria-label="Start Chinese Checkers" style="${enabledActivities['chinese-checkers'] === false ? 'display:none;' : ''}">
+          <div class="card-icon">✳️</div><h3 class="card-title">Chinese Checkers</h3><p class="card-desc">Race ten marbles across the star with 2, 3, 4, or 6 players and optional chained hops</p>
+        </button>
+
         <button type="button" class="card" data-action="start-checkers" aria-label="Start Checkers" style="${enabledActivities.checkers === false ? 'display:none;' : ''}">
           <div class="card-icon">⚫</div><h3 class="card-title">Checkers</h3><p class="card-desc">Play a shared two-player board with forced captures, multiple jumps, and kings</p>
         </button>

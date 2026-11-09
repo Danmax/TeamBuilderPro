@@ -57,6 +57,7 @@ The app runs locally with Socket.IO and JSON persistence by default. Runtime fil
 - Backgammon
 - Connect 4
 - Checkers
+- Chinese Checkers
 - Memory
 - Chess Lobby
 - Cosmos Bound
@@ -259,3 +260,13 @@ Start **Memory** from the lobby or add it to the activity queue. Everyone presen
 The host can choose **Animals**, **Space**, or **Food** and a **12-, 16-, or 24-card board** under **New round & options**. Starting a new round reshuffles the deck and resets scores. Options stay selected during live updates. Other room participants can watch without joining.
 
 The server validates flips and scores, keeps unrevealed card identities private, and handles mismatch timers. Reconnecting restores the visible board. The private deck is persisted with room metadata so an active round and its pending timer can recover after a normal server restart. **Back to session** ends the activity while retaining the room.
+
+## Chinese Checkers
+
+Start **Chinese Checkers** from the lobby or activity queue. The host chooses **2, 3, 4, or 6 players**; participants choose an open camp, and the host starts once all seats are filled. Everyone else can watch. Seats lock during the round, so late arrivals can join the next round.
+
+Move one of your ten marbles toward the opposite camp. Choose a neighboring empty hole for a single step, or hop over an adjacent marble of any color into the empty hole immediately beyond. Hopped marbles stay on the board. You may chain hops with the same marble, change direction between hops, and choose **End turn** after any hop. Hops are optional; a step ends the turn immediately. Reach your opposite camp with all ten marbles to win. A pass is available only if no legal move exists.
+
+Use **+ / −**, **Fit board**, and **Center my camp** to view the star board; scroll or swipe the zoomed board to pan. Colors and symbols identify camps. Arrow keys plus Home/End move keyboard focus in six directions, and Enter/Space selects a marble or destination.
+
+The host can pause/resume without losing a hop chain, start a new round, or return to the session. Reconnecting restores the shared board and any confirmed intermediate jumps. A departed player's seat stays reserved during play; the host can pause for their return or start a new round with available players. New rounds retain seats for participants still in the room. All actions are validated by the server, and ordinary room writes cannot change the board. Computer opponents are deferred.
