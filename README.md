@@ -235,7 +235,7 @@ Notes:
 
 ## Themed Questions and Session Navigation
 
-From the session lobby, choose **Create themed questions**, describe a theme, and select the activities. Copy the prepared prompt into an AI app, then paste its JSON reply into Team Builder and save it to the session. Optional controls are under **Customize question count, difficulty & audience**. Session content takes priority over global and sample questions for those activities. Survey Clash supports themed rounds with 2–8 answers whose simulated points total 100.
+From the session lobby, choose **Create themed questions**, describe a theme, and select the activities. Copy the prepared prompt into an AI app, then paste its JSON reply into Team Builder and save it to the session. Optional controls are under **Customize question count, difficulty & audience**. Session content takes priority over global and sample questions for those activities. Family Face-Off supports themed rounds with 2–8 answers whose simulated points total 100.
 
 Slides Studio also supports copying an AI prompt and importing a JSON array of slides. Neither flow requires an API key or makes direct AI requests.
 
@@ -269,4 +269,8 @@ Move one of your ten marbles toward the opposite camp. Choose a neighboring empt
 
 Use **+ / −**, **Fit board**, and **Center my camp** to view the star board; scroll or swipe the zoomed board to pan. Colors and symbols identify camps. Arrow keys plus Home/End move keyboard focus in six directions, and Enter/Space selects a marble or destination.
 
-The host can pause/resume without losing a hop chain, start a new round, or return to the session. Reconnecting restores the shared board and any confirmed intermediate jumps. A departed player's seat stays reserved during play; the host can pause for their return or start a new round with available players. New rounds retain seats for participants still in the room. All actions are validated by the server, and ordinary room writes cannot change the board. Computer opponents are deferred.
+The host can pause/resume without losing a hop chain, start a new round, or return to the session. Reconnecting restores the shared board and any confirmed intermediate jumps. A departed player's seat stays reserved during play; the host can pause for their return or start a new round with available players. New rounds retain seats for participants still in the room. All actions are validated by the server, and ordinary room writes cannot change the board. To play solo, choose **Play vs computer** during setup; this fills every open seat and starts the round. For a mix of friends and computers, let friends choose seats, then use **Fill open seats with computers** and **Start round**. The host can remove computers during setup. Computer turns run on the server, support multi-hop moves, stop while paused, and resume after a server restart. New rounds retain computer seats.
+
+### Family Face-Off game-show board
+
+Family Face-Off (formerly Survey Clash) has a blue-and-gold game-show stage, team score displays, a round bank, and numbered answer panels. Hosts can click a panel or submit a matching guess to flip down the answer and its points for everyone in the room. Reveals animate once, continue through live updates, and respect reduced-motion preferences. Existing sessions, themed question packs, and the standalone `survey-clash.html` URL remain compatible.

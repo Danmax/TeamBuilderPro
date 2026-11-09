@@ -62,7 +62,7 @@ test('question preview accepts one activity array and rejects ambiguous or unsup
   const draft = { selectedActivityIds: ['survey-clash'], packName: 'Space pack', themePreset: 'Space Exploration' };
   let reply = JSON.stringify([{ prompt: 'Name a planet.', answers: [{ text: 'Earth', points: 60 }, { text: 'Mars', points: 40 }] }]);
   const context = vm.createContext({
-    ALL_ACTIVITY_IDS: ['survey-clash', 'icebreaker'], AI_GENERATION_TARGET_LABELS: { 'survey-clash': 'Survey Clash', icebreaker: 'Icebreaker' },
+    ALL_ACTIVITY_IDS: ['survey-clash', 'icebreaker'], AI_GENERATION_TARGET_LABELS: { 'survey-clash': 'Family Face-Off', icebreaker: 'Icebreaker' },
     document: { getElementById: () => ({ value: reply }) },
     captureContentStudioDraftFromInputs: () => draft,
     TeamBuilderThemeContent: themeContent,

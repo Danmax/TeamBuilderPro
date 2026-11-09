@@ -7,6 +7,7 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='50' font-size='50'%3E%F0%9F%8E%AF%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;800&family=Outfit:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;600&family=Orbitron:wght@400;500;600;700;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/base.css">
+<link rel="stylesheet" href="/assets/css/survey-board.css">
 </head>
 <body>
 <div class="atmosphere"><div class="mesh"></div><div class="mesh"></div><div class="mesh"></div></div>
@@ -19,6 +20,7 @@
 <script src="/assets/js/static-data.js"></script>
 <script src="/assets/js/runtime-utils.js"></script>
 <script src="/assets/js/theme-content-core.js"></script>
+<script src="/assets/js/survey-board.js"></script>
 <script src="/assets/js/content-themes.js"></script>
 <script src="/assets/js/activity-discovery.js"></script>
 <script src="/assets/js/storage-api.js"></script>
@@ -2170,6 +2172,7 @@ function maybePlayTicTacToeLastMoveSound(match) {
   APP.ticTacToeLastSoundKey = soundKey;
   playSimpleGameSound('move');
 }
+const renderSurveyAnswerBoard = TeamBuilderSurveyBoard.createBoardRenderer();
 let surveyClashLastSoundStamp = 0;
 let surveyClashMuted = localStorage.getItem('surveyClashMuted') === 'true';
 let surveyClashVolume = Math.max(0, Math.min(1, Number.parseFloat(localStorage.getItem('surveyClashVolume') ?? '0.75')));
@@ -4225,7 +4228,7 @@ async function updateSurveyClashState(mutator) {
   const room = await RoomManager.loadRoom(APP.roomCode, APP.roomAccessToken || '');
   if (!room || room.currentActivity !== 'survey-clash') return null;
   if (room.host !== APP.player?.name) {
-    showError('Only the host can control Survey Clash.');
+    showError('Only the host can control Family Face-Off.');
     return null;
   }
   const state = room.activityState && typeof room.activityState === 'object'
@@ -4446,18 +4449,8 @@ function renderSurveyClash() {
   const remaining = timerSeconds && timerStartedAt
     ? Math.max(0, timerSeconds - Math.floor((Date.now() - timerStartedAt) / 1000))
     : 0;
-  const answerRows = question.answers.map((answer, idx) => {
-    const isRevealed = Boolean(revealed[idx]);
-    return `
-      <div style="display:grid;grid-template-columns:48px minmax(0,1fr)64px;align-items:stretch;min-height:70px;border:1px solid rgba(255,255,255,0.14);border-radius:8px;overflow:hidden;background:${isRevealed ? 'linear-gradient(135deg,rgba(0,210,211,0.22),rgba(254,202,87,0.13))' : 'rgba(255,255,255,0.055)'};">
-        <div style="display:grid;place-items:center;background:rgba(0,0,0,0.2);font-family:'IBM Plex Mono',monospace;font-weight:900;color:var(--warning);">${idx + 1}</div>
-        <div style="display:grid;align-items:center;padding:12px 14px;min-width:0;">
-          <div style="font-size:clamp(1rem,2vw,1.35rem);font-weight:900;text-transform:uppercase;letter-spacing:0;overflow-wrap:anywhere;color:${isRevealed ? 'var(--text)' : 'rgba(255,255,255,0.28)'};">${escapeHtml(isRevealed ? answer.text : 'Hidden Answer')}</div>
-        </div>
-        <div style="display:grid;place-items:center;background:rgba(0,0,0,0.22);font-family:'IBM Plex Mono',monospace;font-weight:900;color:${isRevealed ? 'var(--warning)' : 'var(--text-dim)'};">${isRevealed ? Number(answer.points) || 0 : '--'}</div>
-      </div>
-    `;
-  }).join('');
+  const boardKey = JSON.stringify([APP.roomCode, state.startedAt, roundIndex, state.questionOrder?.[roundIndex], question.prompt]);
+  const answerRows = renderSurveyAnswerBoard(question, revealed, isHost && !state.finished, boardKey);
   const hostControls = isHost ? state.finished ? `
     <div style="padding:20px;background:var(--surface-solid);border:1px solid var(--border);border-radius:12px;">
       <h3>Game complete</h3>
@@ -4465,10 +4458,11 @@ function renderSurveyClash() {
       <button class="btn-primary" data-action="start-survey-clash">Play again</button>
     </div>
   ` : `
-    <div style="display:grid;gap:14px;">
+    <div class="ff-host-panel">
       <div style="padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface-solid);">
         <div style="font-size:0.78rem;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px;">Guess</div>
-        <input id="surveyClashGuessInput" class="form-input" placeholder="Type a player guess" maxlength="80" style="margin-bottom:8px;">
+        <label class="form-label" for="surveyClashGuessInput">Player answer</label>
+        <input id="surveyClashGuessInput" autocomplete="off" class="form-input" placeholder="Type a player guess" maxlength="80" style="margin-bottom:8px;">
         <button class="btn-primary" data-action="survey-clash-submit-guess" style="width:100%;">Submit Guess</button>
       </div>
       <div style="padding:14px;border:1px solid var(--border);border-radius:8px;background:var(--surface-solid);">
@@ -4516,66 +4510,30 @@ function renderSurveyClash() {
   `;
 
   return `
-    <div style="display:grid;grid-template-columns:minmax(0,1fr)340px;gap:16px;align-items:start;" class="survey-clash-app">
-      <div style="padding:18px;border:1px solid var(--border);border-radius:8px;background:linear-gradient(135deg,rgba(0,210,211,0.08),rgba(254,202,87,0.07));box-shadow:0 18px 48px rgba(0,0,0,0.18);">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
-          <div>
-            <div style="font-size:0.78rem;font-weight:900;letter-spacing:0.1em;text-transform:uppercase;color:var(--warning);">Survey Clash</div>
-            <h2 style="font-family:'Fraunces',serif;font-size:clamp(2rem,5vw,4rem);line-height:0.95;margin:4px 0 0;letter-spacing:0;">Round ${roundIndex + 1} of ${roundCount}</h2>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(3,minmax(100px,1fr));gap:8px;min-width:min(100%,440px);">
-            <div style="padding:10px;border:1px solid ${activeTeam === 0 ? 'rgba(254,202,87,0.6)' : 'var(--border)'};border-radius:8px;background:rgba(255,255,255,0.06);">
-              <div style="font-size:0.72rem;font-weight:900;color:var(--text-dim);text-transform:uppercase;">${escapeHtml(teamNames[0] || 'Team 1')}</div>
-              <div style="font-family:'IBM Plex Mono',monospace;font-size:1.7rem;font-weight:900;">${Number(scores[0]) || 0}</div>
-            </div>
-            <div style="padding:10px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.06);">
-              <div style="font-size:0.72rem;font-weight:900;color:var(--text-dim);text-transform:uppercase;">Bank</div>
-              <div style="font-family:'IBM Plex Mono',monospace;font-size:1.7rem;font-weight:900;">${bank}</div>
-            </div>
-            <div style="padding:10px;border:1px solid ${activeTeam === 1 ? 'rgba(254,202,87,0.6)' : 'var(--border)'};border-radius:8px;background:rgba(255,255,255,0.06);">
-              <div style="font-size:0.72rem;font-weight:900;color:var(--text-dim);text-transform:uppercase;">${escapeHtml(teamNames[1] || 'Team 2')}</div>
-              <div style="font-family:'IBM Plex Mono',monospace;font-size:1.7rem;font-weight:900;">${Number(scores[1]) || 0}</div>
-            </div>
-          </div>
+    <div class="survey-clash-app">
+      <section class="ff-stage" aria-label="Family Face-Off game board">
+        <header class="ff-show-heading">
+          <p class="ff-kicker">The team survey showdown</p>
+          <h2 class="ff-show-title">Family Face-Off</h2>
+          <p class="ff-round">Round ${roundIndex + 1} of ${roundCount} · ${question.answers.length} answers on the board</p>
+        </header>
+        <div class="ff-scoreboard" aria-label="Scores">
+          <div class="ff-score ${activeTeam === 0 ? 'ff-active' : ''}"><span class="ff-score-label">${escapeHtml(teamNames[0] || 'Team 1')}${activeTeam === 0 ? ' · Playing' : ''}</span><strong>${Number(scores[0]) || 0}</strong></div>
+          <div class="ff-score ff-bank"><span class="ff-score-label">Round bank</span><strong>${bank}</strong></div>
+          <div class="ff-score ${activeTeam === 1 ? 'ff-active' : ''}"><span class="ff-score-label">${escapeHtml(teamNames[1] || 'Team 2')}${activeTeam === 1 ? ' · Playing' : ''}</span><strong>${Number(scores[1]) || 0}</strong></div>
         </div>
-        <div style="padding:16px;border:1px solid rgba(254,202,87,0.25);border-radius:8px;background:rgba(0,0,0,0.18);margin-bottom:12px;">
-          <div style="font-size:0.78rem;font-weight:900;color:var(--warning);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;">Survey says</div>
-          <div style="font-size:clamp(1.35rem,3vw,2.3rem);font-weight:900;line-height:1.08;letter-spacing:0;">${escapeHtml(question.prompt)}</div>
+        <div class="ff-question"><p class="ff-kicker">Survey says…</p><h3>${escapeHtml(question.prompt)}</h3></div>
+        <div class="ff-marquee"><div class="ff-answers" role="group" aria-label="Survey answer board">${answerRows}</div></div>
+        <div class="ff-stage-footer">
+          <div class="ff-turn">At the podium<strong>${escapeHtml(teamNames[activeTeam] || 'Team')}</strong></div>
+          <div class="ff-strikes" role="img" aria-label="${strikes} of 3 strikes">${Array.from({ length: 3 }, (_, index) => `<span class="ff-strike ${index < strikes ? 'ff-on' : ''}" aria-hidden="true">✕</span>`).join('')}</div>
+          <div class="ff-timer" role="timer" aria-label="Time remaining">${remaining ? `${remaining}s on the clock` : 'Timer ready'}</div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px;">
-          ${answerRows}
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;">
-          <div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.05);">
-            <div style="font-size:0.72rem;font-weight:900;color:var(--text-dim);text-transform:uppercase;">Active</div>
-            <div style="font-weight:900;margin-top:4px;">${escapeHtml(teamNames[activeTeam] || 'Team')}</div>
-          </div>
-          <div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.05);">
-            <div style="font-size:0.72rem;font-weight:900;color:var(--text-dim);text-transform:uppercase;">Board Total</div>
-            <div style="font-family:'IBM Plex Mono',monospace;font-weight:900;margin-top:4px;">100</div>
-          </div>
-          <div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.05);">
-            <div style="font-size:0.72rem;font-weight:900;color:var(--text-dim);text-transform:uppercase;">Strikes</div>
-            <div style="font-family:'IBM Plex Mono',monospace;font-weight:900;margin-top:4px;color:var(--danger);">${Array.from({ length: 3 }, (_, idx) => idx < strikes ? 'X' : '-').join(' ')}</div>
-          </div>
-          <div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,0.05);">
-            <div style="font-size:0.72rem;font-weight:900;color:var(--text-dim);text-transform:uppercase;">Timer</div>
-            <div style="font-family:'IBM Plex Mono',monospace;font-weight:900;margin-top:4px;">${remaining ? `${remaining}s` : '--'}</div>
-          </div>
-        </div>
-        <div role="status" aria-live="polite" style="margin-top:12px;padding:12px 14px;border-radius:8px;background:rgba(254,202,87,0.1);border:1px solid rgba(254,202,87,0.18);font-weight:800;color:var(--warning);">${escapeHtml(state.message || 'Board ready.')}</div>
-      </div>
+        <div class="ff-message" role="status" aria-live="polite">${escapeHtml(state.message || 'Board ready.')}</div>
+        <p class="ff-board-hint">${isHost ? 'Click a numbered panel to reveal it, or submit a player’s guess.' : 'Play along out loud. Your host reveals the answers and awards points.'}</p>
+      </section>
       ${hostControls}
     </div>
-    <style>
-      @media (max-width: 980px) {
-        .survey-clash-app { grid-template-columns: 1fr !important; }
-      }
-      @media (max-width: 700px) {
-        .survey-clash-app [style*="grid-template-columns:repeat(2"] { grid-template-columns: 1fr !important; }
-        .survey-clash-app [style*="grid-template-columns:repeat(4"] { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
-      }
-    </style>
   `;
 }
 
@@ -7093,7 +7051,7 @@ function buildAIPromptForActivity(activityId, topic, difficulty, count) {
   const targetTopic = topic || 'team collaboration';
   switch (activityId) {
     case 'survey-clash':
-      return `Create ${count} Survey Clash rounds themed around "${targetTopic}" at ${difficulty} difficulty. Each round needs a prompt and 2–8 plausible answers. Use simulated points totaling exactly 100 per round; do not claim these are real survey results. Return a JSON array of {"prompt":"Name something…","answers":[{"text":"Answer","points":60,"aliases":["alternative"]},{"text":"Other answer","points":40,"aliases":[]}]}. Keep questions inclusive and suitable for a team event.`;
+      return `Create ${count} Family Face-Off rounds themed around "${targetTopic}" at ${difficulty} difficulty. Each round needs a prompt and 2–8 plausible answers. Use simulated points totaling exactly 100 per round; do not claim these are real survey results. Return a JSON array of {"prompt":"Name something…","answers":[{"text":"Answer","points":60,"aliases":["alternative"]},{"text":"Other answer","points":40,"aliases":[]}]}. Keep questions inclusive and suitable for a team event.`;
     case 'lightning-trivia':
     case 'regular-trivia':
       return `Generate ${count} multiple-choice trivia questions about "${targetTopic}" at ${difficulty} difficulty.

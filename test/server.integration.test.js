@@ -485,3 +485,76 @@ test('Chinese Checkers validates six-player setup and turns and restores a pause
   const ended = await emitAck(socket, 'shared:set', { key, ...actors[0], value: JSON.stringify({ ...room, currentActivity: null, activityState: {} }) });
   assert.equal(ended.ok, true);
 });
+
+test('Chinese Checkers computers are host managed and take server turns across pause, restart and rematch', async t => {
+  const C = require('../assets/js/games/chinese-checkers-core');
+  const running = await startTestServer(t);
+  const connect = async port => {
+    const client = io(`http://127.0.0.1:${port}`, { transports: ['websocket'], forceNew: true });
+    t.after(() => client.close());
+    await new Promise((resolve, reject) => { client.once('connect', resolve); client.once('connect_error', reject); });
+    return client;
+  };
+  let socket = await connect(running.port);
+  const key = 'room:BOT123';
+  const host = { actorToken: 'computer_host_token_1234567890_abcdef', actorPlayerId: 'bot-host', actorPlayerName: 'Host' };
+  const guest = { actorToken: 'computer_guest_token_1234567890_abcdef', actorPlayerId: 'bot-guest', actorPlayerName: 'Guest' };
+  let room = { code: 'BOT123', host: 'Host', roomType: 'private', participants: [{ id: host.actorPlayerId, name: 'Host', isHost: true, isComputer: true }], currentActivity: 'chinese-checkers', activityState: {}, activityQueue: [], queueIndex: 0, queueActive: false, hostSettings: {}, access: {}, created: Date.now() };
+  const created = await emitAck(socket, 'shared:set', { key, ...host, value: JSON.stringify(room) });
+  assert.equal(created.ok, true, created.error); room = JSON.parse(created.value);
+  assert.equal(room.activityState.seats[0].isComputer, false, 'clients cannot mark real participants as computers');
+  const action = async (actor, name, extra = {}) => {
+    const response = await emitAck(socket, 'chinese-checkers:action', { key, ...actor, action: name, gameId: room.activityState.id, version: room.activityState.version, ...extra });
+    if (response.ok) room = JSON.parse(response.value);
+    return response;
+  };
+  const joined = await emitAck(socket, 'room:join', { key, actorToken: guest.actorToken, playerId: guest.actorPlayerId, playerName: guest.actorPlayerName });
+  room = JSON.parse(joined.value);
+  assert.equal((await action(guest, 'fill-computers')).ok, false);
+  assert.equal((await action(host, 'remove-computer', { seatIndex: 0 })).ok, false);
+  assert.equal((await action(host, 'fill-computers')).ok, true);
+  const botId = room.activityState.seats[1].playerId;
+  assert.equal((await emitAck(socket, 'room:join', { key, actorToken: guest.actorToken, playerId: botId, playerName: 'Imposter' })).ok, false);
+  assert.equal((await action(guest, 'remove-computer', { seatIndex: 1 })).ok, false);
+  assert.equal((await action(host, 'remove-computer', { seatIndex: 1 })).ok, true);
+  assert.equal(room.activityState.seats[1], null);
+  assert.equal((await action(host, 'play-computer')).ok, true);
+  assert.equal(room.activityState.phase, 'playing');
+  assert.equal((await action(host, 'remove-computer', { seatIndex: 1 })).ok, false);
+  const humanMove = C.allLegalMoves(room.activityState).find(move => move.kind === 'step');
+  assert.equal((await action(host, 'move', humanMove)).ok, true);
+  assert.equal(room.activityState.turnIndex, 1);
+  assert.equal((await action(guest, 'move', C.allLegalMoves(room.activityState)[0])).ok, false);
+  assert.equal((await action(host, 'pause', { paused: true })).ok, true);
+  const pausedVersion = room.activityState.version;
+  await new Promise(resolve => setTimeout(resolve, 900));
+  const snapshot = await emitAck(socket, 'shared:get', { key });
+  assert.equal(JSON.parse(snapshot.value).activityState.version, pausedVersion);
+  // Persist while a computer owns the next turn, then resume on a new server.
+  await new Promise(resolve => { running.child.once('exit', resolve); running.child.kill('SIGTERM'); });
+  socket.close();
+  const restarted = await startTestServer(t, { dataDir: running.dataDir });
+  socket = await connect(restarted.port);
+  const rejoined = await emitAck(socket, 'room:join', { key, actorToken: host.actorToken, playerId: host.actorPlayerId, playerName: host.actorPlayerName });
+  assert.equal(rejoined.ok, true); room = JSON.parse(rejoined.value);
+  const finishedTurn = new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Computer did not complete its turn')), 5000);
+    const listener = update => {
+      if (update.key !== key) return;
+      const nextRoom = JSON.parse(update.value);
+      if (nextRoom.activityState.moves !== 2) return;
+      clearTimeout(timer); socket.off('shared:update', listener); resolve(nextRoom);
+    };
+    socket.on('shared:update', listener);
+  });
+  assert.equal((await action(host, 'pause', { paused: false })).ok, true);
+  room = await finishedTurn;
+  assert.equal(room.activityState.turnIndex, 0);
+  assert.deepEqual(room.activityState.jumpPath, []);
+  assert.equal(room.activityState.lastMove.playerId, room.activityState.seats[1].playerId);
+  const oldId = room.activityState.id;
+  assert.equal((await action(host, 'restart')).ok, true);
+  assert.notEqual(room.activityState.id, oldId);
+  assert.equal(room.activityState.seats[1].isComputer, true);
+  assert.equal(room.activityState.moves, 0);
+});

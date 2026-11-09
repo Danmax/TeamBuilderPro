@@ -336,7 +336,7 @@ window.TEAM_BUILDER_STATIC_DATA = {
     { id: 'presentation', icon: '📽️', label: 'Presentation' },
     { id: 'slides-studio', icon: '🎞️', label: 'Slides Studio' },
     { id: 'dj-booth', icon: '🎚️', label: 'DJ Booth' },
-    { id: 'survey-clash', icon: '📣', label: 'Survey Clash' },
+    { id: 'survey-clash', icon: '📣', label: 'Family Face-Off' },
     { id: 'battleship', icon: '🚢', label: 'Battleship' },
     { id: 'bingo', icon: '🎟️', label: 'Bingo' },
     { id: 'backgammon', icon: '🎲', label: 'Backgammon' },
@@ -424,7 +424,7 @@ window.TEAM_BUILDER_STATIC_DATA = {
     yellow: { label: 'Yellow', accent: '#ffe066', glow: 'rgba(255,224,102,0.42)', dark: '#7c5d00' }
   },
   AI_GENERATION_TARGETS: [
-    { id: 'survey-clash', label: 'Survey Clash' },
+    { id: 'survey-clash', label: 'Family Face-Off' },
     { id: 'lightning-trivia', label: 'Lightning Trivia' },
     { id: 'emoji-charades', label: 'Emoji Charades' },
     { id: 'regular-trivia', label: 'Trivia Battle' },

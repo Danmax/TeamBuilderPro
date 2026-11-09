@@ -3,6 +3,8 @@ const fs = require('fs');
 const crypto = require('crypto');
 const Checkers = require('./assets/js/games/checkers-core');
 const ChineseCheckers = require('./assets/js/games/chinese-checkers-core');
+const ChineseCheckersAI = require('./assets/js/games/chinese-checkers-ai');
+const chineseCheckersTimers = new Map();
 const Memory = require('./assets/js/games/memory-core');
 const memoryTimers = new Map();
 const express = require('express');
@@ -912,6 +914,7 @@ function listCommunityRooms() {
 }
 
 function deleteRoomState(key) {
+  clearChineseCheckersTimer(key);
   clearMemoryTimer(key);
   if (!isRoomKey(key)) return false;
   const room = getRoomSnapshot(key);
@@ -1171,7 +1174,7 @@ function getRoomParticipant(room, playerId = '', playerName = '') {
 function getRoomActor(key, payload, room = getRoomSnapshot(key), options = {}) {
   const playerId = String(payload?.actorPlayerId || payload?.playerId || '').trim().slice(0, 64);
   const actorToken = String(payload?.actorToken || '').trim();
-  if (!playerId || !isValidActorToken(actorToken) || !room) return null;
+  if (!playerId || playerId.startsWith('computer-') || !isValidActorToken(actorToken) || !room) return null;
   const participant = getRoomParticipant(room, playerId, '');
   if (!participant) return null;
   const meta = getRoomAccessMeta(key);
@@ -1275,6 +1278,7 @@ function normalizeServerParticipant(rawParticipant, isHost = false) {
     name,
     avatar: String(rawParticipant.avatar || '👤').replace(/[<>]/g, '').trim().slice(0, 8) || '👤',
     score: Number.isFinite(Number(rawParticipant.score)) ? Number(rawParticipant.score) : 0,
+    isComputer: false,
     isHost,
     ready: rawParticipant.ready !== false
   };
@@ -1891,7 +1895,7 @@ function clearMemoryTimer(key) {
   memoryTimers.delete(key);
 }
 
-function publishMemoryRoom(key, room) {
+function publishGameRoom(key, room) {
   room.lastUpdate = Date.now();
   room.revision = (Number(room.revision) || 0) + 1;
   const value = JSON.stringify(room);
@@ -1912,7 +1916,7 @@ function scheduleMemoryReveal(key, game) {
     const resolved = Memory.resolveMismatch(room.activityState, room.participants);
     if (resolved !== room.activityState) {
       room.activityState = resolved;
-      publishMemoryRoom(key, room);
+      publishGameRoom(key, room);
     } else scheduleMemoryReveal(key, room.activityState);
   }, Math.max(0, game.hideAt - Date.now()));
   timer.unref();
@@ -1927,11 +1931,40 @@ function startMemoryRound(key, room, options = {}) {
   scheduleRoomMetaPersist();
 }
 
+function clearChineseCheckersTimer(key) {
+  clearTimeout(chineseCheckersTimers.get(key));
+  chineseCheckersTimers.delete(key);
+}
+
+function scheduleChineseCheckersTurn(key, game) {
+  clearChineseCheckersTimer(key);
+  if (game?.phase !== 'playing' || game.paused || !game.seats[game.turnIndex]?.isComputer) return;
+  const timer = setTimeout(() => {
+    chineseCheckersTimers.delete(key);
+    const room = getRoomSnapshot(key);
+    if (room?.currentActivity !== 'chinese-checkers' || room.activityState?.id !== game.id || room.activityState.version !== game.version) return;
+    room.activityState = ChineseCheckersAI.playTurn(room.activityState);
+    publishGameRoom(key, room);
+    scheduleChineseCheckersTurn(key, room.activityState);
+  }, 700);
+  timer.unref();
+  chineseCheckersTimers.set(key, timer);
+}
+
+function fillChineseCheckersComputers(game) {
+  if (game.phase !== 'setup') throw new Error('Add computers before starting the round.');
+  let next = game;
+  game.seats.forEach((seat, index) => {
+    if (!seat) next = ChineseCheckers.join(next, { id: `computer-${crypto.randomUUID()}`, name: `Computer ${index + 1}`, isComputer: true }, index);
+  });
+  return next;
+}
+
 function createChineseCheckersRound(room, playerCount = 2, previousSeats = null) {
   const host = room.participants.find(player => player.name === room.host);
   let game = ChineseCheckers.createGame(previousSeats ? [] : room.participants, { playerCount, hostId: host?.id, id: crypto.randomUUID() });
   if (previousSeats) previousSeats.forEach((seat, index) => {
-    const player = room.participants.find(person => person.id === seat?.playerId);
+    const player = seat?.isComputer ? { id: seat.playerId, name: seat.name, isComputer: true } : room.participants.find(person => person.id === seat?.playerId);
     if (player && index < game.playerCount) game = ChineseCheckers.join(game, player, index);
   });
   return game;
@@ -1965,7 +1998,7 @@ io.on('connection', socket => {
       ack?.({ ok: false, error: 'Room not found or access denied' });
       return;
     }
-    if (!playerId || !playerName || !isValidActorToken(actorToken)) {
+    if (!playerId || playerId.startsWith('computer-') || !playerName || !isValidActorToken(actorToken)) {
       ack?.({ ok: false, error: 'Invalid participant identity' });
       return;
     }
@@ -2053,6 +2086,7 @@ io.on('connection', socket => {
       room.activityState = Memory.reconcilePlayers(room.activityState, room.participants);
       scheduleMemoryReveal(key, room.activityState);
     } else if (!room.participants.length) {
+      clearChineseCheckersTimer(key);
       clearMemoryTimer(key);
       if (meta) meta.memory = null;
     }
@@ -2103,7 +2137,7 @@ io.on('connection', socket => {
       } else if (payload.action === 'flip') {
         room.activityState = Memory.flip(game, getRoomAccessMeta(key)?.memory, actor.playerId, payload.index);
       } else throw new Error('Unknown Memory action.');
-      const value = publishMemoryRoom(key, room);
+      const value = publishGameRoom(key, room);
       scheduleMemoryReveal(key, room.activityState);
       ack?.({ ok: true, value });
     } catch (error) { ack?.({ ok: false, error: error.message }); }
@@ -2122,15 +2156,22 @@ io.on('connection', socket => {
     try {
       const game = room.activityState;
       if (payload.gameId !== game.id || payload.version !== game.version) throw new Error('The board changed. Choose again.');
-      if (['configure', 'start', 'pause', 'restart'].includes(payload.action) && !actor.isHost) throw new Error('Only the host can change round controls.');
+      if (['configure', 'start', 'pause', 'restart', 'fill-computers', 'play-computer', 'remove-computer'].includes(payload.action) && !actor.isHost) throw new Error('Only the host can change round controls.');
       let next;
       switch (payload.action) {
         case 'join': next = ChineseCheckers.join(game, actor.participant, payload.seatIndex); break;
         case 'leave': next = ChineseCheckers.leave(game, actor.playerId); break;
         case 'configure': next = ChineseCheckers.configure(game, payload.playerCount); break;
+        case 'fill-computers': next = fillChineseCheckersComputers(game); break;
+        case 'remove-computer': {
+          const seat = game.seats[payload.seatIndex];
+          if (!seat?.isComputer) throw new Error('Choose a computer seat.');
+          next = ChineseCheckers.leave(game, seat.playerId); break;
+        }
+        case 'play-computer':
         case 'start':
-          if (game.seats.some(seat => seat && !room.participants.some(player => player.id === seat.playerId))) throw new Error('A seated player has left. Wait for them to return or start a new round.');
-          next = ChineseCheckers.start(game); break;
+          if (game.seats.some(seat => seat && !seat.isComputer && !room.participants.some(player => player.id === seat.playerId))) throw new Error('A seated player has left. Wait for them to return or start a new round.');
+          next = ChineseCheckers.start(payload.action === 'play-computer' ? fillChineseCheckersComputers(game) : game); break;
         case 'pause': next = ChineseCheckers.pause(game, payload.paused); break;
         case 'restart': next = createChineseCheckersRound(room, game.playerCount, game.seats); break;
         case 'move': next = ChineseCheckers.move(game, actor.playerId, payload.from, payload.to); break;
@@ -2139,6 +2180,7 @@ io.on('connection', socket => {
         default: throw new Error('Unknown Chinese Checkers action.');
       }
       room.activityState = next;
+      scheduleChineseCheckersTurn(key, next);
       room.lastUpdate = Date.now();
       room.revision = (Number(room.revision) || 0) + 1;
       const value = JSON.stringify(room);
@@ -2313,6 +2355,7 @@ io.on('connection', socket => {
       scheduleRoomMetaPersist();
     }
     state.set(key, JSON.stringify(nextRoom));
+    scheduleChineseCheckersTurn(key, nextRoom.currentActivity === 'chinese-checkers' ? nextRoom.activityState : null);
     schedulePersist();
     io.to(key).emit('shared:update', { key, value: state.get(key) });
     emitVoiceState(key, safeParseJsonObject(strValue));
@@ -2597,6 +2640,7 @@ loadRoomMetaFromDisk();
 for (const [key, value] of state) {
   const room = safeParseJsonObject(value);
   if (room?.currentActivity === 'memory') scheduleMemoryReveal(key, room.activityState);
+  if (room?.currentActivity === 'chinese-checkers') scheduleChineseCheckersTurn(key, room.activityState);
 }
 sweepExpiredRooms({ log: true });
 Promise.resolve()

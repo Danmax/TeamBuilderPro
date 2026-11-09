@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Survey Clash</title>
+<title>Family Face-Off</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@700;800&family=Outfit:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -508,18 +508,19 @@
     }
   }
 </style>
+<link rel="stylesheet" href="/assets/css/survey-board.css">
 </head>
 <body>
 <main class="app">
   <nav aria-label="Session navigation" style="margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
     <a class="btn" href="/" style="text-decoration:none;">← Back to Team Builder session</a>
-    <span style="color:var(--muted);">Standalone board · To play with your room, open Survey Clash from the session lobby.</span>
+    <span style="color:var(--muted);">Standalone board · To play with your room, open Family Face-Off from the session lobby.</span>
   </nav>
   <section id="setup" class="setup-panel">
     <div class="brand">
-      <div class="brand-mark">SC</div>
+      <div class="brand-mark">FF</div>
       <div>
-        <h1>Survey Clash</h1>
+        <h1>Family Face-Off</h1>
         <div class="subtitle">Crowd answers. Team pressure. Host-controlled sounds.</div>
       </div>
     </div>
@@ -555,9 +556,9 @@
   <section id="game" class="hidden">
     <div class="topbar">
       <div class="brand">
-        <div class="brand-mark">SC</div>
+        <div class="brand-mark">FF</div>
         <div>
-          <h1>Survey Clash</h1>
+          <h1>Family Face-Off</h1>
           <div class="subtitle">Round <span id="roundNumber">1</span> of <span id="roundTotal">4</span></div>
         </div>
       </div>
@@ -579,7 +580,7 @@
     </div>
 
     <div class="layout">
-      <section class="stage">
+      <section class="stage ff-stage">
         <div class="question-row">
           <div class="question">
             <div class="label">Survey says</div>
@@ -591,7 +592,8 @@
             <div id="strike3" class="strike">X</div>
           </div>
         </div>
-        <div id="answerBoard" class="board"></div>
+        <div class="ff-marquee"><div id="answerBoard" class="ff-answers" role="group" aria-label="Survey answer board"></div></div>
+        <p class="ff-board-hint">Click a numbered panel to reveal an answer, or submit a player’s guess.</p>
         <div class="round-footer">
           <div class="metric">
             <span>Active team</span>
@@ -682,7 +684,9 @@
   </div>
 </div>
 
+<script src="/assets/js/survey-board.js"></script>
 <script>
+const renderAnswerBoard = TeamBuilderSurveyBoard.createBoardRenderer();
 const QUESTIONS = [
   {
     prompt: "Name something people forget when leaving the house.",
@@ -844,18 +848,7 @@ function render() {
     $(`#strike${num}`).classList.toggle("on", state.strikes >= num);
   });
 
-  $("#answerBoard").innerHTML = q.answers.map((answer, index) => {
-    const revealed = state.revealed[index];
-    return `
-      <div class="answer-slot ${revealed ? "revealed" : ""}">
-        <div class="answer-rank">${index + 1}</div>
-        <div class="answer-body">
-          <div class="answer-text">${revealed ? escapeHtml(answer.text) : "Hidden Answer"}</div>
-        </div>
-        <div class="answer-points">${revealed ? answer.points : "--"}</div>
-      </div>
-    `;
-  }).join("");
+  $("#answerBoard").innerHTML = renderAnswerBoard(q, state.revealed, true, `${state.startedAt}:${state.roundIndex}`);
 
   $("#nextRoundBtn").disabled = state.roundIndex >= state.roundCount - 1;
 }
@@ -871,6 +864,7 @@ function escapeHtml(value) {
 }
 
 function startGame() {
+  state.startedAt = Date.now();
   state.teamNames = [
     $("#teamAInput").value.trim() || "Team 1",
     $("#teamBInput").value.trim() || "Team 2"
@@ -1056,6 +1050,10 @@ function resetGame() {
 }
 
 function bind() {
+  $("#answerBoard").addEventListener("click", event => {
+    const panel = event.target.closest('[data-action="survey-clash-reveal-answer"]');
+    if (panel && !panel.disabled) revealAnswer(Number(panel.dataset.index));
+  });
   loadPrefs();
   $("#volumeInput").value = String(Math.round(state.volume * 100));
   $("#soundStartInput").value = state.muted ? "off" : "on";
@@ -1087,7 +1085,7 @@ function bind() {
     button.addEventListener("click", () => playSound(button.dataset.sound));
   });
   document.addEventListener("keydown", event => {
-    if ($("#game").classList.contains("hidden")) return;
+    if ($("#game").classList.contains("hidden") || event.target.closest("input, textarea, select, button, a")) return;
     if (event.key === "x" || event.key === "X") addStrike();
     if (event.key === "r" || event.key === "R") revealNext();
     if (event.key === " ") {

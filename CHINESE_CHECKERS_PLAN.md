@@ -1,11 +1,11 @@
 # Chinese Checkers implementation plan
 
 Status: implemented locally on November 9, 2026. Not deployed or pushed as part of this implementation.
-Decision: multiplayer first; computer opponents are deferred.
+Decision: multiplayer first, followed by computer opponents (implemented November 9, 2026).
 
 ## First release
 
-Add a room activity named **Chinese Checkers** (`chinese-checkers`) for 2, 3, 4, or 6 human players, with spectators. Use one color and ten marbles per player. Five-player games and multiple colors per player are excluded from the first release to keep setup balanced and simple.
+Add a room activity named **Chinese Checkers** (`chinese-checkers`) for 2, 3, 4, or 6 players, mixing humans and computer opponents, with spectators. Use one color and ten marbles per player. Five-player games and multiple colors per player are excluded from the first release to keep setup balanced and simple.
 
 The board has 121 holes: a central 61-hole hexagon plus six ten-hole triangular arms. Use axial coordinates and a canonical board topology shared by rendering, move validation, and tests. Assign opposite camps for two players, alternating camps for three, two opposite pairs for four, and all camps for six. Each goal is the camp opposite its starting camp.
 
@@ -77,7 +77,7 @@ Reconnects restore a confirmed intermediate jump sequence, including the same ma
 
 ## Later releases
 
-Computer opponents, optional long-jump variants, team modes, multiple colors per player, tournament standings, and an explicitly defined anti-blocking rule. Keep the core engine UI-independent so bots can reuse the same legal-move generator later.
+Optional long-jump variants, team modes, multiple colors per player, tournament standings, and an explicitly defined anti-blocking rule. Computer opponents now reuse the same legal-move generator, with server-controlled turns and host-managed setup.
 
 ## Implementation verification
 

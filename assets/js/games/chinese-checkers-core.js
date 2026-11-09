@@ -19,7 +19,7 @@
   const BY_ID = Object.fromEntries(HOLES.map(hole => [hole.id, hole]));
   const CAMP_HOLES = CAMPS.map((_, camp) => HOLES.filter(hole => hole.camp === camp).map(hole => hole.id));
   function boardFor(count) { return Object.fromEntries(HOLES.map(hole => [hole.id, LAYOUTS[count].includes(hole.camp) ? hole.camp : null])); }
-  function seatFor(player, camp) { return { playerId: player.id || player.playerId, name: String(player.name || 'Player').slice(0, 32), camp, goal: (camp + 3) % 6 }; }
+  function seatFor(player, camp) { return { playerId: player.id || player.playerId, name: String(player.name || 'Player').slice(0, 32), camp, goal: (camp + 3) % 6, isComputer: player.isComputer === true }; }
   function createGame(participants = [], options = {}) {
     const playerCount = Object.hasOwn(LAYOUTS, options.playerCount) ? Number(options.playerCount) : 2;
     const host = participants.find(player => player.id === options.hostId) || participants[0];
