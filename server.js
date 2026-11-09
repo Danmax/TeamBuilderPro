@@ -140,21 +140,12 @@ function maskConfiguredSecret(secret) {
 }
 
 function getDefaultPreferences() {
-  const enabledByDefault = new Set([
-    'lightning-trivia',
-    'icebreaker',
-    'pulse-check',
-    'wordle',
-    'word-chain',
-    'spin-wheel',
+  const disabledByDefault = new Set([
+    'dj-booth',
     'slides-studio',
-    'battleship',
-    'survey-clash',
-    'bingo',
-    'chess-lobby',
-    'checkers',
-    'chinese-checkers',
-    'memory'
+    'presentation',
+    'cosmos-bound',
+    'spin-wheel'
   ]);
   return {
     enableFeedbackHub: true,
@@ -169,7 +160,7 @@ function getDefaultPreferences() {
     autoRevealLightning: true,
     allowAnswerChanges: true,
     dynamicScoring: true,
-    enabledActivities: Object.fromEntries(ALL_ACTIVITY_IDS.map(activityId => [activityId, enabledByDefault.has(activityId)]))
+    enabledActivities: Object.fromEntries(ALL_ACTIVITY_IDS.map(activityId => [activityId, !disabledByDefault.has(activityId)]))
   };
 }
 

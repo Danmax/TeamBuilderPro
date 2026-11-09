@@ -473,22 +473,12 @@ function applyColorTheme(branding) {
 }
 
 function getDefaultAppPreferences() {
-  const enabledByDefault = new Set([
-    'lightning-trivia',
-    'icebreaker',
-    'pulse-check',
-    'wordle',
-    'word-chain',
-    'spin-wheel',
+  const disabledByDefault = new Set([
+    'dj-booth',
     'slides-studio',
-    'battleship',
-    'survey-clash',
-    'bingo',
-    'rock-paper-scissors',
-    'chess-lobby',
-    'checkers',
-    'chinese-checkers',
-    'memory'
+    'presentation',
+    'cosmos-bound',
+    'spin-wheel'
   ]);
   return {
     enableFeedbackHub: true,
@@ -504,7 +494,7 @@ function getDefaultAppPreferences() {
     dynamicScoring: true,
     enableMessageBoard: true,
     communityHostAllowlist: [],
-    enabledActivities: Object.fromEntries((ALL_ACTIVITY_IDS || []).map(activityId => [activityId, enabledByDefault.has(activityId)]))
+    enabledActivities: Object.fromEntries((ALL_ACTIVITY_IDS || []).map(activityId => [activityId, !disabledByDefault.has(activityId)]))
   };
 }
 
