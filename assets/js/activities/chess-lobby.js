@@ -1176,6 +1176,8 @@ function renderChessGameView(state, game) {
   const winnerSeat = game.winnerPlayerId
     ? [getChessSeat(game, 'white'), getChessSeat(game, 'black')].find(seat => seat.playerId === game.winnerPlayerId)
     : null;
+  const victory = { key: `${APP.roomCode}:${APP.player?.id}:chess:${game.id}`, kind: 'Chess', finished: isChessGameFinished(game), finishedAt: game.finishedAt, winnerId: winnerSeat?.playerId || '', winnerName: winnerSeat?.playerName || '', viewerId: myId, winner: APP.room.participants.find(player => player.id === winnerSeat?.playerId) || winnerSeat, reason: game.status === 'checkmate' ? 'Checkmate! A finish fit for a champion.' : game.status === 'timeout' ? 'A win on the clock. Well played!' : 'The match is yours. Well played!' };
+  window.TeamBuilderGameVictory.observe(victory);
   const timerSnapshot = getChessTimerSnapshot(game);
   const statusAlertMarkup = isChessGameFinished(game) || game.status === 'check' ? `
     <div style="padding:16px 18px;border-radius:22px;background:linear-gradient(135deg, rgba(255,209,102,0.16), rgba(0,210,211,0.08));border:1px solid rgba(255,209,102,0.26);">
@@ -1258,7 +1260,7 @@ function renderChessGameView(state, game) {
       </div>
 
       <div class="game-mobile-side" style="display:grid;gap:18px;">
-        ${statusAlertMarkup}
+        ${winnerSeat && isChessGameFinished(game) ? window.TeamBuilderGameVictory.banner(victory) : statusAlertMarkup}
         <div style="background:linear-gradient(180deg,rgba(16,18,24,0.96),rgba(8,8,12,0.98));border:1px solid rgba(255,255,255,0.12);border-radius:24px;padding:18px;">
           <div style="font-family:'Fraunces',serif;font-size:1.25rem;margin-bottom:12px;">Match</div>
           ${['white', 'black'].map(color => {

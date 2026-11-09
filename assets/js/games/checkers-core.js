@@ -91,7 +91,7 @@
     if (continuation) return next;
     next.turn = other(game.turn);
     if (!legalMoves(next).length) {
-      next.phase = 'finished'; next.winner = game.turn;
+      next.phase = 'finished'; next.winner = game.turn; next.finishedAt = Date.now();
       return next;
     }
     const key = positionKey(next);

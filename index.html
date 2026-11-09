@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="/assets/css/spin-wheel.css">
 <link rel="stylesheet" href="/assets/css/community-plaza.css">
 <link rel="stylesheet" href="/assets/css/character-editor.css">
+<link rel="stylesheet" href="/assets/css/game-victory.css">
 </head>
 <body>
 <div class="atmosphere"><div class="mesh"></div><div class="mesh"></div><div class="mesh"></div></div>
@@ -42,6 +43,7 @@
 <script src="/assets/js/character-editor.js"></script>
 <script src="/assets/js/community-plaza-core.js"></script>
 <script src="/assets/js/community-plaza.js"></script>
+<script src="/assets/js/game-victory.js"></script>
 <script src="/assets/js/activities/cosmos-bound.js"></script>
 <script src="/assets/js/activities/dj-booth.js"></script>
 <script src="/assets/js/activities/slides-studio.js"></script>
@@ -5597,6 +5599,7 @@ function render() {
       return;
     }
   }
+  TeamBuilderGameVictory.beginFrame();
   let html = '';
   syncActiveContentBanks();
   preserveDjBoothPlayersBeforeRender();
@@ -5638,6 +5641,7 @@ function render() {
   html += renderFooter();
   
   app.innerHTML = html;
+  TeamBuilderGameVictory.endFrame();
   if (APP.screen !== 'lobby' || APP.room?.currentActivity !== 'survey-clash') surveyClashFeedback.clear();
   if (APP.screen === 'admin' && APP.admin.authenticated) restoreAdminSettingsDraft();
   applyActivityFilters();

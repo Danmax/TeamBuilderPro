@@ -42,6 +42,9 @@
     const status = game.phase === 'finished'
       ? game.winner ? `${game.players[game.winner]?.name || label(game.winner)} wins!` : `Draw. ${game.drawReason}`
       : game.phase === 'waiting' ? 'Waiting for a second player' : `${turnName}’s turn · ${label(game.turn)}`;
+    const winner = game.winner ? game.players[game.winner] : null;
+    const victory = { key: `${APP.roomCode}:${APP.player?.id}:checkers:${game.startedAt}`, kind: 'Checkers', finished: game.phase === 'finished', finishedAt: game.finishedAt, winnerId: winner?.playerId || '', winnerName: winner?.name || '', viewerId: APP.player?.id, winner: APP.room.participants.find(player => player.id === winner?.playerId), reason: 'The board is yours. Brilliant moves!' };
+    root.TeamBuilderGameVictory.observe(victory);
     const missingPlayer = ['b', 'r'].some(side => game.players[side] && !APP.room.participants.some(player => player.id === game.players[side].playerId));
     const cells = Array.from({ length: 64 }, (_, displayIndex) => {
       const index = color === 'r' ? 63 - displayIndex : displayIndex;
@@ -56,7 +59,7 @@
     }).join('');
     return `<section class="checkers-game" aria-label="Checkers">
       <div class="checkers-heading"><div><h2>Checkers</h2><p class="studio-help">${color ? `You play ${label(color)}. Select a piece, then a highlighted square.` : 'Watch the match live.'}</p></div>${isHost ? '<button class="btn-secondary" data-action="checkers-restart">New match</button>' : ''}</div>
-      <div class="checkers-status" role="status" aria-live="polite">${escapeHtml(status)}</div>
+      ${winner && game.phase === 'finished' ? root.TeamBuilderGameVictory.banner(victory) : `<div class="checkers-status" role="status" aria-live="polite">${escapeHtml(status)}</div>`}
       <p class="studio-help" id="checkersRulesSummary">${rules.flyingKings ? 'Flying kings' : 'Single-step kings'} · ${rules.mandatoryCaptures ? 'Required captures' : 'Optional captures'}</p>
       ${missingPlayer ? '<p class="studio-help">A player has left the room. The host can start a new match with the current players.</p>' : ''}
       ${game.phase === 'waiting' && !color ? '<button class="btn-primary" data-action="checkers-join">Join match</button>' : ''}
