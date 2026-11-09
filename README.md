@@ -191,8 +191,11 @@ Each prompt includes concrete example outputs showing the exact data structure e
 - `ADMIN_TOKEN`
 - `DEV_ADMIN_PASSWORD`
 - `ADMIN_TEMP_PASSWORD`
-- `DATABASE_URL`
-- `PGSSL`
+- `DATABASE_URL` (MySQL/MariaDB or PostgreSQL)
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` (MySQL alternative to a URL)
+- `MYSQL_SSL_MODE` (`verify_identity` for remote hosts; `disable` for same-server loopback)
+- `DB_SSL_CA` (optional CA certificate contents for MySQL TLS)
+- `PGSSL` (PostgreSQL only)
 
 Optional browser globals for the Supabase fallback path:
 
@@ -315,3 +318,17 @@ Open **Create Character** from the dashboard, **Customize your character** in Ed
 - **Background:** scene style and background color, including a transparent option.
 
 Choose a palette color or use the custom color picker. **Surprise me** creates a random draft you can continue editing. **Save character** stores it in the player profile and updates the current room; **Cancel** discards the draft. Saved characters survive a page reload, travel with the player into new rooms, and appear on the dashboard, profile, community session previews, and member gatherings. The existing emoji remains as the character's badge.
+
+### MySQL connection
+
+`npm start` reads the ignored local `.env` file with Node 22. The app supports MySQL/MariaDB and PostgreSQL for global settings and reusable question collections. With MySQL, supply `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD`. A `mysql://` or `mariadb://` `DATABASE_URL` is also accepted and takes precedence. Copy `.env.example` for the variable names; keep real credentials out of Git.
+
+Run `npm run check:database` for a read-only connection check. It reports the selected database, authenticated user, server version, and whether TLS is active; it does not print passwords or create tables. Remote MySQL connections default to verified TLS. When deploying to Hostinger, the app connects to `127.0.0.1:3306`; use the account's remote database host only from outside Hostinger. Configure the production environment separately from the ignored local `.env`.
+
+On application startup, the settings adapter creates `app_config` if needed, loads existing settings, and uses parameterized updates when admin settings or collections change. PostgreSQL support and local-file fallback remain available. Rooms, session secrets, and feedback continue using the existing runtime files; this change does not migrate those datasets.
+
+### Chess and Checkers win celebrations
+
+A new win shows a trophy, the winner's avatar or custom character, and a confetti celebration. The winner sees **Victory!**; other viewers see the winning player's name. It dismisses after 4.5 seconds, with **Back to board** and Escape available sooner. A winner banner stays on the board. Live updates and refreshes do not replay the celebration; rematches can celebrate again. Draws and old archived results do not trigger a win animation. Reduced-motion mode shows a static result without confetti.
+
+The next card games are described in [CARD_GAMES_PLAN.md](CARD_GAMES_PLAN.md).

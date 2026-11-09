@@ -20,14 +20,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-let pg = null;
-try {
-  // Optional dependency for DATABASE_URL-backed config storage.
-  // Falls back to file persistence if unavailable.
-  pg = require('pg');
-} catch (_error) {
-  pg = null;
-}
+const { openConfigDatabase } = require('./lib/config-database');
 
 const app = express();
 const server = http.createServer(app);
@@ -55,7 +48,6 @@ const DATA_FILE = path.join(DATA_DIR, 'shared-state.json');
 const FEEDBACK_FILE = path.join(DATA_DIR, 'feedback-state.json');
 const ROOM_META_FILE = path.join(DATA_DIR, 'room-meta.json');
 const DJ_UPLOAD_DIR = path.join(DATA_DIR, 'dj-library');
-const DATABASE_URL = String(process.env.DATABASE_URL || '').trim();
 const IS_PRODUCTION = String(process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
 const GLOBAL_CONFIG_DB_KEY = 'global_config';
 const ALL_ACTIVITY_IDS = [
@@ -504,32 +496,9 @@ function scheduleRoomMetaPersist() {
 }
 
 async function initializeConfigDatabase() {
-  if (!DATABASE_URL) return;
-  if (!pg?.Pool) {
-    // eslint-disable-next-line no-console
-    console.warn('DATABASE_URL is set but pg is unavailable. Falling back to file config storage.');
-    return;
-  }
-  try {
-    // Security: Enforce stricter SSL in production if supported by provider
-    const sslConfig = process.env.PGSSL === 'disable' 
-      ? false 
-      : { rejectUnauthorized: true }; 
-
-    configDb = new pg.Pool({
-      connectionString: DATABASE_URL,
-      ssl: sslConfig
-    });
-    await configDb.query(`
-      CREATE TABLE IF NOT EXISTS app_config (
-        key TEXT PRIMARY KEY,
-        value JSONB NOT NULL,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `);
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('Failed to initialize config database:', error.message);
+  try { configDb = await openConfigDatabase(); }
+  catch (error) {
+    console.error(`Failed to initialize config database (${error.code || 'CONFIGURATION_ERROR'}). Using local file config storage.`);
     configDb = null;
   }
 }
@@ -537,11 +506,7 @@ async function initializeConfigDatabase() {
 async function loadConfigFromDatabase() {
   if (!configDb) return;
   try {
-    const result = await configDb.query(
-      'SELECT value FROM app_config WHERE key = $1 LIMIT 1',
-      [GLOBAL_CONFIG_DB_KEY]
-    );
-    const stored = result.rows?.[0]?.value;
+    const stored = await configDb.load(GLOBAL_CONFIG_DB_KEY);
     if (!stored || typeof stored !== 'object') return;
     feedbackState.config = normalizeConfig(stored.config || {});
     feedbackState.collections = normalizeCollections(stored.collections || []);
@@ -558,13 +523,7 @@ async function persistConfigToDatabase() {
     collections: feedbackState.collections
   };
   try {
-    await configDb.query(
-      `INSERT INTO app_config (key, value, updated_at)
-       VALUES ($1, $2::jsonb, NOW())
-       ON CONFLICT (key)
-       DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
-      [GLOBAL_CONFIG_DB_KEY, JSON.stringify(value)]
-    );
+    await configDb.save(GLOBAL_CONFIG_DB_KEY, value);
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Failed to persist config to database:', error.message);
@@ -2834,7 +2793,7 @@ Promise.resolve()
       console.log(`Environment: NODE_ENV=${process.env.NODE_ENV || 'undefined'} ADMIN_TOKEN=${maskConfiguredSecret(getAdminToken())}`);
       if (configDb) {
         // eslint-disable-next-line no-console
-        console.log('Global config storage: PostgreSQL');
+        console.log(`Global config storage: ${configDb.kind}`);
       } else {
         // eslint-disable-next-line no-console
         console.log('Global config storage: Local file');
