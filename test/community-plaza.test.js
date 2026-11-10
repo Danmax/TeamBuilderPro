@@ -45,7 +45,7 @@ test('community themes constrain scene and color values used in markup', () => {
   assert.equal(sceneAttributes({ scene: '\" onclick=bad', accent: 'red; background:url(bad)' }), 'data-plaza-scene="plaza" style="--plaza-accent:#37799b"');
 });
 
-test('community chat renders once above the scene and games while private message boards stay below', () => {
+test('community chat renders once below the scene and above games while private message boards stay below', () => {
   const fs = require('node:fs'), vm = require('node:vm');
   const context = {
     APP: { roomCode: 'PLAZA1', player: { id: 'host', name: 'Host' }, preferences: {}, voice: {}, room: { code: 'PLAZA1', host: 'Host', roomType: 'community', participants: [], communityChat: [], communityTheme: { scene: 'beach' } } },
@@ -62,7 +62,7 @@ test('community chat renders once above the scene and games while private messag
   vm.runInNewContext(fs.readFileSync(require.resolve('../assets/js/room-renderers-core'), 'utf8'), context);
   const output = context.renderLobby();
   assert.equal((output.match(/id="communityChatInput"/g) || []).length, 1);
-  assert.ok(output.indexOf('id="communityChatInput"') < output.indexOf('id="test-scene"'));
+  assert.ok(output.indexOf('id="communityChatInput"') > output.indexOf('id="test-scene"'));
   assert.ok(output.indexOf('id="communityChatInput"') < output.indexOf('id="activityLibrary"'));
   assert.ok(output.includes('data-action="plaza-edit-theme"'));
   assert.match(output, /data-action="start-bingo"[^>]*display:none/);

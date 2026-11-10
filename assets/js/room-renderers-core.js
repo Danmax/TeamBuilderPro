@@ -117,8 +117,8 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
       <p class="tagline">Room: ${safeRoomCode}${isCommunityRoom ? ' • Community Lobby' : ''}</p>
     </div>
 
-    ${isCommunityRoom ? lobbyChat : ''}
     ${isCommunityRoom ? TeamBuilderCommunityPlaza.renderRoomPlaza(APP.room) : ''}
+    ${isCommunityRoom ? lobbyChat : ''}
 
     ${canManageCommunity ? `
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;">
