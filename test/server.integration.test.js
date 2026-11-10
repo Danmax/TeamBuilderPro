@@ -947,7 +947,7 @@ test('card tables deal all three games privately, authenticate moves, reject sha
       assert.equal(JSON.parse(first.value).activityState.version,JSON.parse(second.value).activityState.version);
       const stale=await emitAck(socket,'cards:action',{...payload,actionId:require('node:crypto').randomUUID()});assert.equal(stale.ok,false);
     }
-    // A hand can complete without revealing the undealt deck or folded cards.
+    // The undealt deck remains private; Hold’em reveals all dealt hands only after completion.
     for(let step=0;step<40;step++) {
       snapshot=JSON.parse((await emitAck(hostSocket,'shared:get',{key})).value).activityState;
       if(snapshot.phase!=='playing')break;
@@ -963,7 +963,7 @@ test('card tables deal all three games privately, authenticate moves, reject sha
     const privateFile=path.join(running.dataDir,'private-card-tables',`${key.slice(5)}.json`);assert.equal(fs.statSync(privateFile).mode&0o777,0o600);
     const closing=JSON.parse((await emitAck(hostSocket,'shared:get',{key})).value);
     assert.equal((await emitAck(hostSocket,'shared:set',{key,...identity,value:JSON.stringify({...closing,currentActivity:null,activityState:{}})})).ok,true);
-    assert.equal(fs.existsSync(privateFile),false);assert.equal((await emitAck(hostSocket,'cards:view',{key,...identity})).ok,false);
+    const bank=JSON.parse(fs.readFileSync(privateFile,'utf8'));assert.equal(bank.type,'bankroll');assert.deepEqual(bank.players,[]);assert.equal(bank.deck,undefined);assert.equal((await emitAck(hostSocket,'cards:view',{key,...identity})).ok,false);
   }
 });
 
@@ -1086,7 +1086,7 @@ test('house poker plays server turns, pauses safely and reveals the winning hous
     g=JSON.parse((await emitAck(socket,'shared:get',{key})).value).activityState;
     assert.equal(g.phase,'settled');assert.equal(g.results[0].playerId,house.id);
     assert.equal(g.players.find(p=>p.isHouse).shownCards.length,type==='five-card-draw'?5:2);
-    assert.deepEqual(g.players.find(p=>p.id===identity.actorPlayerId).shownCards,[]);assert.equal(g.deck,undefined);
+    assert.equal(g.players.find(p=>p.id===identity.actorPlayerId).shownCards.length,type==='texas-holdem'?2:0);assert.equal(g.deck,undefined);
     assert.equal(g.players.reduce((sum,p)=>sum+p.stack,0),2000);
   }
 });
@@ -1105,4 +1105,69 @@ test('house seats and paused computer turns survive restart without requiring hu
   assert.equal((await action('resume')).ok,true);
   for(let i=0;i<50;i++){const g=JSON.parse((await emitAck(socket,'shared:get',{key})).value).activityState;if(g.phase==='settled'||g.turnId===identity.actorPlayerId){assert.ok(g.version>restored.version);return;}await new Promise(resolve=>setTimeout(resolve,100));}
   assert.fail('Computer turn did not resume');
+});
+
+test('shared card bankrolls carry winnings and top-ups across games, lobby visits and server restarts', async t => {
+  const running=await startTestServer(t); let socket=await securitySocket(t,running.port), guestSocket=await securitySocket(t,running.port);
+  const {key,identity}=await securityRoom(socket,'CHIPS1');
+  const guest={actorPlayerId:'chips-guest',actorToken:'shared_chips_guest_actor_12345678901234567890'};
+  assert.equal((await emitAck(guestSocket,'room:join',{key,actorToken:guest.actorToken,playerId:guest.actorPlayerId,playerName:'Guest'})).ok,true);
+  const room=async()=>JSON.parse((await emitAck(socket,'shared:get',{key})).value);
+  const open=async type=>{
+    const current=await room();
+    const result=await emitAck(socket,'shared:set',{key,...identity,value:JSON.stringify({...current,currentActivity:type,activityState:{}})});
+    assert.equal(result.ok,true,result.error);
+  };
+  const action=async(actor,name,extra={})=>{
+    const game=(await room()).activityState;
+    return emitAck(actor===guest?guestSocket:socket,'cards:action',{key,...actor,tableId:game.id,handId:game.handId,version:game.version,actionId:require('node:crypto').randomUUID(),action:name,...extra});
+  };
+  const expected=new Map([[identity.actorPlayerId,1000],[guest.actorPlayerId,1000]]);
+  for(const type of ['texas-holdem','five-card-draw','blackjack']) {
+    await open(type);
+    for(const actor of [identity,guest]) {
+      const joined=await action(actor,'join'); assert.equal(joined.ok,true,joined.error);
+      assert.equal(JSON.parse(joined.value).activityState.players.find(p=>p.id===actor.actorPlayerId).stack,expected.get(actor.actorPlayerId));
+    }
+    assert.equal((await action(guest,'add-chips',{playerId:identity.actorPlayerId,amount:500})).ok,false);
+    const credited=await action(guest,'add-chips',{amount:500}); assert.equal(credited.ok,true,credited.error);
+    expected.set(guest.actorPlayerId,expected.get(guest.actorPlayerId)+500);
+    const creditedHost=await action(identity,'add-chips',{playerId:guest.actorPlayerId,amount:200}); assert.equal(creditedHost.ok,true,creditedHost.error);
+    expected.set(guest.actorPlayerId,expected.get(guest.actorPlayerId)+200);
+    const beforeDeal=(await room()).activityState;
+    assert.equal(beforeDeal.chipBalances.find(b=>b.playerId===guest.actorPlayerId).stack,expected.get(guest.actorPlayerId));
+    assert.equal((await action(identity,'deal')).ok,true);
+    for(let step=0;step<30;step++) {
+      const game=(await room()).activityState;
+      if(game.phase==='settled') break;
+      assert.equal((await action(identity,'add-chips',{amount:100})).ok,false);
+      const actor=game.turnId===identity.actorPlayerId?identity:guest;
+      const result=await action(actor,type==='blackjack'?'stand':'fold'); assert.equal(result.ok,true,result.error);
+    }
+    const completed=(await room()).activityState; assert.equal(completed.phase,'settled');
+    if(type==='texas-holdem') assert.ok(completed.players.every(p=>p.shownCards.length===2));
+    for(const p of completed.players) expected.set(p.id,p.stack);
+    await open(null);
+    const stored=JSON.parse(fs.readFileSync(path.join(running.dataDir,'private-card-tables',`${key.slice(5)}.json`),'utf8'));
+    assert.equal(stored.deck,undefined); assert.deepEqual(stored.players,[]);
+    assert.equal(stored.chipBalances[guest.actorPlayerId].stack,expected.get(guest.actorPlayerId));
+  }
+  const stopped=new Promise(resolve=>running.child.once('exit',resolve)); running.child.kill('SIGTERM'); await stopped;
+  const restarted=await startTestServer(t,{dataDir:running.dataDir});
+  socket=await securitySocket(t,restarted.port); guestSocket=await securitySocket(t,restarted.port);
+  await open('texas-holdem');
+  for(const actor of [identity,guest]) {
+    const result=await action(actor,'join'); assert.equal(result.ok,true,result.error);
+    assert.equal(JSON.parse(result.value).activityState.players.find(p=>p.id===actor.actorPlayerId).stack,expected.get(actor.actorPlayerId));
+  }
+  // Leaving and rejoining a seat cannot mint a fresh starting balance.
+  assert.equal((await action(guest,'leave')).ok,true);
+  const joined=await action(guest,'join'); assert.equal(joined.ok,true,joined.error);
+  assert.equal(JSON.parse(joined.value).activityState.players.find(p=>p.id===guest.actorPlayerId).stack,expected.get(guest.actorPlayerId));
+  // A top-up action identifier can only commit once.
+  const current=(await room()).activityState;
+  const payload={key,...guest,tableId:current.id,handId:current.handId,version:current.version,actionId:require('node:crypto').randomUUID(),action:'add-chips',amount:500};
+  const first=await emitAck(guestSocket,'cards:action',payload), duplicate=await emitAck(guestSocket,'cards:action',payload);
+  assert.equal(first.ok,true,first.error); assert.equal(duplicate.ok,true,duplicate.error);
+  assert.equal(JSON.parse(duplicate.value).activityState.players.find(p=>p.id===guest.actorPlayerId).stack,expected.get(guest.actorPlayerId)+500);
 });

@@ -954,9 +954,8 @@ function deleteRoomState(key) {
   clearChineseCheckersTimer(key);
   clearMemoryTimer(key);
   if (cardTimers.has(key)) clearTimeout(cardTimers.get(key));
-  const hadCardTable = cardTables.has(key) || Boolean(Cards.TYPES[getRoomSnapshot(key)?.currentActivity]);
   cardTimers.delete(key); cardTables.delete(key); cardViewers.delete(key);
-  if (isRoomKey(key) && hadCardTable) void cardStore.remove(key).catch(() => console.error('Could not remove private card table.'));
+  if (isRoomKey(key)) void cardStore.remove(key).catch(() => console.error('Could not remove private card table.'));
   if (!isRoomKey(key)) return false;
   const room = getRoomSnapshot(key);
   const library = Array.isArray(room?.activityState?.trackLibrary) ? room.activityState.trackLibrary : [];
@@ -2062,7 +2061,8 @@ function queueRoomOperation(key, operation) {
 function cardActorHash(token) { return crypto.createHash('sha256').update(String(token).trim()).digest('hex'); }
 async function saveCardTable(key, game) {
   const previous = cardTables.get(key);
-  game.actorHashes = Object.fromEntries(Object.entries(game.actorHashes || {}).filter(([id]) => game.players.some(p => p.id === id)));
+  Cards.syncChipBalances(game);
+  game.actorHashes = Object.fromEntries(Object.entries(game.actorHashes || {}).filter(([id]) => game.players.some(p => p.id === id) || Object.hasOwn(game.chipBalances, id)));
   await cardStore.save(key, game);
   cardTables.set(key, game);
   if (previous) {
@@ -2349,7 +2349,7 @@ io.on('connection', socket => {
     if (!actor || !Cards.TYPES[room?.currentActivity]) return ack?.({ ok: false, error: 'Join the room before opening the card table.' });
     let game = cardTables.get(key);
     if (!game || game.id !== room.activityState?.id) return ack?.({ ok: false, error: 'Private card table is unavailable. Ask the host to reopen this activity.' });
-    if (Cards.seat(game, actor.playerId) && (!Object.hasOwn(game.actorHashes || {}, actor.playerId)
+    if ((Cards.seat(game, actor.playerId) || Object.hasOwn(game.chipBalances || {}, actor.playerId)) && (!Object.hasOwn(game.actorHashes || {}, actor.playerId)
       || !safeTokenEqual(game.actorHashes[actor.playerId], cardActorHash(String(payload.actorToken))))) {
       ack?.({ ok: false, error: 'This private hand belongs to another participant.' }); return;
     }
@@ -2709,9 +2709,13 @@ io.on('connection', socket => {
       scheduleRoomMetaPersist();
     }
     if (existingRoom && Cards.TYPES[existingRoom.currentActivity] && !Cards.TYPES[nextRoom.currentActivity]) {
-      try { await cardStore.remove(key); }
-      catch (_) { ack?.({ ok: false, error: 'Private card storage is unavailable. Please try again.' }); return; }
       const closing = cardTables.get(key), participants = nextRoom.participants || [];
+      try {
+        if (!closing) throw new Error('Card table unavailable.');
+        const chipBalances = Cards.syncChipBalances(structuredClone(closing));
+        await cardStore.save(key, { type: 'bankroll', players: [], chipBalances, actorHashes: closing.actorHashes || {} });
+      }
+      catch (_) { ack?.({ ok: false, error: 'Private card storage is unavailable. Please try again.' }); return; }
       for (const p of closing?.players || []) if (!participants.some(current => current.id === p.id) && meta?.actorTokens) delete meta.actorTokens[p.id];
       cardTables.delete(key); cardViewers.delete(key); scheduleRoomMetaPersist();
     }
@@ -2719,8 +2723,14 @@ io.on('connection', socket => {
       const queuedCards = existingRoom && nextRoom.queueActive === true && Number(nextRoom.queueIndex) > Number(existingRoom.queueIndex);
       if (!existingRoom || existingRoom.currentActivity !== nextRoom.currentActivity || queuedCards) {
         if (feedbackState.config.preferences.enabledActivities[nextRoom.currentActivity] === false) { ack?.({ ok: false, error: 'This card game is disabled by admin.' }); return; }
-        const game = Cards.create(nextRoom.currentActivity);
-        try { await saveCardTable(key, game); } catch (_) { ack?.({ ok: false, error: 'Private card storage is unavailable. Please try again.' }); return; }
+        let game;
+        try {
+          const previous = cardTables.get(key) || await cardStore.load(key);
+          const chipBalances = previous ? Cards.syncChipBalances(structuredClone(previous)) : {};
+          game = Cards.create(nextRoom.currentActivity, { chipBalances });
+          game.actorHashes = { ...(previous?.actorHashes || {}) };
+          await saveCardTable(key, game);
+        } catch (_) { ack?.({ ok: false, error: 'Private card storage is unavailable. Please try again.' }); return; }
         if (existingRoom && !state.has(key)) { ack?.({ ok: false, error: 'This session was closed.' }); return; }
         nextRoom.activityState = Cards.publicView(game);
       }

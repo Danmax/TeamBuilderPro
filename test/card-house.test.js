@@ -25,10 +25,10 @@ for(const type of ['five-card-draw','texas-holdem']) {
       assert.equal(game.phase,'settled');
     }
   });
-  test(`${type}: the house reveals its winning hand when the player folds, while folded cards stay private`,()=>{
+  test(`${type}: the house reveals its winning hand and completed cards follow the game’s reveal rules`,()=>{
     let game=C.apply(C.create(type),host,'house',{},1000);const computer=game.players.find(p=>p.isHouse),hand=structuredClone(computer.hand);
     game=C.apply(game,host,'fold',{},2000);const publicGame=C.publicView(game);
-    assert.deepEqual(publicGame.players.find(p=>p.isHouse).shownCards,hand);assert.deepEqual(publicGame.players.find(p=>p.id===host.id).shownCards,[]);
+    assert.deepEqual(publicGame.players.find(p=>p.isHouse).shownCards,hand);assert.deepEqual(publicGame.players.find(p=>p.id===host.id).shownCards,type==='texas-holdem'?C.seat(game,host.id).hand:[]);
     assert.equal(publicGame.deck,undefined);assert.equal(publicGame.actorHashes,undefined);
     game=C.apply(game,host,'remove',{playerId:computer.id},3000);assert.equal(game.players.length,1);
   });

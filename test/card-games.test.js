@@ -57,11 +57,11 @@ test('Blackjack aces, naturals, dealer 17, doubles, busts and pushes pay exact a
   g = move(blackjackPosition([card(10),card(8)], [card(9),card(7)], [card(10,'C')]),'stand'); assert.equal(g.players[0].stack,1020); assert.equal(C.blackjackValue(g.dealer),26);
 });
 
-test('folded poker hands stay hidden, unmatched raises return and chips are conserved', () => {
+test('completed Hold’em hands reveal folded cards, unmatched raises return and chips are conserved', () => {
   let g = dealt('texas-holdem',3); const initial=total(g);
   g = move(g,'raise',{amount:200});
   while(C.active(g)) g=move(g,'fold');
-  assert.equal(total(g),initial); assert.equal(Object.keys(g.shown).length,1); assert.deepEqual(g.shown[g.results[0].playerId],C.seat(g,g.results[0].playerId).hand); assert.equal(g.results.length,1);
+  assert.equal(total(g),initial); assert.equal(Object.keys(g.shown).length,3); assert.deepEqual(g.shown[g.results[0].playerId],C.seat(g,g.results[0].playerId).hand); assert.equal(g.results.length,1);
   assert.ok(g.results[0].amount < 200, 'uncalled excess is refunded before awarding pot');
 });
 
@@ -99,7 +99,7 @@ test('side pots, split pots, folded contributions and odd chips pay eligible win
   let h=dealt('texas-holdem',3);h.board=[14,13,12,11,10].map(r=>card(r,'H'));h.street='river';h.currentBet=0;
   for(const p of h.players){p.total=21;p.bet=0;p.stack=979;p.folded=p.id==='c';}
   h.pot=63;h.pending=['a','b'];h.turnId='a';h=finish(h);
-  assert.equal(h.results.find(r=>r.playerId==='b').amount,32);assert.equal(h.results.find(r=>r.playerId==='a').amount,31);assert.equal(h.shown.c,undefined);assert.equal(total(h),3000);
+  assert.equal(h.results.find(r=>r.playerId==='b').amount,32);assert.equal(h.results.find(r=>r.playerId==='a').amount,31);assert.deepEqual(h.shown.c,C.seat(h,'c').hand);assert.equal(total(h),3000);
 });
 
 test('all-in players get automatic community runouts and can still replace Five-Card Draw cards', () => {
@@ -122,7 +122,7 @@ test('turns, illegal amounts, private views, waiting seats, pause, expiry and st
   g=C.apply(g,player('c'),'join',{},2000);assert.equal(C.seat(g,'c').hand.length,0);assert.equal(g.handPlayers.includes('c'),false);
   g=C.apply(g,host,'pause',{},6000);assert.equal(g.remainingMs,55000);assert.equal(C.expire(g,500000),g);
   g=C.apply(g,host,'resume',{},100000);assert.equal(g.deadline,155000);
-  g=C.expire(g,155000);assert.equal(g.phase,'settled');assert.equal(Object.keys(g.shown).length,1);
+  g=C.expire(g,155000);assert.equal(g.phase,'settled');assert.equal(Object.keys(g.shown).length,2);
   g=C.apply(g,host,'reset',{},126000);assert.equal(g.players.every(p=>p.stack===1000&&p.total===0),true);
   let b=blackjackPosition([card(10),card(8)],[card(10,'H'),card(7)]);b=C.expire(b,31000);assert.equal(b.phase,'settled');assert.equal(b.results[0].label,'Win');
 });
@@ -217,4 +217,51 @@ test('Blackjack timeouts finish each split hand before moving to the next player
   g=C.expire(g,g.deadline); assert.equal(g.turnId,'a'); assert.equal(C.privateView(g,'a').activeHand,1);
   g=C.expire(g,g.deadline); assert.equal(g.turnId,'b'); assert.equal(g.phase,'playing'); assert.equal(C.publicView(g).dealer[1],null);
   g=C.expire(g,g.deadline); assert.equal(g.phase,'settled'); assert.equal(g.results.length,3);
+});
+
+test('Hold’em reveals every dealt hand at completion, keeps active cards private and clears reveals next deal', () => {
+  let g=dealt('texas-holdem',3);
+  assert.ok(C.publicView(g).players.every(p=>p.shownCards.length===0));
+  g=move(g,'fold'); assert.ok(C.publicView(g).players.every(p=>p.shownCards.length===0));
+  g=move(g,'fold');
+  for(const p of C.publicView(g).players) assert.deepEqual(p.shownCards,C.seat(g,p.id).hand);
+  g=C.apply(g,host,'deal',{},3000); assert.ok(C.publicView(g).players.every(p=>p.shownCards.length===0));
+  let draw=dealt('five-card-draw',3); draw=move(draw,'fold'); draw=move(draw,'fold');
+  assert.ok(C.publicView(draw).players.filter(p=>p.folded).every(p=>p.shownCards.length===0));
+});
+
+test('all card games top up between hands, track buy-ins separately and restore the shared bankroll on rejoining', () => {
+  let balances={};
+  for(const type of Object.keys(C.TYPES)) {
+    let g=C.create(type,{chipBalances:balances}); g=C.apply(g,host,'join',{},1000);
+    const before=balances.a?.stack??1000;
+    assert.equal(C.seat(g,'a').stack,before);
+    g=C.apply(g,host,'add-chips',{amount:500},1000);
+    assert.equal(C.seat(g,'a').stack,before+500);
+    assert.equal(C.seat(g,'a').buyIn,(balances.a?.buyIn??1000)+500);
+    const row=C.publicView(g).chipBalances[0]; assert.equal(row.stack-row.buyIn,0);
+    g=C.apply(g,host,'leave',{},1000);
+    g=C.apply(g,host,'join',{},1000); assert.equal(C.seat(g,'a').stack,before+500);
+    balances=JSON.parse(JSON.stringify(g.chipBalances));
+  }
+  assert.equal(balances.a.stack,2500);
+});
+
+test('top-ups enforce ownership, amounts and active-hand restrictions without changing pots or winnings', () => {
+  let g=table('texas-holdem',2);
+  assert.throws(()=>C.apply(g,player('b'),'add-chips',{playerId:'a',amount:100},1000),/own seat/);
+  for(const amount of [0,-10,11,1.5,NaN,Infinity,100010,'100']) assert.throws(()=>C.apply(g,host,'add-chips',{amount},1000),/increments/);
+  g=C.apply(g,host,'add-chips',{playerId:'b',amount:200},1000);
+  assert.equal(C.seat(g,'b').stack,1200); assert.equal(C.seat(g,'b').buyIn,1200); assert.equal(g.pot,0);
+  g=C.apply(g,host,'deal',{},1000);
+  assert.throws(()=>C.apply(g,host,'add-chips',{amount:100},2000),/between hands/);
+  const inPlay=C.publicView(g).chipBalances.find(row=>row.playerId==='a');
+  assert.equal(inPlay.stack+inPlay.committed,inPlay.buyIn);
+  while(C.active(g)) g=move(g,'fold');
+  const net=C.publicView(g).chipBalances.find(row=>row.playerId==='a');
+  const profit=net.stack-net.buyIn;
+  g=C.apply(g,host,'add-chips',{amount:500},3000);
+  const topped=C.publicView(g).chipBalances.find(row=>row.playerId==='a'); assert.equal(topped.stack-topped.buyIn,profit);
+  const next=C.create('blackjack',{chipBalances:C.syncChipBalances(g)});
+  const joined=C.apply(next,host,'join',{},3000); assert.equal(C.seat(joined,'a').stack,topped.stack);
 });

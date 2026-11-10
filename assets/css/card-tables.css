@@ -107,3 +107,18 @@ button.ct-card { cursor: pointer; touch-action: manipulation; }
 .ct-seat-split { display:grid; gap:5px; min-width:0; }
 .ct-seat-split > div { display:flex; flex-wrap:wrap; gap:4px; }
 @media (max-width:600px) { .ct-action-buttons { grid-auto-flow:row; grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
+.ct-bankroll { margin:12px 0; padding:14px; border:1px solid var(--border); border-radius:14px; background:var(--surface-solid); }
+.ct-bankroll-heading { display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+.ct-bankroll-heading > span, .ct-chip-balance small, .ct-add-chips > small { color:var(--text-dim); font-size:.75rem; }
+.ct-chip-balances { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr)); gap:8px; }
+.ct-chip-balance { display:grid; gap:5px; padding:10px; border:1px solid var(--border); border-radius:10px; font-size:.82rem; overflow-wrap:anywhere; }
+.ct-chip-mine { border-color:var(--accent); }
+.ct-chip-balance > span { font-variant-numeric:tabular-nums; }
+.ct-add-chips { margin-top:12px; }
+.ct-add-chips > label { display:block; margin-bottom:6px; font-size:.8rem; }
+.ct-add-chips > div { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.ct-add-chips .form-input { flex:1 1 110px; min-width:0; min-height:44px; font-size:16px; }
+.ct-add-chips button { flex:1 1 100px; min-height:44px; margin:0; }
+.ct-add-chips > small { display:block; margin-top:6px; }
+@media (max-height:500px) and (min-width:600px) { .ct-bankroll { grid-column:1/-1; } }
