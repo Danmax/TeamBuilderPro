@@ -50,11 +50,17 @@
     { id: 'plaza', label: 'Community plaza', icon: '⛲' },
     { id: 'tokyo', label: 'Tokyo night plaza', icon: '🌃' },
     { id: 'rustic', label: 'Rustic town square', icon: '🏘️' },
-    { id: 'beach', label: 'Beach day', icon: '🏖️' },
-    { id: 'forest', label: 'Forest retreat', icon: '🌲' },
-    { id: 'cafe', label: 'Cozy café', icon: '☕' },
-    { id: 'space', label: 'Space station', icon: '🪐' }
+    { id: 'beach', label: 'Beach day', icon: '🏖️', surface: 'water' },
+    { id: 'ocean', label: 'Ocean lagoon', icon: '🌊', surface: 'water' },
+    { id: 'forest', label: 'Forest retreat', icon: '🌲', surface: 'grass' },
+    { id: 'cafe', label: 'Cozy café', icon: '☕', surface: 'wood' },
+    { id: 'space', label: 'Space station', icon: '🪐', surface: 'deck' }
   ];
+  function movementFor(sceneId, code, playerId) {
+    const scene = scenes.find(item => item.id === sceneId);
+    if (scene?.surface === 'water') return seedFor(code, playerId) % 2 ? 'swim' : 'float';
+    return sceneId === 'space' ? 'float' : 'walk';
+  }
   function normalizeTheme(value) {
     const theme = value && typeof value === 'object' ? value : {};
     return {
@@ -67,7 +73,7 @@
     const theme = normalizeTheme(value);
     return `data-plaza-scene="${theme.scene}" style="--plaza-accent:${theme.accent}"`;
   }
-  const api = { avatar, seedFor, filterRooms, status, escape, scenes, normalizeTheme, sceneAttributes, walkingStyle, latestSpeech };
+  const api = { avatar, seedFor, filterRooms, status, escape, scenes, normalizeTheme, sceneAttributes, walkingStyle, latestSpeech, movementFor };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.TeamBuilderCommunityPlazaCore = api;
 })(typeof window === 'undefined' ? globalThis : window);

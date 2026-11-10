@@ -135,3 +135,17 @@ test('plaza renders transparent characters and escaped speech without changing p
   context.APP.preferences.enableMessageBoard = false;
   assert.equal(context.TeamBuilderCommunityPlaza.renderRoomPlaza(room).includes('data-plaza-speech-until'), false);
 });
+
+test('scene surfaces select walking, swimming and floating consistently', () => {
+  const { scenes, movementFor, normalizeTheme } = require('../assets/js/community-plaza-core');
+  assert.equal(normalizeTheme({ scene: 'ocean' }).scene, 'ocean');
+  for (const scene of scenes) {
+    const motions = new Set(Array.from({ length: 24 }, (_, id) => movementFor(scene.id, 'PLAZA1', `player-${id}`)));
+    if (scene.surface === 'water') {
+      assert.deepEqual([...motions].sort(), ['float', 'swim']);
+    } else {
+      assert.deepEqual([...motions], [scene.id === 'space' ? 'float' : 'walk']);
+    }
+    assert.equal(movementFor(scene.id, 'PLAZA1', 'alice'), movementFor(scene.id, 'PLAZA1', 'alice'));
+  }
+});
