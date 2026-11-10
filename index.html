@@ -544,7 +544,8 @@ function normalizeAppPreferences(raw) {
 }
 
 function isActivityEnabled(activityId) {
-  return APP.preferences?.enabledActivities?.[activityId] !== false;
+  return APP.preferences?.enabledActivities?.[activityId] !== false
+    && (APP.room?.roomType !== 'community' || !Array.isArray(APP.room.communityActivities) || APP.room.communityActivities.includes(activityId));
 }
 
 function canCurrentUserCreateCommunityRooms() {
@@ -832,6 +833,7 @@ function normalizeRoom(room) {
     roomType,
     communityTitle: String(room.communityTitle || '').replace(/\s+/g, ' ').trim().slice(0, 80),
     communityDescription: String(room.communityDescription || '').replace(/\s+/g, ' ').trim().slice(0, 220),
+    ...(room.communityTheme ? { communityTheme: TeamBuilderCommunityPlazaCore.normalizeTheme(room.communityTheme) } : {}),
     maxParticipants: Math.max(2, Math.min(MAX_ROOM_PARTICIPANTS, Number(room.maxParticipants) || 24)),
     communityChat: normalizeCommunityChatMessages(room.communityChat),
     host: normalizedHost || room.host || '',
@@ -3990,7 +3992,7 @@ async function startActivityById(activityId) {
     return false;
   }
   if (!isActivityEnabled(activityId)) {
-    showError('This activity is disabled by admin.');
+    showError('This activity is unavailable in the current app or lobby settings.');
     return false;
   }
   if (!activityHasPlayableContent(activityId, APP.room)) {
@@ -6324,7 +6326,7 @@ async function queueAddActivity(activityId) {
   if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
   if (!ACTIVITY_QUEUE_ITEM_MAP[activityId]) return;
   if (!isActivityEnabled(activityId)) {
-    showError('That activity is disabled by admin.');
+    showError('This activity is unavailable in the current app or lobby settings.');
     return;
   }
   const room = await RoomManager.loadRoom(APP.roomCode);

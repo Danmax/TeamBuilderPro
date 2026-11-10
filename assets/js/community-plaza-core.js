@@ -29,7 +29,26 @@
       return !search || [room.title, room.host, room.description, room.code, activityLabels[room.currentActivity]?.label || room.currentActivity].some(value => String(value || '').toLowerCase().includes(search));
     }).sort((a, b) => ({ open: 0, in_game: 1, full: 2 }[status(a)] - { open: 0, in_game: 1, full: 2 }[status(b)]) || (Number(b.lastUpdate) || 0) - (Number(a.lastUpdate) || 0));
   }
-  const api = { avatar, seedFor, filterRooms, status, escape };
+  const scenes = [
+    { id: 'plaza', label: 'Community plaza', icon: '⛲' },
+    { id: 'beach', label: 'Beach day', icon: '🏖️' },
+    { id: 'forest', label: 'Forest retreat', icon: '🌲' },
+    { id: 'cafe', label: 'Cozy café', icon: '☕' },
+    { id: 'space', label: 'Space station', icon: '🪐' }
+  ];
+  function normalizeTheme(value) {
+    const theme = value && typeof value === 'object' ? value : {};
+    return {
+      scene: scenes.some(scene => scene.id === theme.scene) ? theme.scene : 'plaza',
+      name: String(theme.name || '').replace(/\s+/g, ' ').trim().slice(0, 60),
+      accent: /^#[0-9a-f]{6}$/i.test(theme.accent) ? theme.accent : '#37799b'
+    };
+  }
+  function sceneAttributes(value) {
+    const theme = normalizeTheme(value);
+    return `data-plaza-scene="${theme.scene}" style="--plaza-accent:${theme.accent}"`;
+  }
+  const api = { avatar, seedFor, filterRooms, status, escape, scenes, normalizeTheme, sceneAttributes };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.TeamBuilderCommunityPlazaCore = api;
 })(typeof window === 'undefined' ? globalThis : window);

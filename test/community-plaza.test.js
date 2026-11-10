@@ -34,3 +34,58 @@ test('avatars stay consistent within a room, keep the profile badge and escape s
   assert.ok(output.includes('aria-hidden="true"'));
   assert.ok(avatar(seed, '🦊').includes('🦊'));
 });
+
+
+test('community themes constrain scene and color values used in markup', () => {
+  const { normalizeTheme, sceneAttributes } = require('../assets/js/community-plaza-core');
+  assert.deepEqual(normalizeTheme(null), { scene: 'plaza', name: '', accent: '#37799b' });
+  const theme = normalizeTheme({ scene: 'space', name: '  Friday   crew  ', accent: '#aBc123' });
+  assert.deepEqual(theme, { scene: 'space', name: 'Friday crew', accent: '#aBc123' });
+  assert.equal(normalizeTheme({ name: 'x'.repeat(100) }).name.length, 60);
+  assert.equal(sceneAttributes({ scene: '\" onclick=bad', accent: 'red; background:url(bad)' }), 'data-plaza-scene="plaza" style="--plaza-accent:#37799b"');
+});
+
+test('community chat renders once above the scene and games while private message boards stay below', () => {
+  const fs = require('node:fs'), vm = require('node:vm');
+  const context = {
+    APP: { roomCode: 'PLAZA1', player: { id: 'host', name: 'Host' }, preferences: {}, voice: {}, room: { code: 'PLAZA1', host: 'Host', roomType: 'community', participants: [], communityChat: [], communityTheme: { scene: 'beach' } } },
+    getRoomVoiceSettings: () => ({}), getVoiceFocusParticipant: () => null,
+    isRoomPrivateSession: () => false, buildJoinUrl: () => 'https://example.test',
+    canCurrentUserManageCommunityRoom: () => true,
+    escapeHtml: require('../assets/js/community-plaza-core').escape,
+    TeamBuilderCommunityPlazaCore: require('../assets/js/community-plaza-core'),
+    TeamBuilderCommunityPlaza: { renderRoomPlaza: () => '<section id="test-scene"></section>' },
+    ACTIVITY_QUEUE_ITEMS: [{ id: 'bingo' }], isActivityEnabled: () => false,
+    getRoomHostSettings: () => ({}), COMMUNITY_CHAT_QUICK_EMOJIS: [],
+  };
+  context.window = context;
+  vm.runInNewContext(fs.readFileSync(require.resolve('../assets/js/room-renderers-core'), 'utf8'), context);
+  const output = context.renderLobby();
+  assert.equal((output.match(/id="communityChatInput"/g) || []).length, 1);
+  assert.ok(output.indexOf('id="communityChatInput"') < output.indexOf('id="test-scene"'));
+  assert.ok(output.indexOf('id="communityChatInput"') < output.indexOf('id="activityLibrary"'));
+  assert.ok(output.includes('data-action="plaza-edit-theme"'));
+  assert.match(output, /data-action="start-bingo"[^>]*display:none/);
+  context.APP.room.roomType = 'private';
+  const privateOutput = context.renderLobby();
+  assert.ok(privateOutput.indexOf('id="communityChatInput"') > privateOutput.indexOf('id="activityLibrary"'));
+  context.APP.preferences.enableMessageBoard = false;
+  assert.equal(context.renderLobby().includes('id="communityChatInput"'), false);
+});
+
+test('room game selections constrain activity availability without overriding admin settings', () => {
+  const fs = require('node:fs'), vm = require('node:vm');
+  const html = fs.readFileSync(require.resolve('../index.html'), 'utf8');
+  const source = html.slice(html.indexOf('function isActivityEnabled('), html.indexOf('function canCurrentUserCreateCommunityRooms('));
+  const context = { APP: { preferences: { enabledActivities: { bingo: false } }, room: { roomType: 'community', communityActivities: ['bingo', 'memory'] } } };
+  vm.runInNewContext(source, context);
+  assert.equal(context.isActivityEnabled('bingo'), false);
+  assert.equal(context.isActivityEnabled('memory'), true);
+  assert.equal(context.isActivityEnabled('uno'), false);
+  context.APP.room.communityActivities = [];
+  assert.equal(context.isActivityEnabled('memory'), false);
+  delete context.APP.room.communityActivities;
+  assert.equal(context.isActivityEnabled('memory'), true);
+  context.APP.room = null;
+  assert.equal(context.isActivityEnabled('uno'), true);
+});

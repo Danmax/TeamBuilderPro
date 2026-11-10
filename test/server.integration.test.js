@@ -125,6 +125,15 @@ test('room mutations require participant identity and host controls require the 
   });
   assert.equal(guestHostChange.ok, false);
 
+  for (const patch of [
+    { communityTheme: { scene: 'space', name: 'Guest override', accent: '#123456' } },
+    { communityActivities: ['bingo'] },
+    { contentBrief: { customTopic: 'Guest override', audience: 'Everyone' } }
+  ]) {
+    const changed = await emitAck(socket, 'shared:set', { key, actorToken: guestToken, actorPlayerId: 'guest-1', value: JSON.stringify({ ...joinedRoom, ...patch }) });
+    assert.equal(changed.ok, false, 'guests cannot change lobby options');
+  }
+
   const guestActivityUpdate = await emitAck(socket, 'shared:set', {
     key,
     actorToken: guestToken,
@@ -680,7 +689,7 @@ test('community discovery returns bounded avatar previews and excludes private a
   await new Promise((resolve, reject) => { socket.once('connect', resolve); socket.once('connect_error', reject); });
   const actor = { actorToken: 'plaza_host_actor_1234567890_abcdef', actorPlayerId: 'plaza-host', actorPlayerName: 'Host' };
   const participants = [{ id: 'plaza-host', name: 'Host', avatar: '🦊' }, ...Array.from({ length: 7 }, (_, index) => ({ id: `secret-player-id-${index}`, name: `Guest ${index}`, avatar: '🐨' }))];
-  const base = { host: 'Host', participants, roomType: 'community', communityTitle: 'Open plaza', communityDescription: 'A place to play', maxParticipants: 12, currentActivity: null, activityState: {}, activityQueue: [], queueIndex: 0, hostSettings: { voice: { enabled: true } }, access: {}, created: Date.now() };
+  const base = { host: 'Host', participants, roomType: 'community', communityTitle: 'Open plaza', communityDescription: 'A place to play', communityTheme: { scene: 'space', name: 'Space club', accent: '#7654ab' }, maxParticipants: 12, currentActivity: null, activityState: {}, activityQueue: [], queueIndex: 0, hostSettings: { voice: { enabled: true } }, access: {}, created: Date.now() };
   let publicRoom;
   for (const [code, extra] of [ ['PLAZA1', {}], ['PLAZA2', { hostSettings: { privateSession: true }, access: { privateSession: true } }], ['PLAZA3', { host: '', participants: [] }]]) {
     const source = { ...base, ...extra, code };
@@ -698,6 +707,7 @@ test('community discovery returns bounded avatar previews and excludes private a
   assert.equal(directory.rooms.some(room => room.code === 'PLAZA2'), false);
   assert.equal(directory.rooms.some(room => room.code === 'PLAZA3'), false);
   const room = directory.rooms.find(room => room.code === 'PLAZA1');
+  assert.deepEqual(room.communityTheme, { scene: 'space', name: 'Space club', accent: '#7654ab' });
   assert.equal(room.participantCount, 8); assert.equal(room.avatarPreview.length, 6);
   assert.deepEqual(room.avatarPreview.map(item => Object.keys(item).sort()), Array(6).fill(['avatar', 'character', 'isHost', 'seed']));
   assert.equal(room.avatarPreview[0].isHost, true); assert.equal(room.avatarPreview[0].avatar, '🦊');
