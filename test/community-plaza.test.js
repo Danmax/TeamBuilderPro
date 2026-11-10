@@ -89,3 +89,49 @@ test('room game selections constrain activity availability without overriding ad
   context.APP.room = null;
   assert.equal(context.isActivityEnabled('uno'), true);
 });
+
+test('walking routes remain continuous across renders and differ between participants', () => {
+  const { walkingStyle } = require('../assets/js/community-plaza-core');
+  const first = walkingStyle('PLAZA1', 'alice', 1000);
+  assert.equal(first, walkingStyle('PLAZA1', 'alice', 1000));
+  assert.notEqual(first, walkingStyle('PLAZA1', 'bob', 1000));
+  assert.equal(first.replace(/--walk-delay:.*/, ''), walkingStyle('PLAZA1', 'alice', 2000).replace(/--walk-delay:.*/, ''));
+  assert.match(first, /--walk-delay:-1000ms/);
+});
+
+test('speech selects the latest recent message by sender ID and expires after fourteen seconds', () => {
+  const { latestSpeech } = require('../assets/js/community-plaza-core');
+  const person = { id: 'alice', name: 'Alice' }, now = 50000;
+  const messages = [
+    { playerId: 'alice', text: 'old', ts: now - 14000 },
+    { playerId: 'alice', text: 'hello', ts: now - 5000 },
+    { playerId: 'bob', playerName: 'Alice', text: 'other person', ts: now },
+    { playerId: 'alice', text: 'newest', ts: now - 1000 }
+  ];
+  assert.equal(latestSpeech(messages, person, now).text, 'newest');
+  assert.equal(latestSpeech(messages, person, now + 14000), null);
+  assert.equal(latestSpeech([{ playerName: 'Alice', text: 'legacy', ts: now }], person, now).text, 'legacy');
+});
+
+test('plaza renders transparent characters and escaped speech without changing profile settings', () => {
+  const fs = require('node:fs'), vm = require('node:vm');
+  const character = { background: 'sky' };
+  const context = {
+    TeamBuilderCommunityPlazaCore: require('../assets/js/community-plaza-core'),
+    TeamBuilderCharacter: require('../assets/js/character-core'),
+    TEAM_BUILDER_ACTIVITY_REGISTRY: { registerAction() {} },
+    APP: { player: { id: 'alice' }, preferences: {} },
+    document: { addEventListener() {} }, setInterval() {}
+  };
+  context.window = context;
+  vm.runInNewContext(fs.readFileSync(require.resolve('../assets/js/community-plaza'), 'utf8'), context);
+  const room = { code: 'PLAZA1', participants: [{ id: 'alice', name: 'Alice', character }], communityChat: [{ playerId: 'alice', text: '<hello>', ts: Date.now() - 10 }] };
+  const output = context.TeamBuilderCommunityPlaza.renderRoomPlaza(room);
+  assert.ok(output.includes('plaza-walk-area'));
+  assert.ok(output.includes('&lt;hello&gt;'));
+  assert.ok(output.includes('data-plaza-speech-until'));
+  assert.equal(output.includes('<rect x="2" y="2"'), false);
+  assert.equal(character.background, 'sky');
+  context.APP.preferences.enableMessageBoard = false;
+  assert.equal(context.TeamBuilderCommunityPlaza.renderRoomPlaza(room).includes('data-plaza-speech-until'), false);
+});

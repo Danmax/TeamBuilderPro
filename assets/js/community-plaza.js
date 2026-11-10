@@ -38,7 +38,13 @@
   function renderRoomPlaza(room) {
     const people = room.participants || [], theme = core.normalizeTheme(room.communityTheme);
     const scene = core.scenes.find(item => item.id === theme.scene);
-    return `<section class="plaza-room-welcome" ${core.sceneAttributes(theme)} aria-label="People in this community room"><div><p class="plaza-eyebrow">You found your people</p><h2>${escape(theme.name || scene.label)}</h2><p>Say hello in chat. Your host will start the next game.</p></div><div class="plaza-scene-art" aria-hidden="true">${scene.icon}</div><div class="plaza-member-stage">${people.slice(0, 24).map(person => `<div class="plaza-member">${avatar(seedFor(room.code, person.id || person.name), person.avatar, '', person.character)}<strong>${escape(person.name)}</strong><small>${person.name === room.host ? 'Your host' : person.id === APP.player?.id ? 'That’s you!' : 'Ready to hang out'}</small></div>`).join('')}${people.length > 24 ? `<span class="plaza-more-people">+${people.length - 24}</span>` : ''}</div></section>`;
+    const now = Date.now();
+    return `<section class="plaza-room-welcome" ${core.sceneAttributes(theme)} aria-label="People in this community room"><div><p class="plaza-eyebrow">You found your people</p><h2>${escape(theme.name || scene.label)}</h2><p>Say hello in chat. Your host will start the next game.</p></div><div class="plaza-scene-art" aria-hidden="true">${scene.icon}</div><div class="plaza-member-stage"><div class="plaza-walk-area">${people.slice(0, 24).map(person => {
+      const speech = APP.preferences?.enableMessageBoard === false ? null : core.latestSpeech(room.communityChat, person, now);
+      // Profile backgrounds belong on profile cards; the plaza uses the character cutout.
+      const character = person.character ? { ...person.character, background: 'none' } : null;
+      return `<div class="plaza-member${speech ? ' plaza-member-speaking' : ''}" style="${core.walkingStyle(room.code, person.id || person.name, now)}">${speech ? `<div class="plaza-speech" data-plaza-speech-until="${Number(speech.ts) + 14000}" role="status" aria-label="${escape(person.name)} says">${escape(speech.text)}</div>` : ''}${avatar(seedFor(room.code, person.id || person.name), person.avatar, '', character)}<strong>${escape(person.name)}</strong><small>${person.name === room.host ? 'Your host' : person.id === APP.player?.id ? 'That’s you!' : 'Ready to hang out'}</small></div>`;
+    }).join('')}</div>${people.length > 24 ? `<span class="plaza-more-people">+${people.length - 24}</span>` : ''}</div></section>`;
   }
   const registry = root.TEAM_BUILDER_ACTIVITY_REGISTRY;
   registry.registerAction('plaza-edit-theme', async ({ dataset }) => {
@@ -114,5 +120,13 @@
   document.addEventListener('input', event => { if (event.target.id === 'communityHostAccessReason') ui.reason = event.target.value; if (event.target.id === 'communitySearch') { APP.community.search = event.target.value; render(); } });
   document.addEventListener('toggle', event => { if (event.target.id === 'communityHostAccess') ui.accessOpen = event.target.open; }, true);
   root.setInterval(() => { if (typeof APP !== 'undefined' && APP.screen === 'community' && !document.hidden && !APP.community.joiningCode) void loadCommunityRooms({ silent: true }); }, 15000);
+  root.setInterval(() => {
+    document.querySelectorAll('[data-plaza-speech-until]').forEach(bubble => {
+      if (Number(bubble.dataset.plazaSpeechUntil) <= Date.now()) {
+        bubble.parentElement.classList.remove('plaza-member-speaking');
+        bubble.remove();
+      }
+    });
+  }, 1000);
   root.TeamBuilderCommunityPlaza = { renderDirectory, renderRoomPlaza };
 })(window);
