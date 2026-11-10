@@ -1,6 +1,6 @@
 # Spades implementation plan
 
-Status: proposed November 10, 2026. Planning only; no game implementation yet.
+Status: first release implemented November 10, 2026. Includes server-authoritative partnership play, private hands, four seats with computer fill, scoring, timers, pause/restart recovery, responsive table controls, and fixed match-win rewards. See README.md for operation.
 
 ## First release
 

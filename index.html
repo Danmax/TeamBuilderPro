@@ -8460,6 +8460,7 @@ function renderActivity() {
     ${compactSessionMenu ? '<details class="uno-session-menu"><summary>Session ▾</summary>' : ''}
     <div class="activity-session-bar" style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
       <span style="margin-right:auto;align-self:center;color:var(--text-dim);">Session <strong>${escapeHtml(APP.roomCode)}</strong></span>
+      ${!compactSessionMenu ? window.TeamBuilderWallet?.button() || '' : ''}
       ${isHost ? '<button class="btn-secondary" data-action="return-to-session">← Back to session</button>' : '<span style="align-self:center;color:var(--text-dim);">Your host controls the activity</span>'}
       ${isHost ? '<button class="btn-secondary" data-action="open-admin-console" style="font-size:0.78rem;padding:6px 10px;">🛠️ Admin</button>' : ''}
       <button class="btn-secondary" data-action="leave-session" style="font-size:0.78rem;padding:6px 10px;">🚪 Leave</button>

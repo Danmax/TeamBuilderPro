@@ -351,6 +351,27 @@ Use the **Card games** filter in a session to open **21 / Blackjack**, **Five-Ca
 
 Only the server deals, validates actions, advances turns, and pays pots. Blackjack supports hit, stand, double, soft aces, 3:2 naturals, and pushes; the dealer stands on every 17. Poker includes no-limit betting, all-ins, side pots, ties, rotating blinds, and private folded hands. Five-Card Draw allows one exchange of up to five cards. Hold’em deals the flop, turn, and river with burn cards and selects the best five of seven cards.
 
-Each player sees only their own private hand before showdown. Card selection, amount previews, 60-second turn timers, pause/resume, reconnect recovery, dealing animations, and win celebrations are included. Winning opponents’ cards appear on the main table, including wins by folding; folded losing hands remain private. Card-game celebrations wait three seconds after the final hand is ready to view. **Seats, results & rules** contains player stacks, revealed results, table rules, and host options. Host resets are allowed between hands; no automatic rebuy occurs. Blinds default to 10/20, with 25/50 and 50/100 presets. Chips belong to the current table and are not an account wallet.
+Each player sees only their own private hand before showdown. Card selection, amount previews, 60-second turn timers, pause/resume, reconnect recovery, dealing animations, and win celebrations are included. Winning opponents’ cards appear on the main table, including wins by folding; folded losing hands remain private. Card-game celebrations wait three seconds after the final hand is ready to view. **Seats, results & rules** contains player stacks, revealed results, table rules, and host options. Host resets are allowed between hands; no automatic rebuy occurs. Blinds default to 10/20, with 25/50 and 50/100 presets. Free practice chips share a session bankroll and cannot be converted to coins. With no players seated, the host can switch to a coin-funded table. Players buy in through their wallet; free top-ups, resets, and house poker are disabled in this mode. Coin-funded poker requires two human seats; coin-funded Blackjack uses the automated dealer. Return chips between hands, or close the activity to refund uncommitted chips (and void/refund an unfinished hand).
 
 Private decks, hands, action IDs, and seat credential hashes use backend-only database records when MySQL is configured, with an owner-readable private-file adapter for local development. Private writes complete before acknowledgement; restart recovery restores the authoritative hand and deadline. Ending the activity removes the private table. This follows the existing single-process server architecture. See [CARD_GAMES_PLAN.md](CARD_GAMES_PLAN.md) for the rules, privacy design, and release limits.
+
+
+## Spades
+
+Choose **Card games → Spades**, take a seat, and have the host fill remaining seats with computers or invite friends. Partners sit opposite each other. Select a 250- or 500-point target before starting, then bid Nil or 1–13 tricks and follow suit on each play. Spades are trump and cannot be led until broken unless you hold only spades. Select a highlighted legal card and confirm **Play selected card**. The table shows team bids, tricks, scores, bags, the previous trick, and hand-by-hand scoring. Hosts can pause or deal the next hand. Disconnected seats stay reserved throughout the match; 60-second timeouts act automatically. No entry coins are required for Spades.
+
+## Reward points and coin wallet
+
+Open **Wallet** from the session lobby, profile, or a Spades/poker/Blackjack table. Win a supported game to earn a fixed reward, then exchange points for coins at **1 point = 1 coin = 1 table chip**.
+
+| Verified win | Reward points |
+| --- | ---: |
+| Checkers | 30 |
+| Chinese Checkers | 30 |
+| Multiplayer Memory (one winner) | 20 |
+| Spades to 250 | 50 per winning human |
+| Spades to 500 | 75 per winning human |
+
+Ties, bots, spectators, unfinished matches, and free practice chips generate no rewards. Other games continue to award their existing XP; coin rewards are only enabled for the server-validated games above. Blackjack/poker wins settle chips without awarding additional reward points.
+
+Wallet ownership uses a secret saved with this browser profile. Keep its site data to retain access; this is not cross-device account sign-in. The server stores balances, award receipts, action IDs, and coin-table escrow together in the backend-only `private_coin_wallets` database record (or owner-only `DATA_DIR/coin-wallets.json` in local development). One serialized atomic update prevents repeated awards, duplicate exchanges, and concurrent overspending. A private `coin-reward-outbox.json` retains verified rewards until their wallet credit succeeds, including across an activity change or restart. Coin-table hands restore from this record after restart; orphaned escrow is refunded when its table no longer exists. This supports the existing single-process backend; multiple workers require database locking and a shared room coordinator.

@@ -75,3 +75,18 @@ test('limited-information computer decisions complete repeated matches and prese
   }
   assert(T.TYPES.spades); assert.equal(T.publicView(T.create('spades')).type, 'spades');
 });
+
+test('Spades continues a tied target and awards the higher total only after all scoring', () => {
+  const g = setup(); Object.assign(g, { phase: 'review', trickNumber: 13, deadline: 100, target: 250, scores: [310, 300], handNumber: 1 });
+  for (const p of g.players) { p.bid = p.position === 3 ? 4 : 3; p.tricks = p.bid; }
+  const tied = S.expire(g, 100); assert.deepEqual(tied.scores, [370, 370]); assert.equal(tied.phase, 'hand-complete');
+  g.scores = [310, 301]; const won = S.expire(g, 100); assert.equal(won.phase, 'finished'); assert.equal(won.winnerTeam, 1);
+});
+
+test('a fresh Spades match preserves the table identity and cannot change finished winners', () => {
+  const g = setup(); g.phase = 'hand-complete'; g.startedAt = 1000; g.scores = [100, 50];
+  const next = S.apply(g, host, 'new-match'); assert.equal(next.id, g.id); assert.notEqual(next.matchId, g.matchId);
+  assert.deepEqual(next.scores, [0, 0]); assert.equal(next.players.length, 0); assert.equal(next.phase, 'waiting');
+  g.phase = 'finished'; g.players[2].isHouse = true;
+  assert.throws(() => S.apply(g, { id: 'late', name: 'Late' }, 'join', { position: 2 }), /new match/);
+});

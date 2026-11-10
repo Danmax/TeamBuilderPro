@@ -75,6 +75,8 @@ test('Spades socket setup, private dealing, stale actions, host control and paus
   const start = await emitAck(f.socket, 'shared:set', { key: f.key, ...f.host, value: JSON.stringify({ ...room, currentActivity: 'spades', activityState: { players: [{ hand: [{ rank: 14, suit: 'S' }] }] } }) }); assert(start.ok, start.error); room = JSON.parse(start.value); assert.equal(room.activityState.players.length, 0);
   let n = 0;
   const act = async (action, extra = {}) => { const r = await emitAck(f.socket, 'spades:action', { key: f.key, ...f.host, tableId: room.activityState.id, handId: room.activityState.handId, version: room.activityState.version, actionId: `action-${String(++n).padStart(16, '0')}`, action, ...extra }); if (r.value) room = JSON.parse(r.value); return r; };
+  assert((await act('join', { position: 0 })).ok); assert((await act('computers')).ok); const tableId = room.activityState.id;
+  assert((await act('new-match')).ok); assert.equal(room.activityState.id, tableId);
   assert((await act('join', { position: 0 })).ok); assert((await act('computers')).ok); assert((await act('configure', { amount: 250 })).ok); assert((await act('deal')).ok);
   const view = await emitAck(f.socket, 'spades:view', { key: f.key, ...f.host }); room = JSON.parse(view.value); assert.equal(view.private.cards.length, 13); assert(room.activityState.players.every(p => p.cardCount === 13 && !p.hand));
   const denied = await act('configure', { amount: 500 }); assert.equal(denied.ok, false);
@@ -112,6 +114,11 @@ test('a verified Memory win earns points once, exchanges into coin chips, and re
   const buy = { ...auth, key: f.key, ...f.host, action: 'buy-in', amount: 20, actionId: 'buyin-000000000001', tableId: room.activityState.id, version: room.activityState.version };
   const bought = await emitAck(f.socket, 'wallet:action', buy); assert(bought.ok, bought.error); room = JSON.parse(bought.value); assert.equal(bought.wallet.coins, 0); assert.equal(room.activityState.players[0].stack, 20);
   assert.equal((await emitAck(f.socket, 'wallet:action', buy)).wallet.coins, 0, 'retry must not double-debit');
+  const exited = new Promise(r => f.child.once('exit', r)); f.child.kill('SIGTERM'); await exited;
+  const restarted = await startTestServer(t, { dataDir: f.dataDir }); f.socket = await connection(t, restarted.port);
+  const restored = await emitAck(f.socket, 'cards:view', { key: f.key, ...f.host }); assert(restored.ok, restored.error); room = JSON.parse(restored.value);
+  assert(room.activityState.coinMode); assert.equal(room.activityState.players[0].stack, 20);
+  assert.equal((await sync()).wallet.coins, 0, 'restart restores escrow without recrediting the wallet');
   assert.equal((await cardAction('reset', 2)).ok, false);
   assert.equal((await cardAction('add-chips', 3)).ok, false);
   assert((await cardAction('deal', 4)).ok);
@@ -120,4 +127,20 @@ test('a verified Memory win earns points once, exchanges into coin chips, and re
   assert.equal((await sync()).wallet.coins, total);
   assert.equal((await sync()).wallet.points, 0);
   const denied = await emitAck(f.socket, 'wallet:action', { ...auth, walletToken: 'b'.repeat(64), action: 'exchange', amount: 1, actionId: 'forged-0000000001' }); assert.equal(denied.ok, false);
+});
+test('queued verified rewards survive activity removal and restart without duplicate credit', async t => {
+  const f = await roomFixture(t), auth = { walletId: randomUUID(), walletToken: 'd'.repeat(64) };
+  assert((await emitAck(f.socket, 'wallet:open', auth)).ok);
+  const stop = async child => { const exited = new Promise(r => child.once('exit', r)); child.kill('SIGTERM'); await exited; };
+  await stop(f.child);
+  const outbox = { 'checkers:completed-match:host': { key: 'checkers:completed-match:host', playerId: 'host', walletId: auth.walletId, value: 30, label: 'Checkers win' } };
+  const pendingFile = path.join(f.dataDir, 'coin-reward-outbox.json');
+  // Represents an already-verified award queued before a storage interruption.
+  fs.writeFileSync(pendingFile, JSON.stringify(outbox), { mode: 0o600 });
+  let restarted = await startTestServer(t, { dataDir: f.dataDir }); let socket = await connection(t, restarted.port);
+  assert.equal((await emitAck(socket, 'wallet:open', auth)).wallet.points, 30);
+  assert.deepEqual(JSON.parse(fs.readFileSync(pendingFile)), {});
+  await stop(restarted.child); fs.writeFileSync(pendingFile, JSON.stringify(outbox));
+  restarted = await startTestServer(t, { dataDir: f.dataDir }); socket = await connection(t, restarted.port);
+  assert.equal((await emitAck(socket, 'wallet:open', auth)).wallet.points, 30, 'replayed delivery cannot double-credit');
 });

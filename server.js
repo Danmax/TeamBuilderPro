@@ -134,6 +134,16 @@ let sessionCleanupInterval = null;
 const cardTables = new Map(), cardTimers = new Map(), cardViewers = new Map(), roomOperations = new Map();
 const cardStore = createCardTableStore({ database: () => configDb, databaseRequired, dataDir: DATA_DIR });
 const wallets = createCoinWalletStore({ database: () => configDb, databaseRequired, dataDir: DATA_DIR });
+// Durable delivery of verified rewards survives a database outage or activity change.
+const REWARD_OUTBOX_FILE = path.join(DATA_DIR, 'coin-reward-outbox.json');
+let rewardOutbox = {}, rewardFlush = Promise.resolve();
+try { rewardOutbox = JSON.parse(fs.readFileSync(REWARD_OUTBOX_FILE, 'utf8')); }
+catch (e) { if (e.code !== 'ENOENT') throw e; }
+function persistRewardOutbox() {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(REWARD_OUTBOX_FILE + '.tmp', JSON.stringify(rewardOutbox), { mode: 0o600 });
+  fs.renameSync(REWARD_OUTBOX_FILE + '.tmp', REWARD_OUTBOX_FILE);
+}
 
 function getAdminToken() {
   return String(process.env.ADMIN_TOKEN || '').trim();
@@ -1945,12 +1955,26 @@ function clearMemoryTimer(key) {
 function normalizeWalletBindings(raw) {
   return Object.fromEntries(Object.entries(raw && typeof raw === 'object' ? raw : {}).filter(([id, v]) => /^[A-Za-z0-9_-]{1,64}$/.test(id) && /^[a-f0-9-]{36}$/.test(v?.walletId || '') && /^[a-f0-9]{64}$/.test(v?.actorHash || '') && Number.isFinite(v?.boundAt)));
 }
-async function settleRewards(key, room) {
+function prepareRewards(key, room) {
+  if (room.activityState?.rewardsQueued || !winningRewards(room).length) return;
   const bindings = getRoomAccessMeta(key)?.wallets || {};
   for (const reward of winningRewards(room)) {
     const owner = bindings[reward.playerId];
-    if (owner && owner.boundAt <= (room.activityState.rewardFinishedAt || room.activityState.finishedAt || 0) && await wallets.award(owner.walletId, reward.key, reward.value, reward.label)) io.to(key).emit('wallet:changed', {});
+    if (owner && owner.boundAt <= (room.activityState.rewardFinishedAt || room.activityState.finishedAt || 0)) rewardOutbox[reward.key] = { ...reward, walletId: owner.walletId };
   }
+  persistRewardOutbox(); room.activityState.rewardsQueued = true;
+}
+function flushRewards() {
+  const work = rewardFlush.catch(() => {}).then(async () => {
+    for (const [key, reward] of Object.entries(rewardOutbox)) {
+      await wallets.award(reward.walletId, reward.key, reward.value, reward.label);
+      delete rewardOutbox[key]; persistRewardOutbox();
+    }
+  });
+  rewardFlush = work; return work;
+}
+async function settleRewards(key, room) {
+  prepareRewards(key, room); await flushRewards();
 }
 function observeRewards(key, room) {
   if (!winningRewards(room).length) return;
@@ -1960,6 +1984,7 @@ function observeRewards(key, room) {
 
 function publishGameRoom(key, room) {
   if (room.activityState?.phase === 'finished' && room.activityState.rewardStartedAt) room.activityState.rewardFinishedAt ||= Date.now();
+  prepareRewards(key, room);
   room.lastUpdate = Date.now();
   room.revision = (Number(room.revision) || 0) + 1;
   const value = JSON.stringify(room);
@@ -2117,7 +2142,7 @@ function scheduleCardTable(key, game) {
   cardTimers.delete(key);
   const deadlines = [];
   if (Cards.active(game) && !game.paused && game.deadline) deadlines.push(game.deadline);
-  if (!Cards.active(game) && game.type !== 'spades' && !game.coinMode) game.players.forEach(p => { if (p.awaySince) deadlines.push(p.awaySince + Cards.AWAY_MS); });
+  if (!Cards.active(game) && game.type !== 'spades') game.players.forEach(p => { if (p.awaySince) deadlines.push(p.awaySince + Cards.AWAY_MS); });
   if (Cards.active(game) && !game.paused && Cards.seat(game, game.turnId)?.isHouse) deadlines.push((game.turnStartedAt || Date.now()) + CardAI.HOUSE_THINK_MS);
   if (!deadlines.length) return;
   const timer = setTimeout(() => {
@@ -2126,6 +2151,9 @@ function scheduleCardTable(key, game) {
       const room = getRoomSnapshot(key), current = cardTables.get(key);
       if (!room || !current || room.currentActivity !== current.type || room.activityState?.id !== current.id) return;
       let next = Cards.expire(current);
+      if (current.coinMode && !Cards.active(current)) {
+        for (const p of current.players.filter(p => p.awaySince && Date.now() >= p.awaySince + Cards.AWAY_MS)) next = await wallets.releaseSeat(key, current.id, p.id);
+      }
       const computer = Cards.seat(current, current.turnId);
       if (next === current && Cards.active(current) && !current.paused && computer?.isHouse
         && Date.now() >= (current.turnStartedAt || 0) + CardAI.HOUSE_THINK_MS) {
@@ -2313,6 +2341,16 @@ io.on('connection', socket => {
       ack?.({ ok: false, error: 'Participant authentication required' });
       return;
     }
+    const leavingTable = cardTables.get(key);
+    if (leavingTable?.coinMode) {
+      if (room.participants.length === 1) {
+        await wallets.closeTable(key, leavingTable.id); cardTables.delete(key);
+        clearTimeout(cardTimers.get(key)); cardTimers.delete(key);
+      } else if (!Cards.active(leavingTable) && Cards.seat(leavingTable, actor.playerId)) {
+        const next = await wallets.releaseSeat(key, leavingTable.id, actor.playerId);
+        cardTables.set(key, next); room.activityState = Cards.publicView(next); scheduleCardTable(key, next);
+      }
+    }
     room.participants = (Array.isArray(room.participants) ? room.participants : [])
       .filter(participant => getParticipantStableId(participant) !== actor.playerId);
     const meta = getRoomAccessMeta(key);
@@ -2405,13 +2443,19 @@ io.on('connection', socket => {
             const p = Cards.seat(current, actor.playerId);
             let next = current;
             if (!p) {
+              if (current.type === 'blackjack' && payload.amount < 10) throw new Error('Blackjack requires at least 10 chips.');
               next = Cards.apply(current, { id: actor.playerId, name: actor.participant.name }, 'join');
-              const added = Cards.seat(next, actor.playerId); added.stack = 0; added.buyIn = 0;
+              const added = Cards.seat(next, actor.playerId); added.stack = 0; added.buyIn = 0; if (current.type === 'blackjack') added.nextBet = Math.min(20, Math.floor(payload.amount / 10) * 10);
             } else next.version++;
             next.actorHashes = { ...next.actorHashes, [actor.playerId]: cardActorHash(String(payload.actorToken)) };
             return next;
           } });
         // Escrow and wallet were committed together above; publish that exact table.
+        const currentRoom = getRoomSnapshot(payload.key);
+        if (!currentRoom || currentRoom.currentActivity !== game.type || currentRoom.activityState?.id !== game.id) {
+          await wallets.closeTable(payload.key, game.id); throw new Error('The table closed; coins were returned to the wallet.');
+        }
+        room = currentRoom;
         cardTables.set(payload.key, result.game); room.activityState = Cards.publicView(result.game);
         const value = publishGameRoom(payload.key, room); persistStateToDisk(); scheduleCardTable(payload.key, result.game);
         return ack?.({ ok: true, wallet: result.wallet, value, private: Cards.privateView(result.game, actor.playerId) });
@@ -2597,6 +2641,7 @@ io.on('connection', socket => {
       room.activityState = next;
       scheduleChineseCheckersTurn(key, next);
       if (room.activityState?.phase === 'finished' && room.activityState.rewardStartedAt) room.activityState.rewardFinishedAt ||= Date.now();
+      prepareRewards(key, room);
       room.lastUpdate = Date.now();
       room.revision = (Number(room.revision) || 0) + 1;
       const value = JSON.stringify(room);
@@ -2633,6 +2678,7 @@ io.on('connection', socket => {
         room.activityState = Checkers.applyMove(game, payload.from, payload.to);
       } else throw new Error('Unknown Checkers action.');
       if (room.activityState?.phase === 'finished' && room.activityState.rewardStartedAt) room.activityState.rewardFinishedAt ||= Date.now();
+      prepareRewards(key, room);
       room.lastUpdate = Date.now();
       room.revision = (Number(room.revision) || 0) + 1;
       const value = JSON.stringify(room);
@@ -3152,6 +3198,7 @@ Promise.resolve()
   .then(() => initializeConfigDatabase())
   .then(() => loadConfigFromDatabase())
   .then(() => recoverCardTables())
+  .then(() => flushRewards())
   .finally(() => {
     startSessionCleanupLoop();
     server.listen(PORT, () => {

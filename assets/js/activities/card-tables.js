@@ -135,7 +135,7 @@
     let actions = '';
     if (!me && game.coinMode) actions = '<button type="button" class="btn-primary" data-action="open-wallet">Buy chips with coins · Take a seat</button>';
     else if (!me) actions = button('join', `Take a seat · ${game.players.length}/${type.max}`, game.players.length < type.max);
-    else if (seating) actions = `<div class="ct-between"><span>${me.stack ? 'Ready for the next hand' : 'Out of chips — add more below to keep playing'}</span>${game.coinMode ? '<button type="button" class="btn-secondary" data-action="open-wallet">Manage coins · Return chips</button>' : button('leave', 'Leave seat')}</div>`;
+    else if (seating) actions = `<div class="ct-between"><span>${me.stack ? 'Ready for the next hand' : game.coinMode ? 'Out of chips — exchange points or buy chips in your wallet' : 'Out of chips — add more below to keep playing'}</span>${game.coinMode ? '<button type="button" class="btn-secondary" data-action="open-wallet">Manage coins · Return chips</button>' : button('leave', 'Leave seat')}</div>`;
     else if (game.paused) actions = '<p>The hand is paused by the host.</p>';
     else if (!me.inHand) actions = '<p>You are seated for the next hand.</p>';
     else if (!own) actions = '<p>Loading your private controls…</p>';

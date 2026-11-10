@@ -34,6 +34,9 @@ test('atomic buy-ins, zero-stack exits, voided hands and repeated table closure 
   await assert.rejects(store.transfer({ ...transfer, direction: 'return', value: 10, actionId: 'return-00000000001' }), /between hands/);
   await store.closeTable(transfer.key, g.id); await store.closeTable(transfer.key, g.id); assert.equal((await store.get(id, token)).coins, 99);
   assert.equal(await store.loadTable(transfer.key), null);
+  await store.saveTable(transfer.key, g); r = await store.transfer({ ...transfer, value: 20, actionId: 'buyin-000000000003' });
+  const released = await store.releaseSeat(transfer.key, g.id, 'a'); assert.equal(released.players.length, 0);
+  await store.releaseSeat(transfer.key, g.id, 'a'); assert.equal((await store.get(id, token)).coins, 99);
   await store.saveTable(transfer.key, g); r = await store.transfer({ ...transfer, actionId: 'buyin-000000000002' }); r.game.players[0].stack = 0; await store.saveTable(transfer.key, r.game);
   const exit = await store.transfer({ ...transfer, direction: 'return', value: 0, actionId: 'return-00000000002' }); assert.equal(exit.game.players.length, 0);
 });
