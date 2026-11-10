@@ -5585,8 +5585,9 @@ function render() {
   const unoHandScroll = app.querySelector('.uno-hand-grid')?.scrollTop || 0;
   // Skip re-render if user is typing in a form input (prevents mobile keyboard dismissal)
   const activeEl = document.activeElement;
-  const liveInput = ['surveyClashGuessInput', 'activitySearch', 'spinWheelTitleInput', 'spinWheelOptionsInput', 'communitySearch'].includes(activeEl?.id)
-    ? { id: activeEl.id, value: activeEl.value, start: activeEl.selectionStart, end: activeEl.selectionEnd } : null;
+  const cardInput = window.TeamBuilderCardTables?.captureInput(activeEl);
+  const liveInput = cardInput || (['surveyClashGuessInput', 'activitySearch', 'spinWheelTitleInput', 'spinWheelOptionsInput', 'communitySearch'].includes(activeEl?.id)
+    ? { id: activeEl.id, value: activeEl.value, start: activeEl.selectionStart, end: activeEl.selectionEnd } : null);
   const activeCosmosInput = getActiveCosmosBoundTextInput();
   if (activeCosmosInput && APP.cosmosBoundUi?.allowImmediateRender !== true) {
     return;
@@ -5644,14 +5645,15 @@ function render() {
   if (APP.screen !== 'lobby' || APP.room?.currentActivity !== 'survey-clash') surveyClashFeedback.clear();
   if (APP.screen === 'admin' && APP.admin.authenticated) restoreAdminSettingsDraft();
   applyActivityFilters();
-  if (liveInput) {
+  if (liveInput && !liveInput.cardInput) {
     const replacement = document.getElementById(liveInput.id);
     if (replacement) {
       replacement.value = liveInput.value;
       replacement.focus({ preventScroll: true });
-      replacement.setSelectionRange(liveInput.start, liveInput.end);
+      if (Number.isInteger(liveInput.start) && Number.isInteger(liveInput.end)) replacement.setSelectionRange(liveInput.start, liveInput.end);
     }
   }
+  window.TeamBuilderCardTables?.restoreInput();
   restoreDjBoothPlayersAfterRender();
   updateVoiceMeterDom();
   if (APP.room?.currentActivity === 'dj-booth') {

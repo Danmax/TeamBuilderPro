@@ -2,6 +2,30 @@
   const TYPES = Object.freeze(Object.assign(Object.create(null), { blackjack: { label: '21 / Blackjack', max: 6, min: 1 }, 'five-card-draw': { label: 'Five-Card Draw', max: 5, min: 2 }, 'texas-holdem': { label: 'Texas Hold’em', max: 8, min: 2 } }));
   const SUITS = { S: '♠', H: '♥', D: '♦', C: '♣' };
   let privateState = null, busy = false, reading = '', failedStamp = '', selected = new Set(), selectionHand = '', serverOffset = 0;
+  let inputDraft = null;
+  const bettingInputs = new Set(['cardRaiseAmount', 'cardBetAmount']);
+  function inputContext(table) {
+    return table ? ['roomCode', 'playerId', 'tableId', 'handId', 'turnId', 'street', 'phase'].map(key => table.dataset[key] || '').join(':') : '';
+  }
+  function captureInput(element) {
+    if (!bettingInputs.has(element?.id)) return null;
+    inputDraft = { id: element.id, value: element.value, context: inputContext(element.closest('.card-table-game')) };
+    return { id: element.id, cardInput: true };
+  }
+  function restoreInput() {
+    if (!inputDraft) return;
+    const table = document.querySelector('.card-table-game');
+    if (!table || inputContext(table) !== inputDraft.context) { inputDraft = null; return; }
+    const replacement = document.getElementById(inputDraft.id);
+    // A private snapshot may briefly replace controls with a loading message.
+    if (!replacement || replacement.disabled) return;
+    replacement.value = inputDraft.value;
+    inputDraft = null;
+    replacement.dispatchEvent(new Event('input', { bubbles: true }));
+    replacement.focus({ preventScroll: true });
+    // Number inputs do not support selectionStart or setSelectionRange.
+  }
+  root.TeamBuilderCardTables = { captureInput, restoreInput };
   const stamp = game => `${APP.roomCode}:${APP.player?.id}:${game.id}:${game.handId}:${game.version}`;
   function accept(response) {
     if (Number.isFinite(response.serverNow)) serverOffset = response.serverNow - Date.now();
@@ -28,7 +52,10 @@
   }
   async function request(action, extra = {}) {
     if (busy || !TYPES[APP.room?.currentActivity]) return;
+    inputDraft = null;
+    if (bettingInputs.has(document.activeElement?.id)) document.activeElement.blur();
     busy = true;
+    render();
     const game = APP.room.activityState, code = APP.roomCode;
     try {
       const key = `room:${code}`;
@@ -75,7 +102,7 @@
     else if (game.type === 'blackjack') actions = `<div class="ct-action-buttons">${button('hit', 'Hit', legal.hit)}${button('stand', 'Stand', legal.stand)}${button('double', `Double · ${me.total} more`, legal.double)}</div>`;
     else if (drawTurn) actions = button('draw', selected.size ? `Replace ${selected.size} selected card${selected.size === 1 ? '' : 's'}` : 'Keep all five cards');
     else actions = `<div class="ct-action-buttons">${button('fold', 'Fold')}${legal.check ? button('check', 'Check') : button('call', `Call ${legal.call}${legal.call === me.stack ? ' · all-in' : ''}`, Boolean(legal.call))}</div>${legal.raise ? `<div class="ct-raise"><label for="cardRaiseAmount">${game.currentBet ? 'Raise to' : 'Bet'} (total this round)</label><div><input id="cardRaiseAmount" class="form-input" type="number" inputmode="numeric" min="${legal.minRaiseTo}" max="${legal.maxRaiseTo}" step="1" value="${legal.minRaiseTo}" aria-describedby="cardRaiseHelp">${button('raise', `${game.currentBet ? 'Raise to' : 'Bet'} ${legal.minRaiseTo}`)}</div><small id="cardRaiseHelp">${me.bet} already in · add ${legal.minRaiseTo - me.bet} · maximum total ${legal.maxRaiseTo}</small></div>` : ''}`;
-    return `<section class="card-table-game" aria-label="${type.label}">
+    return `<section class="card-table-game" aria-label="${type.label}" data-room-code="${escapeHtml(APP.roomCode)}" data-player-id="${escapeHtml(APP.player.id)}" data-table-id="${escapeHtml(game.id)}" data-hand-id="${escapeHtml(game.handId)}" data-turn-id="${escapeHtml(game.turnId)}" data-street="${escapeHtml(game.street)}" data-phase="${escapeHtml(game.phase)}">
       <header class="ct-heading"><div><h2>${type.label}</h2><p>Play chips · ${game.type === 'blackjack' ? 'Automated dealer · 3:2 blackjack' : `Blinds ${game.smallBlind}/${game.bigBlind}`}</p></div><span class="ct-hand-number">Hand ${game.handNumber || 1}</span></header>
       <div class="ct-status" role="status"><strong>${game.paused ? 'Paused' : active ? mine ? 'Your turn' : `${escapeHtml(current?.name || 'Dealer')}’s turn` : game.phase === 'settled' ? 'Hand complete' : 'Take your seats'}</strong><span>${escapeHtml(game.street === 'draw' ? 'Replace cards' : game.street === 'postdraw' ? 'Final betting' : game.street || 'Waiting')} ${active ? '<span id="cardTurnClock" aria-label="Time remaining"></span>' : ''}</span></div>
       <div class="ct-felt"><div class="ct-pot">${game.type === 'blackjack' ? 'Table bets' : 'Pot'} <strong>${active ? game.pot : game.lastPot}</strong></div><div class="ct-board" aria-label="${game.type === 'blackjack' ? 'Dealer cards' : 'Community cards'}">${tableCards.length ? tableCards.map(c => card(c)).join('') : `<span class="ct-table-note">${game.type === 'five-card-draw' ? 'Five private cards. One chance to draw.' : 'Your table is ready.'}</span>`}</div>${game.type === 'blackjack' && game.phase === 'settled' ? `<p>Dealer total: ${game.dealer.reduce((sum, c) => sum + (c.rank === 14 ? 1 : Math.min(10, c.rank)), 0) + (game.dealer.some(c => c.rank === 14) && game.dealer.reduce((sum, c) => sum + (c.rank === 14 ? 1 : Math.min(10, c.rank)), 0) <= 11 ? 10 : 0)}</p>` : ''}<p class="ct-message" title="${escapeHtml(game.message)}">${escapeHtml(game.message)}</p></div>
