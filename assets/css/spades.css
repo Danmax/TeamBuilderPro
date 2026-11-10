@@ -1,0 +1,29 @@
+.sp-game { --ct-card-width: 56px; }
+.sp-scoreboard { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0 4px; }
+.sp-scoreboard article { display: grid; gap: 4px; padding: 14px 18px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface-solid); }
+.sp-scoreboard article:first-child { border-color: #9173d9; }
+.sp-scoreboard article:last-child { border-color: #4dbda1; }
+.sp-scoreboard strong { font-size: 1.8rem; font-variant-numeric: tabular-nums; }
+.sp-scoreboard span { font-size: .8rem; }.sp-scoreboard small { color: var(--text-mid); font-size: .7rem; }
+.ct-felt.sp-felt { display: block; padding: 24px; border-radius: 90px; }
+.sp-playfield { display: grid; grid-template-columns: 130px minmax(0,1fr) 130px; grid-template-areas: '. north .' 'west trick east' '. south .'; align-items: center; gap: 12px; }
+.sp-position-0 { grid-area: south; }.sp-position-1 { grid-area: west; }.sp-position-2 { grid-area: north; }.sp-position-3 { grid-area: east; }
+.sp-seat { display: grid; justify-items: center; align-content: center; gap: 4px; min-width: 0; padding: 8px; border: 1px solid transparent; border-radius: 16px; font-size: .78rem; }
+.sp-seat strong { overflow-wrap: anywhere; }.sp-seat small { font-size: .63rem; color: #d2e5d8; }.sp-seat > span { font-size: .68rem; }.sp-seat .ct-seat-portrait { margin-bottom: 4px; }.sp-seat button { font-size: .65rem; padding: 8px; min-height: 44px; margin: 0; }
+.sp-current { border-color: #92ffb2; background: #031f2855; box-shadow: 0 0 16px #65e6ac33; }
+.sp-trick { grid-area: trick; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); grid-template-areas: '. north .' 'west . east' '. south .'; gap: 5px; min-height: 210px; align-items: center; justify-items: center; }
+.sp-trick > p { grid-column: 1/-1; grid-row: 1 / span 3; color: #d2e5d8; font-size: .8rem; }.sp-play { display: grid; justify-items: center; gap: 4px; }.sp-play small { font-size: .55rem; overflow-wrap: anywhere; max-width: 65px; }.sp-play .ct-card { --ct-card-width: 44px; }
+.ct-private.sp-private { width: 100%; max-width: 860px; margin-top: 16px; }.sp-private .ct-hand { flex-wrap: wrap; gap: 8px; }.sp-private .ct-hand > span { display: inline-flex; }.sp-illegal { opacity: .5; }.sp-illegal .ct-card { box-shadow: none; }
+.sp-controls { position: relative; }.sp-controls label { font-size: .8rem; }.sp-bid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }.sp-controls select { min-height: 48px; font-size: 16px; min-width: 0; }.sp-last { padding: 12px; }
+@media(max-width:600px) {
+ .sp-game { --ct-card-width: 43px; }.ct-felt.sp-felt { padding: 16px 8px; border-radius: 44px; }
+ .sp-playfield { grid-template-columns: 65px minmax(0,1fr) 65px; gap: 5px; }.sp-seat { padding: 4px 2px; font-size: .62rem; gap: 3px; }.sp-seat .ct-seat-portrait { width: 32px; height: 32px; }.sp-seat .ct-avatar { width: 26px; height: 26px; font-size: 1.3rem; line-height: 26px; }.sp-seat small { font-size: .54rem; }.sp-seat > span { font-size: .55rem; }
+ .sp-trick { min-height: 175px; gap: 2px; }.sp-play .ct-card { --ct-card-width: 30px; }.sp-play .ct-card-suit { font-size: 1.25rem; }.sp-play .ct-card-corner { font-size: .5rem; left: 2px; top: 2px; }.sp-play .ct-card-rank { font-size: .5rem; bottom: 2px; right: 2px; }.sp-play small { font-size: .45rem; max-width: 38px; }.sp-trick > p { font-size: .65rem; }
+ .ct-private.sp-private { padding: 12px 6px; }.sp-private .ct-hand { gap: 9px 6px; }.sp-private .ct-card { --ct-card-width: 43px; }.sp-bid { grid-template-columns: 1fr; }.sp-scoreboard article { padding: 12px; }.sp-scoreboard small { font-size: .6rem; }
+}
+.wallet-open { min-height: 36px; width: auto; font-size: .72rem; padding: 7px 12px; margin: 0; }
+.wallet-overlay { position: fixed; inset: 0; z-index: 25000; background: #020913cc; display: grid; place-items: center; padding: 16px; backdrop-filter: blur(8px); }
+.wallet-panel { width: min(100%, 510px); max-height: 90dvh; overflow: auto; border: 1px solid #b9985b77; border-radius: 24px; padding: 24px; background: #111b2a; color: #eeeae1; box-shadow: 0 20px 80px #0008; }
+.wallet-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }.wallet-title h2 { margin: 0; }.wallet-title button { background: #ffffff12; color: white; border: 1px solid #ffffff33; border-radius: 50%; width: 44px; height: 44px; cursor: pointer; }
+.wallet-description { font-size: .82rem; line-height: 1.5; color: #b2bdcc; margin: 12px 0; }.wallet-balances { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }.wallet-balances > div { display: grid; gap: 8px; padding: 16px; background: #ffffff06; border: 1px solid #ffffff18; border-radius: 16px; }.wallet-balances span { font-size: .75rem; color: #b2bdcc; }.wallet-balances strong { font-size: 1.8rem; color: #f5d591; font-variant-numeric: tabular-nums; }
+.wallet-panel label { display: block; font-size: .8rem; margin: 14px 0 7px; }.wallet-panel .form-input { min-height: 48px; font-size: 16px; }.wallet-buttons { display: grid; gap: 8px; margin-top: 12px; }.wallet-buttons button { min-height: 48px; margin: 0; }.wallet-panel details { border-top: 1px solid #ffffff18; padding-top: 12px; margin-top: 12px; font-size: .78rem; }.wallet-panel summary { min-height: 32px; cursor: pointer; }.wallet-panel details p { line-height: 1.5; margin: 8px 0; color: #b2bdcc; }.wallet-message { min-height: 24px; margin-top: 12px; font-size: .8rem; color: #f5d591; }.wallet-footnote { color: #a1adbe; font-size: .68rem; line-height: 1.5; margin-top: 16px; }.wallet-panel :focus-visible { outline: 3px solid #f5d591; outline-offset: 3px; }

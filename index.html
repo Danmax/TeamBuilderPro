@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="/assets/css/game-victory.css">
 <link rel="stylesheet" href="/assets/css/uno.css">
 <link rel="stylesheet" href="/assets/css/card-tables.css">
+<link rel="stylesheet" href="/assets/css/spades.css">
 </head>
 <body>
 <div class="atmosphere"><div class="mesh"></div><div class="mesh"></div><div class="mesh"></div></div>
@@ -65,6 +66,8 @@
 <script src="/assets/js/activities/memory.js"></script>
 <script src="/assets/js/card-table-effects.js"></script>
 <script src="/assets/js/activities/card-tables.js"></script>
+<script src="/assets/js/activities/spades.js"></script>
+<script src="/assets/js/coin-wallet.js"></script>
 <script src="/assets/js/activities/rock-paper-scissors.js"></script>
 <script src="/assets/js/activities/chess-lobby.js"></script>
 <script src="/assets/js/core/particles.js"></script>
@@ -1843,6 +1846,7 @@ const ALL_ACTIVITY_IDS = [
   'blackjack',
   'five-card-draw',
   'texas-holdem',
+  'spades',
   'regular-trivia',
   'tic-tac-toe-blitz',
   'team-jeopardy',
@@ -5599,6 +5603,7 @@ function render() {
       return;
     }
   }
+  window.TeamBuilderWallet?.observe();
   TeamBuilderGameVictory.beginFrame();
   let html = '';
   syncActiveContentBanks();
@@ -5715,6 +5720,7 @@ function renderEditProfile() {
   return `
     <div class="header">
       <h1 class="logo">Edit Profile</h1>
+      ${window.TeamBuilderWallet?.button() || ''}
     </div>
     
     <button class="btn-secondary" data-action="cancel-edit-profile">← Back</button>
@@ -8422,7 +8428,7 @@ document.addEventListener('keydown', async event => {
 
 function renderActivity() {
   const activity = APP.room.currentActivity;
-  const compactSessionMenu = ['uno', 'blackjack', 'five-card-draw', 'texas-holdem'].includes(activity);
+  const compactSessionMenu = ['uno', 'blackjack', 'five-card-draw', 'texas-holdem', 'spades'].includes(activity);
   const isHost = APP.room.host === APP.player?.name;
   let content = '<div>Activity loading...</div>';
   const timedEntry = getCurrentQueuedScheduleEntry(APP.room);

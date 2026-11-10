@@ -4,8 +4,10 @@ const crypto = require('crypto');
 const Character = require('./assets/js/character-core');
 const normalizeCharacter = value => value && typeof value === 'object' && !Array.isArray(value) ? Character.normalize(value) : null;
 const CommunityPlaza = require('./assets/js/community-plaza-core');
-const Checkers = require('./assets/js/games/checkers-core');
-const ChineseCheckers = require('./assets/js/games/chinese-checkers-core');
+const CheckersCore = require('./assets/js/games/checkers-core');
+const Checkers = { ...CheckersCore, createGame: (...args) => ({ ...CheckersCore.createGame(...args), rewardStartedAt: Date.now() }) };
+const ChineseCheckersCore = require('./assets/js/games/chinese-checkers-core');
+const ChineseCheckers = { ...ChineseCheckersCore, createGame: (...args) => ({ ...ChineseCheckersCore.createGame(...args), rewardStartedAt: Date.now() }) };
 const FamilyFaceOff = require('./assets/js/games/family-face-off-core');
 const { validateSurveyQuestions } = require('./assets/js/theme-content-core');
 const familyFaceOffTimers = new Map();
@@ -13,9 +15,12 @@ const SpinWheel = require('./assets/js/games/spin-wheel-core');
 const spinWheelTimers = new Map();
 const ChineseCheckersAI = require('./assets/js/games/chinese-checkers-ai');
 const chineseCheckersTimers = new Map();
-const Memory = require('./assets/js/games/memory-core');
-const Cards = require('./lib/card-games');
+const MemoryCore = require('./assets/js/games/memory-core');
+const Memory = { ...MemoryCore, createGame: (...args) => { const result = MemoryCore.createGame(...args); result.game.rewardStartedAt = Date.now(); return result; } };
+const Cards = require('./lib/table-games');
+const Spades = require('./lib/spades');
 const CardAI = require('./lib/card-games-ai');
+const { createCoinWalletStore, winningRewards } = require('./lib/coin-wallet');
 const { createCardTableStore } = require('./lib/card-table-store');
 const memoryTimers = new Map();
 const express = require('express');
@@ -78,6 +83,7 @@ const ALL_ACTIVITY_IDS = [
   'blackjack',
   'five-card-draw',
   'texas-holdem',
+  'spades',
   'regular-trivia',
   'tic-tac-toe-blitz',
   'team-jeopardy',
@@ -127,6 +133,7 @@ let sessionCleanupInterval = null;
 
 const cardTables = new Map(), cardTimers = new Map(), cardViewers = new Map(), roomOperations = new Map();
 const cardStore = createCardTableStore({ database: () => configDb, databaseRequired, dataDir: DATA_DIR });
+const wallets = createCoinWalletStore({ database: () => configDb, databaseRequired, dataDir: DATA_DIR });
 
 function getAdminToken() {
   return String(process.env.ADMIN_TOKEN || '').trim();
@@ -426,6 +433,7 @@ function loadRoomMetaFromDisk() {
         createdAt: Number(meta?.createdAt) || Date.now(),
         privateSession,
         actorTokens: normalizeActorTokens(meta?.actorTokens),
+        wallets: normalizeWalletBindings(meta?.wallets),
         memory: Memory.normalizeSecret(meta?.memory)
       });
     });
@@ -477,6 +485,7 @@ function persistRoomMetaToDisk() {
         createdAt: meta.createdAt,
         privateSession: meta.privateSession === true,
         actorTokens: normalizeActorTokens(meta.actorTokens),
+        wallets: normalizeWalletBindings(meta.wallets),
         memory: Memory.normalizeSecret(meta.memory)
       }
     ]));
@@ -949,6 +958,8 @@ function listCommunityRooms() {
 }
 
 function deleteRoomState(key) {
+  const coinTable = cardTables.get(key);
+  if (coinTable?.coinMode) void wallets.closeTable(key, coinTable.id).catch(() => console.error('Coin refund pending; escrow remains stored.'));
   clearFamilyFaceOffTimer(key);
   clearSpinWheelTimer(key);
   clearChineseCheckersTimer(key);
@@ -1931,13 +1942,31 @@ function clearMemoryTimer(key) {
   memoryTimers.delete(key);
 }
 
+function normalizeWalletBindings(raw) {
+  return Object.fromEntries(Object.entries(raw && typeof raw === 'object' ? raw : {}).filter(([id, v]) => /^[A-Za-z0-9_-]{1,64}$/.test(id) && /^[a-f0-9-]{36}$/.test(v?.walletId || '') && /^[a-f0-9]{64}$/.test(v?.actorHash || '') && Number.isFinite(v?.boundAt)));
+}
+async function settleRewards(key, room) {
+  const bindings = getRoomAccessMeta(key)?.wallets || {};
+  for (const reward of winningRewards(room)) {
+    const owner = bindings[reward.playerId];
+    if (owner && owner.boundAt <= (room.activityState.rewardFinishedAt || room.activityState.finishedAt || 0) && await wallets.award(owner.walletId, reward.key, reward.value, reward.label)) io.to(key).emit('wallet:changed', {});
+  }
+}
+function observeRewards(key, room) {
+  if (!winningRewards(room).length) return;
+  persistStateToDisk();
+  void settleRewards(key, room).catch(() => console.error('Reward could not be saved; wallet refresh will retry.'));
+}
+
 function publishGameRoom(key, room) {
+  if (room.activityState?.phase === 'finished' && room.activityState.rewardStartedAt) room.activityState.rewardFinishedAt ||= Date.now();
   room.lastUpdate = Date.now();
   room.revision = (Number(room.revision) || 0) + 1;
   const value = JSON.stringify(room);
   state.set(key, value);
   schedulePersist();
   io.to(key).emit('shared:update', { key, value });
+  observeRewards(key, room);
   return value;
 }
 
@@ -2063,7 +2092,7 @@ async function saveCardTable(key, game) {
   const previous = cardTables.get(key);
   Cards.syncChipBalances(game);
   game.actorHashes = Object.fromEntries(Object.entries(game.actorHashes || {}).filter(([id]) => game.players.some(p => p.id === id) || Object.hasOwn(game.chipBalances, id)));
-  await cardStore.save(key, game);
+  if (game.coinMode) await wallets.saveTable(key, game); else await cardStore.save(key, game);
   cardTables.set(key, game);
   if (previous) {
     const participants = getRoomSnapshot(key)?.participants || [], meta = getRoomAccessMeta(key);
@@ -2088,7 +2117,7 @@ function scheduleCardTable(key, game) {
   cardTimers.delete(key);
   const deadlines = [];
   if (Cards.active(game) && !game.paused && game.deadline) deadlines.push(game.deadline);
-  if (!Cards.active(game)) game.players.forEach(p => { if (p.awaySince) deadlines.push(p.awaySince + Cards.AWAY_MS); });
+  if (!Cards.active(game) && game.type !== 'spades' && !game.coinMode) game.players.forEach(p => { if (p.awaySince) deadlines.push(p.awaySince + Cards.AWAY_MS); });
   if (Cards.active(game) && !game.paused && Cards.seat(game, game.turnId)?.isHouse) deadlines.push((game.turnStartedAt || Date.now()) + CardAI.HOUSE_THINK_MS);
   if (!deadlines.length) return;
   const timer = setTimeout(() => {
@@ -2101,7 +2130,7 @@ function scheduleCardTable(key, game) {
       if (next === current && Cards.active(current) && !current.paused && computer?.isHouse
         && Date.now() >= (current.turnStartedAt || 0) + CardAI.HOUSE_THINK_MS) {
         const own = Cards.privateView(current, computer.id), publicTable = Cards.publicView(current);
-        const decision = CardAI.chooseAction({ type: current.type, cards: own.cards, board: publicTable.board, legal: own.legal, pot: current.pot, stack: computer.stack });
+        const decision = current.type === 'spades' ? Spades.chooseAction(own) : CardAI.chooseAction({ type: current.type, cards: own.cards, board: publicTable.board, legal: own.legal, pot: current.pot, stack: computer.stack });
         next = Cards.apply(current, { id: computer.id, name: computer.name }, decision.action, decision);
       }
       if (!Cards.active(next)) { next = structuredClone(next); Cards.sweep(next, Date.now()); if (next.players.length !== current.players.length) next.version++; }
@@ -2112,11 +2141,15 @@ function scheduleCardTable(key, game) {
   timer.unref(); cardTimers.set(key, timer);
 }
 async function recoverCardTables() {
+  for (const table of await wallets.listTables()) {
+    const room = getRoomSnapshot(table.key);
+    if (room?.currentActivity !== table.type || room.activityState?.id !== table.id) await wallets.closeTable(table.key, table.id);
+  }
   for (const [key] of state) {
     const room = getRoomSnapshot(key);
     if (!Cards.TYPES[room?.currentActivity]) continue;
     try {
-      const game = await cardStore.load(key);
+      const game = await wallets.loadTable(key) || await cardStore.load(key);
       if (!game || game.type !== room.currentActivity || game.id !== room.activityState?.id) continue;
       // Connections reauthenticate independently after restart; reserve their seats.
       for (const p of game.players) if (!p.isHouse && !p.awaySince) p.awaySince = Date.now();
@@ -2342,6 +2375,52 @@ io.on('connection', socket => {
     socket.leave(key);
   });
 
+  onRealtime('wallet:open', async (payload, ack) => {
+    try { ack?.({ ok: true, wallet: await wallets.open(payload?.walletId, payload?.walletToken) }); }
+    catch (e) { ack?.({ ok: false, error: e.message }); }
+  });
+  onRealtime('wallet:action', async (payload, ack) => {
+    try {
+      const id = payload?.walletId, token = payload?.walletToken;
+      await wallets.get(id, token);
+      let room, actor;
+      if (payload.key) {
+        if (!isRoomKey(payload.key) || !isAuthorizedForRoom(payload.key, getRequestRoomToken(payload))) throw new Error('Room access denied.');
+        room = getRoomSnapshot(payload.key); actor = getRoomActor(payload.key, payload, room);
+        if (!actor) throw new Error('Join the room to use this wallet.');
+        const meta = getRoomAccessMeta(payload.key); meta.wallets = normalizeWalletBindings(meta.wallets);
+        const existing = meta.wallets[actor.playerId], actorHash = cardActorHash(String(payload.actorToken));
+        if (existing && (existing.walletId !== id || existing.actorHash !== actorHash)) throw new Error('This participant is already linked to a different wallet.');
+        if (!existing) { meta.wallets[actor.playerId] = { walletId: id, actorHash, boundAt: Date.now() }; scheduleRoomMetaPersist(); }
+        await settleRewards(payload.key, room);
+      }
+      if (payload.action === 'exchange') return ack?.({ ok: true, wallet: await wallets.exchange(id, token, payload.amount, payload.actionId) });
+      if (payload.action === 'buy-in' || payload.action === 'return') {
+        if (!actor) throw new Error('Join the room before transferring coins.');
+        if (await wallets.replay(id, token, payload.actionId, `${payload.action}:${payload.key}:${payload.tableId}:${actor.playerId}:${payload.amount}`)) return ack?.({ ok: true, wallet: await wallets.get(id, token), value: state.get(payload.key) });
+        const game = cardTables.get(payload.key);
+        if (!actor || !game?.coinMode || game.id !== room.activityState?.id || game.id !== payload.tableId || game.version !== payload.version || Cards.active(game)) throw new Error('Transfer coins at an open coin table between hands.');
+        const result = await wallets.transfer({ id, token, key: payload.key, tableId: game.id, playerId: actor.playerId, value: payload.amount, direction: payload.action, actionId: payload.actionId,
+          game: current => {
+            const p = Cards.seat(current, actor.playerId);
+            let next = current;
+            if (!p) {
+              next = Cards.apply(current, { id: actor.playerId, name: actor.participant.name }, 'join');
+              const added = Cards.seat(next, actor.playerId); added.stack = 0; added.buyIn = 0;
+            } else next.version++;
+            next.actorHashes = { ...next.actorHashes, [actor.playerId]: cardActorHash(String(payload.actorToken)) };
+            return next;
+          } });
+        // Escrow and wallet were committed together above; publish that exact table.
+        cardTables.set(payload.key, result.game); room.activityState = Cards.publicView(result.game);
+        const value = publishGameRoom(payload.key, room); persistStateToDisk(); scheduleCardTable(payload.key, result.game);
+        return ack?.({ ok: true, wallet: result.wallet, value, private: Cards.privateView(result.game, actor.playerId) });
+      }
+      if (payload.action !== 'sync') throw new Error('Unknown wallet action.');
+      ack?.({ ok: true, wallet: await wallets.get(id, token) });
+    } catch (e) { ack?.({ ok: false, error: e.message }); }
+  });
+
   async function handleCards(payload, ack, viewing = false) {
     const key = payload?.key;
     if (!isRoomKey(key) || !isAuthorizedForRoom(key, getRequestRoomToken(payload))) return ack?.({ ok: false, error: 'Room access denied.' });
@@ -2361,10 +2440,19 @@ io.on('connection', socket => {
         const prior = Object.hasOwn(game.actionIds, actor.playerId) ? game.actionIds[actor.playerId] : [];
         if (!prior.includes(payload.actionId)) {
           if (payload.tableId !== game.id || payload.handId !== game.handId || payload.version !== game.version) throw new Error('The table changed. Review it and try again.');
-          const next = Cards.apply(game, { id: actor.playerId, name: actor.participant.name, isHost: actor.isHost }, payload.action, { amount: payload.amount, indices: payload.indices, playerId: payload.playerId });
+          if (payload.action === 'funding') {
+            if (game.type === 'spades' || !actor.isHost || Cards.active(game) || game.players.length) throw new Error('Change funding with no players seated, between hands.');
+            if (game.coinMode) await wallets.closeTable(key, game.id);
+            const next = structuredClone(game); next.coinMode = !game.coinMode; next.chipBalances = {}; next.walletOwners = {}; next.version++;
+            next.actionIds = { ...next.actionIds, [actor.playerId]: [...prior.slice(-127), payload.actionId] };
+            await commitCardTable(key, room, next); game = next;
+          } else {
+          if (game.coinMode && ['join', 'leave', 'add-chips', 'reset', 'house', 'remove'].includes(payload.action)) throw new Error('Use coin buy-in or Return chips for this table. Free chips are available in practice mode.');
+          const next = Cards.apply(game, { id: actor.playerId, name: actor.participant.name, isHost: actor.isHost }, payload.action, { amount: payload.amount, indices: payload.indices, playerId: payload.playerId, position: payload.position, card: payload.card });
           if (payload.action === 'join' || (payload.action === 'house' && !Cards.seat(game, actor.playerId))) next.actorHashes = { ...next.actorHashes, [actor.playerId]: cardActorHash(String(payload.actorToken)) };
           next.actionIds = Object.fromEntries([...Object.entries(next.actionIds).filter(([id]) => id !== actor.playerId), [actor.playerId, [...prior.slice(-127), payload.actionId]]].slice(-64));
           await commitCardTable(key, room, next); game = next;
+          }
         }
       }
       if (socket.data.cardView && (socket.data.cardView.key !== key || socket.data.cardView.playerId !== actor.playerId)) forgetCardViewer(socket);
@@ -2378,6 +2466,8 @@ io.on('connection', socket => {
       ack?.({ ok: true, value: state.get(key), private: Cards.privateView(game, actor.playerId), serverNow: Date.now() });
     } catch (error) { ack?.({ ok: false, error: /storage|database|ENOENT|EACCES/i.test(error.message) ? 'Card table could not be saved. Please try again.' : error.message, value: state.get(key) }); }
   }
+  onRealtime('spades:view', (payload, ack) => handleCards(payload, ack, true));
+  onRealtime('spades:action', (payload, ack) => handleCards(payload, ack));
   onRealtime('cards:view', (payload, ack) => handleCards(payload, ack, true));
   onRealtime('cards:action', (payload, ack) => handleCards(payload, ack));
 
@@ -2506,6 +2596,7 @@ io.on('connection', socket => {
       }
       room.activityState = next;
       scheduleChineseCheckersTurn(key, next);
+      if (room.activityState?.phase === 'finished' && room.activityState.rewardStartedAt) room.activityState.rewardFinishedAt ||= Date.now();
       room.lastUpdate = Date.now();
       room.revision = (Number(room.revision) || 0) + 1;
       const value = JSON.stringify(room);
@@ -2541,12 +2632,14 @@ io.on('connection', socket => {
         if (game.players?.[game.turn]?.playerId !== actor.playerId) throw new Error('It is not your turn.');
         room.activityState = Checkers.applyMove(game, payload.from, payload.to);
       } else throw new Error('Unknown Checkers action.');
+      if (room.activityState?.phase === 'finished' && room.activityState.rewardStartedAt) room.activityState.rewardFinishedAt ||= Date.now();
       room.lastUpdate = Date.now();
       room.revision = (Number(room.revision) || 0) + 1;
       const value = JSON.stringify(room);
       state.set(key, value);
       schedulePersist();
       io.to(key).emit('shared:update', { key, value });
+      observeRewards(key, room);
       ack?.({ ok: true, value });
     } catch (error) { ack?.({ ok: false, error: error.message }); }
   });
@@ -2700,6 +2793,7 @@ io.on('connection', socket => {
       try { nextRoom.activityState = createFamilyFaceOffRound(nextRoom, nextRoom.activityState); }
       catch (error) { deleteRoomState(key); ack?.({ ok: false, error: error.message }); return; }
     }
+    if (!existingRoom && nextRoom.currentActivity === 'checkers') nextRoom.activityState = Checkers.createGame(nextRoom.participants);
     if (!existingRoom && nextRoom.currentActivity === 'chinese-checkers') nextRoom.activityState = createChineseCheckersRound(nextRoom, nextRoom.activityState?.playerCount);
     if (nextRoom.currentActivity === 'memory' && (!existingRoom || initializeMemory)) {
       startMemoryRound(key, nextRoom, nextRoom.activityState || {});
@@ -2708,11 +2802,16 @@ io.on('connection', socket => {
       getRoomAccessMeta(key).memory = null;
       scheduleRoomMetaPersist();
     }
+    const departingCoins = cardTables.get(key);
+    if (departingCoins?.coinMode && (existingRoom?.currentActivity !== nextRoom.currentActivity || (nextRoom.queueActive === true && Number(nextRoom.queueIndex) > Number(existingRoom?.queueIndex)))) {
+      try { await wallets.closeTable(key, departingCoins.id); }
+      catch (_) { ack?.({ ok: false, error: 'Could not return table coins. Please retry.' }); return; }
+    }
     if (existingRoom && Cards.TYPES[existingRoom.currentActivity] && !Cards.TYPES[nextRoom.currentActivity]) {
       const closing = cardTables.get(key), participants = nextRoom.participants || [];
       try {
         if (!closing) throw new Error('Card table unavailable.');
-        const chipBalances = Cards.syncChipBalances(structuredClone(closing));
+        const chipBalances = closing.coinMode ? {} : Cards.syncChipBalances(structuredClone(closing));
         await cardStore.save(key, { type: 'bankroll', players: [], chipBalances, actorHashes: closing.actorHashes || {} });
       }
       catch (_) { ack?.({ ok: false, error: 'Private card storage is unavailable. Please try again.' }); return; }
@@ -2726,7 +2825,7 @@ io.on('connection', socket => {
         let game;
         try {
           const previous = cardTables.get(key) || await cardStore.load(key);
-          const chipBalances = previous ? Cards.syncChipBalances(structuredClone(previous)) : {};
+          const chipBalances = previous && !previous.coinMode ? Cards.syncChipBalances(structuredClone(previous)) : {};
           game = Cards.create(nextRoom.currentActivity, { chipBalances });
           game.actorHashes = { ...(previous?.actorHashes || {}) };
           await saveCardTable(key, game);

@@ -40,6 +40,7 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
     <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
       ${isCommunityRoom ? '<button class="btn-secondary" data-action="go-screen" data-screen="community" style="font-size:0.78rem;padding:6px 10px;">← Community Plaza</button>' : ''}
       <button class="btn-secondary" data-action="edit-profile" style="font-size:0.78rem;padding:6px 10px;">✏️ Profile</button>
+      ${window.TeamBuilderWallet?.button() || ''}
       ${showFeedback ? '<button class="btn-secondary" data-action="open-feedback" style="font-size:0.78rem;padding:6px 10px;">🗣️ Feedback</button>' : ''}
       ${isHost ? '<button class="btn-secondary" data-action="open-admin-console" style="font-size:0.78rem;padding:6px 10px;">🛠️ Admin</button>' : ''}
       <button class="btn-secondary" data-action="leave-session" style="font-size:0.78rem;padding:6px 10px;">🚪 Leave</button>
@@ -223,7 +224,7 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
           <p class="card-desc">Match colors and numbers, play action cards, and race to clear your hand</p>
         </button>
 
-        ${[['blackjack', '🃏', '21 / Blackjack', 'Beat the automated dealer with a private hand and play chips'], ['five-card-draw', '🃑', 'Five-Card Draw', 'Bet, replace up to five cards, and take the pot'], ['texas-holdem', '♠️', 'Texas Hold’em', 'Private hole cards, community cards, and shared play-chip pots']].map(([id, icon, label, description]) => `
+        ${[['spades', '♠', 'Spades', 'Partner up, bid your tricks, and play to 250 or 500 points'], ['blackjack', '🃏', '21 / Blackjack', 'Beat the automated dealer with a private hand and play chips'], ['five-card-draw', '🃑', 'Five-Card Draw', 'Bet, replace up to five cards, and take the pot'], ['texas-holdem', '♠️', 'Texas Hold’em', 'Private hole cards, community cards, and shared play-chip pots']].map(([id, icon, label, description]) => `
           <button type="button" class="card" data-action="start-${id}" aria-label="Start ${label}" style="${enabledActivities[id] === false ? 'display:none;' : ''}">
             <div class="card-icon">${icon}</div><h3 class="card-title">${label}</h3><p class="card-desc">${description}</p>
           </button>`).join('')}
