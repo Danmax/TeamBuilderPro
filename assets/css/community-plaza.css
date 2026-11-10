@@ -133,6 +133,9 @@
 
 /* Shared scenes appear in the room and its community directory preview. */
 [data-plaza-scene] { --plaza-scenery:linear-gradient(145deg,#e5f4fa,#d9ecd7); }
+[data-plaza-scene="plaza"] { --plaza-scenery:linear-gradient(180deg,#102b4510,#102b4500 65%,#102b4520),url('../images/plaza/modern-city.avif'); }
+[data-plaza-scene="tokyo"] { --plaza-scenery:linear-gradient(180deg,#10142b20,#10142b00 65%,#10142b30),url('../images/plaza/tokyo-night.webp'); }
+[data-plaza-scene="rustic"] { --plaza-scenery:linear-gradient(180deg,#55391910,#55391900 65%,#55391920),url('../images/plaza/rustic-street.jpg'); }
 [data-plaza-scene="beach"] { --plaza-scenery:linear-gradient(175deg,#b9e6fa 0 42%,#72d5d5 43% 67%,#f7e3b2 68%); }
 [data-plaza-scene="forest"] { --plaza-scenery:radial-gradient(ellipse at 15% 75%,#719974 0 17%,transparent 18%),radial-gradient(ellipse at 85% 70%,#547d63 0 20%,transparent 21%),linear-gradient(#e0eddb,#b3d1ad); }
 [data-plaza-scene="cafe"] { --plaza-scenery:repeating-linear-gradient(90deg,transparent 0 68px,#ab80552a 69px 72px),linear-gradient(#f7e9d9 0 72%,#c99e78 73%); }
@@ -144,6 +147,13 @@
 .plaza-room-welcome[data-plaza-scene] > div:first-child { position:relative; z-index:1; display:table; max-width:100%; background:#fffffff0; padding:12px 16px; border-radius:14px; }
 .plaza-scene-art { font-size:3.5rem; text-align:right; line-height:1; padding:12px 4px; }
 .plaza-room-welcome .plaza-member-stage { position:relative; display:block; height:360px; margin-top:0; background:transparent; padding:0; }
+.plaza-room[data-plaza-scene] .plaza-room-scene,
+.plaza-room-welcome[data-plaza-scene] { background-size:cover; background-position:center; }
+.plaza-room-welcome:is([data-plaza-scene="plaza"],[data-plaza-scene="tokyo"],[data-plaza-scene="rustic"]) > .plaza-scene-art { display:none; }
+.plaza-room-welcome:is([data-plaza-scene="plaza"],[data-plaza-scene="tokyo"],[data-plaza-scene="rustic"]) .plaza-member-stage { height:430px; z-index:1; }
+.plaza-room-welcome:is([data-plaza-scene="plaza"],[data-plaza-scene="tokyo"],[data-plaza-scene="rustic"]) .plaza-walk-area { top:290px; bottom:16px; }
+.plaza-room-welcome:is([data-plaza-scene="plaza"],[data-plaza-scene="tokyo"],[data-plaza-scene="rustic"])::before { content:''; position:absolute; inset:auto 0 0; height:25%; background:linear-gradient(180deg,transparent,#28394a35),repeating-linear-gradient(0deg,transparent 0 35px,#ffffff18 36px 37px); pointer-events:none; }
+.plaza-room-welcome.plaza-theme-preview { background-size:cover; min-height:180px; }
 .plaza-walk-area { position:absolute; inset:110px 82px 48px; }
 .plaza-walk-area .plaza-member { position:absolute; width:95px; left:var(--walk-x0); top:var(--walk-y0); transform:translate(-50%,-100%); animation:plaza-walk var(--walk-duration) var(--walk-delay) linear infinite; }
 .plaza-walk-area .plaza-avatar { background:transparent; animation:plaza-step .65s ease-in-out infinite; }

@@ -48,6 +48,8 @@
   }
   const scenes = [
     { id: 'plaza', label: 'Community plaza', icon: '⛲' },
+    { id: 'tokyo', label: 'Tokyo night plaza', icon: '🌃' },
+    { id: 'rustic', label: 'Rustic town square', icon: '🏘️' },
     { id: 'beach', label: 'Beach day', icon: '🏖️' },
     { id: 'forest', label: 'Forest retreat', icon: '🌲' },
     { id: 'cafe', label: 'Cozy café', icon: '☕' },
