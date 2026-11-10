@@ -62,3 +62,20 @@ for(const type of Object.keys(Cards.TYPES)) test(`${type} uses the viewer’s re
     assert.equal(observed.winnerId,outcome==='win'?'a':undefined);
   }
 });
+
+for(const type of Object.keys(Cards.TYPES)) test(`${type} shows chip piles matching the live pot and labels completed pots`, async()=>{
+  for(const amount of [0,1431,1000000000]) {
+    const game=table(type);Object.assign(game,{phase:'playing',pot:amount});
+    const f=browser(game);f.render();await new Promise(resolve=>setImmediate(resolve));
+    const markup=f.render(), felt=markup.slice(markup.indexOf('class="ct-felt"'),markup.indexOf('class="ct-board"'));
+    const represented=[...felt.matchAll(/data-denomination="(\d+)" data-count="(\d+)"/g)].reduce((sum,[,value,count])=>sum+Number(value)*Number(count),0);
+    assert.equal(represented,amount);
+    assert.ok((felt.match(/class="ct-chip"/g)||[]).length<=40,'large pots keep a bounded number of decorative chips');
+    if(!amount) assert.match(felt,/No chips in play/);
+    else assert.match(felt,/<strong>[\d,]+<\/strong><span>play chips<\/span>/);
+  }
+  const completed=table(type);Object.assign(completed,{phase:'settled',pot:0,lastPot:80});
+  const f=browser(completed);f.render();await new Promise(resolve=>setImmediate(resolve));
+  assert.match(f.render(),type==='blackjack'?/Last table bets/:/Last pot/);
+  assert.match(f.render(),/data-denomination="25" data-count="3"/);assert.match(f.render(),/data-denomination="5" data-count="1"/);
+});

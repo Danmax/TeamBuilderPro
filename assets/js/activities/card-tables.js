@@ -83,6 +83,19 @@
     return root.TeamBuilderCharacter && person?.character ? root.TeamBuilderCharacter.render(person.character, person.avatar || '') : escapeHtml(person?.avatar || '👤');
   }
   function button(action, label, enabled = true, extra = '') { return `<button type="button" class="${action === 'fold' ? 'btn-secondary' : 'btn-primary'}" data-action="cards-${action}" ${enabled && !busy ? '' : 'disabled'} ${extra}>${label}</button>`; }
+  function chipStacks(amount) {
+    let remaining = Number.isSafeInteger(amount) && amount > 0 ? amount : 0;
+    if (!remaining) return '<span class="ct-chips-empty">No chips in play</span>';
+    const piles = [];
+    for (const [value, color] of [[1000, '#bb8730'], [100, '#414d65'], [25, '#238269'], [5, '#bc4658'], [1, '#397fae']]) {
+      const count = Math.floor(remaining / value);
+      remaining %= value;
+      if (!count) continue;
+      // Keep large pots compact; the quantity below each pile shows the exact count.
+      piles.push(`<div class="ct-chip-column" data-denomination="${value}" data-count="${count}" style="--chip-color:${color}"><div class="ct-chip-pile">${Array.from({ length: Math.min(count, 8) }, (_, index) => `<i class="ct-chip" style="bottom:${index * 5}px"></i>`).join('')}</div><small>${count.toLocaleString()} × ${value.toLocaleString()}</small></div>`);
+    }
+    return `<div class="ct-pot-chips" aria-hidden="true">${piles.join('')}</div>`;
+  }
   function renderTable() {
     const game = APP.room?.activityState, type = TYPES[APP.room?.currentActivity];
     if (!game?.id || !Array.isArray(game.players)) return '<p role="status">Preparing the private card table…</p>';
@@ -95,6 +108,8 @@
     const drawTurn = legal.draw, seating = !active;
     const detailsOpen = document.querySelector('.ct-details')?.open === true;
     const tableCards = game.type === 'blackjack' ? game.dealer : game.board;
+    const potAmount = active ? game.pot : game.phase === 'settled' ? game.lastPot : 0;
+    const potLabel = `${game.phase === 'settled' ? 'Last ' : ''}${game.type === 'blackjack' ? 'table bets' : 'pot'}`;
     const failed = failedStamp === stamp(game);
     const payout = game.results.filter(result => result.playerId === APP.player.id).reduce((sum, result) => sum + result.amount, 0);
     const net = payout - (me?.total || 0);
@@ -129,7 +144,7 @@
         return `<article class="ct-chip-balance ${balance.playerId === APP.player.id ? 'ct-chip-mine' : ''}"><strong>${escapeHtml(balance.name)}${balance.playerId === APP.player.id ? ' · You' : ''}</strong><span>${balance.stack.toLocaleString()} chips${balance.committed ? ` · ${balance.committed.toLocaleString()} in play` : ''}</span><small>${net > 0 ? '+' : ''}${net.toLocaleString()} from play · ${balance.buyIn.toLocaleString()} added</small></article>`;
       }).join('') || '<p class="ct-help">Take a seat to start with 1,000 play chips.</p>'}</div>${seating && (me || host && game.players.length) ? `<div class="ct-add-chips"><label for="cardAddChipsAmount">Add play chips</label><div>${host ? `<select id="cardAddChipsPlayer" class="form-input" aria-label="Player to receive chips">${game.players.map(p => `<option value="${escapeHtml(p.id)}" ${p.id === APP.player.id ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}</select>` : ''}<input id="cardAddChipsAmount" class="form-input" type="number" inputmode="numeric" min="10" max="100000" step="10" value="1000" aria-label="Chips to add">${button('add-chips', 'Add chips')}</div><small>Add between hands. Top-ups are tracked separately from winnings. Balances last for this session.</small></div>` : ''}</section>
       <div class="ct-status" role="status"><strong>${game.paused ? 'Paused' : active ? mine ? 'Your turn' : current?.isHouse ? 'House is thinking…' : `${escapeHtml(current?.name || 'Dealer')}’s turn` : game.phase === 'settled' ? 'Hand complete' : 'Take your seats'}</strong><span>${escapeHtml(game.street === 'draw' ? 'Replace cards' : game.street === 'postdraw' ? 'Final betting' : game.street || 'Waiting')} ${active ? '<span id="cardTurnClock" aria-label="Time remaining"></span>' : ''}</span></div>
-      <div class="ct-felt"><div class="ct-pot">${game.type === 'blackjack' ? 'Table bets' : 'Pot'} <strong>${active ? game.pot : game.lastPot}</strong></div><div class="ct-board" aria-label="${game.type === 'blackjack' ? 'Dealer cards' : 'Community cards'}">${tableCards.length ? tableCards.map((c, index) => card(c, { effect: boardEffects[index] })).join('') : `<span class="ct-table-note">${game.type === 'five-card-draw' ? 'Five private cards. One chance to draw.' : 'Your table is ready.'}</span>`}</div>${game.type === 'blackjack' && game.phase === 'settled' ? `<p>Dealer total: ${game.dealer.reduce((sum, c) => sum + (c.rank === 14 ? 1 : Math.min(10, c.rank)), 0) + (game.dealer.some(c => c.rank === 14) && game.dealer.reduce((sum, c) => sum + (c.rank === 14 ? 1 : Math.min(10, c.rank)), 0) <= 11 ? 10 : 0)}</p>` : ''}<p class="ct-message" title="${escapeHtml(game.message)}">${escapeHtml(game.message)}</p></div>
+      <div class="ct-felt"><div class="ct-pot"><span>${potLabel}</span> <strong>${potAmount.toLocaleString()}</strong><span>play chips</span>${chipStacks(potAmount)}</div><div class="ct-board" aria-label="${game.type === 'blackjack' ? 'Dealer cards' : 'Community cards'}">${tableCards.length ? tableCards.map((c, index) => card(c, { effect: boardEffects[index] })).join('') : `<span class="ct-table-note">${game.type === 'five-card-draw' ? 'Five private cards. One chance to draw.' : 'Your table is ready.'}</span>`}</div>${game.type === 'blackjack' && game.phase === 'settled' ? `<p>Dealer total: ${game.dealer.reduce((sum, c) => sum + (c.rank === 14 ? 1 : Math.min(10, c.rank)), 0) + (game.dealer.some(c => c.rank === 14) && game.dealer.reduce((sum, c) => sum + (c.rank === 14 ? 1 : Math.min(10, c.rank)), 0) <= 11 ? 10 : 0)}</p>` : ''}<p class="ct-message" title="${escapeHtml(game.message)}">${escapeHtml(game.message)}</p></div>
       ${revealed.length ? `<section class="ct-showdown" aria-label="Completed hands"><h3>Completed hands</h3>${revealed.map(({ label, player }) => {
         const effects = dealEffects(`${effectKey}:shown:${player.id}`, player.shownCards);
         return `<article><div class="ct-reveal-heading"><strong>${escapeHtml(player.name)}${player.isHouse ? ' · Computer' : ''}</strong><span>${escapeHtml(label)}</span></div><div class="ct-hand ${player.shownCards.length === 5 ? 'ct-five' : ''}">${player.shownCards.map((c, index) => card(c, { effect: effects[index] })).join('')}</div></article>`;
