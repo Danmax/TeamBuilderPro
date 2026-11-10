@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="/assets/css/community-plaza.css">
 <link rel="stylesheet" href="/assets/css/character-editor.css">
 <link rel="stylesheet" href="/assets/css/game-victory.css">
+<link rel="stylesheet" href="/assets/css/uno.css">
 </head>
 <body>
 <div class="atmosphere"><div class="mesh"></div><div class="mesh"></div><div class="mesh"></div></div>
@@ -5576,6 +5577,7 @@ function renderVoiceDock() {
 
 function render() {
   const app = document.getElementById('app');
+  const unoHandScroll = app.querySelector('.uno-hand-grid')?.scrollTop || 0;
   // Skip re-render if user is typing in a form input (prevents mobile keyboard dismissal)
   const activeEl = document.activeElement;
   const liveInput = ['surveyClashGuessInput', 'activitySearch', 'spinWheelTitleInput', 'spinWheelOptionsInput', 'communitySearch'].includes(activeEl?.id)
@@ -5632,6 +5634,7 @@ function render() {
   html += renderFooter();
   
   app.innerHTML = html;
+  fitUnoToViewport(unoHandScroll);
   TeamBuilderGameVictory.endFrame();
   if (APP.screen !== 'lobby' || APP.room?.currentActivity !== 'survey-clash') surveyClashFeedback.clear();
   if (APP.screen === 'admin' && APP.admin.authenticated) restoreAdminSettingsDraft();
@@ -8439,13 +8442,15 @@ function renderActivity() {
   else if (activity === 'connect-4') content = renderConnect4();
 
   return `
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+    ${activity === 'uno' ? '<details class="uno-session-menu"><summary>Session ▾</summary>' : ''}
+    <div class="activity-session-bar" style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
       <span style="margin-right:auto;align-self:center;color:var(--text-dim);">Session <strong>${escapeHtml(APP.roomCode)}</strong></span>
       ${isHost ? '<button class="btn-secondary" data-action="return-to-session">← Back to session</button>' : '<span style="align-self:center;color:var(--text-dim);">Your host controls the activity</span>'}
       ${isHost ? '<button class="btn-secondary" data-action="open-admin-console" style="font-size:0.78rem;padding:6px 10px;">🛠️ Admin</button>' : ''}
       <button class="btn-secondary" data-action="leave-session" style="font-size:0.78rem;padding:6px 10px;">🚪 Leave</button>
     </div>
-    ${showTimedBanner ? `
+    ${activity === 'uno' ? '</details>' : ''}
+    ${showTimedBanner && activity !== 'uno' ? `
       <div style="margin-bottom:12px;padding:12px 14px;border-radius:16px;background:linear-gradient(135deg,rgba(138,241,255,0.12),rgba(37,99,235,0.08));border:1px solid rgba(138,241,255,0.18);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
         <div>
           <div style="font-size:0.74rem;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px;">Timed Session</div>
@@ -10713,13 +10718,40 @@ function renderUnoCardElement(card, options = {}) {
   `;
 }
 
+function fitUnoToViewport(scrollTop = 0) {
+  const game = document.querySelector('.uno-game');
+  if (!game || (window.innerWidth > 760 && window.innerHeight > 540)) return;
+  const grid = game.querySelector('.uno-hand-grid');
+  const actions = game.querySelector('.uno-action-row');
+  const cards = grid.querySelectorAll('.uno-card');
+  if (!cards.length) return;
+  const gap = 4;
+  const viewportHeight = window.visualViewport?.height || window.innerHeight;
+  const availableHeight = Math.max(64, viewportHeight - grid.getBoundingClientRect().top - actions.offsetHeight - 20);
+  const contentHeight = Math.max(44, availableHeight - 6);
+  const maxColumns = Math.max(1, Math.min(10, Math.floor((grid.clientWidth - 6 + gap) / (44 + gap))));
+  let columns = Math.min(maxColumns, Math.max(4, Math.floor(grid.clientWidth / 74)));
+  let rows = Math.ceil(cards.length / columns);
+  while (columns < maxColumns && rows * 56 + (rows - 1) * gap > contentHeight) {
+    columns++;
+    rows = Math.ceil(cards.length / columns);
+  }
+  const cardHeight = Math.max(44, Math.min(108, (contentHeight - (rows - 1) * gap) / rows));
+  game.style.setProperty('--uno-hand-columns', columns);
+  game.style.setProperty('--uno-card-height', `${Math.floor(cardHeight)}px`);
+  game.style.setProperty('--uno-grid-height', `${Math.floor(availableHeight)}px`);
+  grid.scrollTop = scrollTop;
+  game.classList.toggle('uno-small-cards', cardHeight < 76);
+  if (rows * cardHeight + (rows - 1) * gap > contentHeight) {
+    game.querySelector('.uno-hand-hint').textContent = 'Scroll your hand to see every card';
+  }
+}
+
 function renderUno() {
   const state = APP.room.activityState || {};
   const isHost = APP.room.host === APP.player.name;
-  const safeRoomCode = escapeHtml(APP.roomCode);
   const playerOrder = Array.isArray(state.playerOrder) && state.playerOrder.length
-    ? state.playerOrder
-    : (APP.room.participants || []).map(player => player.name);
+    ? state.playerOrder : (APP.room.participants || []).map(player => player.name);
   const participantsByName = Object.fromEntries((APP.room.participants || []).map(player => [player.name, player]));
   const myHand = getUnoPlayerHand(state, APP.player.name);
   const currentPlayer = getUnoCurrentPlayerName(state);
@@ -10732,163 +10764,107 @@ function renderUno() {
   const canEndTurn = isMyTurn && !state.roundOver && !pendingColorChoice && pendingDrawCount === 0 && Boolean(state.hasDrawnThisTurn);
   const canCallUno = !state.roundOver && myHand.length === 1;
   const canCallOut = !state.roundOver && state.unoPendingPlayer && state.unoPendingPlayer !== APP.player.name;
-  const drawLabel = pendingDrawCount > 0 ? getUnoPenaltyMessage(pendingDrawCount) : 'Draw Card';
+  const drawLabel = pendingDrawCount > 0 ? getUnoPenaltyMessage(pendingDrawCount) : 'Draw card';
   const handPlayableCount = myHand.filter(card => isUnoCardPlayable(card, state)).length;
-  const standings = playerOrder
-    .map(name => ({
-      name,
-      avatar: participantsByName[name]?.avatar || '👤',
-      score: Number(state.scores?.[name]) || 0,
-      handCount: getUnoPlayerHand(state, name).length
-    }))
-    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
-  const handMarkup = myHand.length
-    ? myHand.map(card => {
-      const playable = isMyTurn && isUnoCardPlayable(card, state);
-      const isWild = card.color === 'wild';
-      const isPendingWild = pendingColorChoice?.cardId === card.id;
-      const action = playable
-        ? (isWild ? 'uno-open-color-choice' : 'uno-play-card')
-        : '';
-      return renderUnoCardElement(card, {
-        action,
-        cardId: card.id,
-        disabled: !playable,
-        className: playable ? 'playable' : '',
-        style: `${playable ? 'outline:2px solid rgba(255,255,255,0.26);' : ''}${isPendingWild ? 'box-shadow:0 0 0 4px rgba(255,255,255,0.14);' : ''}`
-      });
-    }).join('')
-    : '<div class="uno-message">Your hand is empty.</div>';
-  const colorChooser = pendingColorChoice ? `
-    <div class="uno-panel-card uno-color-panel">
-      <div style="font-weight:700;margin-bottom:6px;">Choose a color for your wild card</div>
-      <div style="color:var(--text-dim);font-size:0.9rem;">Pick the next active color before the card is played.</div>
-      <div class="uno-color-picker">
-        ${UNO_COLORS.map(color => `
-          <button class="uno-color-btn" data-action="uno-play-wild" data-card-id="${escapeHtml(pendingColorChoice.cardId)}" data-color="${escapeHtml(color)}" style="background:${getUnoCardTheme(color).bg};">
-            ${escapeHtml(UNO_COLOR_META[color].label)}
-          </button>
-        `).join('')}
-      </div>
-    </div>
-  ` : '';
+  const standings = playerOrder.map(name => ({
+    name, avatar: participantsByName[name]?.avatar || '👤', score: Number(state.scores?.[name]) || 0,
+    handCount: getUnoPlayerHand(state, name).length
+  })).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+  const compactLandscape = window.innerHeight <= 540 && window.innerWidth > window.innerHeight;
+  const handWidth = compactLandscape ? Math.max(200, window.innerWidth - 220) : Math.min(window.innerWidth - 40, 1100);
+  const handColumns = Math.max(4, Math.min(8, Math.floor(handWidth / 74)));
+  const handRows = Math.max(1, Math.ceil(myHand.length / handColumns));
+  const detailsOpen = document.querySelector('.uno-game .uno-details')?.open === true;
+  const handMarkup = myHand.length ? myHand.map(card => {
+    const playable = isMyTurn && !pendingColorChoice && isUnoCardPlayable(card, state);
+    return renderUnoCardElement(card, {
+      action: playable ? (card.color === 'wild' ? 'uno-open-color-choice' : 'uno-play-card') : '',
+      cardId: card.id,
+      disabled: !playable,
+      className: `${playable ? 'playable' : ''}${pendingColorChoice?.cardId === card.id ? ' selected' : ''}`
+    });
+  }).join('') : '<div class="uno-empty-hand">Your hand is empty.</div>';
   const lastAction = String(state.lastAction || '').trim();
   const winner = String(state.winner || '').trim();
+  const message = state.roundOver && winner
+    ? `${winner} wins! +${Number(state.roundPoints) || 0} points.`
+    : pendingColorChoice ? 'Choose a color to play your wild.'
+    : state.unoPendingPlayer ? `${state.unoPendingPlayer} has one card. Call UNO or call them out!`
+    : pendingDrawCount > 0 ? `${currentPlayer}: ${drawLabel.toLowerCase()}.`
+    : isMyTurn ? (handPlayableCount ? 'Your turn — tap a highlighted card.' : 'Your turn — draw a card.')
+    : `${currentPlayer || 'The next player'} is playing.`;
 
   return `
-    <div class="header">
-      <h1 style="font-size:2rem;font-weight:700;">🃏 UNO Showdown</h1>
-      <p class="tagline">Match color or value, time your action cards, and be first to empty your hand • Room: ${safeRoomCode}</p>
-    </div>
-
-    ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
-
-    <div class="uno-shell">
-      <div class="uno-board">
-        <div class="uno-status-badges">
-          <span class="uno-badge">🎯 Turn: ${escapeHtml(currentPlayer || 'Waiting')}</span>
-          <span class="uno-badge">🎨 Color: ${escapeHtml(currentColor)}</span>
-          <span class="uno-badge">${state.direction === -1 ? '↺ Reverse' : '↻ Forward'}</span>
-          <span class="uno-badge">🂠 Draw pile: ${Array.isArray(state.drawPile) ? state.drawPile.length : 0}</span>
-          <span class="uno-badge">✋ Your hand: ${myHand.length}</span>
-        </div>
-
-        <div class="uno-table">
-          <div>
+    <section class="uno-game" aria-label="UNO Showdown" style="--uno-hand-columns:${handColumns};--uno-hand-rows:${handRows};--uno-color-space:${pendingColorChoice ? '76px' : '0px'};">
+      <header class="uno-header">
+        <h1>🃏 UNO Showdown</h1>
+        <span>Round ${Number(state.roundNumber) || 1}${APP.room.queueActive && APP.room.queueTiming?.enabled ? ` · ⏱ ${escapeHtml(formatClockFromMs(getTimedQueueRemainingMs(APP.room)))}` : ''}</span>
+      </header>
+      <div class="uno-shell">
+        <div class="uno-board">
+          <div class="uno-status-badges">
+            <span class="uno-badge${isMyTurn && !state.roundOver ? ' your-turn' : ''}">${isMyTurn ? 'Your turn' : `Turn: ${escapeHtml(currentPlayer || 'Waiting')}`}</span>
+            <span class="uno-badge" style="--uno-active-color:${getUnoCardTheme(state.currentColor).border};">Color: ${escapeHtml(currentColor)}</span>
+            <span class="uno-badge" aria-label="${state.direction === -1 ? 'Reverse direction' : 'Forward direction'}">${state.direction === -1 ? '↺ Reverse' : '↻ Forward'}</span>
+          </div>
+          <div class="uno-stage">
             <div class="uno-pile-row">
-              <div>
-                <div class="uno-pile-card back"></div>
-                <div class="uno-pile-meta">${drawLabel}</div>
+              <div class="uno-pile">
+                <button type="button" class="uno-pile-card back" data-action="uno-draw-card" aria-label="${escapeHtml(drawLabel)}" ${canDraw ? '' : 'disabled'}></button>
+                <div class="uno-pile-meta">Draw · ${Array.isArray(state.drawPile) ? state.drawPile.length : 0}</div>
               </div>
-              <div>
-                ${topCard ? renderUnoCardElement(topCard, { button: false, style: 'min-height:176px;' }) : '<div class="uno-pile-card"></div>'}
-                <div class="uno-pile-meta">Discard top</div>
-              </div>
-            </div>
-
-            <div class="uno-message${state.unoPendingPlayer ? ' alert' : ''}">
-              ${
-                state.roundOver && winner
-                  ? `${escapeHtml(winner)} won the round and banked ${Number(state.roundPoints) || 0} points.`
-                  : state.unoPendingPlayer
-                    ? `${escapeHtml(state.unoPendingPlayer)} is at UNO and can still be called out if they did not declare it.`
-                    : pendingDrawCount > 0
-                      ? `${escapeHtml(currentPlayer)} must ${escapeHtml(getUnoPenaltyMessage(pendingDrawCount).toLowerCase())}.`
-                      : isMyTurn
-                        ? (handPlayableCount ? `Your turn. You have ${handPlayableCount} playable card${handPlayableCount === 1 ? '' : 's'}.` : 'Your turn. Draw a card or play a wild.')
-                        : `Waiting for ${escapeHtml(currentPlayer || 'the active player')} to make a move.`
-              }
-            </div>
-
-            ${lastAction ? `<div class="uno-message" style="margin-top:12px;">${escapeHtml(lastAction)}</div>` : ''}
-
-            <div class="uno-action-row">
-              <button class="btn-primary" data-action="uno-draw-card" ${canDraw ? '' : 'disabled'} style="width:auto;padding:12px 18px;">${escapeHtml(drawLabel)}</button>
-              <button class="btn-secondary" data-action="uno-end-turn" ${canEndTurn ? '' : 'disabled'}>End Turn</button>
-              <button class="btn-secondary" data-action="uno-call-uno" ${canCallUno ? '' : 'disabled'}>Call UNO</button>
-              <button class="btn-secondary" data-action="uno-callout-uno" ${canCallOut ? '' : 'disabled'}>Call Out</button>
-              ${isHost && state.roundOver ? '<button class="btn-primary" data-action="uno-restart-round" style="width:auto;padding:12px 18px;">Start Next Round</button>' : ''}
-            </div>
-          </div>
-
-          <div class="uno-side-panel">
-            <div class="uno-panel-card">
-              <div style="font-family:'Fraunces',serif;font-size:1.25rem;margin-bottom:10px;">Table</div>
-              <div class="uno-player-list">
-                ${playerOrder.map(name => {
-                  const participant = participantsByName[name] || {};
-                  const handCount = getUnoPlayerHand(state, name).length;
-                  const isActive = name === currentPlayer;
-                  const isPending = name === state.unoPendingPlayer;
-                  return `
-                    <div class="uno-player-row${isActive ? ' active' : ''}${isPending ? ' pending' : ''}">
-                      <div>
-                        <div style="font-weight:700;">${escapeHtml(participant.avatar || '👤')} ${escapeHtml(name)}</div>
-                        <div style="font-size:0.82rem;color:var(--text-dim);">${isActive ? 'Playing now' : isPending ? 'UNO risk' : 'Waiting'}</div>
-                      </div>
-                      <div style="text-align:right;">
-                        <div style="font-weight:800;">${handCount} card${handCount === 1 ? '' : 's'}</div>
-                        <div style="font-size:0.82rem;color:var(--text-dim);">${Number(state.scores?.[name]) || 0} pts</div>
-                      </div>
-                    </div>
-                  `;
-                }).join('')}
+              <div class="uno-pile">
+                ${topCard ? renderUnoCardElement(topCard, { button: false }) : '<div class="uno-pile-card"></div>'}
+                <div class="uno-pile-meta">Discard</div>
               </div>
             </div>
-
-            <div class="uno-panel-card">
-              <div style="font-family:'Fraunces',serif;font-size:1.15rem;margin-bottom:10px;">Leaderboard</div>
-              <div class="uno-player-list">
-                ${standings.map((entry, idx) => `
-                  <div class="uno-player-row">
-                    <div style="font-weight:700;">#${idx + 1} ${escapeHtml(entry.avatar)} ${escapeHtml(entry.name)}</div>
-                    <div style="text-align:right;">
-                      <div style="font-weight:800;">${entry.score} pts</div>
-                      <div style="font-size:0.82rem;color:var(--text-dim);">${entry.handCount} in hand</div>
-                    </div>
-                  </div>
-                `).join('')}
-              </div>
+            <div class="uno-stage-summary">
+              <p class="uno-message${state.unoPendingPlayer || pendingDrawCount ? ' alert' : ''}" role="status" aria-live="polite">${escapeHtml(message)}</p>
+              ${lastAction ? `<p class="uno-last-action" title="${escapeHtml(lastAction)}">${escapeHtml(lastAction)}</p>` : ''}
             </div>
           </div>
         </div>
+
+        ${pendingColorChoice ? `
+          <section class="uno-color-panel" aria-label="Choose wild card color">
+            <strong>Choose a color</strong>
+            <div class="uno-color-picker">
+              ${UNO_COLORS.map(color => `<button type="button" class="uno-color-btn" data-action="uno-play-wild" data-card-id="${escapeHtml(pendingColorChoice.cardId)}" data-color="${escapeHtml(color)}" style="background:${getUnoCardTheme(color).bg};color:${getUnoCardTheme(color).text};">${escapeHtml(UNO_COLOR_META[color].label)}</button>`).join('')}
+            </div>
+          </section>
+        ` : ''}
+
+        <section class="uno-panel-card uno-hand-panel" aria-label="Your cards">
+          <div class="uno-hand-heading">
+            <h2>Your hand <span>${myHand.length}</span></h2>
+            <span class="uno-hand-hint">${pendingColorChoice ? 'Pick a color above' : isMyTurn && !state.roundOver ? `${handPlayableCount} playable` : 'Waiting for your turn'}</span>
+          </div>
+          <div class="uno-hand-grid">${handMarkup}</div>
+        </section>
+
+        <div class="uno-action-row" role="group" aria-label="UNO actions">
+          <button type="button" class="btn-primary" data-action="uno-draw-card" ${canDraw ? '' : 'disabled'}>${escapeHtml(drawLabel)}</button>
+          <button type="button" class="btn-secondary" data-action="uno-end-turn" ${canEndTurn ? '' : 'disabled'}>End turn</button>
+          <button type="button" class="btn-secondary${canCallUno ? ' uno-urgent' : ''}" data-action="uno-call-uno" ${canCallUno ? '' : 'disabled'}>Call UNO</button>
+          <button type="button" class="btn-secondary${canCallOut ? ' uno-urgent' : ''}" data-action="uno-callout-uno" ${canCallOut ? '' : 'disabled'}>Call out</button>
+          ${isHost && state.roundOver ? '<button type="button" class="btn-primary uno-next-round" data-action="uno-restart-round">Start next round</button>' : ''}
+        </div>
+
+        <details class="uno-details" ${detailsOpen ? 'open' : ''}>
+          <summary>Table, scores & rules <span>${playerOrder.length} players</span></summary>
+          <div class="uno-details-content">
+            <div class="uno-player-list">
+              ${standings.map((entry, index) => `<div class="uno-player-row${entry.name === currentPlayer ? ' active' : ''}${entry.name === state.unoPendingPlayer ? ' pending' : ''}">
+                <div><strong>#${index + 1} ${escapeHtml(entry.avatar)} ${escapeHtml(entry.name)}</strong><div>${entry.name === currentPlayer ? 'Playing now' : entry.name === state.unoPendingPlayer ? 'UNO risk' : 'Waiting'}</div></div>
+                <div><strong>${entry.handCount} card${entry.handCount === 1 ? '' : 's'}</strong><div>${entry.score} pts</div></div>
+              </div>`).join('')}
+            </div>
+            <p>Match the active color or the discard value, or play a wild. After drawing, play a matching card or end your turn. Call UNO when you have one card; call out someone who forgets. Wild Draw Four is unrestricted in this version.</p>
+            ${isHost ? '<button type="button" class="btn-secondary" data-action="end-activity">End game</button>' : ''}
+          </div>
+        </details>
       </div>
-
-      ${colorChooser}
-
-      <div class="uno-panel-card uno-hand-panel">
-        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-end;margin-bottom:12px;">
-          <div>
-            <div style="font-family:'Fraunces',serif;font-size:1.35rem;">Your Hand</div>
-            <div style="color:var(--text-dim);font-size:0.9rem;">Play a matching color, same value, or any wild. Wild Draw Four is unrestricted in this first version.</div>
-          </div>
-          <div style="color:var(--text-dim);font-size:0.84rem;">Round ${Number(state.roundNumber) || 1}</div>
-        </div>
-        <div class="uno-hand-grid">
-          ${handMarkup}
-        </div>
-      </div>
-    </div>
+    </section>
   `;
 }
 

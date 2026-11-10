@@ -1,0 +1,112 @@
+.uno-game { max-width: 1100px; margin: 0 auto; }
+.uno-header { display: flex; flex-wrap: wrap; gap: 5px 16px; align-items: baseline; padding-right: 100px; margin-bottom: 12px; }
+.uno-header h1 { font-size: clamp(1.15rem, 3vw, 1.8rem); margin: 0; }
+.uno-header > span { color: var(--text-dim); font-size: .8rem; }
+.uno-game .uno-shell { gap: 12px; margin: 0; }
+.uno-game .uno-board { order: 0; padding: 16px; border-radius: 18px; }
+.uno-game .uno-status-badges { margin-bottom: 10px; gap: 6px; }
+.uno-game .uno-badge { min-width: 0; overflow-wrap: anywhere; padding: 6px 10px; border-color: var(--uno-active-color, var(--border)); }
+.uno-game .uno-badge.your-turn { color: var(--success); border-color: var(--success); }
+.uno-stage { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 18px; }
+.uno-game .uno-pile-row { grid-template-columns: repeat(2, 90px); gap: 12px; margin: 0; }
+.uno-game .uno-pile-card, .uno-game .uno-pile .uno-card { min-height: 116px; height: 116px; width: 100%; border-radius: 12px; }
+.uno-game .uno-pile-card.back { cursor: pointer; }
+.uno-game .uno-pile-card.back:disabled { cursor: default; }
+.uno-game .uno-pile-meta { font-size: .75rem; margin-top: 4px; }
+.uno-game .uno-message { padding: 10px; margin: 0; font-weight: 600; }
+.uno-last-action { font-size: .8rem; line-height: 1.4; color: var(--text-dim); margin: 8px 0 0; overflow-wrap: anywhere; }
+.uno-game .uno-hand-panel { order: 1; padding: 12px; min-width: 0; }
+.uno-hand-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
+.uno-hand-heading h2 { font-size: 1rem; margin: 0; }
+.uno-hand-heading h2 span { color: var(--accent); margin-left: 4px; }
+.uno-hand-heading > span { font-size: .8rem; color: var(--text-dim); }
+.uno-game .uno-hand-grid { grid-template-columns: repeat(var(--uno-hand-columns), minmax(0, 1fr)); gap: 8px; }
+.uno-game .uno-hand-grid .uno-card { min-height: 130px; padding: 9px; border-radius: 12px; }
+.uno-game .uno-card.playable { border-color: #fff; box-shadow: 0 0 0 2px var(--success), 0 6px 16px #0004; }
+.uno-game .uno-card.selected { box-shadow: 0 0 0 3px var(--warning); }
+.uno-game button.uno-card:disabled { opacity: .82; }
+.uno-game .uno-card::before { inset: 5px; border-radius: 8px; }
+.uno-game .uno-card-corner { font-size: .85rem; }
+.uno-game .uno-card-corner.bottom { right: 8px; bottom: 6px; }
+.uno-game .uno-card-center { font-size: 2rem; }
+.uno-game .uno-card-sub { font: 700 .65rem 'Outfit', sans-serif; letter-spacing: 0; margin-top: 4px; white-space: nowrap; }
+.uno-game .uno-color-panel { order: 0; background: var(--surface-solid); border: 2px solid var(--warning); border-radius: 12px; padding: 8px 10px; }
+.uno-game .uno-color-panel > strong { font-size: .8rem; }
+.uno-game .uno-color-picker { margin-top: 5px; gap: 6px; }
+.uno-game .uno-color-btn { min-height: 44px; touch-action: manipulation; }
+.uno-game .uno-action-row { order: 2; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 0; position: sticky; bottom: 0; z-index: 10; padding: 8px 0 max(8px, env(safe-area-inset-bottom)); background: var(--bg); }
+.uno-game .uno-action-row button { min-width: 0; min-height: 46px; margin: 0; padding: 8px; font-size: .9rem; touch-action: manipulation; }
+.uno-game .uno-next-round { grid-column: 1 / -1; }
+.uno-game .uno-urgent { border-color: var(--warning); color: var(--warning); background: rgba(245, 166, 35, .12); }
+.uno-game button:focus-visible, .uno-game summary:focus-visible, .uno-session-menu summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.uno-empty-hand { grid-column: 1 / -1; text-align: center; padding: 12px; color: var(--text-dim); }
+.uno-details { order: 3; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-solid); }
+.uno-details > summary { min-height: 44px; padding: 12px; cursor: pointer; font-size: .85rem; }
+.uno-details > summary span { float: right; color: var(--text-dim); }
+.uno-details-content { padding: 0 12px 12px; font-size: .85rem; color: var(--text-mid); }
+.uno-details .uno-player-row { padding: 9px; gap: 8px; }
+.uno-details .uno-player-row > div { min-width: 0; overflow-wrap: anywhere; }
+.uno-details .uno-player-row > div:last-child { flex-shrink: 0; text-align: right; }
+.uno-details .uno-player-row div div { color: var(--text-dim); font-size: .75rem; margin-top: 3px; }
+.uno-session-menu { position: absolute; right: 20px; top: 16px; z-index: 30; }
+.uno-session-menu > summary { min-height: 44px; padding: 10px; cursor: pointer; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-solid); font-size: .85rem; list-style: none; }
+.uno-session-menu > summary::-webkit-details-marker { display: none; }
+.uno-session-menu .activity-session-bar { position: absolute; right: 0; top: 48px; width: min(340px, calc(100vw - 24px)); padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-solid); box-shadow: 0 12px 32px #0006; }
+.uno-session-menu .activity-session-bar button { min-height: 44px; }
+
+@media (max-width: 760px), (max-height: 540px) {
+  .app:has(.uno-game) { padding: 10px; }
+  .uno-session-menu { top: 8px; right: 10px; }
+  .uno-header { min-height: 40px; gap: 0 10px; padding-right: 100px; margin-bottom: 6px; }
+  .uno-header h1 { font-size: 1.15rem; }
+  .uno-header > span { font-size: .72rem; }
+  .uno-game .uno-shell { gap: 8px; }
+  .uno-game .uno-board { padding: 8px; border-radius: 12px; }
+  .uno-game .uno-status-badges { margin-bottom: 6px; gap: 4px; }
+  .uno-game .uno-badge { font-size: .7rem; padding: 4px 7px; }
+  .uno-stage { gap: 10px; }
+  .uno-game .uno-pile-row { grid-template-columns: repeat(2, 54px); gap: 8px; }
+  .uno-game .uno-pile-card, .uno-game .uno-pile .uno-card { height: 72px; min-height: 72px; border-width: 2px; padding: 5px; border-radius: 9px; }
+  .uno-game .uno-pile-card.back::after { font-size: 1.2rem; }
+  .uno-game .uno-pile-meta { font-size: .65rem; }
+  .uno-game .uno-message { padding: 0; background: none; border: none; font-size: .8rem; line-height: 1.35; overflow-wrap: anywhere; }
+  .uno-game .uno-last-action { font-size: .7rem; margin-top: 5px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .uno-game .uno-hand-panel { padding: 8px; border-radius: 12px; }
+  .uno-hand-heading { margin-bottom: 8px; }
+  .uno-hand-heading h2 { font-size: .9rem; }
+  .uno-hand-heading > span { font-size: .7rem; }
+  .uno-game .uno-hand-grid { gap: 4px; max-height: var(--uno-grid-height, none); overflow-y: auto; overscroll-behavior: contain; padding: 3px; margin: -3px; }
+  .uno-game.uno-small-cards .uno-hand-grid .uno-card-corner { display: none; }
+  .uno-game .uno-hand-grid .uno-card { height: var(--uno-card-height, 90px); min-height: 44px; padding: 5px; border-width: 2px; border-radius: 9px; }
+  .uno-game .uno-card-center { font-size: 1.55rem; }
+  .uno-game .uno-card-corner { font-size: .65rem; }
+  .uno-game .uno-card-corner.bottom { bottom: 3px; right: 5px; }
+  .uno-game .uno-card-sub { font-size: .55rem; margin-top: 2px; }
+  .uno-game .uno-pile .uno-card-sub { font-size: .5rem; }
+  .uno-game .uno-action-row { padding-top: 4px; }
+  .uno-game .uno-action-row button { font-size: .75rem; padding: 6px 3px; }
+  .uno-game button.uno-card:hover:not(:disabled) { transform: none; }
+  .app:has(.uno-game) .app-footer { margin-top: 12px; }
+}
+
+@media (max-height: 540px) and (min-width: 540px) {
+  .app:has(.uno-game) { padding: 8px; }
+  .uno-game .uno-shell { grid-template-columns: 180px minmax(0, 1fr); grid-template-areas: 'color color' 'board hand' 'actions actions' 'details details'; align-items: start; gap: 6px 10px; }
+  .uno-game .uno-board { grid-area: board; padding: 8px; }
+  .uno-game .uno-stage { grid-template-columns: 1fr; gap: 6px; }
+  .uno-game .uno-pile-row { justify-content: center; }
+  .uno-game .uno-status-badges { gap: 3px; }
+  .uno-game .uno-last-action { display: none; }
+  .uno-game .uno-hand-panel { grid-area: hand; }
+  .uno-game .uno-color-panel { grid-area: color; display: flex; align-items: center; gap: 10px; }
+  .uno-game .uno-color-panel > strong { flex: 0 0 auto; }
+  .uno-game .uno-color-panel .uno-color-picker { flex: 1; margin-top: 0; }
+  .uno-game .uno-status-badges .uno-badge { padding: 3px 5px; }
+  .uno-game .uno-stage-summary .uno-message { font-size: .72rem; line-height: 1.25; }
+  .uno-game .uno-color-panel .uno-color-picker { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .uno-game .uno-color-panel .uno-color-btn { min-height: 44px; }
+  .uno-game .uno-action-row { grid-area: actions; }
+  .uno-game .uno-details { grid-area: details; }
+  .uno-game .uno-hand-grid .uno-card { height: var(--uno-card-height, 90px); }
+}
+@media (prefers-reduced-motion: reduce) { .uno-game .uno-card { transition: none; } }
