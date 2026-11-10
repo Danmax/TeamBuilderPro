@@ -329,7 +329,7 @@ window.TEAM_BUILDER_STATIC_DATA = {
     { id: 'word-chain', icon: '🔗', label: 'Word Chain' },
     { id: 'brainstorm-canvas', icon: '🧩', label: 'Brainstorm Canvas' },
     { id: 'uno', icon: '🃏', label: 'UNO Showdown' },
-    { id: 'blackjack', icon: '🂡', label: '21 / Blackjack' },
+    { id: 'blackjack', icon: '🃏', label: '21 / Blackjack' },
     { id: 'five-card-draw', icon: '🃑', label: 'Five-Card Draw' },
     { id: 'texas-holdem', icon: '♠️', label: 'Texas Hold’em' },
     { id: 'regular-trivia', icon: '🧠', label: 'Trivia Battle' },

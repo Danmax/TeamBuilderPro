@@ -147,3 +147,74 @@ test('record-shaped player IDs cannot shadow object properties or expose private
   assert.equal(total(g),2000);
   assert.equal(C.publicView(g).players.every(p=>p.shownCards.length===2),true);
 });
+
+test('Blackjack splits keep separate bets, turns and results and protect both private hands', () => {
+  let g = blackjackPosition([card(8),card(8,'H')], [card(10,'D'),card(7,'C')], [card(10,'C'),card(9,'H'),card(10)]);
+  const original = structuredClone(g);
+  assert.equal(C.privateView(g,'a').legal.split,true);
+  g = move(g,'split');
+  assert.deepEqual(original.players[0].hand,[card(8),card(8,'H')], 'actions do not mutate previous state');
+  assert.equal(g.pot,40); assert.equal(g.players[0].stack,960); assert.equal(g.players[0].total,40);
+  let own = C.privateView(g,'a');
+  assert.deepEqual(own.hands.map(h=>h.total),[18,17]); assert.equal(own.activeHand,0); assert.equal(own.legal.handBet,20);
+  assert.deepEqual(C.privateView(g,'watcher').cards,[]); assert.equal(C.privateView(g,'watcher').hands,undefined);
+  assert.deepEqual(C.publicView(g).players[0].blackjackHands.map(h=>h.cards),[[],[]]);
+  assert.equal(C.publicView(g).dealer[1],null);
+  g = move(g,'stand'); assert.equal(g.turnId,'a'); assert.equal(C.privateView(g,'a').activeHand,1);
+  g = move(g,'hit'); // Second hand busts while the first wins.
+  assert.equal(g.phase,'settled'); assert.equal(g.players[0].stack,1000);
+  assert.deepEqual(g.results.map(r=>[r.handIndex,r.label,r.net]),[[0,'Win',20],[1,'Bust',-20]]);
+  assert.deepEqual(C.publicView(g).players[0].blackjackHands.map(h=>h.cards.length),[2,3]);
+  assert.equal(g.shown.a.length,5);
+  const reset = C.apply(g,host,'reset',{},3000);
+  assert.equal(reset.players[0].blackjackHands,undefined); assert.equal(C.privateView(reset,'a').hands.length,1);
+  const next = C.apply(g,host,'deal',{},3000);
+  assert.equal(next.players[0].blackjackHands,undefined); assert.equal(next.players[0].hand.length,2);
+});
+
+test('Blackjack doubling after splitting charges only the active hand bet', () => {
+  let g = blackjackPosition([card(5),card(5,'H')],[card(10),card(7)], [card(6),card(4),card(10)]);
+  g=move(g,'split'); assert.equal(C.privateView(g,'a').legal.double,true);
+  g=move(g,'double');
+  assert.equal(g.players[0].total,60); assert.equal(g.pot,60); assert.equal(g.players[0].stack,940);
+  assert.deepEqual(C.privateView(g,'a').hands.map(h=>h.bet),[40,20]);
+  assert.equal(C.privateView(g,'a').activeHand,1); assert.equal(C.privateView(g,'a').legal.handBet,20);
+  g=move(g,'stand'); assert.equal(g.players[0].stack,1020);
+  assert.deepEqual(g.results.map(r=>r.net),[40,-20]);
+});
+
+test('Blackjack split aces get one card and split 21 pays even money', () => {
+  let g=blackjackPosition([card(14),card(14,'H')],[card(10),card(7)], [card(13),card(10,'H')]);
+  g=move(g,'split'); assert.equal(g.phase,'settled'); assert.equal(g.players[0].stack,1040);
+  assert.deepEqual(g.results.map(r=>r.label),['Win','Win']);
+  assert.deepEqual(C.privateView(g,'a').hands.map(h=>h.cards.length),[2,2]);
+  g=move(blackjackPosition([card(10),card(13,'H')],[card(10),card(7)], [card(14),card(14,'H')]),'split');
+  assert.equal(g.phase,'settled'); assert.equal(g.players[0].stack,1040);
+});
+
+test('Blackjack resplits stop at four hands and reject mismatches, hits, insufficient chips and wrong turns', () => {
+  let g=blackjackPosition([card(8),card(8,'H')],[card(10),card(7)], [card(8,'D'),card(8,'C'),card(8),card(8),card(8),card(8)]);
+  for(let i=0;i<3;i++) { assert.equal(C.privateView(g,'a').legal.split,true); g=move(g,'split'); }
+  assert.equal(C.privateView(g,'a').hands.length,4); assert.equal(C.privateView(g,'a').legal.split,false);
+  const snapshot=structuredClone(g); assert.throws(()=>move(g,'split'),/Split needs/); assert.deepEqual(g,snapshot);
+  assert.equal(g.pot,80); assert.equal(g.players[0].stack,920);
+  while(C.active(g)) g=move(g,'stand'); assert.equal(g.results.length,4); assert.equal(g.players[0].stack,920);
+  for(const ranks of [[8,9],[14,10],[14,13]]) {
+    const h=blackjackPosition(ranks.map(r=>card(r)),[card(10),card(7)]);
+    assert.equal(C.privateView(h,'a').legal.split,false); assert.throws(()=>move(h,'split'),/Split needs/);
+  }
+  let h=blackjackPosition([card(8),card(8,'H')],[card(10),card(7)], [card(2)]);
+  h.players[0].stack=19; assert.equal(C.privateView(h,'a').legal.split,false); assert.throws(()=>move(h,'split'),/Split needs/);
+  h.players[0].stack=20; assert.throws(()=>C.apply(h,player('b'),'split',{},2000),/not your turn/);
+  h=move(h,'hit'); assert.equal(C.privateView(h,'a').legal.split,false); assert.throws(()=>move(h,'split'),/Split needs/);
+});
+
+test('Blackjack timeouts finish each split hand before moving to the next player', () => {
+  let g=blackjackPosition([card(8),card(8,'H')],[card(10),card(7)], [card(10),card(9)]);
+  const second=structuredClone(g.players[0]); second.id='b'; second.name='B'; second.hand=[card(10),card(8)];
+  g.players.push(second); g.handPlayers.push('b'); g.pending.push('b'); g.pot+=20;
+  g=move(g,'split');
+  g=C.expire(g,g.deadline); assert.equal(g.turnId,'a'); assert.equal(C.privateView(g,'a').activeHand,1);
+  g=C.expire(g,g.deadline); assert.equal(g.turnId,'b'); assert.equal(g.phase,'playing'); assert.equal(C.publicView(g).dealer[1],null);
+  g=C.expire(g,g.deadline); assert.equal(g.phase,'settled'); assert.equal(g.results.length,3);
+});

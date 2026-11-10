@@ -98,3 +98,12 @@ button.ct-card { cursor: pointer; touch-action: manipulation; }
 .ct-private, .ct-felt, .ct-showdown { overflow: hidden; }
 .ct-reveal-heading strong { min-width: 0; overflow-wrap: anywhere; }
 .ct-reveal-heading span { flex: 0 0 auto; max-width: 50%; overflow-wrap: anywhere; }
+
+.ct-split-hands { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:12px; }
+.ct-split-hand { min-width:0; padding:12px; border:2px solid var(--border); border-radius:14px; }
+.ct-split-hand.ct-active-hand { border-color:var(--accent,#60a5fa); box-shadow:0 0 0 2px var(--accent,#60a5fa); }
+.ct-split-hand .ct-private-heading { flex-wrap:wrap; gap:6px; }
+.ct-seat-cards:has(.ct-seat-split) { flex-wrap:wrap; gap:12px; }
+.ct-seat-split { display:grid; gap:5px; min-width:0; }
+.ct-seat-split > div { display:flex; flex-wrap:wrap; gap:4px; }
+@media (max-width:600px) { .ct-action-buttons { grid-auto-flow:row; grid-template-columns:repeat(2,minmax(0,1fr)); } }

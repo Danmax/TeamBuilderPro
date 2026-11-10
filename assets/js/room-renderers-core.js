@@ -223,7 +223,7 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
           <p class="card-desc">Match colors and numbers, play action cards, and race to clear your hand</p>
         </button>
 
-        ${[['blackjack', '🂡', '21 / Blackjack', 'Beat the automated dealer with a private hand and play chips'], ['five-card-draw', '🃑', 'Five-Card Draw', 'Bet, replace up to five cards, and take the pot'], ['texas-holdem', '♠️', 'Texas Hold’em', 'Private hole cards, community cards, and shared play-chip pots']].map(([id, icon, label, description]) => `
+        ${[['blackjack', '🃏', '21 / Blackjack', 'Beat the automated dealer with a private hand and play chips'], ['five-card-draw', '🃑', 'Five-Card Draw', 'Bet, replace up to five cards, and take the pot'], ['texas-holdem', '♠️', 'Texas Hold’em', 'Private hole cards, community cards, and shared play-chip pots']].map(([id, icon, label, description]) => `
           <button type="button" class="card" data-action="start-${id}" aria-label="Start ${label}" style="${enabledActivities[id] === false ? 'display:none;' : ''}">
             <div class="card-icon">${icon}</div><h3 class="card-title">${label}</h3><p class="card-desc">${description}</p>
           </button>`).join('')}
