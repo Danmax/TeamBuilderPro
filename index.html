@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="/assets/css/character-editor.css">
 <link rel="stylesheet" href="/assets/css/game-victory.css">
 <link rel="stylesheet" href="/assets/css/uno.css">
+<link rel="stylesheet" href="/assets/css/card-tables.css">
 </head>
 <body>
 <div class="atmosphere"><div class="mesh"></div><div class="mesh"></div><div class="mesh"></div></div>
@@ -62,6 +63,7 @@
 <script src="/assets/js/activities/chinese-checkers.js"></script>
 <script src="/assets/js/games/memory-core.js"></script>
 <script src="/assets/js/activities/memory.js"></script>
+<script src="/assets/js/activities/card-tables.js"></script>
 <script src="/assets/js/activities/rock-paper-scissors.js"></script>
 <script src="/assets/js/activities/chess-lobby.js"></script>
 <script src="/assets/js/core/particles.js"></script>
@@ -1837,6 +1839,9 @@ const ALL_ACTIVITY_IDS = [
   'word-chain',
   'brainstorm-canvas',
   'uno',
+  'blackjack',
+  'five-card-draw',
+  'texas-holdem',
   'regular-trivia',
   'tic-tac-toe-blitz',
   'team-jeopardy',
@@ -8414,6 +8419,7 @@ document.addEventListener('keydown', async event => {
 
 function renderActivity() {
   const activity = APP.room.currentActivity;
+  const compactSessionMenu = ['uno', 'blackjack', 'five-card-draw', 'texas-holdem'].includes(activity);
   const isHost = APP.room.host === APP.player?.name;
   let content = '<div>Activity loading...</div>';
   const timedEntry = getCurrentQueuedScheduleEntry(APP.room);
@@ -8442,14 +8448,14 @@ function renderActivity() {
   else if (activity === 'connect-4') content = renderConnect4();
 
   return `
-    ${activity === 'uno' ? '<details class="uno-session-menu"><summary>Session ▾</summary>' : ''}
+    ${compactSessionMenu ? '<details class="uno-session-menu"><summary>Session ▾</summary>' : ''}
     <div class="activity-session-bar" style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
       <span style="margin-right:auto;align-self:center;color:var(--text-dim);">Session <strong>${escapeHtml(APP.roomCode)}</strong></span>
       ${isHost ? '<button class="btn-secondary" data-action="return-to-session">← Back to session</button>' : '<span style="align-self:center;color:var(--text-dim);">Your host controls the activity</span>'}
       ${isHost ? '<button class="btn-secondary" data-action="open-admin-console" style="font-size:0.78rem;padding:6px 10px;">🛠️ Admin</button>' : ''}
       <button class="btn-secondary" data-action="leave-session" style="font-size:0.78rem;padding:6px 10px;">🚪 Leave</button>
     </div>
-    ${activity === 'uno' ? '</details>' : ''}
+    ${compactSessionMenu ? '</details>' : ''}
     ${showTimedBanner && activity !== 'uno' ? `
       <div style="margin-bottom:12px;padding:12px 14px;border-radius:16px;background:linear-gradient(135deg,rgba(138,241,255,0.12),rgba(37,99,235,0.08));border:1px solid rgba(138,241,255,0.18);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
         <div>

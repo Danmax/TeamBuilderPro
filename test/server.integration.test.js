@@ -902,3 +902,158 @@ test('security: hostile browser origins cannot open WebSocket connections', asyn
   t.after(() => sameOrigin.close());
   await new Promise((resolve, reject) => { sameOrigin.once('connect', resolve); sameOrigin.once('connect_error', reject); });
 });
+
+test('card tables deal all three games privately, authenticate moves, reject shared-state edits and deduplicate actions', async t => {
+  const running = await startTestServer(t);
+  const hostSocket = await securitySocket(t, running.port), guestSocket = await securitySocket(t, running.port), spectatorSocket = await securitySocket(t, running.port);
+  for (const [index, type] of ['blackjack', 'five-card-draw', 'texas-holdem'].entries()) {
+    const { key, identity, room } = await securityRoom(hostSocket, `CARD0${index}`);
+    const guest = { actorToken: 'private_card_guest_actor_1234567890123456789', actorPlayerId: 'card-guest' };
+    const spectator = { actorToken: 'private_card_watcher_actor_1234567890123456789', actorPlayerId: 'card-watcher' };
+    for (const [socket, who, name] of [[guestSocket, guest, 'Card Guest'], [spectatorSocket, spectator, 'Watcher']]) assert.equal((await emitAck(socket,'room:join',{ key, actorToken: who.actorToken, playerId: who.actorPlayerId, playerName: name })).ok,true);
+    let current = JSON.parse((await emitAck(hostSocket,'shared:get',{key})).value);
+    const opened = await emitAck(hostSocket,'shared:set',{key,...identity,value:JSON.stringify({...current,currentActivity:type,activityState:{deck:['forged'],hands:{}}})});
+    assert.equal(opened.ok,true,opened.error); current=JSON.parse(opened.value);
+    const act = async(socket, actor, action, extra={}) => {
+      const latest=JSON.parse((await emitAck(socket,'shared:get',{key})).value).activityState;
+      return emitAck(socket,'cards:action',{key,...actor,tableId:latest.id,handId:latest.handId,version:latest.version,actionId:require('node:crypto').randomUUID(),action,...extra});
+    };
+    assert.equal((await act(hostSocket,identity,'join')).ok,true);
+    assert.equal((await act(guestSocket,guest,'join')).ok,true);
+    let view=await emitAck(hostSocket,'cards:view',{key,...identity});assert.equal(view.ok,true);
+    const start=await act(hostSocket,identity,'deal');assert.equal(start.ok,true,start.error);
+    view=await emitAck(hostSocket,'cards:view',{key,...identity});
+    const guestView=await emitAck(guestSocket,'cards:view',{key,...guest});
+    assert.equal(view.private.cards.length,type==='five-card-draw'?5:2);
+    assert.equal(guestView.private.cards.length,type==='five-card-draw'?5:2);
+    const watcher=await emitAck(spectatorSocket,'cards:view',{key,...spectator});assert.deepEqual(watcher.private.cards,[]);
+    const theft=await emitAck(spectatorSocket,'cards:view',{key,actorPlayerId:identity.actorPlayerId,actorToken:spectator.actorToken});assert.equal(theft.ok,false);
+    const publicText=(await emitAck(hostSocket,'shared:get',{key})).value;
+    const publicRoom=JSON.parse(publicText);assert.equal(Object.hasOwn(publicRoom.activityState,'deck'),false);assert.equal(Object.hasOwn(publicRoom.activityState,'hands'),false);
+    if(publicRoom.activityState.phase==='playing') for(const card of [...view.private.cards,...guestView.private.cards]) assert.equal(publicText.includes(JSON.stringify(card)),false);
+    const forged=await emitAck(hostSocket,'shared:set',{key,...identity,value:JSON.stringify({...publicRoom,activityState:{...publicRoom.activityState,pot:99999}})});assert.equal(forged.ok,false);
+    const hostPrivate=await emitAck(hostSocket,'cards:view',{key,...identity,playerId:guest.actorPlayerId});assert.equal(hostPrivate.private.playerId,identity.actorPlayerId);
+    let snapshot=JSON.parse((await emitAck(hostSocket,'shared:get',{key})).value).activityState;
+    if(snapshot.phase==='playing') {
+      const wrongActor=snapshot.turnId===identity.actorPlayerId?guest:identity;
+      const wrongSocket=snapshot.turnId===identity.actorPlayerId?guestSocket:hostSocket;
+      assert.equal((await act(wrongSocket,wrongActor,type==='blackjack'?'stand':'fold')).ok,false);
+      const duplicateId=require('node:crypto').randomUUID();
+      const actor=snapshot.turnId===identity.actorPlayerId?identity:guest, socket=snapshot.turnId===identity.actorPlayerId?hostSocket:guestSocket;
+      const payload={key,...actor,tableId:snapshot.id,handId:snapshot.handId,version:snapshot.version,actionId:duplicateId,action:type==='blackjack'?'stand':'fold'};
+      const first=await emitAck(socket,'cards:action',payload);assert.equal(first.ok,true,first.error);
+      const second=await emitAck(socket,'cards:action',payload);assert.equal(second.ok,true,second.error);
+      assert.equal(JSON.parse(first.value).activityState.version,JSON.parse(second.value).activityState.version);
+      const stale=await emitAck(socket,'cards:action',{...payload,actionId:require('node:crypto').randomUUID()});assert.equal(stale.ok,false);
+    }
+    // A hand can complete without revealing the undealt deck or folded cards.
+    for(let step=0;step<40;step++) {
+      snapshot=JSON.parse((await emitAck(hostSocket,'shared:get',{key})).value).activityState;
+      if(snapshot.phase!=='playing')break;
+      const actor=snapshot.turnId===identity.actorPlayerId?identity:guest, socket=snapshot.turnId===identity.actorPlayerId?hostSocket:guestSocket;
+      const own=await emitAck(socket,'cards:view',{key,...actor});const legal=own.private.legal;
+      const action=type==='blackjack'?'stand':legal.draw?'draw':legal.check?'check':'call';
+      const result=await act(socket,actor,action,{indices:[]});assert.equal(result.ok,true,result.error);
+    }
+    snapshot=JSON.parse((await emitAck(hostSocket,'shared:get',{key})).value).activityState;
+    assert.equal(snapshot.phase,'settled');
+    if(type!=='blackjack')assert.equal(snapshot.players.reduce((sum,p)=>sum+p.stack,0),2000);
+    assert.equal(snapshot.deck,undefined);
+    const privateFile=path.join(running.dataDir,'private-card-tables',`${key.slice(5)}.json`);assert.equal(fs.statSync(privateFile).mode&0o777,0o600);
+    const closing=JSON.parse((await emitAck(hostSocket,'shared:get',{key})).value);
+    assert.equal((await emitAck(hostSocket,'shared:set',{key,...identity,value:JSON.stringify({...closing,currentActivity:null,activityState:{}})})).ok,true);
+    assert.equal(fs.existsSync(privateFile),false);assert.equal((await emitAck(hostSocket,'cards:view',{key,...identity})).ok,false);
+  }
+});
+
+test('private card tables recover hands, chip totals, pauses and action IDs after a server restart', async t => {
+  const running=await startTestServer(t);let socket=await securitySocket(t,running.port);const guestSocket=await securitySocket(t,running.port);
+  const {key,identity}=await securityRoom(socket,'RECA12');
+  const guest={actorPlayerId:'recover-guest',actorToken:'recover_card_guest_actor_12345678901234567890'};
+  assert.equal((await emitAck(socket,'room:join',{key,actorToken:guest.actorToken,playerId:guest.actorPlayerId,playerName:'Recover Guest'})).ok,true);
+  let room=JSON.parse((await emitAck(socket,'shared:get',{key})).value);
+  assert.equal((await emitAck(socket,'shared:set',{key,...identity,value:JSON.stringify({...room,currentActivity:'texas-holdem',activityState:{}})})).ok,true);
+  const action=async(actor,name,extra={})=>{const g=JSON.parse((await emitAck(socket,'shared:get',{key})).value).activityState;return emitAck(actor.actorPlayerId===guest.actorPlayerId?guestSocket:socket,'cards:action',{key,...actor,tableId:g.id,handId:g.handId,version:g.version,actionId:require('node:crypto').randomUUID(),action:name,...extra});};
+  await action(identity,'join');await action(guest,'join');await action(identity,'deal');
+  const pauseId=require('node:crypto').randomUUID();const g=JSON.parse((await emitAck(socket,'shared:get',{key})).value).activityState;
+  const pausePayload={key,...identity,tableId:g.id,handId:g.handId,version:g.version,actionId:pauseId,action:'pause'};
+  assert.equal((await emitAck(socket,'cards:action',pausePayload)).ok,true);
+  const privateBefore=(await emitAck(socket,'cards:view',{key,...identity})).private;
+  const exited=new Promise(resolve=>running.child.once('exit',resolve));socket.close();guestSocket.close();running.child.kill('SIGTERM');await exited;
+  const resumed=await startTestServer(t,{dataDir:running.dataDir});socket=await securitySocket(t,resumed.port);
+  const restored=await emitAck(socket,'cards:view',{key,...identity});assert.equal(restored.ok,true,restored.error);
+  assert.deepEqual(restored.private.cards,privateBefore.cards);const publicRestored=JSON.parse(restored.value).activityState;
+  assert.equal(publicRestored.paused,true);assert.equal(publicRestored.pot,30);assert.equal(publicRestored.handId,privateBefore.handId);
+  const duplicate=await emitAck(socket,'cards:action',pausePayload);assert.equal(duplicate.ok,true,duplicate.error);
+  assert.equal(JSON.parse(duplicate.value).activityState.paused,true);
+  assert.equal((await action(identity,'resume')).ok,true);
+});
+
+test('card actions do not spend chips when database persistence fails, and a retried action commits once', async t => {
+  const databaseDir=fs.mkdtempSync(path.join(os.tmpdir(),'team-builder-private-card-db-'));t.after(()=>fs.rmSync(databaseDir,{recursive:true,force:true}));
+  const options={preload:path.join(__dirname,'fixtures/settings-database.fixture'),env:{TEST_SETTINGS_DB_DIR:databaseDir,DB_HOST:'test-private-database.invalid'}};
+  const running=await startTestServer(t,options),socket=await securitySocket(t,running.port),guestSocket=await securitySocket(t,running.port);
+  const {key,identity}=await securityRoom(socket,'DBCA12');
+  const guest={actorPlayerId:'database-guest',actorToken:'database_card_guest_actor_12345678901234567890'};
+  await emitAck(guestSocket,'room:join',{key,playerId:guest.actorPlayerId,playerName:'Database Guest',actorToken:guest.actorToken});
+  const initial=JSON.parse((await emitAck(socket,'shared:get',{key})).value);
+  assert.equal((await emitAck(socket,'shared:set',{key,...identity,value:JSON.stringify({...initial,currentActivity:'texas-holdem',activityState:{}})})).ok,true);
+  const act=async(client,actor,action)=>{const game=JSON.parse((await emitAck(client,'shared:get',{key})).value).activityState;return emitAck(client,'cards:action',{key,...actor,tableId:game.id,handId:game.handId,version:game.version,actionId:require('node:crypto').randomUUID(),action});};
+  await act(socket,identity,'join');await act(guestSocket,guest,'join');await act(socket,identity,'deal');
+  const before=JSON.parse((await emitAck(socket,'shared:get',{key})).value).activityState;
+  const payload={key,...identity,tableId:before.id,handId:before.handId,version:before.version,actionId:require('node:crypto').randomUUID(),action:'call'};
+  const privateFile=path.join(databaseDir,`private_cards:${key.slice(5)}.json`),secretBefore=fs.readFileSync(privateFile,'utf8');
+  fs.writeFileSync(path.join(databaseDir,'fail-writes'),'1');
+  const failed=await emitAck(socket,'cards:action',payload);assert.equal(failed.ok,false);
+  const after=JSON.parse((await emitAck(socket,'shared:get',{key})).value).activityState;
+  assert.deepEqual(after,before);assert.equal(fs.readFileSync(privateFile,'utf8'),secretBefore);
+  fs.unlinkSync(path.join(databaseDir,'fail-writes'));
+  const retry=await emitAck(socket,'cards:action',payload);assert.equal(retry.ok,true,retry.error);
+  const committed=JSON.parse(retry.value).activityState;assert.equal(committed.players.find(p=>p.id===identity.actorPlayerId).stack,980);
+  const duplicate=await emitAck(socket,'cards:action',payload);assert.equal(duplicate.ok,true);assert.equal(JSON.parse(duplicate.value).activityState.version,committed.version);
+});
+
+test('an overdue private card turn settles once after restart without exposing the deck', async t => {
+  const running=await startTestServer(t),socket=await securitySocket(t,running.port),guestSocket=await securitySocket(t,running.port);
+  const {key,identity}=await securityRoom(socket,'TIME12');const guest={actorPlayerId:'timeout-guest',actorToken:'timeout_card_guest_actor_12345678901234567890'};
+  await emitAck(guestSocket,'room:join',{key,playerId:guest.actorPlayerId,playerName:'Timeout Guest',actorToken:guest.actorToken});
+  const room=JSON.parse((await emitAck(socket,'shared:get',{key})).value);
+  await emitAck(socket,'shared:set',{key,...identity,value:JSON.stringify({...room,currentActivity:'texas-holdem',activityState:{}})});
+  for(const [client,actor,action] of [[socket,identity,'join'],[guestSocket,guest,'join'],[socket,identity,'deal']]){
+    const g=JSON.parse((await emitAck(client,'shared:get',{key})).value).activityState;
+    assert.equal((await emitAck(client,'cards:action',{key,...actor,tableId:g.id,handId:g.handId,version:g.version,actionId:require('node:crypto').randomUUID(),action})).ok,true);
+  }
+  const exited=new Promise(resolve=>running.child.once('exit',resolve));socket.close();guestSocket.close();running.child.kill('SIGTERM');await exited;
+  const file=path.join(running.dataDir,'private-card-tables',`${key.slice(5)}.json`),game=JSON.parse(fs.readFileSync(file,'utf8'));game.deadline=Date.now()-5000;fs.writeFileSync(file,JSON.stringify(game),{mode:0o600});
+  const resumed=await startTestServer(t,{dataDir:running.dataDir}),reconnected=await securitySocket(t,resumed.port);
+  const view=await emitAck(reconnected,'cards:view',{key,...identity});assert.equal(view.ok,true,view.error);
+  const settled=JSON.parse(view.value).activityState;assert.equal(settled.phase,'settled');assert.equal(settled.pot,0);assert.equal(settled.players.reduce((sum,p)=>sum+p.stack,0),2000);assert.equal(settled.deck,undefined);
+  const again=await emitAck(reconnected,'cards:view',{key,...identity});assert.deepEqual(JSON.parse(again.value).activityState.results,settled.results);
+});
+
+test('reserved card seats cannot be hijacked after leaving, being removed, or losing roster metadata on restart', async t => {
+  const running=await startTestServer(t);let hostSocket=await securitySocket(t,running.port),guestSocket=await securitySocket(t,running.port);
+  const {key,identity}=await securityRoom(hostSocket,'SECR12');
+  const guest={actorPlayerId:'protected-card-guest',actorToken:'protected_card_guest_actor_12345678901234567890'};
+  const join=async(client,token)=>emitAck(client,'room:join',{key,playerId:guest.actorPlayerId,playerName:'Protected Guest',actorToken:token});
+  assert.equal((await join(guestSocket,guest.actorToken)).ok,true);
+  let room=JSON.parse((await emitAck(hostSocket,'shared:get',{key})).value);
+  assert.equal((await emitAck(hostSocket,'shared:set',{key,...identity,value:JSON.stringify({...room,currentActivity:'texas-holdem',activityState:{}})})).ok,true);
+  for(const [client,actor,action] of [[hostSocket,identity,'join'],[guestSocket,guest,'join'],[hostSocket,identity,'deal']]){
+    const g=JSON.parse((await emitAck(client,'shared:get',{key})).value).activityState;
+    const result=await emitAck(client,'cards:action',{key,...actor,tableId:g.id,handId:g.handId,version:g.version,actionId:require('node:crypto').randomUUID(),action});assert.equal(result.ok,true,result.error);
+  }
+  const before=(await emitAck(guestSocket,'cards:view',{key,...guest})).private.cards;
+  assert.equal((await emitAck(guestSocket,'room:leave',{key,...guest})).ok,true);
+  assert.equal((await join(hostSocket,'attacker_card_token_1234567890123456789012345')).ok,false);
+  assert.equal((await join(guestSocket,guest.actorToken)).ok,true);
+  assert.deepEqual((await emitAck(guestSocket,'cards:view',{key,...guest})).private.cards,before);
+  room=JSON.parse((await emitAck(hostSocket,'shared:get',{key})).value);
+  assert.equal((await emitAck(hostSocket,'shared:set',{key,...identity,value:JSON.stringify({...room,participants:room.participants.filter(p=>p.id!==guest.actorPlayerId)})})).ok,true);
+  const exited=new Promise(resolve=>running.child.once('exit',resolve));hostSocket.close();guestSocket.close();running.child.kill('SIGTERM');await exited;
+  const metaFile=path.join(running.dataDir,'room-meta.json'),meta=JSON.parse(fs.readFileSync(metaFile,'utf8'));delete meta[key].actorTokens[guest.actorPlayerId];fs.writeFileSync(metaFile,JSON.stringify(meta));
+  const resumed=await startTestServer(t,{dataDir:running.dataDir});hostSocket=await securitySocket(t,resumed.port);guestSocket=await securitySocket(t,resumed.port);
+  assert.equal((await join(hostSocket,'attacker_card_token_1234567890123456789012345')).ok,false);
+  assert.equal((await join(guestSocket,guest.actorToken)).ok,true);
+  const restored=await emitAck(guestSocket,'cards:view',{key,...guest});assert.equal(restored.ok,true,restored.error);assert.deepEqual(restored.private.cards,before);
+});

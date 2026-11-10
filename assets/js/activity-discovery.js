@@ -3,7 +3,8 @@
   const categories = {
     'Warm-ups': ['icebreaker', 'pulse-check', 'values-vote', 'emoji-charades', 'spin-wheel'],
     'Team games': ['lightning-trivia', 'regular-trivia', 'survey-clash', 'wordle', 'word-chain', 'team-jeopardy', 'cosmos-bound', 'bingo', 'memory'],
-    'Board games': ['uno', 'tic-tac-toe-blitz', 'battleship', 'backgammon', 'checkers', 'chinese-checkers', 'connect-4', 'chess-lobby', 'rock-paper-scissors'],
+    'Card games': ['uno', 'blackjack', 'five-card-draw', 'texas-holdem'],
+    'Board games': [ 'tic-tac-toe-blitz', 'battleship', 'backgammon', 'checkers', 'chinese-checkers', 'connect-4', 'chess-lobby', 'rock-paper-scissors'],
     'Present & create': ['presentation', 'slides-studio', 'dj-booth', 'brainstorm-canvas']
   };
   root.applyActivityFilters = function () {

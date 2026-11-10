@@ -1,6 +1,6 @@
 # Card games implementation plan
 
-Status: planned November 9, 2026. No card-game implementation in this change.
+Status: implemented November 10, 2026. Blackjack, Five-Card Draw, and Texas Hold’em now share a server-authoritative engine, private player views, durable private-table storage, and a mobile table UI. The design below describes the implemented first release; advanced variants and poker bots remain deferred.
 
 Add **21 / Blackjack**, **Five-Card Draw**, and **Texas Hold’em** as session activities and community-room games. Use virtual play chips, shared tables, private hands, and spectators. Keep each game's rules visible at the table.
 
@@ -34,7 +34,7 @@ The existing shared-room JSON is visible to participants, so private cards and t
 4. Send a public snapshot for the table and a private per-player snapshot containing only that player's cards. Spectators see public cards and hidden-card backs. Reuse room/actor access checks for snapshots and reconnects.
 5. Persist deadlines and action IDs so a restart cannot duplicate a deal, bet, payout, or timeout. Pause must freeze a deadline, not silently extend one player's time on every refresh.
 6. Keep hidden cards out of community previews, client storage, logs, public room exports, and error messages. Ensure folded/mucked cards stay private after a hand.
-7. Keep existing JSON runtime persistence working initially; introduce database-backed private-table persistence through a storage interface, with migration as an explicit follow-up.
+7. Private tables persist in the configured database under the backend-only `private_cards:<room code>` namespace. File-only development uses owner-readable files in `DATA_DIR/private-card-tables/`. Startup restores the authoritative private table before serving clients, and successful actions are saved before public acknowledgement. Leaving the activity removes its private table. Seat credential hashes persist alongside the game so a departed player’s ID cannot be reused to steal a reserved hand.
 
 ## Delivery order
 
@@ -54,3 +54,16 @@ Register each activity in the lobby, queue, admin feature toggles, and community
 - Two clients, a spectator, and reconnecting clients cannot inspect another player's private hand or the remaining deck.
 - Simultaneous clicks, stale requests, departed players, timeouts, pause/resume, host transfer, and server restart recovery.
 - Complete hands in desktop and 320/390px mobile browsers, keyboard-accessible controls, clear amount labels, and reduced-motion support.
+
+
+## First-release operation
+
+Open **Card games** in a session's activity library. Everyone chooses **Take a seat**; the host deals once enough funded seats are ready. Blackjack works with one player against the automated dealer. Poker requires two people; bots are not included. A new seat starts with 1,000 table-local play chips. There are no payments or cross-table wallets.
+
+Host options are under **Seats, results & rules**: use 10/20, 25/50, or 50/100 blinds, reset stacks between hands, or remove an idle seat. Blackjack players set their own next bet in increments of 10. Pause freezes the turn deadline. A disconnected seat remains reserved, and seats whose 60-second grace period has expired are released between hands. Turn timeouts continue during disconnects; there is no automatic rebuy or betting.
+
+The client receives its private hand only in an authenticated acknowledgement and keeps it in memory. Public room snapshots and community previews contain no deck, hidden hands, or seat credentials. Folded poker hands stay hidden after settlement; all non-folded showdown hands are revealed. Poker uses a full-bet reopening threshold for short all-ins and cumulative short raises. Surplus uncalled chips return before pot settlement; tied eligible winners receive odd chips clockwise after the dealer.
+
+Local validation includes full-hand host/guest/spectator browser play at 320/390px, landscape/tablet/desktop checks, pause/reconnect, unit and integration coverage, randomized poker chip-conservation runs, and isolated MySQL new-connection recovery. The implementation uses the app's existing single-process realtime room model; multi-process deployment would require a shared room coordinator and transactional locking.
+
+Rules references: [Bicycle Blackjack](https://bicyclecards.com/how-to-play/blackjack/) and [Poker TDA rules](https://www.pokertda.com/view-poker-tda-rules/). Table-specific first-release rules shown in the app take precedence over optional casino variants.

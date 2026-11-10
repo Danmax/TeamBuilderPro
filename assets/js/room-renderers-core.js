@@ -165,7 +165,7 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
       <label class="form-label" for="activitySearch">Find an activity</label>
       <input id="activitySearch" class="form-input" type="search" value="${escapeHtml(window.TEAM_BUILDER_DISCOVERY?.query || '')}" placeholder="Search games, trivia, polls…" autocomplete="off">
       <div class="activity-filters" role="group" aria-label="Activity category">
-        ${['All', 'Warm-ups', 'Team games', 'Board games', 'Present & create'].map(category => `<button class="btn-secondary" data-activity-filter="${escapeHtml(category)}" aria-pressed="${(window.TEAM_BUILDER_DISCOVERY?.category || 'All') === category}">${escapeHtml(category)}</button>`).join('')}
+        ${['All', 'Warm-ups', 'Team games', 'Card games', 'Board games', 'Present & create'].map(category => `<button class="btn-secondary" data-activity-filter="${escapeHtml(category)}" aria-pressed="${(window.TEAM_BUILDER_DISCOVERY?.category || 'All') === category}">${escapeHtml(category)}</button>`).join('')}
       </div>
       <p id="activityFilterStatus" class="studio-help" role="status" aria-live="polite"></p>
       <div class="grid-2" id="activityLibrary">
@@ -222,6 +222,11 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
           <h3 class="card-title">UNO Showdown</h3>
           <p class="card-desc">Match colors and numbers, play action cards, and race to clear your hand</p>
         </button>
+
+        ${[['blackjack', '🂡', '21 / Blackjack', 'Beat the automated dealer with a private hand and play chips'], ['five-card-draw', '🃑', 'Five-Card Draw', 'Bet, replace up to five cards, and take the pot'], ['texas-holdem', '♠️', 'Texas Hold’em', 'Private hole cards, community cards, and shared play-chip pots']].map(([id, icon, label, description]) => `
+          <button type="button" class="card" data-action="start-${id}" aria-label="Start ${label}" style="${enabledActivities[id] === false ? 'display:none;' : ''}">
+            <div class="card-icon">${icon}</div><h3 class="card-title">${label}</h3><p class="card-desc">${description}</p>
+          </button>`).join('')}
 
         <!-- Activity Queue button removed from Choose Activity menu -->
         

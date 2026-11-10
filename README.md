@@ -343,3 +343,14 @@ Each browser identity has a separate `user_settings:<SHA-256 of user token>` rec
 The browser identity is anonymous, not an account login. Keep its browser storage to retain access to its saved preferences; clearing all site data creates a new identity. Database storage does not add cross-device sign-in. Admin tokens, room access/actor tokens, AI API keys, active-session snapshots, and device-specific voice dock positions are excluded from this sync. Server-side AI credentials remain in environment variables.
 
 Without database configuration, development uses atomic files under `DATA_DIR`, including a private `user-settings/` directory. When switching this installation to MySQL, those user files are imported on the next settings sync. Deploy the updated server and frontend together and configure production database environment variables separately from the local `.env`; local configuration does not change the hosted app.
+
+
+## Blackjack and poker
+
+Use the **Card games** filter in a session to open **21 / Blackjack**, **Five-Card Draw**, or **Texas Hold’em**. Take a seat, then the host selects **Deal first hand**. Seats start with 1,000 virtual play chips; Blackjack has an automated dealer, while both poker games require at least two players. Late arrivals can watch or take an open seat for the next hand.
+
+Only the server deals, validates actions, advances turns, and pays pots. Blackjack supports hit, stand, double, soft aces, 3:2 naturals, and pushes; the dealer stands on every 17. Poker includes no-limit betting, all-ins, side pots, ties, rotating blinds, and private folded hands. Five-Card Draw allows one exchange of up to five cards. Hold’em deals the flop, turn, and river with burn cards and selects the best five of seven cards.
+
+Each player sees only their own private hand before showdown. Card selection, amount previews, 30-second turn timers, pause/resume, reconnect recovery, and win celebrations are included. **Seats, results & rules** contains player stacks, revealed results, table rules, and host options. Host resets are allowed between hands; no automatic rebuy occurs. Blinds default to 10/20, with 25/50 and 50/100 presets. Chips belong to the current table and are not an account wallet.
+
+Private decks, hands, action IDs, and seat credential hashes use backend-only database records when MySQL is configured, with an owner-readable private-file adapter for local development. Private writes complete before acknowledgement; restart recovery restores the authoritative hand and deadline. Ending the activity removes the private table. This follows the existing single-process server architecture. See [CARD_GAMES_PLAN.md](CARD_GAMES_PLAN.md) for the rules, privacy design, and release limits.

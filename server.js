@@ -14,6 +14,8 @@ const spinWheelTimers = new Map();
 const ChineseCheckersAI = require('./assets/js/games/chinese-checkers-ai');
 const chineseCheckersTimers = new Map();
 const Memory = require('./assets/js/games/memory-core');
+const Cards = require('./lib/card-games');
+const { createCardTableStore } = require('./lib/card-table-store');
 const memoryTimers = new Map();
 const express = require('express');
 const http = require('http');
@@ -72,6 +74,9 @@ const ALL_ACTIVITY_IDS = [
   'word-chain',
   'brainstorm-canvas',
   'uno',
+  'blackjack',
+  'five-card-draw',
+  'texas-holdem',
   'regular-trivia',
   'tic-tac-toe-blitz',
   'team-jeopardy',
@@ -118,6 +123,9 @@ const DJ_ROOM_MAX_BYTES = 200 * 1024 * 1024;
 const DJ_ROOM_MAX_TRACKS = 48;
 let sessionCleanupInterval = null;
 
+
+const cardTables = new Map(), cardTimers = new Map(), cardViewers = new Map(), roomOperations = new Map();
+const cardStore = createCardTableStore({ database: () => configDb, databaseRequired, dataDir: DATA_DIR });
 
 function getAdminToken() {
   return String(process.env.ADMIN_TOKEN || '').trim();
@@ -944,6 +952,10 @@ function deleteRoomState(key) {
   clearSpinWheelTimer(key);
   clearChineseCheckersTimer(key);
   clearMemoryTimer(key);
+  if (cardTimers.has(key)) clearTimeout(cardTimers.get(key));
+  const hadCardTable = cardTables.has(key) || Boolean(Cards.TYPES[getRoomSnapshot(key)?.currentActivity]);
+  cardTimers.delete(key); cardTables.delete(key); cardViewers.delete(key);
+  if (isRoomKey(key) && hadCardTable) void cardStore.remove(key).catch(() => console.error('Could not remove private card table.'));
   if (!isRoomKey(key)) return false;
   const room = getRoomSnapshot(key);
   const library = Array.isArray(room?.activityState?.trackLibrary) ? room.activityState.trackLibrary : [];
@@ -1255,7 +1267,7 @@ const HOST_CONTROLLED_ROOM_FIELDS = [
 
 function participantCanApplyRoomUpdate(currentRoom, nextRoom, actorPlayerId) {
   if (!currentRoom || !nextRoom) return false;
-  if (['survey-clash', 'checkers', 'memory', 'chinese-checkers', 'spin-wheel'].includes(currentRoom.currentActivity)
+  if (['survey-clash', 'checkers', 'memory', 'chinese-checkers', 'spin-wheel', ...Object.keys(Cards.TYPES)].includes(currentRoom.currentActivity)
     && JSON.stringify(currentRoom.activityState) !== JSON.stringify(nextRoom.activityState)) return false;
   const fixedFieldsUnchanged = HOST_CONTROLLED_ROOM_FIELDS
     .filter(field => field !== 'participants')
@@ -2040,16 +2052,107 @@ function createChineseCheckersRound(room, playerCount = 2, previousSeats = null)
   return game;
 }
 
+function queueRoomOperation(key, operation) {
+  const work = (roomOperations.get(key) || Promise.resolve()).catch(() => {}).then(operation);
+  roomOperations.set(key, work);
+  work.finally(() => { if (roomOperations.get(key) === work) roomOperations.delete(key); }).catch(() => {});
+  return work;
+}
+function cardActorHash(token) { return crypto.createHash('sha256').update(String(token).trim()).digest('hex'); }
+async function saveCardTable(key, game) {
+  const previous = cardTables.get(key);
+  game.actorHashes = Object.fromEntries(Object.entries(game.actorHashes || {}).filter(([id]) => game.players.some(p => p.id === id)));
+  await cardStore.save(key, game);
+  cardTables.set(key, game);
+  if (previous) {
+    const participants = getRoomSnapshot(key)?.participants || [], meta = getRoomAccessMeta(key);
+    for (const p of previous.players) if (!game.players.some(current => current.id === p.id) && !participants.some(current => current.id === p.id) && meta?.actorTokens) {
+      delete meta.actorTokens[p.id]; scheduleRoomMetaPersist();
+    }
+  }
+}
+async function commitCardTable(key, room, game) {
+  await saveCardTable(key, game);
+  const current = getRoomSnapshot(key);
+  if (!current || current.currentActivity !== game.type || current.activityState?.id !== game.id) throw new Error('This card table was closed.');
+  room = current;
+  room.activityState = Cards.publicView(game);
+  const value = publishGameRoom(key, room);
+  persistStateToDisk();
+  scheduleCardTable(key, game);
+  return value;
+}
+function scheduleCardTable(key, game) {
+  if (cardTimers.has(key)) clearTimeout(cardTimers.get(key));
+  cardTimers.delete(key);
+  const deadlines = [];
+  if (Cards.active(game) && !game.paused && game.deadline) deadlines.push(game.deadline);
+  if (!Cards.active(game)) game.players.forEach(p => { if (p.awaySince) deadlines.push(p.awaySince + Cards.AWAY_MS); });
+  if (!deadlines.length) return;
+  const timer = setTimeout(() => {
+    cardTimers.delete(key);
+    queueRoomOperation(key, async () => {
+      const room = getRoomSnapshot(key), current = cardTables.get(key);
+      if (!room || !current || room.currentActivity !== current.type || room.activityState?.id !== current.id) return;
+      let next = Cards.expire(current);
+      if (!Cards.active(next)) { next = structuredClone(next); Cards.sweep(next, Date.now()); if (next.players.length !== current.players.length) next.version++; }
+      if (next.version !== current.version) await commitCardTable(key, room, next);
+      else scheduleCardTable(key, next);
+    }).catch(() => { console.error('Card table timer could not be saved; retrying.'); const current = cardTables.get(key); if (current) { const retry = setTimeout(() => scheduleCardTable(key, current), 2000); retry.unref(); cardTimers.set(key, retry); } });
+  }, Math.max(0, Math.min(...deadlines) - Date.now()));
+  timer.unref(); cardTimers.set(key, timer);
+}
+async function recoverCardTables() {
+  for (const [key] of state) {
+    const room = getRoomSnapshot(key);
+    if (!Cards.TYPES[room?.currentActivity]) continue;
+    try {
+      const game = await cardStore.load(key);
+      if (!game || game.type !== room.currentActivity || game.id !== room.activityState?.id) continue;
+      // Connections reauthenticate independently after restart; reserve their seats.
+      for (const p of game.players) if (!p.awaySince) p.awaySince = Date.now();
+      await commitCardTable(key, room, game);
+    } catch (_) { console.error(`Unable to restore private card table ${key}.`); }
+  }
+}
+function rememberCardViewer(socket, key, playerId) {
+  if (!cardViewers.has(key)) cardViewers.set(key, new Map());
+  const viewers = cardViewers.get(key);
+  if (!viewers.has(playerId)) viewers.set(playerId, new Set());
+  viewers.get(playerId).add(socket.id);
+  socket.data.cardView = { key, playerId };
+}
+function forgetCardViewer(socket) {
+  const identity = socket.data.cardView;
+  if (!identity) return;
+  delete socket.data.cardView;
+  const { key, playerId } = identity, viewers = cardViewers.get(key), connections = viewers?.get(playerId);
+  connections?.delete(socket.id);
+  if (connections?.size) return;
+  viewers?.delete(playerId);
+  if (!viewers?.size) cardViewers.delete(key);
+  queueRoomOperation(key, async () => {
+    const room = getRoomSnapshot(key), game = cardTables.get(key);
+    if (!room || room.currentActivity !== game?.type || !Cards.seat(game, playerId) || Cards.seat(game, playerId).awaySince) return;
+    const next = structuredClone(game); Cards.seat(next, playerId).awaySince = Date.now(); next.version++;
+    await commitCardTable(key, room, next);
+  }).catch(() => console.error('Could not persist disconnected card seat.'));
+}
+
 io.on('connection', socket => {
   function onRealtime(event, handler) {
     socket.on(event, (...args) => {
       const [payload, ack] = args;
       if (args.length > 2 || (ack !== undefined && typeof ack !== 'function')) return;
-      try { handler(payload, ack); }
-      catch (_) {
-        console.warn(`Rejected malformed realtime event: ${event}`);
-        if (ack) ack({ ok: false, error: 'Invalid realtime request.' });
-      }
+      const invoke = async () => {
+        try { await handler(payload, ack); }
+        catch (_) {
+          console.warn(`Rejected malformed realtime event: ${event}`);
+          if (ack) ack({ ok: false, error: 'Invalid realtime request.' });
+        }
+      };
+      const key = typeof payload === 'string' ? payload : payload?.key;
+      if (isRoomKey(key)) queueRoomOperation(key, invoke); else void invoke();
     });
   }
 
@@ -2097,12 +2200,17 @@ io.on('connection', socket => {
       ack?.({ ok: false, error: 'That display name is already in use in this room' });
       return;
     }
+    const privateTable = cardTables.get(key), reservedSeat = privateTable && Cards.seat(privateTable, playerId);
+    if (reservedSeat && (!Object.hasOwn(privateTable.actorHashes || {}, playerId)
+      || !safeTokenEqual(privateTable.actorHashes[playerId], cardActorHash(actorToken)))) {
+      ack?.({ ok: false, error: 'This card seat belongs to another participant.' }); return;
+    }
+    const expectedToken = meta.actorTokens[playerId];
+    if (expectedToken && !safeTokenEqual(expectedToken, actorToken)) {
+      ack?.({ ok: false, error: 'Participant identity is already in use' }); return;
+    }
     if (existingById) {
-      const expectedToken = meta.actorTokens[playerId];
-      if (expectedToken && !safeTokenEqual(expectedToken, actorToken)) {
-        ack?.({ ok: false, error: 'Participant identity is already in use' });
-        return;
-      }
+      // An authenticated reconnect keeps the same identity, including private seats.
     } else if (existingByName) {
       ack?.({ ok: false, error: 'That display name is already in use in this room' });
       return;
@@ -2150,7 +2258,7 @@ io.on('connection', socket => {
     ack?.({ ok: true, value });
   });
 
-  onRealtime('room:leave', (payload, ack) => {
+  onRealtime('room:leave', async (payload, ack) => {
     const key = payload?.key;
     const authToken = getRequestRoomToken(payload);
     if (!isRoomKey(key) || !isAuthorizedForRoom(key, authToken)) {
@@ -2166,7 +2274,7 @@ io.on('connection', socket => {
     room.participants = (Array.isArray(room.participants) ? room.participants : [])
       .filter(participant => getParticipantStableId(participant) !== actor.playerId);
     const meta = getRoomAccessMeta(key);
-    if (meta?.actorTokens) delete meta.actorTokens[actor.playerId];
+    if (meta?.actorTokens && !cardTables.get(key)?.players.some(p => p.id === actor.playerId)) delete meta.actorTokens[actor.playerId];
     if (!room.participants.length) {
       room.host = '';
       room.currentActivity = null;
@@ -2181,6 +2289,13 @@ io.on('connection', socket => {
     if (room.currentActivity === 'chinese-checkers' && room.activityState.phase === 'setup'
       && room.activityState.seats.some(seat => seat?.playerId === actor.playerId)) {
       room.activityState = ChineseCheckers.leave(room.activityState, actor.playerId);
+    }
+    if (Cards.TYPES[room.currentActivity]) {
+      const game = cardTables.get(key);
+      if (game && Cards.seat(game, actor.playerId)) {
+        const next = structuredClone(game); Cards.seat(next, actor.playerId).awaySince = Date.now(); next.version++;
+        await saveCardTable(key, next); room.activityState = Cards.publicView(next); scheduleCardTable(key, next);
+      }
     }
     if (room.currentActivity === 'memory') {
       room.activityState = Memory.reconcilePlayers(room.activityState, room.participants);
@@ -2217,6 +2332,45 @@ io.on('connection', socket => {
     }
     socket.leave(key);
   });
+
+  async function handleCards(payload, ack, viewing = false) {
+    const key = payload?.key;
+    if (!isRoomKey(key) || !isAuthorizedForRoom(key, getRequestRoomToken(payload))) return ack?.({ ok: false, error: 'Room access denied.' });
+    const room = getRoomSnapshot(key), actor = getRoomActor(key, payload, room);
+    if (!actor || !Cards.TYPES[room?.currentActivity]) return ack?.({ ok: false, error: 'Join the room before opening the card table.' });
+    let game = cardTables.get(key);
+    if (!game || game.id !== room.activityState?.id) return ack?.({ ok: false, error: 'Private card table is unavailable. Ask the host to reopen this activity.' });
+    if (Cards.seat(game, actor.playerId) && (!Object.hasOwn(game.actorHashes || {}, actor.playerId)
+      || !safeTokenEqual(game.actorHashes[actor.playerId], cardActorHash(String(payload.actorToken))))) {
+      ack?.({ ok: false, error: 'This private hand belongs to another participant.' }); return;
+    }
+    try {
+      const expired = Cards.expire(game);
+      if (expired !== game) { await commitCardTable(key, room, expired); game = expired; }
+      if (!viewing) {
+        if (typeof payload.actionId !== 'string' || !/^[A-Za-z0-9_-]{16,128}$/.test(payload.actionId)) throw new Error('An action identifier is required.');
+        const prior = Object.hasOwn(game.actionIds, actor.playerId) ? game.actionIds[actor.playerId] : [];
+        if (!prior.includes(payload.actionId)) {
+          if (payload.tableId !== game.id || payload.handId !== game.handId || payload.version !== game.version) throw new Error('The table changed. Review it and try again.');
+          const next = Cards.apply(game, { id: actor.playerId, name: actor.participant.name, isHost: actor.isHost }, payload.action, { amount: payload.amount, indices: payload.indices, playerId: payload.playerId });
+          if (payload.action === 'join') next.actorHashes = { ...next.actorHashes, [actor.playerId]: cardActorHash(String(payload.actorToken)) };
+          next.actionIds = Object.fromEntries([...Object.entries(next.actionIds).filter(([id]) => id !== actor.playerId), [actor.playerId, [...prior.slice(-127), payload.actionId]]].slice(-64));
+          await commitCardTable(key, room, next); game = next;
+        }
+      }
+      if (socket.data.cardView && (socket.data.cardView.key !== key || socket.data.cardView.playerId !== actor.playerId)) forgetCardViewer(socket);
+      rememberCardViewer(socket, key, actor.playerId);
+      const player = Cards.seat(game, actor.playerId);
+      if (player && (player.awaySince || player.name !== actor.participant.name)) {
+        const next = structuredClone(game), current = Cards.seat(next, actor.playerId);
+        current.awaySince = 0; current.name = actor.participant.name; next.version++;
+        await commitCardTable(key, room, next); game = next;
+      }
+      ack?.({ ok: true, value: state.get(key), private: Cards.privateView(game, actor.playerId), serverNow: Date.now() });
+    } catch (error) { ack?.({ ok: false, error: /storage|database|ENOENT|EACCES/i.test(error.message) ? 'Card table could not be saved. Please try again.' : error.message, value: state.get(key) }); }
+  }
+  onRealtime('cards:view', (payload, ack) => handleCards(payload, ack, true));
+  onRealtime('cards:action', (payload, ack) => handleCards(payload, ack));
 
   onRealtime('memory:action', (payload, ack) => {
     const key = payload?.key;
@@ -2403,7 +2557,7 @@ io.on('connection', socket => {
     ack?.({ ok: true, value });
   });
 
-  onRealtime('shared:set', (payload, ack) => {
+  onRealtime('shared:set', async (payload, ack) => {
     const key = payload?.key;
     const value = payload?.value;
     const authToken = getRequestRoomToken(payload);
@@ -2516,6 +2670,11 @@ io.on('connection', socket => {
         && JSON.stringify(existingRoom.activityState) !== JSON.stringify(nextRoom.activityState)) {
         ack?.({ ok: false, error: 'Use Checkers controls to update the board.' }); return;
       }
+      const queuedCards = nextRoom.queueActive === true && Number(nextRoom.queueIndex) > Number(existingRoom.queueIndex);
+      if (Cards.TYPES[existingRoom.currentActivity] && nextRoom.currentActivity === existingRoom.currentActivity && !queuedCards
+        && JSON.stringify(nextRoom.activityState) !== JSON.stringify(existingRoom.activityState)) {
+        ack?.({ ok: false, error: 'Use card table actions to change this hand.' }); return;
+      }
       if (Number(nextRoom.revision) !== Number(existingRoom.revision)) {
         ack?.({ ok: false, error: 'Room changed before this update was saved. Please retry.' });
         return;
@@ -2540,7 +2699,27 @@ io.on('connection', socket => {
       getRoomAccessMeta(key).memory = null;
       scheduleRoomMetaPersist();
     }
+    if (existingRoom && Cards.TYPES[existingRoom.currentActivity] && !Cards.TYPES[nextRoom.currentActivity]) {
+      try { await cardStore.remove(key); }
+      catch (_) { ack?.({ ok: false, error: 'Private card storage is unavailable. Please try again.' }); return; }
+      const closing = cardTables.get(key), participants = nextRoom.participants || [];
+      for (const p of closing?.players || []) if (!participants.some(current => current.id === p.id) && meta?.actorTokens) delete meta.actorTokens[p.id];
+      cardTables.delete(key); cardViewers.delete(key); scheduleRoomMetaPersist();
+    }
+    if (Cards.TYPES[nextRoom.currentActivity]) {
+      const queuedCards = existingRoom && nextRoom.queueActive === true && Number(nextRoom.queueIndex) > Number(existingRoom.queueIndex);
+      if (!existingRoom || existingRoom.currentActivity !== nextRoom.currentActivity || queuedCards) {
+        if (feedbackState.config.preferences.enabledActivities[nextRoom.currentActivity] === false) { ack?.({ ok: false, error: 'This card game is disabled by admin.' }); return; }
+        const game = Cards.create(nextRoom.currentActivity);
+        try { await saveCardTable(key, game); } catch (_) { ack?.({ ok: false, error: 'Private card storage is unavailable. Please try again.' }); return; }
+        if (existingRoom && !state.has(key)) { ack?.({ ok: false, error: 'This session was closed.' }); return; }
+        nextRoom.activityState = Cards.publicView(game);
+      }
+    }
+    if (cardTimers.has(key)) { clearTimeout(cardTimers.get(key)); cardTimers.delete(key); }
+    if (Cards.TYPES[nextRoom.currentActivity] && cardTables.has(key)) scheduleCardTable(key, cardTables.get(key));
     state.set(key, JSON.stringify(nextRoom));
+    if (Cards.TYPES[nextRoom.currentActivity]) persistStateToDisk();
     scheduleFamilyFaceOff(key, nextRoom.currentActivity === 'survey-clash' ? nextRoom.activityState : null);
     scheduleSpinWheel(key, nextRoom.currentActivity === 'spin-wheel' ? nextRoom.activityState : null);
     scheduleChineseCheckersTurn(key, nextRoom.currentActivity === 'chinese-checkers' ? nextRoom.activityState : null);
@@ -2818,6 +2997,7 @@ io.on('connection', socket => {
   });
 
   socket.on('disconnect', () => {
+    forgetCardViewer(socket);
     removeSocketFromVoiceRoom(socket);
   });
 });
@@ -2853,6 +3033,7 @@ sweepExpiredRooms({ log: true });
 Promise.resolve()
   .then(() => initializeConfigDatabase())
   .then(() => loadConfigFromDatabase())
+  .then(() => recoverCardTables())
   .finally(() => {
     startSessionCleanupLoop();
     server.listen(PORT, () => {
