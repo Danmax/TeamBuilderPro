@@ -8,7 +8,7 @@
       const previous = observations.get(result.key);
       observations.delete(result.key); observations.set(result.key, { finished: result.finished, at: now });
       if (observations.size > 128) observations.delete(observations.keys().next().value);
-      if (!result.finished || !result.winnerId || seen.has(result.key)) return false;
+      if (!result.finished || (!result.winnerId && !['loss', 'push'].includes(result.outcome)) || seen.has(result.key)) return false;
       const finishedAt = Number(result.finishedAt) || 0;
       const recent = finishedAt ? now - finishedAt >= -1000 && now - finishedAt < 10000 : previous && !previous.finished && now - previous.at < 10000;
       seen.add(result.key); remember([...seen].slice(-128));
@@ -30,6 +30,16 @@
     function show(result) {
       clear(); overlayKey = result.key;
       overlay = root.document.createElement('section'); overlay.className = 'game-victory-overlay'; overlay.setAttribute('aria-label', `${result.kind} victory celebration`);
+      if (result.outcome === 'loss' || result.outcome === 'push') {
+        const loss = result.outcome === 'loss';
+        overlay.className += ' game-result-neutral';
+        overlay.setAttribute('aria-label', `${result.kind} ${loss ? 'loss' : 'break-even'} result`);
+        overlay.innerHTML = `<div class="victory-card" role="status"><span class="victory-kicker">${escape(result.kind)} · Hand complete</span><h2>${loss ? 'Not this hand' : 'Even this hand'}</h2><p class="victory-name">${loss ? `You lost ${escape(Math.abs(result.net).toLocaleString())} play chips.` : 'You broke even. Your chips are returned.'}</p><p class="victory-reason">${escape(result.reason)}</p><button type="button" class="victory-dismiss">Back to table <span aria-hidden="true">→</span></button></div>`;
+        overlay.querySelector('button').addEventListener('click', clear);
+        root.document.body.append(overlay);
+        timer = root.setTimeout(clear, CELEBRATION_MS);
+        return;
+      }
       const mine = result.viewerId === result.winnerId;
       const palette = ['#ffda88', '#ab9af5', '#8de0c2', '#f79db3', '#93ccf0'];
       const confetti = Array.from({ length: 64 }, (_, index) => `<i style="left:${(index * 37) % 101}%;--party-color:${palette[index % palette.length]};--party-drift:${(index * 43) % 220 - 110}px;--party-delay:${index % 10 * 80}ms;--party-time:${2400 + index % 7 * 140}ms;"></i>`).join('');
@@ -37,7 +47,7 @@
       const avatar = root.TeamBuilderCharacter && person.character
         ? root.TeamBuilderCharacter.render({ ...person.character, hands: 'wave', mouth: 'grin', background: 'none' }, person.avatar || '')
         : root.TeamBuilderCommunityPlazaCore ? root.TeamBuilderCommunityPlazaCore.avatar(root.TeamBuilderCommunityPlazaCore.seedFor(result.key, result.winnerId), person.avatar || '🏆') : '<span class="victory-fallback" aria-hidden="true">♛</span>';
-      overlay.innerHTML = `<div class="victory-confetti" aria-hidden="true">${confetti}</div><div class="victory-card"><span class="victory-kicker">${escape(result.kind)} · Match complete</span><div class="victory-podium" aria-hidden="true"><span class="victory-star victory-star-one">✦</span><span class="victory-star victory-star-two">✧</span><div class="victory-avatar">${avatar}</div><span class="victory-trophy">🏆</span></div><h2>${mine ? 'Victory!' : 'What a finish!'}</h2><p class="victory-name">${escape(result.winnerName)}${mine ? ', you did it!' : ' takes the win!'}</p><p class="victory-reason">${escape(result.reason || 'A brilliant finish. Well played!')}</p><button type="button" class="victory-dismiss">Back to board <span aria-hidden="true">→</span></button><div class="victory-lifetime" aria-hidden="true"></div></div>`;
+      overlay.innerHTML = `<div class="victory-confetti" aria-hidden="true">${confetti}</div><div class="victory-card"><span class="victory-kicker">${escape(result.kind)} · ${result.outcome ? 'Hand' : 'Match'} complete</span><div class="victory-podium" aria-hidden="true"><span class="victory-star victory-star-one">✦</span><span class="victory-star victory-star-two">✧</span><div class="victory-avatar">${avatar}</div><span class="victory-trophy">🏆</span></div><h2>${mine ? 'Victory!' : 'What a finish!'}</h2><p class="victory-name">${escape(result.winnerName)}${mine ? ', you did it!' : ' takes the win!'}</p><p class="victory-reason">${escape(result.reason || 'A brilliant finish. Well played!')}</p><button type="button" class="victory-dismiss">Back to ${result.outcome ? 'table' : 'board'} <span aria-hidden="true">→</span></button><div class="victory-lifetime" aria-hidden="true"></div></div>`;
       overlay.querySelector('button').addEventListener('click', clear);
       root.document.body.append(overlay);
       timer = root.setTimeout(clear, CELEBRATION_MS);

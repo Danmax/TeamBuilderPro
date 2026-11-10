@@ -96,9 +96,12 @@
     const detailsOpen = document.querySelector('.ct-details')?.open === true;
     const tableCards = game.type === 'blackjack' ? game.dealer : game.board;
     const failed = failedStamp === stamp(game);
-    const awards = [...game.results.reduce((map, result) => { const prior = map.get(result.playerId); map.set(result.playerId, prior ? { ...prior, amount: prior.amount + result.amount, net: prior.net + result.net, label: 'Split hands' } : { ...result }); return map; }, new Map()).values()];
-    const winner = awards.filter(result => result.net > 0).sort((a, b) => b.amount - a.amount)[0];
-    if (root.TeamBuilderGameVictory) root.TeamBuilderGameVictory.observe({ key: `cards:${game.id}:${game.handId}`, kind: type.label, finished: game.phase === 'settled' && (!me || !me.inHand || Boolean(own)), delayMs: root.TeamBuilderCardEffects?.RESULT_DELAY_MS || 3000, finishedAt: game.settledAt, winnerId: winner?.playerId, winnerName: winner?.name, viewerId: APP.player?.id, winner: APP.room.participants.find(p => p.id === winner?.playerId), reason: winner ? `${winner.label} · +${winner.net} play chips` : '' });
+    const payout = game.results.filter(result => result.playerId === APP.player.id).reduce((sum, result) => sum + result.amount, 0);
+    const net = payout - (me?.total || 0);
+    const outcome = net > 0 ? 'win' : net < 0 ? 'loss' : 'push';
+    const ownResults = game.results.filter(result => result.playerId === APP.player.id);
+    const label = ownResults.length > 1 ? 'Split hands' : ownResults[0]?.label || 'Hand complete';
+    if (root.TeamBuilderGameVictory) root.TeamBuilderGameVictory.observe({ key: `cards:${game.id}:${game.handId}`, kind: type.label, finished: game.phase === 'settled' && Boolean(me?.inHand && own), delayMs: root.TeamBuilderCardEffects?.RESULT_DELAY_MS || 3000, finishedAt: game.settledAt, outcome, net, winnerId: outcome === 'win' ? APP.player.id : undefined, winnerName: outcome === 'win' ? me?.name : undefined, viewerId: APP.player.id, winner: APP.room.participants.find(p => p.id === APP.player.id), reason: `${label} · ${net > 0 ? '+' : ''}${net} play chips` });
     const effectKey = `${APP.roomCode}:${APP.player.id}:${game.id}:${game.handId}`;
     const boardEffects = dealEffects(`${effectKey}:board`, tableCards);
     const handEffects = own ? dealEffects(`${effectKey}:hand`, own.cards) : [];

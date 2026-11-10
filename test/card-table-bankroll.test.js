@@ -6,13 +6,14 @@ const Cards = require('../lib/card-games');
 
 function browser(initial, playerId='a') {
   let game=initial;
-  const actions={},activities={},calls=[];
+  const actions={},activities={},calls=[],victories=[];
   const fields={cardAddChipsAmount:{value:'500'},cardAddChipsPlayer:{value:'b'}};
   const room=()=>({code:'CHIPS1',revision:game.version,host:'A',participants:game.players.map(p=>({id:p.id,name:p.name})),currentActivity:game.type,activityState:Cards.publicView(game)});
   const context={APP:{roomCode:'CHIPS1',player:{id:playerId,name:playerId.toUpperCase()},room:room()},
     document:{addEventListener(){},querySelector(){},getElementById:id=>fields[id]},render(){},setInterval(){},
     escapeHtml:value=>String(value??'').replaceAll('<','&lt;'),normalizeRoom:value=>value,
     getSharedActorPayload:()=>({}),createRoomActorToken:()=> 'chip-action-1234567890',showError:message=>{throw Error(message);},
+    TeamBuilderGameVictory:{observe:result=>victories.push(result)},
     TEAM_BUILDER_ACTIVITY_REGISTRY:{registerAction:(key,value)=>{actions[key]=value;},registerActivity:(key,value)=>{activities[key]=value;}},
     socketEmitAck:async(event,payload)=>{
       calls.push({event,...payload});
@@ -22,7 +23,7 @@ function browser(initial, playerId='a') {
   };
   context.window=context;
   vm.runInNewContext(fs.readFileSync(require.resolve('../assets/js/activities/card-tables'),'utf8'),context);
-  return {actions,calls,render:()=>activities[game.type].render(),game:()=>game};
+  return {actions,calls,victories,render:()=>activities[game.type].render(),game:()=>game};
 }
 function table(type) {
   let g=Cards.create(type);
@@ -48,4 +49,16 @@ for(const type of Object.keys(Cards.TYPES)) test(`${type} displays a live bankro
   const payload=f.calls.find(c=>c.action==='add-chips');assert.equal(payload.playerId,'b');assert.equal(payload.amount,500);
   assert.equal(Cards.seat(f.game(),'b').stack,1500);
   markup=f.render();assert.match(markup,/1,500 chips/);assert.match(markup,/0 from play · 1,500 added/);
+});
+
+for(const type of Object.keys(Cards.TYPES)) test(`${type} uses the viewer’s result instead of the table’s biggest winner`,async()=>{
+  for(const [payout,bet,outcome] of [[0,20,'loss'],[40,20,'win'],[40,40,'push']]) {
+    const game=table(type);
+    Object.assign(game,{phase:'settled',handId:'outcome',handPlayers:['a','b','c'],settledAt:Date.now(),results:[{playerId:'b',name:'B',amount:80,net:60,label:'Win'},...(payout?[{playerId:'a',name:'A',amount:payout,net:payout-bet,label:'Win'}]:[])]});
+    Cards.seat(game,'a').total=bet;
+    const f=browser(game);f.render();await new Promise(resolve=>setImmediate(resolve));f.render();
+    const observed=f.victories.at(-1);
+    assert.equal(observed.finished,true);assert.equal(observed.outcome,outcome);assert.equal(observed.net,payout-bet);
+    assert.equal(observed.winnerId,outcome==='win'?'a':undefined);
+  }
 });

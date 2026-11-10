@@ -51,3 +51,21 @@ test('starting another hand or leaving the game cancels a pending celebration; o
   b.api.beginFrame();b.api.observe({key:'chess:1',finished:true,finishedAt:4000,winnerId:'p1',winnerName:'Player'});b.api.endFrame();assert.equal(b.overlays.length,1);
   b.api.beginFrame();b.api.endFrame();assert.equal(b.overlays[0].removed,true);
 });
+
+test('card losses and pushes show quiet results without confetti or trophies',()=>{
+  for(const outcome of ['loss','push']) {
+    const b=victoryBrowser(),result={key:`cards:${outcome}`,finished:true,finishedAt:1000,outcome,net:outcome==='loss'?-40:0,kind:'21 / Blackjack',delayMs:3000,reason:'Hand complete'};
+    b.api.beginFrame();b.api.observe(result);b.api.endFrame();
+    b.advance(2999);assert.equal(b.overlays.length,0);b.advance(1);assert.equal(b.overlays.length,1);
+    const overlay=b.overlays[0];assert.match(overlay.className,/game-result-neutral/);
+    assert.doesNotMatch(overlay.innerHTML,/victory-confetti|victory-trophy|Victory!|What a finish!/);
+    assert.match(overlay.innerHTML,outcome==='loss'?/You lost 40 play chips/:/You broke even/);
+    b.api.beginFrame();b.api.observe(result);b.api.endFrame();b.advance(4500);assert.equal(b.overlays.length,1);assert.equal(overlay.removed,true);
+  }
+});
+
+test('personal card wins retain confetti and the winner’s celebration',()=>{
+  const b=victoryBrowser();
+  b.api.beginFrame();b.api.observe({key:'cards:personal-win',finished:true,finishedAt:1000,outcome:'win',net:40,viewerId:'p1',winnerId:'p1',winnerName:'Player',kind:'Blackjack'});b.api.endFrame();
+  assert.equal(b.overlays.length,1);assert.match(b.overlays[0].innerHTML,/victory-confetti/);assert.match(b.overlays[0].innerHTML,/Victory!/);assert.doesNotMatch(b.overlays[0].className,/game-result-neutral/);
+});

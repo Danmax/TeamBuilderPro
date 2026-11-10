@@ -44,4 +44,5 @@ test('21 controls submit split, mark each active hand and show separate results'
   assert.match(markup, /A · Hand 1/); assert.match(markup, /A · Hand 2/);
   assert.match(markup, /Win · \+20/); assert.match(markup, /Bust · -20/);
   assert.equal(f.victories.at(-1).winnerId,undefined, 'one winning hand does not celebrate a player with no net win');
+  assert.equal(f.victories.at(-1).outcome,'push'); assert.equal(f.victories.at(-1).net,0);
 });

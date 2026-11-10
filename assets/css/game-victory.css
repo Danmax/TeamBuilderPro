@@ -1,4 +1,11 @@
 .game-victory-overlay { position:fixed; inset:0; z-index:9500; display:grid; place-items:center; padding:20px; pointer-events:none; overflow:hidden; background:radial-gradient(ellipse,#15142e75,transparent 76%); }
+.game-result-neutral { background:#10182755; }
+.game-result-neutral .victory-card { border-color:#8194aa66; background:linear-gradient(145deg,#253247f7,#172132f7); box-shadow:0 20px 60px #0006; color:#dce5ef; animation:none; }
+.game-result-neutral .victory-card h2 { margin:20px 0 14px; color:#e0e8f0; font-size:2rem; text-shadow:none; }
+.game-result-neutral .victory-kicker, .game-result-neutral .victory-reason { color:#b5c3d4; }
+.game-result-neutral .victory-name, .game-result-neutral .victory-dismiss { color:#dce5ef; }
+.game-result-neutral .victory-dismiss { border-color:#8194aa66; background:#8194aa14; }
+.game-result-neutral .victory-dismiss:hover { background:#8194aa29; }
 .victory-card { position:relative; pointer-events:auto; width:min(420px,100%); padding:27px 26px 23px; border:1px solid #ffe3a299; border-radius:28px; background:radial-gradient(ellipse at 50% 15%,#4e3863bb,transparent 67%),linear-gradient(145deg,#20283bf7,#181a2ef7); box-shadow:0 25px 90px #0008,0 0 55px #eac37e22,inset 0 1px #fff2; text-align:center; color:#fff0cf; backdrop-filter:blur(10px); animation:victory-arrive 650ms cubic-bezier(.17,.8,.24,1.1) both; overflow:hidden; }
 .victory-kicker { color:#d3bd99; font:700 .66rem 'Outfit',sans-serif; text-transform:uppercase; letter-spacing:.16em; }
 .victory-podium { position:relative; display:grid; place-items:center; margin:17px auto 13px; width:190px; height:190px; border-radius:50%; background:radial-gradient(circle,#e5c3813b,transparent 71%); }
