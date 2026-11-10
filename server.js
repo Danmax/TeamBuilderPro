@@ -15,6 +15,7 @@ const ChineseCheckersAI = require('./assets/js/games/chinese-checkers-ai');
 const chineseCheckersTimers = new Map();
 const Memory = require('./assets/js/games/memory-core');
 const Cards = require('./lib/card-games');
+const CardAI = require('./lib/card-games-ai');
 const { createCardTableStore } = require('./lib/card-table-store');
 const memoryTimers = new Map();
 const express = require('express');
@@ -2088,6 +2089,7 @@ function scheduleCardTable(key, game) {
   const deadlines = [];
   if (Cards.active(game) && !game.paused && game.deadline) deadlines.push(game.deadline);
   if (!Cards.active(game)) game.players.forEach(p => { if (p.awaySince) deadlines.push(p.awaySince + Cards.AWAY_MS); });
+  if (Cards.active(game) && !game.paused && Cards.seat(game, game.turnId)?.isHouse) deadlines.push((game.turnStartedAt || Date.now()) + CardAI.HOUSE_THINK_MS);
   if (!deadlines.length) return;
   const timer = setTimeout(() => {
     cardTimers.delete(key);
@@ -2095,6 +2097,13 @@ function scheduleCardTable(key, game) {
       const room = getRoomSnapshot(key), current = cardTables.get(key);
       if (!room || !current || room.currentActivity !== current.type || room.activityState?.id !== current.id) return;
       let next = Cards.expire(current);
+      const computer = Cards.seat(current, current.turnId);
+      if (next === current && Cards.active(current) && !current.paused && computer?.isHouse
+        && Date.now() >= (current.turnStartedAt || 0) + CardAI.HOUSE_THINK_MS) {
+        const own = Cards.privateView(current, computer.id), publicTable = Cards.publicView(current);
+        const decision = CardAI.chooseAction({ type: current.type, cards: own.cards, board: publicTable.board, legal: own.legal, pot: current.pot, stack: computer.stack });
+        next = Cards.apply(current, { id: computer.id, name: computer.name }, decision.action, decision);
+      }
       if (!Cards.active(next)) { next = structuredClone(next); Cards.sweep(next, Date.now()); if (next.players.length !== current.players.length) next.version++; }
       if (next.version !== current.version) await commitCardTable(key, room, next);
       else scheduleCardTable(key, next);
@@ -2110,7 +2119,7 @@ async function recoverCardTables() {
       const game = await cardStore.load(key);
       if (!game || game.type !== room.currentActivity || game.id !== room.activityState?.id) continue;
       // Connections reauthenticate independently after restart; reserve their seats.
-      for (const p of game.players) if (!p.awaySince) p.awaySince = Date.now();
+      for (const p of game.players) if (!p.isHouse && !p.awaySince) p.awaySince = Date.now();
       await commitCardTable(key, room, game);
     } catch (_) { console.error(`Unable to restore private card table ${key}.`); }
   }
@@ -2353,7 +2362,7 @@ io.on('connection', socket => {
         if (!prior.includes(payload.actionId)) {
           if (payload.tableId !== game.id || payload.handId !== game.handId || payload.version !== game.version) throw new Error('The table changed. Review it and try again.');
           const next = Cards.apply(game, { id: actor.playerId, name: actor.participant.name, isHost: actor.isHost }, payload.action, { amount: payload.amount, indices: payload.indices, playerId: payload.playerId });
-          if (payload.action === 'join') next.actorHashes = { ...next.actorHashes, [actor.playerId]: cardActorHash(String(payload.actorToken)) };
+          if (payload.action === 'join' || (payload.action === 'house' && !Cards.seat(game, actor.playerId))) next.actorHashes = { ...next.actorHashes, [actor.playerId]: cardActorHash(String(payload.actorToken)) };
           next.actionIds = Object.fromEntries([...Object.entries(next.actionIds).filter(([id]) => id !== actor.playerId), [actor.playerId, [...prior.slice(-127), payload.actionId]]].slice(-64));
           await commitCardTable(key, room, next); game = next;
         }

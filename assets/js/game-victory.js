@@ -25,8 +25,8 @@
     let stored = [];
     try { const value = JSON.parse(root.sessionStorage.getItem(storageKey) || '[]'); if (Array.isArray(value)) stored = value.filter(key => typeof key === 'string').slice(-128); } catch (_) { /* Memory deduplication still works if storage is unavailable. */ }
     const track = createWinTracker(new Set(stored), keys => { try { root.sessionStorage.setItem(storageKey, JSON.stringify(keys)); } catch (_) {} });
-    let frameKey = '', overlay = null, overlayKey = '', timer = null;
-    function clear() { root.clearTimeout(timer); timer = null; overlay?.remove(); overlay = null; overlayKey = ''; }
+    let frameKey = '', overlay = null, overlayKey = '', timer = null, pendingKey = '', pendingTimer = null;
+    function clear() { root.clearTimeout(timer); root.clearTimeout(pendingTimer); timer = null; pendingTimer = null; pendingKey = ''; overlay?.remove(); overlay = null; overlayKey = ''; }
     function show(result) {
       clear(); overlayKey = result.key;
       overlay = root.document.createElement('section'); overlay.className = 'game-victory-overlay'; overlay.setAttribute('aria-label', `${result.kind} victory celebration`);
@@ -45,8 +45,15 @@
     root.document.addEventListener('keydown', event => { if (event.key === 'Escape' && overlay) { event.preventDefault(); clear(); } });
     return {
       beginFrame() { frameKey = ''; },
-      observe(result) { frameKey = result.key; if (track(result)) show(result); },
-      endFrame() { if (overlay && overlayKey !== frameKey) clear(); },
+      observe(result) {
+        frameKey = result.key;
+        if (!track(result)) return;
+        const delay = Math.max(0, Math.min(5000, Number(result.delayMs) || 0));
+        if (!delay) { show(result); return; }
+        clear(); pendingKey = result.key;
+        pendingTimer = root.setTimeout(() => { if (frameKey === result.key && pendingKey === result.key) show(result); }, delay);
+      },
+      endFrame() { if ((overlay && overlayKey !== frameKey) || (pendingKey && pendingKey !== frameKey)) clear(); },
       clear
     };
   }
