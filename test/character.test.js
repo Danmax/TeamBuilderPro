@@ -31,3 +31,41 @@ test('Surprise me produces complete valid characters and saved characters overri
   }
   assert.deepEqual(C.randomize(() => 0).type, 'person'); assert.equal(C.randomize(() => 1).type, 'cat');
 });
+
+test('legacy characters receive neutral defaults and expanded looks survive storage', () => {
+  const legacy = C.normalize({ type: 'person', hair: 'curly' });
+  assert.equal(legacy.head, 'oval'); assert.equal(legacy.eyebrows, 'natural');
+  assert.equal(legacy.style, 'classic'); assert.equal(legacy.features, 'none'); assert.equal(legacy.facialHair, 'none');
+  const character = C.normalize({ head: 'heart', eyes: 'almond', eyebrows: 'arched', features: 'freckles', facialHair: 'goatee', hair: 'locs', accessories: 'hearingAid', style: 'pastel', shirt: 'overalls' });
+  assert.deepEqual(C.normalize(JSON.parse(JSON.stringify(character))), character);
+  const snapshot = { ...character };
+  C.render(character);
+  assert.deepEqual(character, snapshot, 'visual styles preserve saved colors');
+  for (const type of C.OPTIONS.type) for (const [key, options] of Object.entries(C.OPTIONS)) {
+    for (const value of options) assert.doesNotMatch(C.render({ ...character, type, [key]: value }), /undefined|NaN/);
+  }
+});
+
+test('editor exposes expanded options and selections update the live preview', () => {
+  const vm = require('node:vm');
+  const fs = require('node:fs');
+  const actions = {};
+  const preview = { innerHTML: '', setAttribute() {} };
+  const context = {
+    APP: { player: { name: 'Player', avatar: '🦊', character: C.DEFAULT } }, render() {},
+    document: { addEventListener() {}, getElementById: id => id === 'characterPreview' ? preview : null, querySelector() {}, querySelectorAll: () => [] },
+    window: { TeamBuilderCharacter: C, TEAM_BUILDER_ACTIVITY_REGISTRY: { registerAction: (key, handler) => { actions[key] = handler; } } }
+  };
+  vm.runInNewContext(fs.readFileSync(require.resolve('../assets/js/character-editor'), 'utf8'), context);
+  actions['open-character-creator']();
+  const seen = new Set();
+  for (const category of ['character', 'face', 'details', 'hair', 'outfit', 'extras', 'scene']) {
+    actions['character-tab']({ dataset: { category } });
+    const markup = context.window.TeamBuilderCharacterEditor.render();
+    for (const [, key, value] of markup.matchAll(/data-char-field="([^"]+)" data-char-value="([^"]+)"/g)) seen.add(`${key}:${value}`);
+    assert.doesNotMatch(markup, /undefined|NaN/);
+  }
+  for (const [key, options] of Object.entries(C.OPTIONS)) for (const value of options) assert.ok(seen.has(`${key}:${value}`), `${key}: ${value} is reachable`);
+  actions['character-choose']({ dataset: { charField: 'head', charValue: 'diamond' } });
+  assert.equal(preview.innerHTML, C.render({ ...C.DEFAULT, head: 'diamond' }, '🦊'));
+});

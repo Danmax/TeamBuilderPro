@@ -95,3 +95,6 @@ button.ct-card { cursor: pointer; touch-action: manipulation; }
 .ct-reveal-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; font-size: .85rem; }
 .ct-reveal-heading span { color: var(--text-dim); font-size: .75rem; text-align: right; }
 @media (prefers-reduced-motion: reduce) { .ct-card-deal, .ct-card-reveal { animation: none; } }
+.ct-private, .ct-felt, .ct-showdown { overflow: hidden; }
+.ct-reveal-heading strong { min-width: 0; overflow-wrap: anywhere; }
+.ct-reveal-heading span { flex: 0 0 auto; max-width: 50%; overflow-wrap: anywhere; }

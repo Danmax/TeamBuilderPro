@@ -28,3 +28,26 @@ test('winner banners escape names and reasons and omit non-winning results', () 
   assert.ok(output.includes('&lt;img')); assert.ok(output.includes('wins!'));
   assert.equal(banner({ kind: 'Checkers', winnerName: 'No winner' }), '');
 });
+
+function victoryBrowser() {
+  const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+  let now=1000,next=0;const timers=new Map(),overlays=[];
+  const context=vm.createContext({Date:class extends Date{static now(){return now;}},sessionStorage:{getItem:()=>null,setItem(){}},
+    setTimeout(fn,delay){const id=++next;timers.set(id,{at:now+delay,fn});return id;},clearTimeout:id=>timers.delete(id),
+    document:{addEventListener(){},body:{append:element=>overlays.push(element)},createElement:()=>({removed:false,setAttribute(){},querySelector:()=>({addEventListener(){}}),remove(){this.removed=true;}})}});
+  context.window=context;vm.runInContext(fs.readFileSync(path.join(__dirname,'../assets/js/game-victory.js'),'utf8'),context);
+  return {api:context.TeamBuilderGameVictory,overlays,advance(ms){const end=now+ms;for(;;){const candidate=[...timers].filter(([,t])=>t.at<=end).sort((a,b)=>a[1].at-b[1].at)[0];if(!candidate)break;timers.delete(candidate[0]);now=candidate[1].at;candidate[1].fn();}now=end;}};
+}
+test('card celebrations leave a full three-second review window and repeated renders do not restart the delay',()=>{
+  const b=victoryBrowser(),result={key:'cards:hand1',finished:true,finishedAt:1000,winnerId:'p1',winnerName:'Player',delayMs:3000};
+  b.api.beginFrame();b.api.observe(result);b.api.endFrame();assert.equal(b.overlays.length,0);
+  b.advance(2000);b.api.beginFrame();b.api.observe(result);b.api.endFrame();assert.equal(b.overlays.length,0);
+  b.advance(999);assert.equal(b.overlays.length,0);b.advance(1);assert.equal(b.overlays.length,1);
+  b.advance(4500);assert.equal(b.overlays[0].removed,true);
+});
+test('starting another hand or leaving the game cancels a pending celebration; ordinary board wins stay immediate',()=>{
+  const b=victoryBrowser();b.api.beginFrame();b.api.observe({key:'cards:old',finished:true,finishedAt:1000,winnerId:'p1',delayMs:3000});b.api.endFrame();
+  b.api.beginFrame();b.api.observe({key:'cards:new',finished:false});b.api.endFrame();b.advance(3000);assert.equal(b.overlays.length,0);
+  b.api.beginFrame();b.api.observe({key:'chess:1',finished:true,finishedAt:4000,winnerId:'p1',winnerName:'Player'});b.api.endFrame();assert.equal(b.overlays.length,1);
+  b.api.beginFrame();b.api.endFrame();assert.equal(b.overlays[0].removed,true);
+});

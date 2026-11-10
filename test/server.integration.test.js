@@ -715,7 +715,7 @@ test('saved characters join rooms, update only their owner and appear in public 
   await new Promise((resolve, reject) => { socket.once('connect', resolve); socket.once('connect_error', reject); });
   const host = { actorToken: 'character_host_actor_1234567890_abcdef', actorPlayerId: 'character-host', actorPlayerName: 'Host' };
   const guest = { actorToken: 'character_guest_actor_1234567890_abcdef', actorPlayerId: 'character-guest', actorPlayerName: 'Guest' };
-  const character = C.normalize({ type: 'robot', hands: 'wave', hat: 'cap', hairColor: '#123456' });
+  const character = C.normalize({ type: 'robot', hands: 'wave', hat: 'cap', hairColor: '#123456', head: 'diamond', eyes: 'almond', eyebrows: 'arched', features: 'freckles', facialHair: 'goatee', hair: 'locs', accessories: 'hearingAid', style: 'pastel' });
   const key = 'room:CHAR01';
   const created = await emitAck(socket, 'shared:set', { key, ...host, adminToken: 'integration-admin-token', value: JSON.stringify({ code: 'CHAR01', host: 'Host', participants: [{ id: host.actorPlayerId, name: 'Host', avatar: '🦊', character: { ...character, unsafe: '<script>' } }], roomType: 'community', currentActivity: null, activityState: {}, activityQueue: [], queueIndex: 0, access: {}, hostSettings: {}, created: Date.now() }) });
   // Unsafe markup is rejected on generic writes; the dedicated character endpoint sanitizes unknown fields.
@@ -732,6 +732,7 @@ test('saved characters join rooms, update only their owner and appear in public 
   const room = JSON.parse(updated.value);
   assert.deepEqual(room.participants[0].character, character); assert.equal(room.participants[1].name, 'Guest');
   assert.equal(room.participants[1].character.hands, 'peace'); assert.equal(room.participants[1].character.shirtColor, C.DEFAULT.shirtColor);
+  for (const field of ['head', 'eyes', 'eyebrows', 'features', 'facialHair', 'hair', 'accessories', 'style']) assert.equal(room.participants[1].character[field], character[field]);
   assert.deepEqual(room.activityState, {});
   const directory = await (await fetch(`http://127.0.0.1:${port}/api/community/rooms`)).json();
   assert.deepEqual(directory.rooms[0].avatarPreview[1].character, room.participants[1].character);
@@ -1056,4 +1057,52 @@ test('reserved card seats cannot be hijacked after leaving, being removed, or lo
   assert.equal((await join(hostSocket,'attacker_card_token_1234567890123456789012345')).ok,false);
   assert.equal((await join(guestSocket,guest.actorToken)).ok,true);
   const restored=await emitAck(guestSocket,'cards:view',{key,...guest});assert.equal(restored.ok,true,restored.error);assert.deepEqual(restored.private.cards,before);
+});
+
+test('house poker plays server turns, pauses safely and reveals the winning house hand without exposing the deck', async t => {
+  const running=await startTestServer(t),socket=await securitySocket(t,running.port);
+  const waitFor=async(key,predicate)=>{for(let i=0;i<80;i++){const room=JSON.parse((await emitAck(socket,'shared:get',{key})).value);if(predicate(room.activityState))return room.activityState;await new Promise(resolve=>setTimeout(resolve,100));}throw new Error('House turn did not advance');};
+  for(const [index,type] of ['five-card-draw','texas-holdem'].entries()){
+    const {key,identity,room}=await securityRoom(socket,`HOU0${index}1`);
+    assert.equal((await emitAck(socket,'shared:set',{key,...identity,value:JSON.stringify({...room,currentActivity:type,activityState:{}})})).ok,true);
+    const action=async(name,extra={})=>{const g=JSON.parse((await emitAck(socket,'shared:get',{key})).value).activityState;return emitAck(socket,'cards:action',{key,...identity,tableId:g.id,handId:g.handId,version:g.version,actionId:require('node:crypto').randomUUID(),action:name,...extra});};
+    const started=await action('house');assert.equal(started.ok,true,started.error);
+    let g=JSON.parse(started.value).activityState,house=g.players.find(p=>p.isHouse);
+    assert.equal(g.players.length,2);assert.ok(g.deadline-Date.now()>58000);
+    assert.equal((await emitAck(socket,'cards:view',{key,actorPlayerId:house.id,actorToken:identity.actorToken})).ok,false);
+    assert.equal((await action('call')).ok,true);
+    assert.equal((await action('pause')).ok,true);
+    const paused=JSON.parse((await emitAck(socket,'shared:get',{key})).value).activityState;
+    await new Promise(resolve=>setTimeout(resolve,1400));
+    const stillPaused=JSON.parse((await emitAck(socket,'shared:get',{key})).value).activityState;
+    assert.equal(stillPaused.version,paused.version);assert.equal(stillPaused.turnId,house.id);
+    assert.equal((await action('resume')).ok,true);
+    for(let step=0;step<10;step++){
+      g=await waitFor(key,game=>game.phase==='settled'||game.turnId===identity.actorPlayerId);
+      if(g.phase==='settled')break;
+      const view=await emitAck(socket,'cards:view',{key,...identity});
+      const response=await action(view.private.legal.draw?'draw':'fold',{indices:[]});assert.equal(response.ok,true,response.error);
+    }
+    g=JSON.parse((await emitAck(socket,'shared:get',{key})).value).activityState;
+    assert.equal(g.phase,'settled');assert.equal(g.results[0].playerId,house.id);
+    assert.equal(g.players.find(p=>p.isHouse).shownCards.length,type==='five-card-draw'?5:2);
+    assert.deepEqual(g.players.find(p=>p.id===identity.actorPlayerId).shownCards,[]);assert.equal(g.deck,undefined);
+    assert.equal(g.players.reduce((sum,p)=>sum+p.stack,0),2000);
+  }
+});
+
+test('house seats and paused computer turns survive restart without requiring human room credentials', async t => {
+  const running=await startTestServer(t);let socket=await securitySocket(t,running.port);
+  const {key,identity,room}=await securityRoom(socket,'HREC12');
+  await emitAck(socket,'shared:set',{key,...identity,value:JSON.stringify({...room,currentActivity:'texas-holdem',activityState:{}})});
+  const action=async(name)=>{const g=JSON.parse((await emitAck(socket,'shared:get',{key})).value).activityState;return emitAck(socket,'cards:action',{key,...identity,tableId:g.id,handId:g.handId,version:g.version,actionId:require('node:crypto').randomUUID(),action:name});};
+  assert.equal((await action('house')).ok,true);assert.equal((await action('call')).ok,true);assert.equal((await action('pause')).ok,true);
+  const before=JSON.parse((await emitAck(socket,'shared:get',{key})).value).activityState;
+  const exited=new Promise(resolve=>running.child.once('exit',resolve));socket.close();running.child.kill('SIGTERM');await exited;
+  const resumed=await startTestServer(t,{dataDir:running.dataDir});socket=await securitySocket(t,resumed.port);
+  const view=await emitAck(socket,'cards:view',{key,...identity});assert.equal(view.ok,true,view.error);
+  const restored=JSON.parse(view.value).activityState;assert.equal(restored.paused,true);assert.equal(restored.handId,before.handId);assert.equal(restored.players.find(p=>p.isHouse).away,false);
+  assert.equal((await action('resume')).ok,true);
+  for(let i=0;i<50;i++){const g=JSON.parse((await emitAck(socket,'shared:get',{key})).value).activityState;if(g.phase==='settled'||g.turnId===identity.actorPlayerId){assert.ok(g.version>restored.version);return;}await new Promise(resolve=>setTimeout(resolve,100));}
+  assert.fail('Computer turn did not resume');
 });

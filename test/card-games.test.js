@@ -61,7 +61,7 @@ test('folded poker hands stay hidden, unmatched raises return and chips are cons
   let g = dealt('texas-holdem',3); const initial=total(g);
   g = move(g,'raise',{amount:200});
   while(C.active(g)) g=move(g,'fold');
-  assert.equal(total(g),initial); assert.deepEqual(g.shown,{}); assert.equal(g.results.length,1);
+  assert.equal(total(g),initial); assert.equal(Object.keys(g.shown).length,1); assert.deepEqual(g.shown[g.results[0].playerId],C.seat(g,g.results[0].playerId).hand); assert.equal(g.results.length,1);
   assert.ok(g.results[0].amount < 200, 'uncalled excess is refunded before awarding pot');
 });
 
@@ -120,9 +120,9 @@ test('turns, illegal amounts, private views, waiting seats, pause, expiry and st
   const publicText=JSON.stringify(C.publicView(g)); assert.equal(publicText.includes('"hand":'),false);assert.equal(publicText.includes('"deck"'),false);
   assert.deepEqual(C.privateView(g,'watcher').cards,[]);assert.equal(C.privateView(g,'a').cards.length,2);
   g=C.apply(g,player('c'),'join',{},2000);assert.equal(C.seat(g,'c').hand.length,0);assert.equal(g.handPlayers.includes('c'),false);
-  g=C.apply(g,host,'pause',{},6000);assert.equal(g.remainingMs,25000);assert.equal(C.expire(g,500000),g);
-  g=C.apply(g,host,'resume',{},100000);assert.equal(g.deadline,125000);
-  g=C.expire(g,125000);assert.equal(g.phase,'settled');assert.deepEqual(g.shown,{});
+  g=C.apply(g,host,'pause',{},6000);assert.equal(g.remainingMs,55000);assert.equal(C.expire(g,500000),g);
+  g=C.apply(g,host,'resume',{},100000);assert.equal(g.deadline,155000);
+  g=C.expire(g,155000);assert.equal(g.phase,'settled');assert.equal(Object.keys(g.shown).length,1);
   g=C.apply(g,host,'reset',{},126000);assert.equal(g.players.every(p=>p.stack===1000&&p.total===0),true);
   let b=blackjackPosition([card(10),card(8)],[card(10,'H'),card(7)]);b=C.expire(b,31000);assert.equal(b.phase,'settled');assert.equal(b.results[0].label,'Win');
 });

@@ -15,7 +15,7 @@
 .character-surprise span { font-size:1.5rem; line-height:1; }
 .character-preview-panel .character-status { margin:13px 0 0; min-height:3em; font-size:.69rem; }
 .character-controls { min-width:0; }
-.character-tabs { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:4px; border-bottom:1px solid #d9e6eb; padding-bottom:13px; }
+.character-tabs { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; border-bottom:1px solid #d9e6eb; padding-bottom:13px; }
 .character-tabs button { display:grid; justify-items:center; gap:7px; min-width:0; padding:12px 4px; border:1px solid transparent; border-radius:12px; background:transparent; color:#72919f; font:500 .69rem 'Outfit',sans-serif; cursor:pointer; }
 .character-tabs button > span { font-size:1.3rem; }
 .character-tabs button[aria-pressed="true"] { border-color:#c5dde7; color:#357da4; background:#e8f3f8; }

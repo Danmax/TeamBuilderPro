@@ -1,6 +1,6 @@
 # Card games implementation plan
 
-Status: implemented November 10, 2026. Blackjack, Five-Card Draw, and Texas Hold’em now share a server-authoritative engine, private player views, durable private-table storage, and a mobile table UI. The design below describes the implemented first release; advanced variants and poker bots remain deferred.
+Status: implemented November 10, 2026. Blackjack, Five-Card Draw, and Texas Hold’em now share a server-authoritative engine, private player views, durable private-table storage, and a mobile table UI. The design below describes the implemented first release; advanced variants and tournaments remain deferred. A server-controlled house opponent supports solo poker.
 
 Add **21 / Blackjack**, **Five-Card Draw**, and **Texas Hold’em** as session activities and community-room games. Use virtual play chips, shared tables, private hands, and spectators. Keep each game's rules visible at the table.
 
@@ -9,7 +9,7 @@ Add **21 / Blackjack**, **Five-Card Draw**, and **Texas Hold’em** as session a
 - A felt table with player characters, named seats, dealer marker, stack sizes, chips committed, pot, and a clear current-turn indicator.
 - Players explicitly take a seat and receive 1,000 play chips. Hosts choose a table preset before the first hand. No payment, account wallet, or purchases.
 - A private “Your hand” area and large legal-action buttons. Distinguish **Check** from **Call 40**, and **Bet** from **Raise to 120**. Show the total commitment before confirming a raise.
-- A 30-second turn timer with a visible countdown. On expiry, check when legal or fold in poker; stand in Blackjack. Never automatically place a bet or rebuy.
+- A 60-second turn timer with a visible countdown. On expiry, check when legal or fold in poker; stand in Blackjack. Never automatically place a bet or rebuy.
 - Players joining mid-hand wait for the next deal. A disconnected player keeps their seat for 60 seconds; the timer still applies. A returning player receives their private hand again after authentication.
 - Host controls: start the next hand, pause/resume with the remaining turn time preserved, remove an idle seat between hands, and reset play-chip stacks between hands. A host does not get access to opponents' private cards.
 - Clear hand results, pot/stack animations, and a short winner celebration. Respect reduced-motion and sound preferences. Keep the final hand available to review.
@@ -22,7 +22,7 @@ Add **21 / Blackjack**, **Five-Card Draw**, and **Texas Hold’em** as session a
 | Five-Card Draw | 2–5 | Five private cards; first betting round; one draw with 0–5 selected discards; second betting round; showdown. Maximum five seats lets everyone replace five cards without recycling discarded cards. Use a rotating dealer, small/big blinds of 10/20, and no-limit betting. |
 | Texas Hold’em | 2–8 | Two private cards; preflop, flop, turn, river, and showdown. Burn cards before the three community-card streets. Rotating dealer, 10/20 blinds, and no-limit betting. Best five-card hand from any combination of hole and community cards wins. |
 
-Poker uses standard hand ordering, including ace-low straights and exact tie breakers. Implement all-in contributions, separate side pots, split pots, and legal minimum raises. A short all-in raise must not incorrectly reopen betting. For heads-up Hold’em, the dealer posts the small blind and acts first preflop, last after the flop. Award odd chips clockwise from the dealer among tied eligible winners. Folded hands remain hidden; showdown reveals the cards needed to establish the result.
+Poker uses standard hand ordering, including ace-low straights and exact tie breakers. Implement all-in contributions, separate side pots, split pots, and legal minimum raises. A short all-in raise must not incorrectly reopen betting. For heads-up Hold’em, the dealer posts the small blind and acts first preflop, last after the flop. Award odd chips clockwise from the dealer among tied eligible winners. Folded losing hands remain hidden; winning hands reveal automatically, including a win when everyone else folds.
 
 ## Server and privacy design
 
@@ -43,7 +43,7 @@ The existing shared-room JSON is visible to participants, so private cards and t
 3. **Texas Hold’em:** seven-card best-hand evaluation, blind/position rules, streets, community cards, automatic all-in runouts, and heads-up cases.
 4. **Polish:** table presets, spectator guidance, mobile action layouts, avatar reactions, optional sound, win effects, and host help.
 
-Register each activity in the lobby, queue, admin feature toggles, and community cards. Start with multiplayer poker and an automated Blackjack dealer. Poker bots, tournaments, advanced Blackjack variants, custom blind structures, and persistent leaderboards follow later.
+Register each activity in the lobby, queue, admin feature toggles, and community cards. Support multiplayer poker, a server-controlled house poker opponent, and an automated Blackjack dealer. Additional bot personalities, tournaments, advanced Blackjack variants, custom blind structures, and persistent leaderboards follow later.
 
 ## Acceptance checks
 
@@ -58,12 +58,14 @@ Register each activity in the lobby, queue, admin feature toggles, and community
 
 ## First-release operation
 
-Open **Card games** in a session's activity library. Everyone chooses **Take a seat**; the host deals once enough funded seats are ready. Blackjack works with one player against the automated dealer. Poker requires two people; bots are not included. A new seat starts with 1,000 table-local play chips. There are no payments or cross-table wallets.
+Open **Card games** in a session's activity library. Everyone chooses **Take a seat**; the host deals once enough funded seats are ready. Blackjack works with one player against the automated dealer. Poker needs two seats; **Play vs house** seats the host and a computer opponent and starts a hand. Friends can also play alongside the house. House decisions use only its own cards and the public table. A new seat starts with 1,000 table-local play chips. There are no payments or cross-table wallets.
 
 Host options are under **Seats, results & rules**: use 10/20, 25/50, or 50/100 blinds, reset stacks between hands, or remove an idle seat. Blackjack players set their own next bet in increments of 10. Pause freezes the turn deadline. A disconnected seat remains reserved, and seats whose 60-second grace period has expired are released between hands. Turn timeouts continue during disconnects; there is no automatic rebuy or betting.
 
-The client receives its private hand only in an authenticated acknowledgement and keeps it in memory. Public room snapshots and community previews contain no deck, hidden hands, or seat credentials. Folded poker hands stay hidden after settlement; all non-folded showdown hands are revealed. Poker uses a full-bet reopening threshold for short all-ins and cumulative short raises. Surplus uncalled chips return before pot settlement; tied eligible winners receive odd chips clockwise after the dealer.
+The client receives its private hand only in an authenticated acknowledgement and keeps it in memory. Public room snapshots and community previews contain no deck, hidden hands, or seat credentials. Folded losing poker hands stay hidden after settlement; winning hands reveal automatically and appear on the main screen, and all non-folded showdown hands remain available in the table details. Poker uses a full-bet reopening threshold for short all-ins and cumulative short raises. Surplus uncalled chips return before pot settlement; tied eligible winners receive odd chips clockwise after the dealer.
 
 Local validation includes full-hand host/guest/spectator browser play at 320/390px, landscape/tablet/desktop checks, pause/reconnect, unit and integration coverage, randomized poker chip-conservation runs, and isolated MySQL new-connection recovery. The implementation uses the app's existing single-process realtime room model; multi-process deployment would require a shared room coordinator and transactional locking.
 
 Rules references: [Bicycle Blackjack](https://bicyclecards.com/how-to-play/blackjack/) and [Poker TDA rules](https://www.pokertda.com/view-poker-tda-rules/). Table-specific first-release rules shown in the app take precedence over optional casino variants.
+
+Dealing and hole-card reveal effects track each card through live redraws, so they do not replay on every room update. Reduced-motion preferences disable movement. Card-game victory overlays wait three seconds after final cards are ready; starting another hand or leaving cancels the pending overlay.
