@@ -101,7 +101,8 @@ const ALL_ACTIVITY_IDS = [
   'memory',
   'rock-paper-scissors',
   'chess-lobby',
-  'cosmos-bound'
+  'cosmos-bound',
+  'space-cadet'
 ];
 const FEATURE_FLAG_IDS = [
   'enableFeedbackHub',

@@ -1,8 +1,10 @@
 # Space Cadet — visual direction 01
 
-Status: design exploration based on the user's seven reference images. Gameplay implementation has not started. The concept board is a mood and composition reference, not a production asset sheet or final gameplay screenshot.
+Status: design exploration based on the user's seven reference images. An initial playable preview now exists; see the [implementation plan](../../../SPACE_CADET_PLAN.md). The concept board is a mood and composition reference, not a production asset sheet or final gameplay screenshot.
 
 ![Crew quarters, command bridge, hangar, and first sortie](visual-direction-v1.png)
+
+The first implementation uses a deliberately smaller Canvas pixel-art set. Actual preview captures: [desktop quarters](first-playable-desktop.png) and [phone hangar](first-playable-mobile.png). Further art passes should add richer material shading, more character features, environmental animation, and a full shared tileset while retaining the tested collision layout and readable controls.
 
 ## The feel
 

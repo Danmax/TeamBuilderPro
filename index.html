@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="/assets/css/uno.css">
 <link rel="stylesheet" href="/assets/css/card-tables.css">
 <link rel="stylesheet" href="/assets/css/spades.css">
+<link rel="stylesheet" href="/assets/css/space-cadet.css">
 </head>
 <body>
 <div class="atmosphere"><div class="mesh"></div><div class="mesh"></div><div class="mesh"></div></div>
@@ -45,6 +46,8 @@
 <script src="/assets/js/core/activity-registry.js"></script>
 <script src="/assets/js/character-core.js"></script>
 <script src="/assets/js/character-editor.js"></script>
+<script src="/assets/js/games/space-cadet-core.js"></script>
+<script src="/assets/js/activities/space-cadet.js"></script>
 <script src="/assets/js/community-plaza-core.js"></script>
 <script src="/assets/js/community-plaza.js"></script>
 <script src="/assets/js/game-victory.js"></script>
@@ -1866,7 +1869,8 @@ const ALL_ACTIVITY_IDS = [
   'memory',
   'rock-paper-scissors',
   'chess-lobby',
-  'cosmos-bound'
+  'cosmos-bound',
+  'space-cadet'
 ];
 
 function getDefaultVoiceUiState() {
@@ -5649,6 +5653,7 @@ function render() {
 
   html += renderFooter();
   
+  window.SpaceCadet?.beforeRender();
   app.innerHTML = html;
   fitUnoToViewport(unoHandScroll);
   TeamBuilderGameVictory.endFrame();
@@ -5678,6 +5683,7 @@ function render() {
     teardownCosmosBoundSimulation();
   }
   syncCommunityChatScroll();
+  window.SpaceCadet?.sync();
 }
 
 function renderWelcome() {

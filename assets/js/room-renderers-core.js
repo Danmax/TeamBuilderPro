@@ -392,6 +392,12 @@ TEAM_BUILDER_ROOM_RENDERERS.renderLobby = function renderLobby() {
           <p class="card-desc">Create quick matches, invite players, and run multiple chess boards at once</p>
         </button>
 
+        <button type="button" class="card" data-action="start-space-cadet" aria-label="Start Space Cadet" style="${enabledActivities['space-cadet'] === false ? 'display:none;' : ''}">
+          <div class="card-icon">🛸</div>
+          <h3 class="card-title">Space Cadet: First Launch</h3>
+          <p class="card-desc">Explore the Aurora, qualify as a cadet, and fly your first solo rescue mission. Playable preview.</p>
+        </button>
+
         <button type="button" class="card" data-action="start-cosmos-bound" aria-label="Start Cosmos Bound" style="${enabledActivities['cosmos-bound'] === false ? 'display:none;' : ''}">
           <div class="card-icon">🚀</div>
           <h3 class="card-title">Cosmos Bound</h3>

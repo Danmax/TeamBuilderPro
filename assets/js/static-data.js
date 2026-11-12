@@ -350,7 +350,8 @@ window.TEAM_BUILDER_STATIC_DATA = {
     { id: 'memory', icon: '🧠', label: 'Memory' },
     { id: 'rock-paper-scissors', icon: '✊', label: 'Rock Paper Scissors' },
     { id: 'chess-lobby', icon: '♟️', label: 'Chess Lobby' },
-    { id: 'cosmos-bound', icon: '🚀', label: 'Cosmos Bound' }
+    { id: 'cosmos-bound', icon: '🚀', label: 'Cosmos Bound' },
+    { id: 'space-cadet', icon: '🛸', label: 'Space Cadet: First Launch' }
   ],
   GAME_ACTIVITY_IDS: [
     'lightning-trivia',
@@ -376,7 +377,8 @@ window.TEAM_BUILDER_STATIC_DATA = {
     'memory',
     'rock-paper-scissors',
     'chess-lobby',
-    'cosmos-bound'
+    'cosmos-bound',
+    'space-cadet'
   ],
   BATTLESHIP_BOARD_SIZE: 10,
   BATTLESHIP_SHIP_SET: [

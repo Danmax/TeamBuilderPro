@@ -1,6 +1,16 @@
 # Space Cadet: Zero to Hero
 
-Status: proposed game design and implementation plan. No game implementation is included.
+Status: campaign plan with an initial playable preview implemented. The larger campaign, trusted rewards, and ship upgrades remain planned.
+
+## Current playable slice
+
+Launch **Space Cadet: First Launch** from a room's activity picker. The host starts the activity; each participant plays an independent solo adventure. The preview includes connected crew quarters, engineering/training, and hangar rooms; collision-aware walking; a three-circuit repair puzzle; a cadet briefing; a starter ship; a supply-pod rescue; drones, asteroids, repair/rapid-fire pickups, and Scrap Maw with escalating attack patterns.
+
+Keyboard and touch controls, pause, personal browser-local progress, a boss checkpoint, retries, a debrief, and returning to the hangar are implemented. Pixel scenery and the initial character adapter are drawn directly in Canvas 2D; the concept board remains a separate art reference. The adapter currently preserves species, basic hair, skin/fur, and outfit colors, with simplified hats. Complete accessory and body-shape mapping, richer animation, the bridge, and sound design remain future art work.
+
+This preview awards and spends no coins and provides no permanent upgrade shop. Flight is simulated locally, not server-verified. Progress belongs to this browser's player profile; clearing storage removes it. It does not promise cross-device saves or cooperative flight. Replay starts a new sortie while keeping qualifications and completed objectives. Returning to the hangar retains a boss checkpoint when reached; choosing New adventure explicitly resets only this preview's local progress.
+
+Implementation: `assets/js/games/space-cadet-core.js` (rules and collision), `assets/js/activities/space-cadet.js` (pixel rendering, input, local saves, and lifecycle), and `assets/css/space-cadet.css` (HUD and responsive controls). The activity registers through the existing registry and respects the room/admin activity settings.
 
 Visual development: [art direction and reference analysis](docs/design/space-cadet/ART_DIRECTION.md), including the [first concept board](docs/design/space-cadet/visual-direction-v1.png). Establish the room, character, ship, and combat art studies before producing the full chapter asset library.
 
