@@ -4,6 +4,19 @@
   let campaign, flight = null, mode = 'hub', owner = '', canvas, ctx, frame = 0, controller, previous = 0, paused = false, dialog = '', relay = 0, lastHud = '', lastSave = 0, saveFailed = false, banner = '', restoreFocus = false;
   const held = new Set(), pointerKeys = new Map();
   const reducedMotion = root.matchMedia('(prefers-reduced-motion: reduce)');
+  let celebration = null;
+  function celebrate(title, detail) {
+    celebration = { title, detail, expiresAt: Date.now() + 2600 };
+    renderCelebration();
+  }
+  function renderCelebration() {
+    const el = document.getElementById('scSuccess');
+    if (!el) return;
+    el.hidden = !celebration || Date.now() >= celebration.expiresAt;
+    if (el.hidden) return;
+    // All celebration copy is fixed game text. Keep it outside the canvas for announcements.
+    el.innerHTML = `<span class="sc-success-mark" aria-hidden="true">✓</span><span><strong>${celebration.title}</strong><small>${celebration.detail}</small></span><span class="sc-success-pixels" aria-hidden="true">${Array.from({ length: 8 }, (_, i) => `<i style="--sc-particle:${i}"></i>`).join('')}</span>`;
+  }
   const keyFor = () => `space-cadet:v1:${owner}`;
   function save() {
     try { localStorage.setItem(keyFor(), JSON.stringify(campaign)); saveFailed = false; }
@@ -16,11 +29,11 @@
   function prepare() {
     const id = String(APP.player?.id || '');
     if (owner === id && campaign) return;
-    stop(); owner = id; campaign = load(); flight = null; mode = 'hub'; dialog = ''; banner = ''; paused = false;
+    stop(); owner = id; campaign = load(); flight = null; mode = 'hub'; dialog = ''; banner = ''; paused = false; celebration = null;
   }
   function renderGame() {
     prepare();
-    return `<section class="sc-game" aria-label="Space Cadet: First Launch"><header class="sc-header"><div><div class="sc-kicker">An Aurora frontier story</div><h2 class="sc-title">SPACE <span>CADET</span></h2></div><span class="sc-badge">FIRST LAUNCH · PREVIEW</span></header><div class="sc-layout"><div class="sc-play"><div class="sc-location"><strong id="scLocation">Crew quarters</strong><span id="scRank">RECRUIT / AURORA</span></div><div class="sc-stage"><canvas id="spaceCadetCanvas" width="480" height="270" tabindex="0" role="img" aria-label="Space Cadet game. Use arrow keys or WASD to move, E to interact, Space to fire, Shift for shield, and P to pause. On-screen controls are below."></canvas></div><div class="sc-status" id="scStatus" role="status" aria-live="polite"></div><div class="sc-controls"><div class="sc-pad" aria-label="Movement controls"><button type="button" data-sc-hold="up" aria-label="Move up">↑</button><button type="button" data-sc-hold="left" aria-label="Move left">←</button><button type="button" data-sc-hold="down" aria-label="Move down">↓</button><button type="button" data-sc-hold="right" aria-label="Move right">→</button></div><div class="sc-actions"><button type="button" class="sc-primary" data-sc-command="interact" id="scInteract">Interact · E</button><button type="button" class="sc-primary" data-sc-hold="fire" id="scFire" hidden>Fire · Space</button><button type="button" data-sc-hold="shield" id="scShield" hidden>Shield · Shift</button><button type="button" data-sc-command="pause" id="scPause">Pause</button></div></div><p class="sc-help">Select the scene to use <kbd>WASD</kbd> / <kbd>↑↓←→</kbd> · <kbd>E</kbd> interact · <kbd>Space</kbd> fire · <kbd>Shift</kbd> shield · <kbd>P</kbd> pause. Touch controls support movement and firing together.</p><section class="sc-dialog" id="scDialog" aria-label="Crew conversation" hidden></section></div><aside class="sc-sidebar"><div class="sc-kicker">Personal mission journal</div><h3>01 / First Launch</h3><p id="scObjective"></p><ol class="sc-log" id="scChecklist"></ol><div class="sc-save" id="scSave"></div><div class="sc-tools"><button type="button" data-sc-command="home">Return to hangar</button><button type="button" data-sc-command="restart">New adventure</button></div></aside></div></section>`;
+    return `<section class="sc-game" aria-label="Space Cadet: First Launch"><header class="sc-header"><div><div class="sc-kicker">An Aurora frontier story</div><h2 class="sc-title">SPACE <span>CADET</span></h2></div><span class="sc-badge">FIRST LAUNCH · PREVIEW</span></header><div class="sc-layout"><div class="sc-play"><div class="sc-location"><strong id="scLocation">Crew quarters</strong><span id="scRank">RECRUIT / AURORA</span></div><div class="sc-stage"><canvas id="spaceCadetCanvas" width="480" height="270" tabindex="0" role="img" aria-label="Space Cadet game. Use arrow keys or WASD to move, E to interact, Space to fire, Shift for shield, and P to pause. On-screen controls are below."></canvas><div id="scSuccess" class="sc-success" role="status" aria-live="polite" aria-atomic="true" hidden></div></div><div class="sc-status" id="scStatus" role="status" aria-live="polite"></div><div class="sc-controls"><div class="sc-pad" aria-label="Movement controls"><button type="button" data-sc-hold="up" aria-label="Move up">↑</button><button type="button" data-sc-hold="left" aria-label="Move left">←</button><button type="button" data-sc-hold="down" aria-label="Move down">↓</button><button type="button" data-sc-hold="right" aria-label="Move right">→</button></div><div class="sc-actions"><button type="button" class="sc-primary" data-sc-command="interact" id="scInteract">Interact · E</button><button type="button" class="sc-primary" data-sc-hold="fire" id="scFire" hidden>Fire · Space</button><button type="button" data-sc-hold="shield" id="scShield" hidden>Shield · Shift</button><button type="button" data-sc-command="pause" id="scPause">Pause</button></div></div><p class="sc-help">Select the scene to use <kbd>WASD</kbd> / <kbd>↑↓←→</kbd> · <kbd>E</kbd> interact · <kbd>Space</kbd> fire · <kbd>Shift</kbd> shield · <kbd>P</kbd> pause. Touch controls support movement and firing together.</p><section class="sc-dialog" id="scDialog" aria-label="Crew conversation" hidden></section></div><aside class="sc-sidebar"><div class="sc-kicker">Personal mission journal</div><h3>01 / First Launch</h3><p id="scObjective"></p><ol class="sc-log" id="scChecklist"></ol><div class="sc-save" id="scSave"></div><div class="sc-tools"><button type="button" data-sc-command="home">Return to hangar</button><button type="button" data-sc-command="restart">New adventure</button></div></aside></div></section>`;
   }
   function active() { return APP.screen === 'lobby' && APP.room?.currentActivity === 'space-cadet' && !APP.editingProfile && !APP.characterEditorOpen; }
   function stop() {
@@ -31,7 +44,7 @@
   }
   function sync() {
     const next = document.getElementById('spaceCadetCanvas');
-    if (!active() || !next) { if (canvas) { paused = true; stop(); } return; }
+    if (!active() || !next) { celebration = null; if (canvas) { paused = true; stop(); } return; }
     if (next === canvas) return;
     const focusGame = restoreFocus; restoreFocus = false;
     prepare(); stop(); canvas = next; ctx = canvas.getContext('2d');
@@ -62,7 +75,7 @@
     document.addEventListener('visibilitychange', () => { if (document.hidden) { paused = true; held.clear(); save(); updateHud(); } }, { signal });
     root.addEventListener('pagehide', save, { signal });
     game.addEventListener('focusout', event => { if (!game.contains(event.relatedTarget)) { held.clear(); if (mode === 'flight') paused = true; } }, { signal });
-    lastHud = ''; previous = 0; updateHud(); renderDialog();
+    lastHud = ''; previous = 0; updateHud(); renderDialog(); renderCelebration();
     if (focusGame && !dialog) canvas.focus({ preventScroll: true });
     frame = requestAnimationFrame(loop);
   }
@@ -76,15 +89,20 @@
         if (now - lastSave > 3000) { save(); lastSave = now; }
       } else if (mode === 'flight') {
         const input = Object.fromEntries([...held].map(key => [key, true])); C.tickFlight(flight, input, dt);
-        if (flight.event === 'rescue') { campaign.rescued = true; banner = 'Supply pod recovered. The manifest mentions an illegal blockade.'; save(); }
+        if (flight.event === 'rescue') { if (!campaign.rescued) celebrate('Rescue successful', 'Supply pod safely recovered'); campaign.rescued = true; banner = 'Supply pod recovered. The manifest mentions an illegal blockade.'; save(); }
         if (flight.boss && flight.rescued && campaign.checkpoint !== 'boss') { campaign.checkpoint = 'boss'; save(); banner = 'Scrap Maw incoming. Boss checkpoint saved.'; }
         if (flight.status !== 'playing') {
           mode = flight.status;
           campaign.bestScore = Math.max(campaign.bestScore, flight.score);
-          if (mode === 'complete') { campaign.completed = true; campaign.checkpoint = 'hub'; }
+          if (mode === 'complete') { celebrate('Mission complete', campaign.completed ? 'Scrap Maw defeated · Crew safe' : 'Scrap Maw defeated · Ensign earned'); campaign.completed = true; campaign.checkpoint = 'hub'; }
           save(); dialog = mode; renderDialog();
         }
       }
+    }
+    if (celebration && Date.now() >= celebration.expiresAt) {
+      celebration = null;
+      const success = document.getElementById('scSuccess'); if (success) success.hidden = true;
+      document.getElementById('scDialog')?.setAttribute('data-success', 'false');
     }
     draw(now / 1000); updateHud(); frame = requestAnimationFrame(loop);
   }
@@ -95,13 +113,13 @@
     else if (command === 'close') dialog = '';
     else if (command === 'home') { returnHome(); banner = 'Back aboard Aurora. Your qualifications and checkpoint are saved.'; }
     else if (command === 'restart') dialog = 'restart';
-    else if (command === 'confirm-restart') { campaign = C.createCampaign(); flight = null; mode = 'hub'; dialog = ''; paused = false; banner = ''; save(); }
+    else if (command === 'confirm-restart') { campaign = C.createCampaign(); flight = null; mode = 'hub'; dialog = ''; paused = false; banner = ''; celebration = null; renderCelebration(); save(); }
     else if (command === 'launch' || command === 'retry') launch();
-    else if (command === 'brief-shield') { C.completeTraining(campaign, 'shield'); save(); dialog = 'qualified'; }
+    else if (command === 'brief-shield') { const alreadyTrained = campaign.trained; if (C.completeTraining(campaign, 'shield') && !alreadyTrained) celebrate('Flight qualified', 'You are officially a space cadet'); save(); dialog = 'qualified'; }
     else if (command === 'brief-fire') { banner = 'A laser cannot block incoming fire. Try raising your shield.'; }
     else if (command.startsWith('relay-')) {
       relay = C.toggleRelay(relay, Number(command.slice(6)));
-      if (relay === 7) { campaign.repaired = true; save(); dialog = 'repaired'; }
+      if (relay === 7) { if (!campaign.repaired) celebrate('Power restored', 'All three circuits are online'); campaign.repaired = true; save(); dialog = 'repaired'; }
     } else if (command === 'interact' && mode === 'hub' && !paused) {
       const station = C.nearby(campaign);
       if (!station) { banner = 'Walk toward a marked console or the Sparrow, then interact.'; }
@@ -112,6 +130,7 @@
   }
   function renderDialog() {
     const el = document.getElementById('scDialog'); if (!el) return;
+    el.setAttribute('data-success', String(Boolean(celebration && Date.now() < celebration.expiresAt && ['repaired', 'qualified', 'complete'].includes(dialog))));
     el.hidden = !dialog; if (!dialog) { el.innerHTML = ''; return; }
     const button = (command, label, primary = false) => `<button type="button" data-sc-command="${command}" class="${primary ? 'sc-primary' : ''}">${label}</button>`;
     let title = '', body = '', actions = '', extra = '';
