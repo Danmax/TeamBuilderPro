@@ -4,7 +4,9 @@ Status: campaign plan with an initial playable preview implemented. The larger c
 
 ## Current playable slice
 
-Launch **Space Cadet: First Launch** from a room's activity picker. The host starts the activity; each participant plays an independent solo adventure. The preview includes connected crew quarters, engineering/training, and hangar rooms; collision-aware walking; a three-circuit repair puzzle; a cadet briefing; a starter ship; a supply-pod rescue; drones, asteroids, repair/rapid-fire pickups, and Scrap Maw with escalating attack patterns.
+Launch **Space Cadet: First Launch** from a room's activity picker. The host starts the activity; each participant plays an independent solo adventure. The preview includes connected crew quarters, engineering/training, and hangar rooms; collision-aware walking; a staged relay diagnosis, power-routing, and load-test job; a hands-on flight simulator; a starter ship; a supply-pod rescue; drones, asteroids, repair/rapid-fire pickups, and Scrap Maw with escalating attack patterns.
+
+Jobs use framed RPG dialogue with a named speaker, a comms portrait, paged character-by-character messages, and instant text reveal. The relay must be scanned before routing, and its repair is saved only after a successful load test. Flight qualification requires navigating three beacons, shooting three targets, and absorbing two real simulated pulses with the shield. The simulator causes no hull damage. All task completions retain the success animation; reduced-motion settings show static success feedback and instant dialogue text. Existing earned qualifications remain valid in saved previews.
 
 Keyboard and touch controls, pause, personal browser-local progress, a boss checkpoint, retries, a debrief, and returning to the hangar are implemented. Pixel scenery and the initial character adapter are drawn directly in Canvas 2D; the concept board remains a separate art reference. The adapter currently preserves species, basic hair, skin/fur, and outfit colors, with simplified hats. Complete accessory and body-shape mapping, richer animation, the bridge, and sound design remain future art work.
 

@@ -6,6 +6,8 @@ Status: design exploration based on the user's seven reference images. An initia
 
 The first implementation uses a deliberately smaller Canvas pixel-art set. Actual preview captures: [desktop quarters](first-playable-desktop.png) and [phone hangar](first-playable-mobile.png). Further art passes should add richer material shading, more character features, environmental animation, and a full shared tileset while retaining the tested collision layout and readable controls.
 
+Interactive job update: [relay diagnosis and routing](interactive-job-v1.png), and [paged RPG dialogue](dialogue-v1.png). Dialogue now uses a named speaker, comms portrait, double-line frame, scrolling text reveal, and a manual Continue control. Revealing a complete message starts at its beginning; reduced motion reveals it immediately.
+
 ## The feel
 
 A place you want to live aboard, and a frontier you want to explore. Crisp 16-bit pixel art, practical machinery, and a crew with personal belongings. Quiet quarters and familiar faces give the action emotional weight. Becoming a hero should change your surroundings as well as your ship's stats.

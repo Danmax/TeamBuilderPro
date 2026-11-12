@@ -1,7 +1,7 @@
 (function (root) {
   'use strict';
   const C = root.SpaceCadetCore, registry = root.TEAM_BUILDER_ACTIVITY_REGISTRY;
-  let campaign, flight = null, mode = 'hub', owner = '', canvas, ctx, frame = 0, controller, previous = 0, paused = false, dialog = '', relay = 0, lastHud = '', lastSave = 0, saveFailed = false, banner = '', restoreFocus = false;
+  let campaign, flight = null, mode = 'hub', owner = '', canvas, ctx, frame = 0, controller, previous = 0, paused = false, dialog = '', relayJob = null, training = null, dialogue = null, lastHud = '', lastSave = 0, saveFailed = false, banner = '', restoreFocus = false;
   const held = new Set(), pointerKeys = new Map();
   const reducedMotion = root.matchMedia('(prefers-reduced-motion: reduce)');
   let celebration = null;
@@ -29,11 +29,11 @@
   function prepare() {
     const id = String(APP.player?.id || '');
     if (owner === id && campaign) return;
-    stop(); owner = id; campaign = load(); flight = null; mode = 'hub'; dialog = ''; banner = ''; paused = false; celebration = null;
+    stop(); owner = id; campaign = load(); flight = null; mode = 'hub'; dialog = ''; banner = ''; paused = false; celebration = null; relayJob = null; training = null; dialogue = null;
   }
   function renderGame() {
     prepare();
-    return `<section class="sc-game" aria-label="Space Cadet: First Launch"><header class="sc-header"><div><div class="sc-kicker">An Aurora frontier story</div><h2 class="sc-title">SPACE <span>CADET</span></h2></div><span class="sc-badge">FIRST LAUNCH · PREVIEW</span></header><div class="sc-layout"><div class="sc-play"><div class="sc-location"><strong id="scLocation">Crew quarters</strong><span id="scRank">RECRUIT / AURORA</span></div><div class="sc-stage"><canvas id="spaceCadetCanvas" width="480" height="270" tabindex="0" role="img" aria-label="Space Cadet game. Use arrow keys or WASD to move, E to interact, Space to fire, Shift for shield, and P to pause. On-screen controls are below."></canvas><div id="scSuccess" class="sc-success" role="status" aria-live="polite" aria-atomic="true" hidden></div></div><div class="sc-status" id="scStatus" role="status" aria-live="polite"></div><div class="sc-controls"><div class="sc-pad" aria-label="Movement controls"><button type="button" data-sc-hold="up" aria-label="Move up">↑</button><button type="button" data-sc-hold="left" aria-label="Move left">←</button><button type="button" data-sc-hold="down" aria-label="Move down">↓</button><button type="button" data-sc-hold="right" aria-label="Move right">→</button></div><div class="sc-actions"><button type="button" class="sc-primary" data-sc-command="interact" id="scInteract">Interact · E</button><button type="button" class="sc-primary" data-sc-hold="fire" id="scFire" hidden>Fire · Space</button><button type="button" data-sc-hold="shield" id="scShield" hidden>Shield · Shift</button><button type="button" data-sc-command="pause" id="scPause">Pause</button></div></div><p class="sc-help">Select the scene to use <kbd>WASD</kbd> / <kbd>↑↓←→</kbd> · <kbd>E</kbd> interact · <kbd>Space</kbd> fire · <kbd>Shift</kbd> shield · <kbd>P</kbd> pause. Touch controls support movement and firing together.</p><section class="sc-dialog" id="scDialog" aria-label="Crew conversation" hidden></section></div><aside class="sc-sidebar"><div class="sc-kicker">Personal mission journal</div><h3>01 / First Launch</h3><p id="scObjective"></p><ol class="sc-log" id="scChecklist"></ol><div class="sc-save" id="scSave"></div><div class="sc-tools"><button type="button" data-sc-command="home">Return to hangar</button><button type="button" data-sc-command="restart">New adventure</button></div></aside></div></section>`;
+    return `<section class="sc-game" aria-label="Space Cadet: First Launch"><header class="sc-header"><div><div class="sc-kicker">An Aurora frontier story</div><h2 class="sc-title">SPACE <span>CADET</span></h2></div><span class="sc-badge">FIRST LAUNCH · PREVIEW</span></header><div class="sc-layout"><div class="sc-play"><div class="sc-location"><strong id="scLocation">Crew quarters</strong><span id="scRank">RECRUIT / AURORA</span></div><div class="sc-stage"><canvas id="spaceCadetCanvas" width="480" height="270" tabindex="0" role="img" aria-label="Space Cadet game. Use arrow keys or WASD to move, E to interact, Space to fire, Shift for shield, and P to pause. On-screen controls are below."></canvas><div id="scSuccess" class="sc-success" role="status" aria-live="polite" aria-atomic="true" hidden></div></div><section class="sc-dialog" id="scDialog" aria-label="Crew conversation" hidden></section><div class="sc-status" id="scStatus" role="status" aria-live="polite"></div><div class="sc-controls"><div class="sc-pad" aria-label="Movement controls"><button type="button" data-sc-hold="up" aria-label="Move up">↑</button><button type="button" data-sc-hold="left" aria-label="Move left">←</button><button type="button" data-sc-hold="down" aria-label="Move down">↓</button><button type="button" data-sc-hold="right" aria-label="Move right">→</button></div><div class="sc-actions"><button type="button" class="sc-primary" data-sc-command="interact" id="scInteract">Interact · E</button><button type="button" class="sc-primary" data-sc-hold="fire" id="scFire" hidden>Fire · Space</button><button type="button" data-sc-hold="shield" id="scShield" hidden>Shield · Shift</button><button type="button" data-sc-command="pause" id="scPause">Pause</button></div></div><p class="sc-help">Select the scene to use <kbd>WASD</kbd> / <kbd>↑↓←→</kbd> · <kbd>E</kbd> interact · <kbd>Space</kbd> fire · <kbd>Shift</kbd> shield · <kbd>P</kbd> pause. Touch controls support movement and firing together.</p></div><aside class="sc-sidebar"><div class="sc-kicker">Personal mission journal</div><h3>01 / First Launch</h3><p id="scObjective"></p><ol class="sc-log" id="scChecklist"></ol><div class="sc-save" id="scSave"></div><div class="sc-tools"><button type="button" data-sc-command="home">Return to hangar</button><button type="button" data-sc-command="restart">New adventure</button></div></aside></div></section>`;
   }
   function active() { return APP.screen === 'lobby' && APP.room?.currentActivity === 'space-cadet' && !APP.editingProfile && !APP.characterEditorOpen; }
   function stop() {
@@ -64,6 +64,7 @@
     root.addEventListener('keydown', event => {
       if (event.ctrlKey || event.metaKey || event.altKey || !game.contains(document.activeElement) || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) return;
       if (document.activeElement?.tagName === 'BUTTON' && ['Space', 'Enter'].includes(event.code)) return;
+      if (dialog && ['KeyE', 'Enter', 'Space'].includes(event.code)) { event.preventDefault(); if (!event.repeat) act('dialogue-next'); return; }
       const key = keyboardKey(event.code);
       if (key && !dialog) { event.preventDefault(); held.add(key); }
       if (event.repeat) return;
@@ -87,6 +88,15 @@
       if (mode === 'hub') {
         if (C.move(campaign, Number(held.has('right')) - Number(held.has('left')), Number(held.has('down')) - Number(held.has('up')), dt)) { banner = ''; save(); }
         if (now - lastSave > 3000) { save(); lastSave = now; }
+      } else if (mode === 'training') {
+        C.tickTraining(training, Object.fromEntries([...held].map(key => [key, true])), dt);
+        if (training.status === 'complete') {
+          const alreadyTrained = campaign.trained;
+          if (C.completeTraining(campaign, training)) {
+            if (!alreadyTrained) celebrate('Flight qualified', 'Navigation · Gunnery · Shields passed');
+            mode = 'hub'; dialog = 'qualified'; save(); renderDialog();
+          }
+        }
       } else if (mode === 'flight') {
         const input = Object.fromEntries([...held].map(key => [key, true])); C.tickFlight(flight, input, dt);
         if (flight.event === 'rescue') { if (!campaign.rescued) celebrate('Rescue successful', 'Supply pod safely recovered'); campaign.rescued = true; banner = 'Supply pod recovered. The manifest mentions an illegal blockade.'; save(); }
@@ -104,72 +114,134 @@
       const success = document.getElementById('scSuccess'); if (success) success.hidden = true;
       document.getElementById('scDialog')?.setAttribute('data-success', 'false');
     }
-    draw(now / 1000); updateHud(); frame = requestAnimationFrame(loop);
+    updateDialogue(); draw(now / 1000); updateHud(); frame = requestAnimationFrame(loop);
   }
-  function returnHome() { mode = 'hub'; flight = null; dialog = ''; paused = false; campaign.room = 'hangar'; campaign.x = 232; campaign.y = 220; save(); }
+  function returnHome() { mode = 'hub'; flight = null; training = null; dialog = ''; paused = false; campaign.room = 'hangar'; campaign.x = 232; campaign.y = 220; save(); }
   function launch() { flight = C.createFlight(campaign); if (!flight) return; mode = 'flight'; dialog = ''; paused = false; campaign.checkpoint = campaign.checkpoint === 'boss' ? 'boss' : 'flight'; banner = ''; save(); }
   function act(command) {
+    if (command === 'dialogue-next') {
+      if (!dialogue) return;
+      const page = dialogue.pages[dialogue.page];
+      if (dialogueCount() < page.length) dialogue.revealed = true;
+      else if (dialogue.page < dialogue.pages.length - 1) { dialogue.page++; dialogue.startedAt = Date.now(); dialogue.revealed = false; }
+      renderDialog(); return;
+    }
     if (command === 'pause') { paused = !paused; held.clear(); }
     else if (command === 'close') dialog = '';
     else if (command === 'home') { returnHome(); banner = 'Back aboard Aurora. Your qualifications and checkpoint are saved.'; }
     else if (command === 'restart') dialog = 'restart';
-    else if (command === 'confirm-restart') { campaign = C.createCampaign(); flight = null; mode = 'hub'; dialog = ''; paused = false; banner = ''; celebration = null; renderCelebration(); save(); }
+    else if (command === 'confirm-restart') { campaign = C.createCampaign(); flight = null; training = null; relayJob = null; dialogue = null; mode = 'hub'; dialog = ''; paused = false; banner = ''; celebration = null; renderCelebration(); save(); }
     else if (command === 'launch' || command === 'retry') launch();
-    else if (command === 'brief-shield') { const alreadyTrained = campaign.trained; if (C.completeTraining(campaign, 'shield') && !alreadyTrained) celebrate('Flight qualified', 'You are officially a space cadet'); save(); dialog = 'qualified'; }
-    else if (command === 'brief-fire') { banner = 'A laser cannot block incoming fire. Try raising your shield.'; }
+    else if (command === 'start-training' && campaign.repaired) { training = C.createTraining(); mode = 'training'; dialog = ''; paused = false; banner = ''; }
+    else if (command.startsWith('scan-')) { C.workRelay(relayJob, 'scan', Number(command.slice(5))); }
+    else if (command === 'test-relay') {
+      if (C.workRelay(relayJob, 'test')) { if (!campaign.repaired) celebrate('Power restored', 'All three circuits passed the load test'); campaign.repaired = true; save(); dialog = 'repaired'; }
+    }
     else if (command.startsWith('relay-')) {
-      relay = C.toggleRelay(relay, Number(command.slice(6)));
-      if (relay === 7) { if (!campaign.repaired) celebrate('Power restored', 'All three circuits are online'); campaign.repaired = true; save(); dialog = 'repaired'; }
-    } else if (command === 'interact' && mode === 'hub' && !paused) {
+      C.workRelay(relayJob, 'switch', Number(command.slice(6)));
+    } else if (command === 'interact' && mode === 'hub' && !paused && !dialog) {
       const station = C.nearby(campaign);
       if (!station) { banner = 'Walk toward a marked console or the Sparrow, then interact.'; }
-      else { banner = ''; dialog = station.id; if (dialog === 'relay') { if (campaign.repaired) dialog = 'repaired'; else relay = 0; } }
+      else { banner = ''; dialog = station.id; if (dialog === 'relay') { if (campaign.repaired) dialog = 'repaired'; else relayJob ||= C.createRelayJob(); } }
     }
     held.clear(); lastHud = ''; renderDialog(); updateHud();
     if (!dialog) canvas?.focus({ preventScroll: true });
   }
+  function dialogueCount() {
+    if (!dialogue) return 0;
+    const length = dialogue.pages[dialogue.page].length;
+    return reducedMotion.matches || dialogue.revealed ? length : Math.min(length, Math.floor((Date.now() - dialogue.startedAt) / 22));
+  }
+  function updateDialogue() {
+    if (!dialog || !dialogue) return;
+    const el = document.getElementById('scDialog'), line = el?.querySelector('[data-sc-message]');
+    if (!line) return;
+    const page = dialogue.pages[dialogue.page], count = dialogueCount(), finished = count >= page.length;
+    const visible = page.slice(0, count);
+    if (line.textContent !== visible) { line.textContent = visible; line.parentElement.scrollTop = reducedMotion.matches || dialogue.revealed ? 0 : line.parentElement.scrollHeight; }
+    const next = el.querySelector('[data-sc-command="dialogue-next"]'), final = finished && dialogue.page === dialogue.pages.length - 1;
+    const wasReading = document.activeElement === next;
+    next.textContent = !finished ? 'Show full message ▸' : final ? 'Message received ✓' : 'Continue ▸';
+    next.disabled = final;
+    const finalPanel = el.querySelector('[data-sc-final]'); finalPanel.hidden = !final;
+    if (final && wasReading) finalPanel.querySelector('button')?.focus({ preventScroll: true });
+    line.parentElement.setAttribute('data-typing', String(!finished));
+  }
   function renderDialog() {
     const el = document.getElementById('scDialog'); if (!el) return;
     el.setAttribute('data-success', String(Boolean(celebration && Date.now() < celebration.expiresAt && ['repaired', 'qualified', 'complete'].includes(dialog))));
-    el.hidden = !dialog; if (!dialog) { el.innerHTML = ''; return; }
+    el.hidden = !dialog; if (!dialog) { el.innerHTML = ''; dialogue = null; return; }
     const button = (command, label, primary = false) => `<button type="button" data-sc-command="${command}" class="${primary ? 'sc-primary' : ''}">${label}</button>`;
-    let title = '', body = '', actions = '', extra = '';
-    if (dialog === 'journal') { title = 'Welcome aboard, cadet.'; body = 'Engineer Vale needs the power relay restored. Head through the right-hand door to engineering, then complete your flight briefing. The Sparrow is waiting in the hangar.'; }
+    let title = '', speaker = 'AURORA', role = 'Ship intelligence', portrait = 'A', pages = [], actions = '', extra = '';
+    if (dialog === 'journal') {
+      title = 'Your first assignment'; speaker = 'ENGINEER VALE'; role = 'Chief engineer · Deck 02'; portrait = 'V';
+      pages = ['Welcome aboard the Aurora, recruit. She may have a few dents, but there is no better ship to call home.', 'Our hangar has lost power. Take the right-hand door to engineering, scan the relay housings, and find the fault. Then we will see what you can do in the flight simulator.'];
+    }
     if (dialog === 'relay') {
-      title = 'Power relay / manual routing'; body = 'Bring all three circuits online. A changes circuits 1 + 2; B changes 2 + 3; C changes 1. Switching an active circuit turns it off. No penalty for experimenting.';
-      extra = `<div class="sc-circuits">${[0, 1, 2].map(i => `<span class="${relay & (1 << i) ? 'sc-on' : ''}">0${i + 1} / ${relay & (1 << i) ? 'ON' : 'OFF'}</span>`).join('')}</div>`;
-      actions = ['A', 'B', 'C'].map((label, index) => button(`relay-${index}`, `Switch ${label}`)).join('');
+      speaker = 'ENGINEER VALE'; role = 'Maintenance channel'; portrait = 'V';
+      title = relayJob.stage === 'inspect' ? 'Job 01 / Find the fault' : 'Job 01 / Reroute power';
+      pages = relayJob.stage === 'inspect'
+        ? ['Do not flip switches blindly, cadet. Use the scanner on each relay housing. A healthy relay returns a steady signal; a blown bypass will flag a fault.']
+        : ['There it is—a blown bypass in relay C. We can get the ship moving by routing power around the damaged section.', 'Each switch changes linked circuits. A toggles life support and navigation. B toggles navigation and the hangar. C toggles life support. Light all three, then run a load test.'];
+      extra = `<div class="sc-job"><div class="sc-job-heading"><span>01 SCAN</span><span class="${relayJob.stage !== 'inspect' ? 'sc-job-active' : ''}">02 REROUTE</span><span>03 LOAD TEST</span></div><div class="sc-relay-bank">${['A', 'B', 'C'].map((label, i) => `<div class="sc-relay-unit ${relayJob.inspected === i ? 'sc-relay-scanned' : ''}"><strong>RELAY ${label}</strong><span class="sc-signal ${relayJob.inspected === i && i === 2 ? 'sc-signal-fault' : ''}" aria-hidden="true">▂ ▄ ▆ ▄ ▂</span>${relayJob.stage === 'inspect' ? button(`scan-${i}`, `Scan ${label}`) : `<small>${i === 2 ? 'BYPASS FAULT' : 'SIGNAL STABLE'}</small>`}</div>`).join('')}</div>${relayJob.stage !== 'inspect' ? `<div class="sc-circuits">${['Life support', 'Navigation', 'Hangar'].map((label, i) => `<span class="${relayJob.mask & (1 << i) ? 'sc-on' : ''}">${label}<b>${relayJob.mask & (1 << i) ? 'ONLINE' : 'OFFLINE'}</b></span>`).join('')}</div>` : ''}<p class="sc-job-feedback" role="status">${relayJob.feedback}</p></div>`;
+      if (relayJob.stage === 'route') actions = ['A', 'B', 'C'].map((label, i) => button(`relay-${i}`, `Switch ${label}`)).join('') + button('test-relay', 'Run load test', true);
     }
-    if (dialog === 'repaired') { title = 'Power restored.'; body = 'The Aurora is breathing again. Find the cyan simulator console to your right for your cadet briefing.'; }
+    if (dialog === 'repaired') {
+      speaker = 'ENGINEER VALE'; role = 'Chief engineer · Power restored'; portrait = 'V'; title = 'That is how you fix a starship';
+      pages = ['Listen to that hum. Life support is steady, navigation is awake, and the hangar doors have power again. Nice work, cadet.', 'The cyan simulator console is just to your right. No more theory: you will steer through beacons, take out practice targets, and catch a few harmless pulses on your shield.'];
+    }
     if (dialog === 'training') {
-      title = 'Cadet briefing / protect the ship';
-      body = campaign.repaired ? 'Move with WASD or the directional pad. Hold Space / Fire to shoot; hold Shift / Shield to absorb incoming hits. Shields drain while raised and recharge when released. Fly close to the amber supply pod to recover it. Which control protects you when a drone fires?' : 'The simulator needs power. Repair the relay at the left-hand console first.';
-      if (campaign.repaired) actions = button('brief-shield', 'Raise the shield', true) + button('brief-fire', 'Fire the laser');
+      title = 'Job 02 / Flight qualification'; speaker = 'FLIGHT INSTRUCTOR'; role = 'Aurora training intelligence'; portrait = 'AI';
+      pages = campaign.repaired ? ['Welcome to the simulator. Your ship is safe, the ammunition is simulated, and nobody is keeping score against you.', 'First, fly through three marked beacons. Next, line up and shoot three practice drones. Finally, hold your shield to absorb two incoming pulses. Use the same movement, Fire, and Shield controls as real flight.'] : ['The simulator is offline. Find the damaged engineering relay and pass its load test first, cadet.'];
+      if (campaign.repaired) actions = button('start-training', campaign.trained ? 'Practice again' : 'Enter simulator', true);
     }
-    if (dialog === 'qualified') { title = 'Flight qualification earned.'; body = 'You are now a space cadet. Head right into the hangar and approach the Sparrow. Recover the supply pod, then disable Scrap Maw. There is no cost to retry.'; }
+    if (dialog === 'qualified') {
+      title = 'Cleared for your first launch'; speaker = 'FLIGHT INSTRUCTOR'; role = 'Qualification confirmed'; portrait = 'AI';
+      pages = ['Navigation, gunnery, and defensive shielding—all passed. You have earned your place at the controls, Space Cadet.', 'Take the right-hand door into the hangar. The Sparrow is waiting. Recover the amber supply pod, then stop the salvage machine blocking our route. We will bring you home if anything goes wrong.'];
+    }
     if (dialog === 'ship') {
-      title = 'SP-01 / Sparrow trainer';
-      body = campaign.trained ? 'Hull 100 · rechargeable shield · pulse laser. This is your personal solo sortie; other crew members fly their own mission. Recover the supply pod before defeating the salvage-machine boss.' : 'Launch access locked. Restore the engineering relay and complete the cadet briefing to qualify.';
+      title = 'SP-01 / Sparrow trainer'; speaker = 'HANGAR CHIEF'; role = 'Launch control'; portrait = 'H';
+      pages = campaign.trained ? ['She is small, but she will look after you. One hundred hull, a rechargeable shield, and a pulse laser. Your qualification is already loaded into her flight computer.', 'The supply pod is somewhere in the outer belt. Fly close to recover it, keep moving through hostile fire, and watch for Scrap Maw. Ready when you are, cadet.'] : ['Hold there, recruit. This ship needs a qualified pilot. Repair the relay and finish the simulator next door, then come back to me.'];
       if (campaign.trained) actions = button('launch', campaign.checkpoint === 'boss' ? 'Resume boss checkpoint' : 'Launch First Sortie', true);
     }
-    if (dialog === 'failed') { title = 'Emergency retrieval successful.'; body = `Your cadet is safe aboard Aurora. Score: ${flight?.score || 0}. ${campaign.checkpoint === 'boss' ? 'The supply pod is safe; retry from the boss checkpoint.' : 'Retry the sortie with a restored hull and shield.'}`; actions = button('retry', 'Try again', true) + button('home', 'Return to hangar'); }
-    if (dialog === 'complete') { title = 'FIRST LAUNCH / mission complete'; body = `Supply crew rescued. Scrap Maw disabled. The recovered manifest points to a forged blockade order—but that investigation is for another chapter. Score: ${flight?.score || 0}. Your first flight is saved. This preview awards no wallet coins.`; actions = button('home', 'Return to the Aurora', true); }
-    if (dialog === 'restart') { title = 'Start a new adventure?'; body = 'This clears only your Space Cadet preview progress on this device. Your character and wallet stay as they are.'; actions = button('confirm-restart', 'Start over') + button('close', 'Keep playing', true); }
-    el.innerHTML = `<h3>${title}</h3><p>${body}</p>${extra}<div class="sc-dialog-actions">${actions}${!['failed', 'complete', 'restart'].includes(dialog) ? button('close', 'Back to game') : ''}</div>`;
-    // Only move focus when a conversation opens; switching circuits keeps its button focused.
-    if (!el.contains(document.activeElement)) el.querySelector('button')?.focus({ preventScroll: true });
+    if (dialog === 'failed') {
+      title = 'You are safe, cadet'; speaker = 'RESCUE CONTROL'; role = 'Emergency retrieval complete'; portrait = 'R';
+      pages = ['We have you. The rescue tug brought you and the Sparrow back in one piece. Take a breath—we can repair a ship.', `Your sortie score was ${flight?.score || 0}. ${campaign.checkpoint === 'boss' ? 'The pod is secure. We saved your approach to Scrap Maw, so you can resume at the boss.' : 'A fresh hull and a full shield are waiting for your next attempt.'}`];
+      actions = button('retry', 'Try again', true) + button('home', 'Return to hangar');
+    }
+    if (dialog === 'complete') {
+      title = 'First Launch / Mission complete'; speaker = 'COMMANDER SOL'; role = 'Aurora command'; portrait = 'S';
+      pages = ['The supply crew is safe, and Scrap Maw is scrap metal. That was a fine first flight, Ensign.', `Your score: ${flight?.score || 0}. There is something strange in the recovered manifest—a blockade order with a forged signature. We will investigate that in the next chapter. For now, come home. Your progress is saved; this preview does not award wallet coins.`];
+      actions = button('home', 'Return to the Aurora', true);
+    }
+    if (dialog === 'restart') {
+      title = 'Begin a new adventure?'; role = 'Personal campaign record';
+      pages = ['Starting over clears your Space Cadet preview progress on this device. Your character and wallet will stay as they are. Shall we reset your cadet record?'];
+      actions = button('confirm-restart', 'Start over') + button('close', 'Keep playing', true);
+    }
+    if (!pages.length) pages = ['Standing by, cadet.'];
+    const key = `${dialog}:${dialog === 'relay' ? relayJob.stage : ''}`;
+    if (!dialogue || dialogue.key !== key) dialogue = { key, pages, page: 0, startedAt: Date.now(), revealed: false };
+    const focusedCommand = el.contains(document.activeElement) ? document.activeElement?.dataset?.scCommand : '';
+    el.innerHTML = `<div class="sc-message-header"><span class="sc-portrait" data-portrait="${portrait}" aria-hidden="true">${portrait}</span><div><div class="sc-message-speaker">${speaker}</div><small>${role}</small></div><span class="sc-message-counter">${dialogue.page + 1} / ${pages.length}</span></div><h3>${title}</h3><div class="sc-message-scroll" data-typing="true"><span data-sc-message aria-hidden="true"></span><span class="sc-reading-text" aria-live="polite" aria-atomic="true">${dialogue.pages[dialogue.page]}</span></div><div class="sc-message-footer"><span>TRANSMISSION / ${mode === 'hub' ? 'AURORA INTERNAL' : 'FLIGHT CHANNEL'}</span>${button('dialogue-next', 'Show full message ▸')}</div><div data-sc-final hidden>${extra}<div class="sc-dialog-actions">${actions}${!['failed', 'complete', 'restart'].includes(dialog) ? button('close', 'Back to game') : ''}</div></div>`;
+    updateDialogue();
+    const focus = focusedCommand ? el.querySelector(`[data-sc-command="${focusedCommand}"]:not(:disabled)`) : null;
+    const next = el.querySelector('[data-sc-command="dialogue-next"]');
+    (focus || (!next.disabled ? next : el.querySelector('[data-sc-final] button')))?.focus({ preventScroll: true });
   }
   function updateHud() {
     if (!canvas) return;
     const flying = mode !== 'hub', near = !flying ? C.nearby(campaign) : null;
-    const status = paused ? 'Paused. Select Resume to continue.' : dialog && banner ? banner : flying ? (mode === 'flight' ? `${flight.boss ? 'SCRAP MAW' : 'FIRST SORTIE'} · Hull ${Math.ceil(flight.hull)} · Shield ${Math.ceil(flight.shield)} · ${flight.rescued ? 'Supply pod recovered' : 'Fly close to the amber supply pod'}${flight.rapid ? ' · RAPID FIRE' : ''}` : 'Mission debrief ready below the controls.') : near ? `E / Interact: ${near.label}` : (banner || 'Head through the marked doors. Approach a console to interact.');
-    const location = flying ? 'Outer belt / First Sortie' : C.ROOMS[campaign.room].title;
+    const drill = mode === 'training' ? ({ navigate: `Navigation drill · ${training.beacons}/3 beacons · Fly into the marked circle`, gunnery: `Gunnery drill · ${training.hits}/3 targets · Line up and hold Fire`, shield: `Shield drill · ${training.blocks}/2 pulses blocked · Hold Shield before impact` })[training.stage] : '';
+    const status = paused ? 'Paused. Select Resume to continue.' : dialog && banner ? banner : drill || (flying ? (mode === 'flight' ? `${flight.boss ? 'SCRAP MAW' : 'FIRST SORTIE'} · Hull ${Math.ceil(flight.hull)} · Shield ${Math.ceil(flight.shield)} · ${flight.rescued ? 'Supply pod recovered' : 'Fly close to the amber supply pod'}${flight.rapid ? ' · RAPID FIRE' : ''}` : 'Mission debrief ready below the controls.') : near ? `E / Interact: ${near.label}` : (banner || 'Head through the marked doors. Approach a console to interact.'));
+    const location = mode === 'training' ? 'Flight academy / Safe simulator' : flying ? 'Outer belt / First Sortie' : C.ROOMS[campaign.room].title;
     const signature = [status, location, campaign.repaired, campaign.trained, campaign.rescued, campaign.completed, dialog, saveFailed].join('|');
     if (signature === lastHud) return; lastHud = signature;
+    canvas.closest('.sc-game')?.setAttribute?.('data-dialog', String(Boolean(dialog)));
     document.getElementById('scLocation').textContent = location;
     document.getElementById('scRank').textContent = `${campaign.completed ? 'ENSIGN' : campaign.trained ? 'CADET' : 'RECRUIT'} / AURORA`;
     // Numeric HUD updates are visual; do not announce hull changes every frame.
-    const statusNode = document.getElementById('scStatus'); statusNode.setAttribute('aria-live', flying && !paused ? 'off' : 'polite'); statusNode.textContent = status;
+    const statusNode = document.getElementById('scStatus'); statusNode.setAttribute('aria-live', mode === 'flight' && !paused ? 'off' : 'polite'); statusNode.textContent = status;
     document.getElementById('scObjective').textContent = C.objective(campaign);
     document.getElementById('scChecklist').innerHTML = [['Power relay', campaign.repaired], ['Flight qualification', campaign.trained], ['Supply pod rescue', campaign.rescued], ['Scrap Maw defeated', campaign.completed]].map(([label, done], i) => `<li class="${done ? 'sc-done' : ''}"><span>${done ? '✓' : `0${i + 1}`}</span>${label}</li>`).join('');
     document.getElementById('scPause').textContent = paused ? 'Resume' : 'Pause';
@@ -257,8 +329,33 @@
     text('HULL', 10, 12, '#bcdceb', 6); r(10, 17, 70, 4, '#28384e'); r(10, 17, flight.hull * .7, 4, '#ffbd59'); text('SHIELD', 10, 31, '#bcdceb', 6); r(10, 36, 70, 4, '#28384e'); r(10, 36, flight.shield * .7, 4, '#36d8f2');
     if (!flight.boss) text('RECOVER THE SUPPLY POD', 166, 14, '#ffcf86', 6);
   }
+  function drawTraining(t) {
+    r(0, 0, 480, 270, '#0b1d30');
+    for (let x = 0; x < 480; x += 24) r(x, 32, 1, 238, '#15364b');
+    for (let y = 32; y < 270; y += 24) r(0, y, 480, 1, '#15364b');
+    const f = training;
+    const title = { navigate: '01 / NAVIGATION', gunnery: '02 / GUNNERY', shield: '03 / DEFENSIVE SHIELDING' }[f.stage] || 'QUALIFIED';
+    text(title, 16, 18, '#bceef4', 9); text('SAFE TRAINING · NO HULL DAMAGE', 290, 18, '#719eaf', 6);
+    if (f.stage === 'navigate') {
+      const beacon = C.TRAINING_BEACONS[f.beacons];
+      ctx.strokeStyle = '#6fdbc7'; ctx.lineWidth = 2;
+      ctx.strokeRect(beacon.x - 18, beacon.y - 18, 36, 36);
+      r(beacon.x - 5, beacon.y - 1, 10, 2, '#b8f4d6'); r(beacon.x - 1, beacon.y - 5, 2, 10, '#b8f4d6');
+      text(`BEACON ${f.beacons + 1}/3`, beacon.x - 21, beacon.y - 24, '#c6ffe1', 6);
+    }
+    for (const target of f.targets) {
+      if (f.stage !== 'gunnery' || !target.hp) continue;
+      panel(target.x - 13, target.y - 12, 26, 24, '#4c6a83');
+      r(target.x - 7, target.y - 6, 14, 12, '#d4a95d'); r(target.x - 3, target.y - 2, 6, 4, '#fff0b9');
+    }
+    for (const b of f.bullets) r(b.x - 1, b.y - 5, 3, 9, '#65e5f2');
+    for (const b of f.shots) { r(b.x - 4, b.y - 3, 8, 6, '#e4ad5b'); r(b.x - 2, b.y - 2, 4, 4, '#ffebbf'); }
+    ship(f.x, f.y, .7, false, reducedMotion.matches ? 0 : t);
+    if (f.shieldActive) { ctx.strokeStyle = '#78e5ef'; ctx.lineWidth = 2; ctx.strokeRect(Math.round(f.x - 18), Math.round(f.y - 20), 36, 38); }
+    if (f.stage === 'shield') { text('SHIELD ENERGY', 16, 249, '#a1e8ed', 6); r(16, 254, 100, 4, '#2c4456'); r(16, 254, f.shield, 4, '#36d8f2'); text(`PULSES BLOCKED ${f.blocks}/2`, 310, 254, '#b8f4d6', 7); }
+  }
   function draw(t) {
-    if (mode === 'hub') drawHub(t); else drawFlight(t);
+    if (mode === 'hub') drawHub(t); else if (mode === 'training') drawTraining(t); else drawFlight(t);
     if (paused) { r(120, 107, 240, 50, '#0e213a'); text('MISSION PAUSED', 176, 129, '#d7eef6', 12); text('SELECT RESUME TO CONTINUE', 170, 145, '#8daec9', 6); }
   }
   registry.registerActivity('space-cadet', { createInitialState: () => ({ chapter: 'first-launch', version: 1 }), render: renderGame });

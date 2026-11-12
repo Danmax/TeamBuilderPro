@@ -5,7 +5,7 @@
   const rect = (x, y, w, h, kind) => ({ x, y, w, h, kind });
   const ROOMS = {
     quarters: { title: 'Crew quarters', subtitle: 'Deck 03 · Relief vessel Aurora', props: [rect(36, 70, 62, 76, 'bunk'), rect(122, 62, 98, 40, 'desk'), rect(302, 62, 132, 42, 'kitchen'), rect(294, 171, 62, 34, 'table'), rect(38, 188, 44, 28, 'locker')], stations: [{ id: 'journal', x: 180, y: 114, label: 'Read your assignment' }], doors: [{ side: 'right', to: 'engineering', label: 'ENGINEERING' }] },
-    engineering: { title: 'Engineering & training', subtitle: 'Deck 02 · Bring the Aurora back online', props: [rect(40, 62, 90, 50, 'relay'), rect(186, 62, 100, 44, 'training'), rect(342, 65, 84, 58, 'reactor'), rect(350, 187, 64, 29, 'crates')], stations: [{ id: 'relay', x: 85, y: 128, label: 'Repair the power relay' }, { id: 'training', x: 236, y: 122, label: 'Cadet flight briefing' }], doors: [{ side: 'left', to: 'quarters', label: 'QUARTERS' }, { side: 'right', to: 'hangar', label: 'HANGAR' }] },
+    engineering: { title: 'Engineering & training', subtitle: 'Deck 02 · Bring the Aurora back online', props: [rect(40, 62, 90, 50, 'relay'), rect(186, 62, 100, 44, 'training'), rect(342, 65, 84, 58, 'reactor'), rect(350, 187, 64, 29, 'crates')], stations: [{ id: 'relay', x: 85, y: 128, label: 'Repair the power relay' }, { id: 'training', x: 236, y: 122, label: 'Cadet flight simulator' }], doors: [{ side: 'left', to: 'quarters', label: 'QUARTERS' }, { side: 'right', to: 'hangar', label: 'HANGAR' }] },
     hangar: { title: 'Hangar 01', subtitle: 'Sparrow trainer · Your first launch awaits', props: [rect(172, 83, 120, 104, 'ship'), rect(38, 62, 68, 40, 'desk'), rect(370, 195, 60, 25, 'crates')], stations: [{ id: 'ship', x: 232, y: 208, label: 'Board the Sparrow' }], doors: [{ side: 'left', to: 'engineering', label: 'ENGINEERING' }] }
   };
   function createCampaign() { return { version: 1, room: 'quarters', x: 142, y: 176, facing: 'down', repaired: false, trained: false, rescued: false, completed: false, checkpoint: 'hub', bestScore: 0 }; }
@@ -43,15 +43,64 @@
   }
   function objective(state) {
     if (state.completed) return 'First Launch complete. Visit the hangar to fly again.';
-    if (!state.repaired) return 'Find engineering and restore the three power circuits.';
-    if (!state.trained) return 'Complete the cadet briefing at the cyan training console.';
+    if (!state.repaired) return 'Scan the engineering relays, reroute power, and pass the load test.';
+    if (!state.trained) return 'Pass navigation, gunnery, and shield drills at the cyan simulator.';
     return state.checkpoint === 'boss' ? 'Disable Scrap Maw’s core. Your boss checkpoint is saved.' : 'Board the Sparrow. Rescue the supply pod and stop Scrap Maw.';
   }
   // Switches route power through linked circuits. Starting at 000, B then C solves it.
   function toggleRelay(mask, index) { return Number.isInteger(index) && index >= 0 && index < 3 ? (mask ^ [3, 6, 1][index]) & 7 : mask; }
-  function completeTraining(state, answer) {
-    if (!state.repaired || answer !== 'shield') return false;
+  function createRelayJob() { return { stage: 'inspect', mask: 0, inspected: -1, feedback: 'Scan the relay housings to locate the fault.' }; }
+  function workRelay(job, action, index) {
+    if (!job || job.stage === 'complete') return false;
+    if (action === 'scan' && job.stage === 'inspect' && Number.isInteger(index) && index >= 0 && index < 3) {
+      job.inspected = index;
+      if (index === 2) { job.stage = 'route'; job.feedback = 'Relay C has a blown bypass. Route power around it using the linked switches.'; }
+      else job.feedback = `Relay ${index === 0 ? 'A' : 'B'} checks out. Keep scanning for the blown bypass.`;
+    } else if (action === 'switch' && job.stage === 'route') {
+      job.mask = toggleRelay(job.mask, index);
+      job.feedback = job.mask === 7 ? 'All circuits are lit. Run the load test to confirm the repair.' : 'Power rerouted. Bring all three circuits online before testing.';
+    } else if (action === 'test' && job.stage === 'route') {
+      if (job.mask === 7) { job.stage = 'complete'; job.feedback = 'Load stable. Life support, navigation, and hangar doors are online.'; return true; }
+      job.feedback = 'Load test failed safely: one or more circuits are still offline. Adjust the switches and try again.';
+    }
+    return false;
+  }
+  function completeTraining(state, simulation) {
+    if (!state.repaired || simulation?.status !== 'complete' || simulation?.beacons !== 3 || simulation?.hits !== 3 || simulation?.blocks !== 2) return false;
     state.trained = true; return true;
+  }
+  function createTraining() {
+    return { stage: 'navigate', status: 'playing', time: 0, x: 240, y: 226, shield: 100, shieldActive: false, fireAt: 0, pulseAt: 0, beacons: 0, hits: 0, blocks: 0, bullets: [], shots: [], targets: [{ x: 110, y: 66, hp: 1 }, { x: 240, y: 66, hp: 1 }, { x: 370, y: 66, hp: 1 }] };
+  }
+  const TRAINING_BEACONS = [{ x: 120, y: 190 }, { x: 360, y: 146 }, { x: 240, y: 210 }];
+  function tickTraining(f, input, dt) {
+    if (f.status !== 'playing' || !Number.isFinite(dt) || dt <= 0) return;
+    dt = Math.min(dt, .05); f.time += dt;
+    const dx = Number(Boolean(input.right)) - Number(Boolean(input.left)), dy = Number(Boolean(input.down)) - Number(Boolean(input.up)), length = Math.hypot(dx, dy) || 1;
+    f.x = clamp(f.x + dx / length * 150 * dt, 18, 462); f.y = clamp(f.y + dy / length * 150 * dt, 110, 248);
+    f.shieldActive = Boolean(input.shield) && f.shield > 0;
+    f.shield = clamp(f.shield + (f.shieldActive ? -35 : 20) * dt, 0, 100);
+    if (f.stage === 'navigate') {
+      if (circleHit(f, TRAINING_BEACONS[f.beacons], 20)) f.beacons++;
+      if (f.beacons === 3) f.stage = 'gunnery';
+    } else if (f.stage === 'gunnery') {
+      if (input.fire && f.time >= f.fireAt) { f.bullets.push({ x: f.x, y: f.y - 20 }); f.fireAt = f.time + .22; }
+      for (const b of f.bullets) {
+        b.y -= 240 * dt;
+        const target = f.targets.find(t => t.hp && circleHit(t, b, 16));
+        if (target) { target.hp = 0; b.y = -100; f.hits++; }
+      }
+      f.bullets = f.bullets.filter(b => b.y > -20);
+      if (f.hits === 3) { f.stage = 'shield'; f.shield = 100; f.pulseAt = f.time + .5; f.bullets = []; }
+    } else if (f.stage === 'shield') {
+      if (f.time >= f.pulseAt) { f.shots.push({ x: f.x, y: f.y - 65 }); f.pulseAt = f.time + 1.2; }
+      for (const b of f.shots) {
+        b.y += 120 * dt;
+        if (circleHit(f, b, 18)) { if (f.shieldActive) f.blocks++; b.y = 300; }
+      }
+      f.shots = f.shots.filter(b => b.y < 290);
+      if (f.blocks >= 2) { f.blocks = 2; f.stage = 'complete'; f.status = 'complete'; }
+    }
   }
   function createFlight(campaign) {
     if (!campaign.trained) return null;
@@ -114,7 +163,7 @@
     if (!f.hull) f.status = 'failed';
     else if (f.boss && f.boss.hp <= 0 && f.rescued) { f.status = 'complete'; f.score += 500; }
   }
-  const api = { WIDTH, HEIGHT, ROOMS, createCampaign, restoreCampaign, validPosition, move, nearby, objective, toggleRelay, completeTraining, createFlight, tickFlight };
+  const api = { WIDTH, HEIGHT, ROOMS, createCampaign, restoreCampaign, validPosition, move, nearby, objective, toggleRelay, createRelayJob, workRelay, createTraining, tickTraining, TRAINING_BEACONS, completeTraining, createFlight, tickFlight };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SpaceCadetCore = api;
 })(typeof window === 'undefined' ? globalThis : window);

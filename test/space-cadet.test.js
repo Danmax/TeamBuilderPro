@@ -40,8 +40,57 @@ test('stations require proximity and repair puzzle has a discoverable solution',
   assert.equal(C.completeTraining(state, 'shield'), false);
   state.repaired = true;
   assert.equal(C.completeTraining(state, 'laser'), false);
-  assert.equal(C.completeTraining(state, 'shield'), true);
+  assert.equal(C.completeTraining(state, 'shield'), false, 'a quiz answer no longer grants qualification');
+  assert.equal(C.completeTraining(state, { status: 'complete', beacons: 3, hits: 3, blocks: 2 }), true);
   assert.ok(C.createFlight(state));
+});
+
+test('relay diagnosis, routing and load test must complete in order', () => {
+  const job = C.createRelayJob();
+  assert.equal(C.workRelay(job, 'test'), false);
+  C.workRelay(job, 'switch', 1);
+  assert.equal(job.mask, 0, 'cannot route before locating the damaged bypass');
+  C.workRelay(job, 'scan', 0);
+  assert.equal(job.stage, 'inspect');
+  assert.match(job.feedback, /checks out/);
+  C.workRelay(job, 'scan', 2);
+  assert.equal(job.stage, 'route');
+  assert.equal(C.workRelay(job, 'test'), false);
+  assert.match(job.feedback, /failed safely/);
+  C.workRelay(job, 'switch', 1); C.workRelay(job, 'switch', 2);
+  assert.equal(job.mask, 7);
+  assert.equal(job.stage, 'route', 'lit circuits still need a load test');
+  assert.equal(C.workRelay(job, 'test'), true);
+  assert.equal(job.stage, 'complete');
+  assert.equal(C.workRelay(job, 'test'), false, 'completed jobs do not complete twice');
+});
+
+test('simulator requires navigation, aimed target hits and actual shield interceptions', () => {
+  const f = C.createTraining();
+  for (let i = 0; i < 100; i++) C.tickTraining(f, { fire: true, shield: true }, 1 / 60);
+  assert.equal(f.stage, 'navigate');
+  assert.equal(f.hits, 0);
+  for (const b of C.TRAINING_BEACONS) {
+    for (let i = 0; i < 600 && f.stage === 'navigate'; i++) {
+      C.tickTraining(f, { left: f.x > b.x + 3, right: f.x < b.x - 3, up: f.y > b.y + 3, down: f.y < b.y - 3 }, 1 / 60);
+      if (f.beacons > C.TRAINING_BEACONS.indexOf(b)) break;
+    }
+  }
+  assert.equal(f.beacons, 3);
+  assert.equal(f.stage, 'gunnery');
+  for (const target of f.targets) {
+    for (let i = 0; i < 800 && target.hp; i++) C.tickTraining(f, { left: f.x > target.x + 3, right: f.x < target.x - 3, fire: true }, 1 / 60);
+  }
+  assert.equal(f.stage, 'shield');
+  assert.equal(f.hits, 3);
+  for (let i = 0; i < 180; i++) C.tickTraining(f, {}, 1 / 60);
+  assert.equal(f.blocks, 0, 'unshielded pulses do not pass the drill');
+  for (let i = 0; i < 300 && f.status === 'playing'; i++) C.tickTraining(f, { shield: true }, 1 / 60);
+  assert.equal(f.status, 'complete');
+  const campaign = C.createCampaign();
+  assert.equal(C.completeTraining(campaign, f), false, 'repair qualification is still required');
+  campaign.repaired = true;
+  assert.equal(C.completeTraining(campaign, f), true);
 });
 
 function launch(boss = false) { return C.createFlight({ trained: true, rescued: boss, checkpoint: boss ? 'boss' : 'flight' }); }
