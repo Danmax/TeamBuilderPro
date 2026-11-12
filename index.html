@@ -5589,6 +5589,8 @@ function renderVoiceDock() {
 
 function render() {
   const app = document.getElementById('app');
+  const welcomeName = APP.screen === 'welcome' ? document.getElementById('playerName') : null;
+  if (welcomeName) draftPlayerName = welcomeName.value;
   const unoHandScroll = app.querySelector('.uno-hand-grid')?.scrollTop || 0;
   // Skip re-render if user is typing in a form input (prevents mobile keyboard dismissal)
   const activeEl = document.activeElement;
@@ -5694,11 +5696,12 @@ function renderWelcome() {
       
       <div class="form-group">
         <label class="form-label" for="playerName">Your Name</label>
-        <input type="text" id="playerName" class="form-input" placeholder="Enter your name" autocomplete="name" value="${escapeHtml(draftPlayerName)}" oninput="draftPlayerName=this.value">
+        <input type="text" id="playerName" class="form-input" placeholder="Enter your name" autocomplete="name" value="${escapeHtml(draftPlayerName)}">
       </div>
       
       <div class="form-group">
-        <label class="form-label">Choose Avatar</label>
+        <details id="avatarPicker" class="avatar-picker">
+          <summary><span data-avatar-preview aria-hidden="true">${escapeHtml(selectedAvatar)}</span><span>Choose emoji</span></summary>
         <div class="avatar-grid">
           ${AVATAR_OPTIONS.map(av => `
             <button data-action="select-avatar" data-avatar="${av}" id="av-${av}" class="avatar-option"
@@ -5707,6 +5710,7 @@ function renderWelcome() {
             </button>
           `).join('')}
         </div>
+        </details>
       </div>
       
       <button class="btn-primary" data-action="create-player">Continue</button>
@@ -5744,7 +5748,8 @@ function renderEditProfile() {
       </div>
       
       <div class="form-group">
-        <label class="form-label">Choose Avatar</label>
+        <details id="editAvatarPicker" class="avatar-picker">
+          <summary><span data-avatar-preview aria-hidden="true">${safeSelectedEmoji}</span><span>Choose emoji</span></summary>
         <div class="avatar-grid">
           ${AVATAR_OPTIONS.map(av => `
             <button data-action="select-edit-avatar" data-avatar="${av}" id="edit-av-${av}" class="avatar-option ${av === selectedAv ? 'selected' : ''}"
@@ -5754,6 +5759,7 @@ function renderEditProfile() {
             </button>
           `).join('')}
         </div>
+        </details>
       </div>
       
       <div style="background:var(--surface-2);border:1px solid var(--border);
@@ -5976,6 +5982,7 @@ function selectAvatar(av) {
     btn.style.borderColor = 'var(--accent)';
     btn.classList.add('selected');
   }
+  collapseAvatarPicker('avatarPicker', av);
 }
 
 function selectEditAvatar(av) {
@@ -5992,6 +5999,15 @@ function selectEditAvatar(av) {
   const emojiInput = document.getElementById('editEmoji');
   if (emojiInput) emojiInput.value = av;
   draftEditEmoji = av;
+  collapseAvatarPicker('editAvatarPicker', av);
+}
+
+function collapseAvatarPicker(id, emoji) {
+  const picker = document.getElementById(id);
+  if (!picker) return;
+  picker.querySelector('[data-avatar-preview]').textContent = emoji;
+  picker.open = false;
+  picker.querySelector('summary').focus({ preventScroll: true });
 }
 
 function togglePresentation() {
@@ -6028,7 +6044,11 @@ async function createPlayer() {
   const avatar = AVATAR_OPTIONS.includes(selectedAvatar) ? selectedAvatar : getRandomAvatar();
   APP.player = await PlayerManager.createProfile(name, avatar);
   APP.screen = APP.pendingJoinCode ? 'join-room' : 'dashboard';
+  document.activeElement?.blur();
   render();
+  if (APP.pendingJoinCode) {
+    await joinRoomByCode(APP.pendingJoinCode, APP.pendingJoinToken || '');
+  }
 }
 
 async function copyJoinLink() {
@@ -7485,6 +7505,10 @@ window.addEventListener('resize', () => {
 document.addEventListener('input', event => {
   const target = event.target;
   if (!(target instanceof HTMLInputElement)) return;
+  if (target.id === 'playerName') {
+    draftPlayerName = target.value;
+    return;
+  }
   if (target.id === 'cosmosBoundCoordX' || target.id === 'cosmosBoundCoordY' || target.id === 'cosmosBoundCoordZ') {
     const cosmosUi = ensureCosmosBoundUiDraft(APP.room?.activityState);
     const axis = target.id.slice(-1).toLowerCase();
@@ -11469,6 +11493,9 @@ async function init() {
   }
   syncFooterQuoteRotation();
   render();
+  if (profile && APP.pendingJoinCode) {
+    await joinRoomByCode(APP.pendingJoinCode, APP.pendingJoinToken || '');
+  }
 }
 
 window.addEventListener('beforeunload', () => {

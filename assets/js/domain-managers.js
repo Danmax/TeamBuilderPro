@@ -149,55 +149,23 @@ TEAM_BUILDER_DOMAIN_MANAGERS.RoomManager = {
   async joinRoom(code, playerId, playerName, playerAvatar, accessToken = '') {
     const normalizedToken = normalizeRoomAccessToken(accessToken);
     const socket = await getSocketClient();
-    if (socket && (socket.connected || await waitForSocketConnection(2000))) {
-      const actorToken = getStoredRoomActorToken(code) || createRoomActorToken();
-      const response = await socketEmitAck('room:join', {
-        key: `room:${code}`,
-        ...(normalizedToken ? { authToken: normalizedToken } : {}),
-        actorToken,
-        playerId,
-        playerName,
-        playerAvatar,
-        playerCharacter: APP.player?.id === playerId && APP.player.character ? TeamBuilderCharacter.normalize(APP.player.character) : null
-      }, 3000);
-      setStoredRoomActorToken(code, actorToken);
-      if (normalizedToken) setStoredRoomAccessToken(code, normalizedToken);
-      return normalizeRoom(safeParseJson(response.value));
+    if (!socket || !(socket.connected || await waitForSocketConnection(10000))) {
+      throw new Error('Unable to connect to the lobby server. Check your connection and try joining again.');
     }
-    const result = await Storage.get(`room:${code}`, true, normalizedToken);
-    if (!result) return null;
-
-    const room = normalizeRoom(safeParseJson(result.value));
-    if (!room) return null;
-
-    const existingParticipant = room.participants.find(p => p.id === playerId || p.name === playerName);
-    if (!existingParticipant) {
-      const maxParticipants = Math.max(2, Math.min(MAX_ROOM_PARTICIPANTS, Number(room.maxParticipants) || 24));
-      if ((room.participants?.length || 0) >= maxParticipants) {
-        throw new Error(`This room is full (${maxParticipants} participants max).`);
-      }
-      room.participants.push({ ...createRoomParticipant(playerId, playerName, playerAvatar, false), character: APP.player?.id === playerId && APP.player.character ? TeamBuilderCharacter.normalize(APP.player.character) : null });
-      room.participants = normalizeRoomParticipants(room.participants, room.host);
-      room.lastUpdate = Date.now();
-      await Storage.set(`room:${code}`, JSON.stringify(room), true, normalizedToken);
-    } else if (existingParticipant.id !== playerId || existingParticipant.avatar !== playerAvatar || existingParticipant.name !== playerName) {
-      room.participants = normalizeRoomParticipants(room.participants.map(participant => {
-        if (participant.id !== existingParticipant.id) return participant;
-        return {
-          ...participant,
-          id: normalizeParticipantId(playerId, playerName),
-          name: playerName,
-          avatar: playerAvatar
-        };
-      }), room.host);
-      room.lastUpdate = Date.now();
-      await Storage.set(`room:${code}`, JSON.stringify(room), true, normalizedToken);
-    }
-
-    if (normalizedToken) {
-      setStoredRoomAccessToken(code, normalizedToken);
-    }
-    return room;
+    const actorToken = getStoredRoomActorToken(code) || createRoomActorToken();
+    // Keep the identity if the server accepts the join but its reply is lost.
+    setStoredRoomActorToken(code, actorToken);
+    const response = await socketEmitAck('room:join', {
+      key: `room:${code}`,
+      ...(normalizedToken ? { authToken: normalizedToken } : {}),
+      actorToken,
+      playerId,
+      playerName,
+      playerAvatar,
+      playerCharacter: APP.player?.id === playerId && APP.player.character ? TeamBuilderCharacter.normalize(APP.player.character) : null
+    }, 10000);
+    if (normalizedToken) setStoredRoomAccessToken(code, normalizedToken);
+    return normalizeRoom(safeParseJson(response.value));
   },
 
   async loadRoom(code, accessToken = '') {
