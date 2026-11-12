@@ -2,6 +2,8 @@
 
 Status: proposed game design and implementation plan. No game implementation is included.
 
+Visual development: [art direction and reference analysis](docs/design/space-cadet/ART_DIRECTION.md), including the [first concept board](docs/design/space-cadet/visual-direction-v1.png). Establish the room, character, ship, and combat art studies before producing the full chapter asset library.
+
 ## The adventure
 
 Your existing Team Builder character arrives aboard a battered relief ship with no rank and no ship of their own. Start with maintenance jobs, learn to fly, uncover a conspiracy, and become the commander who breaks an alien war fleet's control of the frontier.
