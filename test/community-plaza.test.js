@@ -97,6 +97,14 @@ test('walking routes remain continuous across renders and differ between partici
   assert.notEqual(first, walkingStyle('PLAZA1', 'bob', 1000));
   assert.equal(first.replace(/--walk-delay:.*/, ''), walkingStyle('PLAZA1', 'alice', 2000).replace(/--walk-delay:.*/, ''));
   assert.match(first, /--walk-delay:-1000ms/);
+  // Even opposite animation offsets must stay within the space between grid cells.
+  for (let id = 0; id < 24; id++) {
+    const style = walkingStyle('PLAZA1', `player-${id}`, 1000);
+    for (const [, axis, offset] of style.matchAll(/--walk-([xy])\d:(-?\d+)px/g)) {
+      assert.ok(Math.abs(Number(offset)) <= (axis === 'x' ? 8 : 4));
+    }
+    assert.equal([...style.matchAll(/--walk-[xy]\d:-?\d+px/g)].length, 8);
+  }
 });
 
 test('speech selects the latest recent message by sender ID and expires after fourteen seconds', () => {

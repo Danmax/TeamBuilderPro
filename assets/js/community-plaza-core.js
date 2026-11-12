@@ -15,12 +15,12 @@
     ];
     return `<span class="plaza-avatar ${escape(className)}" aria-hidden="true"><svg viewBox="0 0 100 150" focusable="false"><ellipse cx="50" cy="141" rx="29" ry="5" fill="#315267" opacity=".13"/><path d="M40 121L39 137M59 121L61 137" stroke="#444453" stroke-width="11" stroke-linecap="round"/><path d="M32 139H44M58 139H70" stroke="#343b4b" stroke-width="9" stroke-linecap="round"/><path d="M34 98L25 117M67 98L76 117" stroke="${shirt}" stroke-width="12" stroke-linecap="round"/><circle cx="24" cy="119" r="6" fill="${skin}"/><circle cx="77" cy="119" r="6" fill="${skin}"/><path d="M36 92Q50 86 64 92L70 124Q50 133 30 124Z" fill="${shirt}"/><path d="M40 94Q50 102 60 94" fill="none" stroke="#fff" opacity=".35" stroke-width="3"/><path d="M44 83H56V94Q50 100 44 94Z" fill="${skin}"/><ellipse cx="25" cy="63" rx="6" ry="9" fill="${skin}"/><ellipse cx="75" cy="63" rx="6" ry="9" fill="${skin}"/><ellipse cx="50" cy="61" rx="25" ry="32" fill="${skin}"/><ellipse cx="37" cy="72" rx="5" ry="3" fill="#d96c70" opacity=".23"/><ellipse cx="63" cy="72" rx="5" ry="3" fill="#d96c70" opacity=".23"/><path d="M35 54Q40 51 45 54M55 54Q60 51 65 54" fill="none" stroke="${hair}" stroke-width="2.2" stroke-linecap="round"/><ellipse cx="41" cy="61" rx="2.5" ry="3.5" fill="#2c2930"/><ellipse cx="59" cy="61" rx="2.5" ry="3.5" fill="#2c2930"/><path d="M49 63L47 69L52 69" fill="none" stroke="#81503a" opacity=".45" stroke-width="1.5" stroke-linecap="round"/><path d="M43 77Q50 84 58 76" fill="none" stroke="#663f38" stroke-width="2" stroke-linecap="round"/><path d="${hairstyles[number % 4]}" fill="${hair}"/>${number % 5 === 0 ? '<g fill="none" stroke="#48434b" stroke-width="1.8"><rect x="32" y="56" width="15" height="11" rx="4"/><rect x="53" y="56" width="15" height="11" rx="4"/><path d="M47 60H53"/></g>' : ''}</svg>${emoji ? `<span class="plaza-avatar-badge">${escape(emoji)}</span>` : ''}</span>`;
   }
-  // Stable routes and a shared clock keep characters in place across lobby renders.
+  // Small, stable offsets keep movement inside each person's grid space.
   function walkingStyle(code, playerId, now = Date.now()) {
     const seed = seedFor(code, playerId), duration = 32000 + seed % 16000;
     const points = Array.from({ length: 4 }, (_, index) => {
       const point = hash(`${seed}:walk:${index}`);
-      return `--walk-x${index}:${point % 101}%;--walk-y${index}:${(point >>> 8) % 101}%`;
+      return `--walk-x${index}:${point % 17 - 8}px;--walk-y${index}:${(point >>> 8) % 9 - 4}px`;
     });
     return `${points.join(';')};--walk-duration:${duration}ms;--walk-delay:-${now % duration}ms`;
   }
