@@ -9,7 +9,7 @@
 .sc-location { display:flex; justify-content:space-between; gap:8px; padding:12px 16px; color:#91afc6; font:600 .7rem/1.5 monospace; }
 .sc-location strong { color:#d3e7f5; }
 .sc-stage { position:relative; background:#060d1b; aspect-ratio:16/9; }
-.sc-stage canvas { display:block; width:100%; height:100%; image-rendering:pixelated; outline-offset:-3px; touch-action:manipulation; }
+.sc-stage canvas { display:block; width:100%; height:100%; image-rendering:pixelated; outline-offset:-3px; touch-action:none; -webkit-touch-callout:none; user-select:none; -webkit-user-select:none; }
 .sc-game :is(button,canvas):focus-visible { outline:2px solid var(--sc-cyan); outline-offset:2px; }
 .sc-stage canvas:focus-visible { outline-offset:-3px; }
 .sc-success { position:absolute; z-index:2; left:50%; bottom:12px; transform:translateX(-50%); display:flex; align-items:center; gap:12px; width:max-content; max-width:calc(100% - 24px); padding:12px 18px; border:2px solid #80e2b9; border-radius:8px; background:#102e38f5; box-shadow:0 6px 0 #05152188; pointer-events:none; animation:sc-success-arrive 260ms ease-out,sc-success-leave 300ms ease-in 2300ms forwards; }
@@ -94,3 +94,11 @@
 @media(max-width:950px) { .sc-layout { grid-template-columns:1fr; } .sc-sidebar { border-left:0; border-top:1px solid var(--sc-line); } .sc-log { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:500px) { .sc-header { padding:16px; gap:8px; } .sc-badge { font-size:.55rem; padding:4px 6px; } .sc-location { font-size:.58rem; padding:10px; } .sc-controls { padding:10px; gap:8px; } .sc-actions { gap:5px; max-width:180px; } .sc-actions button { font-size:.68rem; padding:8px; } .sc-help { padding-inline:12px; } .sc-sidebar { padding:16px; } }
 @media(max-width:500px) { .sc-dialog { margin:8px; padding:14px; } .sc-message-scroll { font-size:.76rem; } .sc-message-footer { align-items:flex-start; flex-direction:column; gap:8px; } .sc-job { padding:10px; } .sc-relay-bank { gap:5px; } .sc-relay-unit button { padding:8px; font-size:.7rem; } .sc-signal { font-size:.9rem; } }
+
+.sc-controls { -webkit-touch-callout:none; user-select:none; -webkit-user-select:none; }
+@media(pointer:coarse) {
+  .sc-pad { grid-template-columns:repeat(3,48px); grid-template-rows:repeat(2,48px); }
+  .sc-game button { min-height:48px; }
+  .sc-controls { flex-wrap:wrap; }
+  .sc-actions { flex:1; }
+}
