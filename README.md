@@ -366,6 +366,8 @@ Open **Wallet** from the session lobby, profile, or a Spades/poker/Blackjack tab
 
 | Verified win | Reward points |
 | --- | ---: |
+| Connect 4 | 20 |
+| Family Face-Off | 30 per winning teammate |
 | Checkers | 30 |
 | Chinese Checkers | 30 |
 | Multiplayer Memory (one winner) | 20 |

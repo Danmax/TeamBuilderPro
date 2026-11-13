@@ -12,13 +12,15 @@ Status: first release implemented November 10, 2026.
 
 | Verified win | Reward points |
 | --- | ---: |
+| Connect 4 | 20 |
+| Family Face-Off, winning team | 30 per winning human |
 | Checkers | 30 |
 | Chinese Checkers | 30 |
 | Multiplayer Memory, single winner | 20 |
 | Spades, 250-point match | 50 per winning human |
 | Spades, 500-point match | 75 per winning human |
 
-Other games retain their existing XP. Their coin rewards await server-authoritative result validation; client-reported winners and scores do not credit wallets. Planned examples for later adapters include Connect 4, Chess, UNO, Trivia, and Tic-Tac-Toe Blitz. Poker/Blackjack settle chip winnings without also creating reward points.
+Other games retain their existing XP. Their coin rewards await server-authoritative result validation; client-reported winners and scores do not credit wallets. Planned examples for later adapters include Chess, UNO, Trivia, and Tic-Tac-Toe Blitz. Poker/Blackjack settle chip winnings without also creating reward points.
 
 Computers, spectators, draws, ties, solo Memory, abandoned games, individual Spades tricks/hands, and games predating this feature produce no win rewards. Players link their wallet while in the session before the game finishes. Spades rewards each eligible winning human once per match.
 

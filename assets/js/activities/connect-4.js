@@ -150,53 +150,20 @@ function isConnect4BoardFull(board) {
   return Array.isArray(board) && board.every(row => Array.isArray(row) && row.every(cell => Boolean(String(cell || '').trim())));
 }
 
-async function dropConnect4Disc(col) {
-  if (!APP.roomCode || !Number.isInteger(col)) return;
-  const room = await RoomManager.loadRoom(APP.roomCode);
-  if (!room || room.currentActivity !== 'connect-4') return;
-  const state = room.activityState && typeof room.activityState === 'object'
-    ? room.activityState
-    : createConnect4State(room.participants || []);
-  if (state.phase !== 'playing' || state.winner) return;
-  const myColor = getConnect4PlayerColor(state);
-  if (!myColor || state.turn !== myColor) return;
-  const board = Array.isArray(state.board) ? state.board.map(row => Array.isArray(row) ? [...row] : Array(CONNECT4_COLS).fill('')) : createConnect4Board();
-  const row = getConnect4DropRow(board, col);
-  if (row < 0) return;
-  board[row][col] = myColor;
-  state.board = board;
-  state.lastMove = { row, col, color: myColor, at: Date.now() };
-  state.updatedAt = Date.now();
-  const winner = getConnect4Winner(board);
-  if (winner) {
-    state.winner = winner.color;
-    state.winningCells = winner.cells;
-    state.phase = 'finished';
-    state.lastAction = `${getConnect4Seat(state, myColor).playerName} connected four and won the round.`;
-  } else if (isConnect4BoardFull(board)) {
-    state.winner = 'draw';
-    state.winningCells = [];
-    state.phase = 'finished';
-    state.lastAction = 'The board filled up. Match drawn.';
-  } else {
-    state.turn = myColor === 'red' ? 'yellow' : 'red';
-    state.lastAction = `${getConnect4Seat(state, myColor).playerName} dropped into column ${col + 1}. ${getConnect4Seat(state, state.turn).playerName} is up.`;
-  }
-  room.activityState = state;
-  await RoomManager.updateRoom(APP.roomCode, room);
-  APP.room = room;
-  render();
+let connect4Busy = false;
+async function requestConnect4(action, extra = {}) {
+  if (connect4Busy || !APP.roomCode) return;
+  connect4Busy = true;
+  try {
+    const key = `room:${APP.roomCode}`, game = APP.room?.activityState;
+    const result = await socketEmitAck('connect-4:action', { key, action, authToken: APP.roomAccessToken || '', ...getSharedActorPayload(key), gameId: game?.id, version: game?.version, ...extra }, 4000);
+    if (!result?.ok) throw new Error(result?.error || 'The move could not be saved.');
+    if (result.value) APP.room = normalizeRoom(JSON.parse(result.value));
+  } catch (error) { showError(error.message); }
+  finally { connect4Busy = false; render(); }
 }
-
-async function restartConnect4Match() {
-  if (!APP.roomCode || !APP.room || APP.room.host !== APP.player?.name) return;
-  const room = await RoomManager.loadRoom(APP.roomCode);
-  if (!room || room.currentActivity !== 'connect-4') return;
-  room.activityState = createConnect4State(room.participants || []);
-  await RoomManager.updateRoom(APP.roomCode, room);
-  APP.room = room;
-  render();
-}
+async function dropConnect4Disc(col) { return requestConnect4('move', { col }); }
+async function restartConnect4Match() { return requestConnect4('restart'); }
 
 function renderConnect4() {
   const isHost = APP.room.host === APP.player.name;
@@ -291,6 +258,7 @@ function renderConnect4() {
     </div>
 
     ${isHost ? '<button class="btn-secondary" data-action="end-activity">← End Activity</button>' : ''}
+    <p class="studio-help">Win this match to earn 20 reward points. Exchange points for coins in your wallet.</p>
 
     ${(winnerColor || isDraw) ? `
       <div style="max-width:1180px;margin:18px auto 0;padding:18px 20px;border-radius:24px;background:linear-gradient(135deg, rgba(44,18,112,0.86), rgba(140,33,91,0.74));border:2px solid rgba(152,229,255,0.68);box-shadow:0 0 28px rgba(112,209,255,0.16);text-align:center;">

@@ -18,6 +18,7 @@ const chineseCheckersTimers = new Map();
 const MemoryCore = require('./assets/js/games/memory-core');
 const Memory = { ...MemoryCore, createGame: (...args) => { const result = MemoryCore.createGame(...args); result.game.rewardStartedAt = Date.now(); return result; } };
 const Cards = require('./lib/table-games');
+const ConnectFour = require('./lib/connect-four');
 const Spades = require('./lib/spades');
 const CardAI = require('./lib/card-games-ai');
 const { createCoinWalletStore, winningRewards } = require('./lib/coin-wallet');
@@ -2035,7 +2036,7 @@ function createFamilyFaceOffRound(room, source = {}) {
   const requestedOrder = Array.isArray(source.questionOrder) ? source.questionOrder : [];
   const order = requestedOrder.filter((index, position) => Number.isInteger(index) && index >= 0 && index < questions.length && requestedOrder.indexOf(index) === position);
   const questionOrder = [...order, ...questions.map((_, index) => index).filter(index => !order.includes(index))];
-  return FamilyFaceOff.create({ ...source, questions, questionOrder, roundCount: Math.max(1, Math.min(questions.length, Number(source.roundCount) || 4)), startedAt: Date.now() }, room.participants.map(player => ({ ...player, isHost: player.name === room.host })), crypto.randomUUID());
+  return FamilyFaceOff.create({ ...source, questions, questionOrder, roundCount: Math.max(1, Math.min(questions.length, Number(source.roundCount) || 4)), startedAt: Date.now(), rewardStartedAt: Date.now(), rewardsQueued: false, rewardFinishedAt: null }, room.participants.map(player => ({ ...player, isHost: player.name === room.host })), crypto.randomUUID());
 }
 
 function scheduleFamilyFaceOff(key, game) {
@@ -2651,7 +2652,25 @@ io.on('connection', socket => {
       const value = JSON.stringify(room);
       state.set(key, value); schedulePersist();
       io.to(key).emit('shared:update', { key, value });
+      observeRewards(key, room);
       ack?.({ ok: true, value });
+    } catch (error) { ack?.({ ok: false, error: error.message }); }
+  });
+
+  onRealtime('connect-4:action', (payload, ack) => {
+    const key = payload?.key;
+    if (!isRoomKey(key) || !isAuthorizedForRoom(key, getRequestRoomToken(payload))) return ack?.({ ok: false, error: 'Room access denied.' });
+    const room = getRoomSnapshot(key), actor = getRoomActor(key, payload, room);
+    if (!actor || room?.currentActivity !== 'connect-4') return ack?.({ ok: false, error: 'Join the room before playing Connect 4.' });
+    try {
+      const game = room.activityState;
+      if (payload.gameId !== game.id || payload.version !== game.version) throw new Error('The board changed. Choose again.');
+      if (payload.action === 'restart') {
+        if (!actor.isHost) throw new Error('Only the host can start a new match.');
+        room.activityState = ConnectFour.create(room.participants);
+      } else if (payload.action === 'move') room.activityState = ConnectFour.move(game, actor.playerId, payload.col);
+      else throw new Error('Unknown Connect 4 action.');
+      ack?.({ ok: true, value: publishGameRoom(key, room) });
     } catch (error) { ack?.({ ok: false, error: error.message }); }
   });
 
@@ -2813,6 +2832,14 @@ io.on('connection', socket => {
         && JSON.stringify(existingRoom.activityState) !== JSON.stringify(nextRoom.activityState)) {
         ack?.({ ok: false, error: 'Use Memory controls to update the cards.' }); return;
       }
+      const queuedConnectFour = nextRoom.queueActive === true && Number(nextRoom.queueIndex) > Number(existingRoom.queueIndex)
+        && nextRoom.activityQueue?.[Number(nextRoom.queueIndex) - 1] === 'connect-4';
+      if (nextRoom.currentActivity === 'connect-4' && (existingRoom.currentActivity !== 'connect-4' || queuedConnectFour)) {
+        nextRoom.activityState = ConnectFour.create(existingRoom.participants);
+      } else if (existingRoom.currentActivity === 'connect-4' && nextRoom.currentActivity === 'connect-4'
+        && JSON.stringify(existingRoom.activityState) !== JSON.stringify(nextRoom.activityState)) {
+        ack?.({ ok: false, error: 'Use Connect 4 controls to update the board.' }); return;
+      }
       const queuedCheckersRestart = nextRoom.queueActive === true
         && Number(nextRoom.queueIndex) > Number(existingRoom.queueIndex)
         && nextRoom.activityQueue?.[Number(nextRoom.queueIndex) - 1] === 'checkers';
@@ -2843,6 +2870,7 @@ io.on('connection', socket => {
       try { nextRoom.activityState = createFamilyFaceOffRound(nextRoom, nextRoom.activityState); }
       catch (error) { deleteRoomState(key); ack?.({ ok: false, error: error.message }); return; }
     }
+    if (!existingRoom && nextRoom.currentActivity === 'connect-4') nextRoom.activityState = ConnectFour.create(nextRoom.participants);
     if (!existingRoom && nextRoom.currentActivity === 'checkers') nextRoom.activityState = Checkers.createGame(nextRoom.participants);
     if (!existingRoom && nextRoom.currentActivity === 'chinese-checkers') nextRoom.activityState = createChineseCheckersRound(nextRoom, nextRoom.activityState?.playerCount);
     if (nextRoom.currentActivity === 'memory' && (!existingRoom || initializeMemory)) {

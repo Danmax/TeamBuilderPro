@@ -144,3 +144,68 @@ test('queued verified rewards survive activity removal and restart without dupli
   restarted = await startTestServer(t, { dataDir: f.dataDir }); socket = await connection(t, restarted.port);
   assert.equal((await emitAck(socket, 'wallet:open', auth)).wallet.points, 30, 'replayed delivery cannot double-credit');
 });
+
+test('Connect 4 credits each new win once and exchanges rewards into playable coins', async t => {
+  const f = await roomFixture(t);
+  const auth = { walletId: randomUUID(), walletToken: 'a'.repeat(64) };
+  assert((await emitAck(f.socket, 'wallet:open', auth)).ok);
+  const sync = () => emitAck(f.socket, 'wallet:action', { ...auth, key: f.key, ...f.host, action: 'sync' });
+  assert((await sync()).ok);
+  const guest = { actorToken: 'connect4_guest_token_1234567890_abcdef', playerId: 'guest', playerName: 'Guest' };
+  assert((await emitAck(f.socket, 'room:join', { key: f.key, ...guest })).ok);
+  let room = JSON.parse((await emitAck(f.socket, 'shared:get', { key: f.key })).value);
+  const opened = await emitAck(f.socket, 'shared:set', { key: f.key, ...f.host, value: JSON.stringify({ ...room, currentActivity: 'connect-4', activityState: { winner: 'red', phase: 'finished' } }) });
+  assert(opened.ok, opened.error); room = JSON.parse(opened.value);
+  assert.equal(room.activityState.winner, '');
+  const guestActor = { actorPlayerId: 'guest', actorPlayerName: 'Guest', actorToken: guest.actorToken };
+  const act = async (actor, action, extra = {}) => {
+    const r = await emitAck(f.socket, 'connect-4:action', { key: f.key, ...actor, action, gameId: room.activityState.id, version: room.activityState.version, ...extra });
+    if (r.value) room = JSON.parse(r.value);
+    return r;
+  };
+  assert.equal((await act(guestActor, 'move', { col: 0 })).ok, false);
+  const stale = { gameId: room.activityState.id, version: room.activityState.version };
+  for (let round = 0; round < 2; round++) {
+    for (const [i, col] of [0, 1, 0, 1, 0, 1, 0].entries()) {
+      const result = await act(i % 2 ? guestActor : f.host, 'move', { col }); assert(result.ok, result.error);
+    }
+    assert.equal((await sync()).wallet.points, 20 * (round + 1));
+    assert.equal((await sync()).wallet.points, 20 * (round + 1));
+    assert.equal((await act(f.host, 'move', { col: 2, ...stale })).ok, false);
+    const spoof = await emitAck(f.socket, 'shared:set', { key: f.key, ...f.host, value: JSON.stringify({ ...room, activityState: { ...room.activityState, winner: 'yellow' } }) });
+    assert.equal(spoof.ok, false);
+    if (!round) assert((await act(f.host, 'restart')).ok);
+  }
+  const exchange = await emitAck(f.socket, 'wallet:action', { ...auth, action: 'exchange', amount: 40, actionId: 'exchange-connect4-0001' });
+  assert(exchange.ok, exchange.error); assert.equal(exchange.wallet.points, 0); assert.equal(exchange.wallet.coins, 40);
+});
+
+test('Family Face-Off pays the winning team after host-reviewed play and cannot be replayed', async t => {
+  const f = await roomFixture(t);
+  const auth = { walletId: randomUUID(), walletToken: 'b'.repeat(64) };
+  assert((await emitAck(f.socket, 'wallet:open', auth)).ok);
+  const sync = () => emitAck(f.socket, 'wallet:action', { ...auth, key: f.key, ...f.host, action: 'sync' });
+  assert((await sync()).ok);
+  const guest = { actorToken: 'survey_guest_token_1234567890_abcdef', playerId: 'guest', playerName: 'Guest' };
+  assert((await emitAck(f.socket, 'room:join', { key: f.key, ...guest })).ok);
+  let room = JSON.parse((await emitAck(f.socket, 'shared:get', { key: f.key })).value);
+  const source = { questions: [{ prompt: 'Name a pet.', answers: [{ text: 'Cat', points: 60 }, { text: 'Dog', points: 40 }] }], roundCount: 1, rewardsQueued: true };
+  const opened = await emitAck(f.socket, 'shared:set', { key: f.key, ...f.host, value: JSON.stringify({ ...room, currentActivity: 'survey-clash', activityState: source }) });
+  assert(opened.ok, opened.error); room = JSON.parse(opened.value);
+  const act = async (action, extra = {}) => {
+    const game = room.activityState;
+    const r = await emitAck(f.socket, 'family-face-off:action', { key: f.key, ...f.host, action, gameId: game.id, version: game.version, roundIndex: game.roundIndex, ...extra });
+    assert(r.ok, r.error); room = JSON.parse(r.value);
+  };
+  await act('assign-team', { playerId: 'host', team: 0 });
+  await act('assign-team', { playerId: 'guest', team: 1 });
+  await act('start-faceoff', { reps: ['host', 'guest'] });
+  await act('buzz');
+  await act('host-answer', { text: 'Cat' });
+  await act('choose', { choice: 'play' });
+  await act('host-answer', { text: 'Dog' });
+  assert.equal((await sync()).wallet.points, 0, 'round wins do not also award match rewards');
+  await act('next-round');
+  assert.equal((await sync()).wallet.points, 30);
+  assert.equal((await sync()).wallet.points, 30);
+});
